@@ -564,6 +564,9 @@
      STEP NAVIGATION BAR (Pill-style top navigation)
      ============================================================ */
   .step-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
     display: flex;
     gap: 8px;
     background: #FFFFFF;
@@ -574,8 +577,8 @@
     margin-bottom: 20px;
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
     overflow: hidden;
-    width: 100%;
     box-sizing: border-box;
+    max-width: fit-content;
   }
 
   .step-link {
