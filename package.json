@@ -8,12 +8,17 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint src/ --ext .ts,.tsx",
+    "lint:fix": "eslint src/ --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "db:generate-types": "supabase gen types typescript --linked > src/shared/database.types.ts",
     "db:migration:new": "supabase migration new",
-    "db:migration:up": "supabase migration up"
+    "db:migration:up": "supabase migration up",
+    "deploy": "npm run build && firebase deploy --only hosting",
+    "deploy:hosting": "firebase deploy --only hosting"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
