@@ -1,7 +1,7 @@
 export const APP_NAME = 'ICDP Tax System';
 export const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
 
-export const MONTHS = [
+export const MONTHS: string[] = [
   'April',
   'May',
   'June',
@@ -14,11 +14,11 @@ export const MONTHS = [
   'January',
   'February',
   'March',
-] as const;
+];
 
-export type Month = (typeof MONTHS)[number];
+export type Month = string;
 
-export const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'] as const;
+export const QUARTERS: string[] = ['Q1', 'Q2', 'Q3', 'Q4'];
 
 export type Quarter = (typeof QUARTERS)[number];
 

@@ -1,6 +1,8 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
 import { MONTHS, QUARTER_MONTHS, getQuarterForMonth } from '@/shared/constants';
+
+const MONTH_ORDER = [...MONTHS];
 import type { DashboardData, MonthlyRoadmapData, Task, RecentTransaction } from '../types';
 import type { Database } from '@/shared/database.types';
 
@@ -39,12 +41,12 @@ function getCurrentMonthName(): string {
   const now = new Date();
   const monthIndex = now.getMonth() - 3;
   const adjustedIndex = monthIndex < 0 ? monthIndex + 12 : monthIndex;
-  return MONTHS[adjustedIndex];
+  return MONTHS[adjustedIndex] as string;
 }
 
 function getEntryMonthName(): string {
-  const currentIdx = MONTHS.indexOf(getCurrentMonthName());
-  return MONTHS[(currentIdx - 1 + 12) % 12];
+  const currentIdx = Number(MONTHS.indexOf(getCurrentMonthName() as string));
+  return MONTHS[(currentIdx - 1 + 12) % 12] as string;
 }
 
 function getCurrentQuarter(): string {
@@ -128,7 +130,7 @@ export const dashboardRepository = {
           monthlyData[i].tax += tax;
           if (tax === 0) hasZeroTax = true;
 
-          const quarter = getQuarterForMonth(month as any);
+          const quarter = getQuarterForMonth(month as typeof MONTH_ORDER[number]);
           empQuarterlySalary[quarter] += gross;
           empQuarterlyTDS[quarter] += tax;
         }
@@ -170,7 +172,7 @@ export const dashboardRepository = {
     });
 
     const monthlyRoadmap: MonthlyRoadmapData[] = monthlyData.map((m, i) => {
-      const entryMonthIdx = MONTHS.indexOf(entryMonthName as any);
+      const entryMonthIdx = MONTHS.indexOf(entryMonthName as typeof MONTHS[number]);
       const isCurrent = i === entryMonthIdx;
       const future = i > entryMonthIdx;
       const pct = m.active > 0 ? Math.round((m.processed / m.active) * 100) : 0;
@@ -197,7 +199,7 @@ export const dashboardRepository = {
       const months = QUARTER_MONTHS[q as keyof typeof QUARTER_MONTHS];
       let processed = 0;
       months.forEach((m) => {
-        const idx = MONTHS.indexOf(m as keyof typeof MONTHS);
+        const idx = MONTHS.indexOf(m as string);
         processed += monthlyData[idx]?.processed || 0;
       });
       quarterReadiness[q as keyof typeof quarterReadiness].processed = processed;
