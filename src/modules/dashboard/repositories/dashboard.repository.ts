@@ -1,5 +1,6 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
+import { useAuthStore } from '@/core/auth/store';
 import { MONTHS, QUARTER_MONTHS, getQuarterForMonth } from '@/shared/constants';
 
 const MONTH_ORDER = [...MONTHS];
@@ -16,7 +17,11 @@ interface SalaryMap {
 }
 
 function getOfficeId(): string | null {
-  return useUIStore.getState().activeOfficeId;
+  // Auth profile office is the source of truth; UI store is only an
+  // admin office-switch override.
+  const authOfficeId = useAuthStore.getState().user?.officeId || null;
+  if (authOfficeId) return authOfficeId;
+  return useUIStore.getState().activeOfficeId || null;
 }
 
 function buildSalaryMap(salaries: Salary[]): SalaryMap {
@@ -216,6 +221,8 @@ export const dashboardRepository = {
         icon: 'calendar-x',
         title: `${pendingEmployees} employees pending for ${entryMonthName}`,
         hint: 'Complete salary entries for the current month',
+        action: '/payroll',
+        actionLabel: 'Go to Payroll',
       });
     }
     if (missingPANs.length > 0) {
@@ -224,6 +231,8 @@ export const dashboardRepository = {
         icon: 'exclamation-triangle',
         title: `${missingPANs.length} employees missing PAN`,
         hint: 'Add PAN numbers in Settings > Employee Registration',
+        action: '/settings',
+        actionLabel: 'Open Settings',
       });
     }
     if (prevQuarterPending > 0) {
@@ -232,6 +241,8 @@ export const dashboardRepository = {
         icon: 'clipboard-x',
         title: `${prevQuarterPending} employees pending for previous quarter`,
         hint: 'Complete quarter-end verification',
+        action: '/reports',
+        actionLabel: 'View Reports',
       });
     }
 
@@ -269,6 +280,7 @@ export const dashboardRepository = {
       newJoinersThisMonth,
       departuresThisMonth,
       vendorCount: uniqueVendors.size,
+      entryMonthName: entryMonthName,
     };
   },
 };

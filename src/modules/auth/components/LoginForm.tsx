@@ -60,8 +60,8 @@ export function LoginForm() {
       </div>
 
       {loginMutation.error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <p className="text-red-600 text-sm">
+        <div className="alert alert-danger">
+          <p className="text-sm">
             {loginMutation.error instanceof Error
               ? loginMutation.error.message
               : 'Invalid email or password'}

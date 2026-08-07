@@ -49,11 +49,11 @@ export class PayrollService {
     return payrollRepository.copyPreviousMonth(prevMonth);
   }
 
-  async getQuarterReport(quarter: string, fy: number): Promise<QuarterReport> {
+  async getQuarterReport(quarter: string, fy: number, officeId?: string): Promise<QuarterReport> {
     if (!['Q1', 'Q2', 'Q3', 'Q4'].includes(quarter)) {
       throw new Error('Invalid quarter');
     }
-    return payrollRepository.getQuarterReport(quarter, fy);
+    return payrollRepository.getQuarterReport(quarter, fy, officeId);
   }
 
   private validateEntries(

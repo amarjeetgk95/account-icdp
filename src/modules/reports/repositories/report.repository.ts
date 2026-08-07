@@ -1,5 +1,6 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
+import { useAuthStore } from '@/core/auth/store';
 import { MONTHS } from '@/shared/constants';
 import type { YearlyReport, YearlyEmployeeRecord, YearlyVendorRecord } from '../types';
 import type { Database } from '@/shared/database.types';
@@ -8,7 +9,9 @@ type Employee = Database['public']['Tables']['employees']['Row'];
 type Salary = Database['public']['Tables']['employee_salaries']['Row'];
 
 function getOfficeId(): string | null {
-  return useUIStore.getState().activeOfficeId;
+  const authOfficeId = useAuthStore.getState().user?.officeId || null;
+  if (authOfficeId) return authOfficeId;
+  return useUIStore.getState().activeOfficeId || null;
 }
 
 function money(value: number): number {
@@ -57,7 +60,7 @@ export const reportRepository = {
 
     const { data: transactions } = await (supabase as any)
       .from('party_transactions')
-      .select('amount, cgst, sgst, igst, total_gst, income_tax, parties(id, name, gst_no, pan_no)')
+      .select('transaction_date, amount, cgst, sgst, igst, total_gst, income_tax, parties(id, name, gst_no, pan_no)')
       .eq('office_id', officeId);
 
     const salMap: Record<string, Record<string, Salary>> = {};

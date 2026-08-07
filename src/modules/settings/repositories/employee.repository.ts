@@ -1,12 +1,15 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
+import { useAuthStore } from '@/core/auth/store';
 import type { EmployeeInput } from '../validation/settings.schema';
 import type { Database } from '@/shared/database.types';
 
 type Employee = Database['public']['Tables']['employees']['Row'];
 
 function getOfficeId(): string | null {
-  return useUIStore.getState().activeOfficeId;
+  const authOfficeId = useAuthStore.getState().user?.officeId || null;
+  if (authOfficeId) return authOfficeId;
+  return useUIStore.getState().activeOfficeId || null;
 }
 
 export const employeeRepository = {

@@ -1,5 +1,6 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
+import { useAuthStore } from '@/core/auth/store';
 import { MONTHS } from '@/shared/constants';
 import type { EmployeeRosterItem, QuarterReport } from '../types';
 import type { Database } from '@/shared/database.types';
@@ -8,7 +9,9 @@ type Employee = Database['public']['Tables']['employees']['Row'];
 type Salary = Database['public']['Tables']['employee_salaries']['Row'];
 
 function getOfficeId(): string | null {
-  return useUIStore.getState().activeOfficeId;
+  const authOfficeId = useAuthStore.getState().user?.officeId || null;
+  if (authOfficeId) return authOfficeId;
+  return useUIStore.getState().activeOfficeId || null;
 }
 
 function getFinancialYear(): number {
@@ -16,6 +19,20 @@ function getFinancialYear(): number {
 }
 
 export const payrollRepository = {
+  async checkMonthData(month: string, fy: number, officeId?: string): Promise<{ count: number }> {
+    const targetOfficeId = officeId || getOfficeId();
+    if (!targetOfficeId) throw new Error('No office selected');
+
+    const { count } = await (supabase as any)
+      .from('employee_salaries')
+      .select('*', { count: 'exact', head: true })
+      .eq('financial_year', fy)
+      .eq('month', month)
+      .eq('office_id', targetOfficeId);
+
+    return { count: count || 0 };
+  },
+
   async getRosterForMonth(month: string): Promise<EmployeeRosterItem[]> {
     const officeId = getOfficeId();
     const fy = getFinancialYear();
@@ -199,14 +216,22 @@ export const payrollRepository = {
     const y1 = String(fy).slice(-2);
     const y2 = String(fy + 1).slice(-2);
 
+    const quarterLabels: Record<string, { work: string[]; paid: string[]; workYear: number[]; paidYear: number[] }> = {
+      Q1: { work: ['Mar', 'Apr', 'May'], paid: ['Apr', 'May', 'Jun'], workYear: [0, 0, 0], paidYear: [0, 0, 0] },
+      Q2: { work: ['Jun', 'Jul', 'Aug'], paid: ['Jul', 'Aug', 'Sep'], workYear: [0, 0, 0], paidYear: [0, 0, 0] },
+      Q3: { work: ['Sep', 'Oct', 'Nov'], paid: ['Oct', 'Nov', 'Dec'], workYear: [0, 0, 0], paidYear: [0, 0, 0] },
+      Q4: { work: ['Dec', 'Jan', 'Feb'], paid: ['Jan', 'Feb', 'Mar'], workYear: [0, 1, 1], paidYear: [1, 1, 1] },
+    };
+    const labelCfg = quarterLabels[quarter] || quarterLabels.Q1;
+
     return {
       fy,
       fyLabel: `${fy}-${y2}`,
       ayLabel: `${fy + 1}-${String(fy + 2).slice(-2)}`,
       quarter,
-      labels: months.map((m, i) => ({
-        work: `${['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'][MONTHS.indexOf(m as any)]}-${i < 9 ? y1 : y2}`,
-        paid: `${['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'][MONTHS.indexOf(m as any)]}-${i < 9 ? y1 : y2}`,
+      labels: labelCfg.work.map((_, i) => ({
+        work: `${labelCfg.work[i]}-${labelCfg.workYear[i] ? y2 : y1}`,
+        paid: `${labelCfg.paid[i]}-${labelCfg.paidYear[i] ? y2 : y1}`,
       })),
       rows,
     };

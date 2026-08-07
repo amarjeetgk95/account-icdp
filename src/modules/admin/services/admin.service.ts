@@ -1,4 +1,9 @@
 import { adminRepository } from '../repositories/admin.repository';
+import { officeService } from '@/modules/settings/services/office.service';
+import { payrollService } from '@/modules/payroll/services/payroll.service';
+import { partyService } from '@/modules/parties/services/party.service';
+import type { QuarterReport } from '@/modules/payroll/types';
+import type { GSTReport, IncomeTaxReport } from '@/modules/parties/types';
 import type {
   SystemStats,
   UserInfo,
@@ -70,6 +75,28 @@ export class AdminService {
 
   async getDataEntryReport(): Promise<DataEntryReportRow[]> {
     return adminRepository.getDataEntryReport();
+  }
+
+  async getFinancialYears(officeId: string): Promise<number[]> {
+    if (!officeId) throw new Error('No office selected');
+    return adminRepository.getFinancialYears(officeId);
+  }
+
+  async getOfficeDetails(officeId: string) {
+    if (!officeId) throw new Error('No office selected');
+    return officeService.getDetails(officeId);
+  }
+
+  async getQuarterReport(quarter: string, fy: number, officeId: string): Promise<QuarterReport> {
+    return payrollService.getQuarterReport(quarter, fy, officeId);
+  }
+
+  async getGSTReport(fy: number, quarter: string, officeId: string): Promise<GSTReport> {
+    return partyService.getGSTReport(fy, quarter, officeId);
+  }
+
+  async getIncomeTaxReport(fy: number, quarter: string, officeId: string): Promise<IncomeTaxReport> {
+    return partyService.getIncomeTaxReport(fy, quarter, officeId);
   }
 
   private validateUserInput(input: CreateUserInput): void {

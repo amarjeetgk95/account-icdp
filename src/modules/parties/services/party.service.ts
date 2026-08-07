@@ -20,18 +20,26 @@ export class PartyService {
     return partyRepository.saveTransaction(input);
   }
 
-  async getGSTReport(fy: number, quarter: string): Promise<GSTReport> {
-    if (!['Q1', 'Q2', 'Q3', 'Q4'].includes(quarter)) {
-      throw new Error('Invalid quarter');
-    }
-    return partyRepository.getGSTReport(fy, quarter);
+  async updateTransaction(id: string, updates: Partial<TransactionInput>): Promise<string> {
+    return partyRepository.updateTransaction(id, updates);
   }
 
-  async getIncomeTaxReport(fy: number, quarter: string): Promise<IncomeTaxReport> {
-    if (!['Q1', 'Q2', 'Q3', 'Q4'].includes(quarter)) {
+  async deleteTransaction(id: string): Promise<string> {
+    return partyRepository.deleteTransaction(id);
+  }
+
+  async getGSTReport(fy: number, quarter: string, officeId?: string): Promise<GSTReport> {
+    if (!['Q1', 'Q2', 'Q3', 'Q4', 'Yearly'].includes(quarter)) {
       throw new Error('Invalid quarter');
     }
-    return partyRepository.getIncomeTaxReport(fy, quarter);
+    return partyRepository.getGSTReport(fy, quarter, officeId);
+  }
+
+  async getIncomeTaxReport(fy: number, quarter: string, officeId?: string): Promise<IncomeTaxReport> {
+    if (!['Q1', 'Q2', 'Q3', 'Q4', 'Yearly'].includes(quarter)) {
+      throw new Error('Invalid quarter');
+    }
+    return partyRepository.getIncomeTaxReport(fy, quarter, officeId);
   }
 }
 

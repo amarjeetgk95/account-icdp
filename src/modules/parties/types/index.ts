@@ -36,6 +36,7 @@ export interface TransactionInput {
 export interface GSTReportRow {
   partyName: string;
   gstNo: string;
+  cpinNo: string;
   billNo: string;
   date: string;
   amount: number;

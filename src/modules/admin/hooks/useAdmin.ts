@@ -77,3 +77,43 @@ export function useDataEntryReport() {
     queryFn: () => adminService.getDataEntryReport(),
   });
 }
+
+export function useOfficeFinancialYears(officeId: string | null) {
+  return useQuery({
+    queryKey: ['admin-office-financial-years', officeId],
+    queryFn: () => adminService.getFinancialYears(officeId!),
+    enabled: !!officeId,
+  });
+}
+
+export function useReportOfficeDetails(officeId: string | null) {
+  return useQuery({
+    queryKey: ['admin-report-office-details', officeId],
+    queryFn: () => adminService.getOfficeDetails(officeId!),
+    enabled: !!officeId,
+  });
+}
+
+export function useAdminQuarterReport(quarter: string, fy: number | null, officeId: string | null) {
+  return useQuery({
+    queryKey: ['admin-quarter-report', quarter, fy, officeId],
+    queryFn: () => adminService.getQuarterReport(quarter, fy!, officeId!),
+    enabled: !!quarter && !!fy && !!officeId,
+  });
+}
+
+export function useAdminGSTReport(quarter: string, fy: number | null, officeId: string | null) {
+  return useQuery({
+    queryKey: ['admin-gst-report', quarter, fy, officeId],
+    queryFn: () => adminService.getGSTReport(fy!, quarter, officeId!),
+    enabled: !!quarter && !!fy && !!officeId,
+  });
+}
+
+export function useAdminIncomeTaxReport(quarter: string, fy: number | null, officeId: string | null) {
+  return useQuery({
+    queryKey: ['admin-it-report', quarter, fy, officeId],
+    queryFn: () => adminService.getIncomeTaxReport(fy!, quarter, officeId!),
+    enabled: !!quarter && !!fy && !!officeId,
+  });
+}

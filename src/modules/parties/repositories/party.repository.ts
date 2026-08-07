@@ -1,12 +1,16 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
+import { useAuthStore } from '@/core/auth/store';
+import { MONTHS } from '@/shared/constants';
 import type { Party, PartyTransaction, TransactionInput, GSTReport, IncomeTaxReport } from '../types';
 import type { Database } from '@/shared/database.types';
 
 type PartyRow = Database['public']['Tables']['parties']['Row'];
 
 function getOfficeId(): string | null {
-  return useUIStore.getState().activeOfficeId;
+  const authOfficeId = useAuthStore.getState().user?.officeId || null;
+  if (authOfficeId) return authOfficeId;
+  return useUIStore.getState().activeOfficeId || null;
 }
 
 function money(value: number): number {
@@ -139,9 +143,47 @@ export const partyRepository = {
     return 'Transaction saved successfully';
   },
 
-  async getGSTReport(fy: number, quarter: string): Promise<GSTReport> {
+  async updateTransaction(id: string, updates: Partial<TransactionInput>): Promise<string> {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
+
+    const upd: any = {};
+    if (updates.billNo !== undefined) upd.bill_no = updates.billNo.trim() || null;
+    if (updates.date !== undefined) upd.transaction_date = updates.date;
+    if (updates.amount !== undefined) upd.amount = money(updates.amount);
+    if (updates.cgst !== undefined) upd.cgst = money(updates.cgst || 0);
+    if (updates.sgst !== undefined) upd.sgst = money(updates.sgst || 0);
+    if (updates.igst !== undefined) upd.igst = money(updates.igst || 0);
+    if (updates.incomeTax !== undefined) upd.income_tax = money(updates.incomeTax || 0);
+    if (updates.cpinNo !== undefined) upd.cpin_no = updates.cpinNo.trim() || null;
+
+    const { error } = await (supabase as any)
+      .from('party_transactions')
+      .update(upd)
+      .eq('id', id)
+      .eq('office_id', officeId);
+
+    if (error) throw error;
+    return 'Transaction updated successfully';
+  },
+
+  async deleteTransaction(id: string): Promise<string> {
+    const officeId = getOfficeId();
+    if (!officeId) throw new Error('No office selected');
+
+    const { error } = await (supabase as any)
+      .from('party_transactions')
+      .delete()
+      .eq('id', id)
+      .eq('office_id', officeId);
+
+    if (error) throw error;
+    return 'Transaction deleted successfully';
+  },
+
+  async getGSTReport(fy: number, quarter: string, officeId?: string): Promise<GSTReport> {
+    const targetOfficeId = officeId || getOfficeId();
+    if (!targetOfficeId) throw new Error('No office selected');
 
     const quarterMonths: Record<string, string[]> = {
       Q1: ['April', 'May', 'June'],
@@ -150,19 +192,20 @@ export const partyRepository = {
       Q4: ['January', 'February', 'March'],
     };
 
-    const months = quarterMonths[quarter] || quarterMonths.Q1;
+    const isYearly = quarter === 'Yearly';
+    const months = isYearly ? MONTHS : quarterMonths[quarter] || quarterMonths.Q1;
 
     const { data, error } = await (supabase as any)
       .from('party_transactions')
-      .select('bill_no, transaction_date, amount, cgst, sgst, igst, total_gst, parties(name, gst_no)')
-      .eq('office_id', officeId)
+      .select('bill_no, cpin_no, transaction_date, amount, cgst, sgst, igst, total_gst, parties(name, gst_no)')
+      .eq('office_id', targetOfficeId)
       .gte('transaction_date', `${fy}-04-01`)
       .order('id');
 
     if (error) throw error;
 
     const monthRanges = months.map((m) => {
-      const monthNum = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'].indexOf(m);
+      const monthNum = MONTHS.indexOf(m);
       const year = monthNum < 9 ? fy : fy + 1;
       const month = (monthNum % 12) + 1;
       return { year, month };
@@ -170,6 +213,11 @@ export const partyRepository = {
 
     const filtered = (data || []).filter((tx: any) => {
       const date = new Date(tx.transaction_date);
+      if (isYearly) {
+        const txMonth = date.getMonth();
+        const txFy = txMonth >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+        return txFy === fy;
+      }
       return monthRanges.some(
         (r) => date.getFullYear() === r.year && date.getMonth() + 1 === r.month
       );
@@ -178,6 +226,7 @@ export const partyRepository = {
     const rows = filtered.map((tx: any) => ({
       partyName: tx.parties?.name || 'Unknown',
       gstNo: tx.parties?.gst_no || '-',
+      cpinNo: tx.cpin_no || '-',
       billNo: tx.bill_no,
       date: tx.transaction_date,
       amount: money(tx.amount),
@@ -201,9 +250,9 @@ export const partyRepository = {
     };
   },
 
-  async getIncomeTaxReport(fy: number, quarter: string): Promise<IncomeTaxReport> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+  async getIncomeTaxReport(fy: number, quarter: string, officeId?: string): Promise<IncomeTaxReport> {
+    const targetOfficeId = officeId || getOfficeId();
+    if (!targetOfficeId) throw new Error('No office selected');
 
     const quarterMonths: Record<string, string[]> = {
       Q1: ['April', 'May', 'June'],
@@ -212,18 +261,20 @@ export const partyRepository = {
       Q4: ['January', 'February', 'March'],
     };
 
-    const months = quarterMonths[quarter] || quarterMonths.Q1;
+    const isYearly = quarter === 'Yearly';
+    const months = isYearly ? MONTHS : quarterMonths[quarter] || quarterMonths.Q1;
 
     const { data, error } = await (supabase as any)
       .from('party_transactions')
       .select('bill_no, transaction_date, amount, income_tax, parties(name, pan_no)')
-      .eq('office_id', officeId)
+      .eq('office_id', targetOfficeId)
+      .gte('transaction_date', `${fy}-04-01`)
       .order('id');
 
     if (error) throw error;
 
     const monthRanges = months.map((m) => {
-      const monthNum = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'].indexOf(m);
+      const monthNum = MONTHS.indexOf(m);
       const year = monthNum < 9 ? fy : fy + 1;
       const month = (monthNum % 12) + 1;
       return { year, month };
@@ -231,6 +282,11 @@ export const partyRepository = {
 
     const filtered = (data || []).filter((tx: any) => {
       const date = new Date(tx.transaction_date);
+      if (isYearly) {
+        const txMonth = date.getMonth();
+        const txFy = txMonth >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+        return txFy === fy;
+      }
       return monthRanges.some(
         (r) => date.getFullYear() === r.year && date.getMonth() + 1 === r.month
       );

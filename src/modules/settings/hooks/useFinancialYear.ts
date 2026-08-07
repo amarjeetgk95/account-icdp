@@ -1,13 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { financialYearRepository } from '../repositories/financialYear.repository';
 import { useUIStore } from '@/core/stores/ui-store';
+import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 
 export function useFinancialYear() {
   const queryClient = useQueryClient();
   const setActiveFinancialYear = useUIStore((state) => state.setActiveFinancialYear);
+  const officeId = useActiveOfficeId();
 
   const yearQuery = useQuery({
-    queryKey: ['financial-year'],
+    queryKey: ['financial-year', officeId],
     queryFn: () => financialYearRepository.getCurrent(),
   });
 

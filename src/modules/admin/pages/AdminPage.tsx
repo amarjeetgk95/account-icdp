@@ -1,10 +1,11 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useAuthStore } from '@/core/auth/store';
 import { useSystemStats, useOfficeStats, useUsers, useOffices, useCreateUser, useDataEntryReport } from '../hooks/useAdmin';
 import { UserList } from '../components/UserList';
 import { OfficeStatsTable } from '../components/OfficeStatsTable';
 import { CreateUserForm } from '../components/CreateUserForm';
 import { DataEntryReport } from '../components/DataEntryReport';
+import { AdminReports } from '../components/AdminReports';
 import { useUIStore } from '@/core/stores/ui-store';
 
 type TabId = 'overview' | 'users' | 'report';
@@ -22,35 +23,31 @@ export function AdminPage() {
   const { data: reportData } = useDataEntryReport();
 
   const tabs: { id: TabId; label: string; icon: string }[] = [
-    { id: 'overview', label: 'System Overview', icon: '📊' },
-    { id: 'users', label: 'User Management', icon: '👥' },
-    { id: 'report', label: 'Data Entry Report', icon: '📋' },
+    { id: 'overview', label: 'System Overview', icon: 'O' },
+    { id: 'users', label: 'User Management', icon: 'U' },
+    { id: 'report', label: 'Data Entry Report', icon: 'R' },
   ];
 
   const handleSetRole = async (userId: string, role: 'admin' | 'office') => {
     const targetUser = users.find((u) => u.id === userId);
     if (!targetUser) return;
-
-    if (!confirm(`Change role of "${targetUser.email}" to ${role}?`)) return;
+    if (!confirm('Change role of "' + targetUser.email + '" to ' + role + '?')) return;
     setUserRole({ userId, role, officeId: targetUser.office_id });
   };
 
   const handleDeleteUser = async (userId: string) => {
     const targetUser = users.find((u) => u.id === userId);
     if (!targetUser) return;
-
-    if (!confirm(`⚠️ PERMANENTLY DELETE user "${targetUser.email}"?\n\nTheir account and office with ALL its data will be permanently deleted. This cannot be undone.`)) return;
-
-    const code = prompt('Type "DELETE" to confirm:');
+    if (!confirm('DELETE user "' + targetUser.email + '"? This cannot be undone.')) return;
+    const code = prompt('Type DELETE to confirm:');
     if (code?.toUpperCase() !== 'DELETE') return;
-
     deleteUser(userId);
   };
 
   const handleCreateUser = async (input: { email: string; password: string; role: 'admin' | 'office'; officeName: string }) => {
     try {
       await createUser.mutateAsync(input);
-      alert(`User ${input.email} created successfully!`);
+      alert('User ' + input.email + ' created successfully!');
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to create user');
     }
@@ -58,136 +55,75 @@ export function AdminPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Admin Console</h1>
-        <p className="text-slate-500 mt-1">System-wide oversight, user management and per-office data entry reports.</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Admin Console</h1>
+          <p className="text-slate-500 text-sm mt-1">System-wide oversight and user management</p>
+        </div>
       </div>
 
-      {/* Tab Navigation */}
       <div className="flex border-b border-slate-200 mb-6">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
+            className={"px-4 py-3 text-sm font-medium border-b-2 transition-colors " +
+              (activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700')}
           >
-            <span className="mr-2">{tab.icon}</span>
-            {tab.label}
+            <span className="mr-2">{tab.icon}</span>{tab.label}
           </button>
         ))}
       </div>
 
-      {/* Tab Content */}
       <div className="space-y-6">
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard label="Total Users" value={stats?.users ?? '—'} color="blue" />
-              <StatCard label="Admins" value={stats?.admins ?? '—'} color="purple" />
-              <StatCard label="Offices" value={stats?.offices ?? '—'} color="green" />
-              <StatCard label="Current FY" value={stats ? `${stats.fy}-${(stats.fy + 1) % 100}` : '—'} color="amber" />
+              <div className="card p-4"><div className="text-xs font-bold text-blue-600 uppercase">Total Users</div><div className="text-xl font-extrabold mt-1">{stats?.users ?? '-'}</div></div>
+              <div className="card p-4"><div className="text-xs font-bold text-purple-600 uppercase">Admins</div><div className="text-xl font-extrabold mt-1">{stats?.admins ?? '-'}</div></div>
+              <div className="card p-4"><div className="text-xs font-bold text-green-600 uppercase">Offices</div><div className="text-xl font-extrabold mt-1">{stats?.offices ?? '-'}</div></div>
+              <div className="card p-4"><div className="text-xs font-bold text-amber-600 uppercase">Current FY</div><div className="text-xl font-extrabold mt-1">{stats ? stats.fy + '-' + ((stats.fy + 1) % 100) : '-'}</div></div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard label="Employees" value={stats?.employees ?? '—'} color="blue" />
-              <StatCard label="Salary Records" value={stats?.salaries ?? '—'} color="green" />
-              <StatCard label="Vendors" value={stats?.parties ?? '—'} color="amber" />
-              <StatCard label="Party Transactions" value={stats?.transactions ?? '—'} color="red" />
+              <div className="card p-4"><div className="text-xs font-bold text-blue-600 uppercase">Employees</div><div className="text-xl font-extrabold mt-1">{stats?.employees ?? '-'}</div></div>
+              <div className="card p-4"><div className="text-xs font-bold text-green-600 uppercase">Salary Records</div><div className="text-xl font-extrabold mt-1">{stats?.salaries ?? '-'}</div></div>
+              <div className="card p-4"><div className="text-xs font-bold text-amber-600 uppercase">Vendors</div><div className="text-xl font-extrabold mt-1">{stats?.parties ?? '-'}</div></div>
+              <div className="card p-4"><div className="text-xs font-bold text-red-600 uppercase">Transactions</div><div className="text-xl font-extrabold mt-1">{stats?.transactions ?? '-'}</div></div>
             </div>
 
-            {/* Office Details */}
             {stats?.officeName && (
-              <div className="card p-5">
-                <h3 className="text-sm font-bold text-slate-800 mb-2">Office Details</h3>
-                <p className="text-slate-600">{stats.officeName} — FY {stats.fy}-{(stats.fy + 1) % 100}</p>
-              </div>
+              <div className="card p-5"><h3 className="text-sm font-bold text-slate-800 mb-2">Office Details</h3><p className="text-slate-600">{stats.officeName}</p></div>
             )}
 
-            {/* Office Stats Table */}
-            <div className="card p-5">
-              <h3 className="text-sm font-bold text-slate-800 pb-3 border-b border-slate-200 mb-4">
-                Offices at a Glance
-              </h3>
-              <OfficeStatsTable
-                offices={officeStats ?? []}
-                isLoading={!officeStats}
-                activeOfficeId={activeOfficeId}
-              />
+            <div className="card">
+              <div className="card-header"><h3 className="font-semibold">Offices at a Glance</h3></div>
+              <div className="card-body"><OfficeStatsTable offices={officeStats ?? []} isLoading={!officeStats} activeOfficeId={activeOfficeId} /></div>
             </div>
           </div>
         )}
 
         {activeTab === 'users' && (
           <div className="space-y-6">
-            {/* Create User */}
-            <div className="card p-5">
-              <h3 className="text-sm font-bold text-slate-800 pb-3 border-b border-slate-200 mb-4">
-                Add User
-              </h3>
-              <CreateUserForm
-                offices={offices ?? []}
-                onSubmit={handleCreateUser}
-                isLoading={createUser.isPending}
-              />
+            <div className="card">
+              <div className="card-header"><h3 className="font-semibold">Add User</h3></div>
+              <div className="card-body"><CreateUserForm offices={offices ?? []} onSubmit={handleCreateUser} isLoading={createUser.isPending} /></div>
             </div>
-
-            {/* User List */}
-            <div className="card p-5">
-              <h3 className="text-sm font-bold text-slate-800 pb-3 border-b border-slate-200 mb-4">
-                Users & Roles
-              </h3>
-              <UserList
-                users={users}
-                isLoading={usersLoading}
-                onSetRole={handleSetRole}
-                onDelete={handleDeleteUser}
-                currentUserEmail={user?.email}
-              />
+            <div className="card">
+              <div className="card-header"><h3 className="font-semibold">Users & Roles</h3></div>
+              <div className="card-body"><UserList users={users} isLoading={usersLoading} onSetRole={handleSetRole} onDelete={handleDeleteUser} currentUserEmail={user?.email} /></div>
             </div>
           </div>
         )}
 
         {activeTab === 'report' && (
-          <div className="card p-5">
-            <h3 className="text-sm font-bold text-slate-800 pb-3 border-b border-slate-200 mb-4">
-              Data Entry Summary
-            </h3>
-            <DataEntryReport data={reportData ?? []} isLoading={!reportData} />
+          <div className="space-y-6">
+            <div className="card">
+              <div className="card-header"><h3 className="font-semibold">Data Entry Summary</h3></div>
+              <div className="card-body"><DataEntryReport data={reportData ?? []} isLoading={!reportData} /></div>
+            </div>
+            <AdminReports offices={offices ?? []} officesLoading={!offices} />
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string | number;
-  color: 'blue' | 'purple' | 'green' | 'amber' | 'red';
-}) {
-  const colors = {
-    blue: 'text-blue-600',
-    purple: 'text-purple-600',
-    green: 'text-green-600',
-    amber: 'text-amber-600',
-    red: 'text-red-600',
-  };
-
-  return (
-    <div className="card p-4">
-      <div className={`text-xs font-bold uppercase tracking-wide mb-1 ${colors[color]}`}>
-        {label}
-      </div>
-      <div className="text-xl font-extrabold text-slate-800">
-        {typeof value === 'number' ? value.toLocaleString('en-IN') : value}
       </div>
     </div>
   );

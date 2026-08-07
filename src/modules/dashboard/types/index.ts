@@ -28,6 +28,8 @@ export interface Task {
   icon: string;
   title: string;
   hint: string;
+  action?: string;
+  actionLabel?: string;
 }
 
 export interface RecentTransaction {
@@ -57,7 +59,8 @@ export interface DashboardData {
   prevQuarterPending: number;
   zeroTaxEntries: string[];
   missingPANs: string[];
-  newJoinersThisMonth: number;
-  departuresThisMonth: number;
-  vendorCount: number;
-}
+   newJoinersThisMonth: number;
+   departuresThisMonth: number;
+   vendorCount: number;
+   entryMonthName?: string;
+ }

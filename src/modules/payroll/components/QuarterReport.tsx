@@ -4,9 +4,10 @@ import { formatCurrency } from '@/shared/utilities';
 interface QuarterReportProps {
   report: QuarterReportType | null;
   isLoading: boolean;
+  showHeader?: boolean;
 }
 
-export function QuarterReportView({ report, isLoading }: QuarterReportProps) {
+export function QuarterReportView({ report, isLoading, showHeader = true }: QuarterReportProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -40,12 +41,14 @@ export function QuarterReportView({ report, isLoading }: QuarterReportProps) {
 
   return (
     <div className="space-y-4">
-      <div className="text-center space-y-1 py-4 border-b border-slate-200">
-        <h2 className="text-lg font-bold">24Q Employee Salary & Tax Deduction Statement</h2>
-        <p className="text-sm text-slate-600">
-          FY: {report.fyLabel} | AY: {report.ayLabel} | Period: {report.quarter} Ending
-        </p>
-      </div>
+      {showHeader && (
+        <div className="text-center space-y-1 py-4 border-b border-slate-200">
+          <h2 className="text-lg font-bold">24Q Employee Salary & Tax Deduction Statement</h2>
+          <p className="text-sm text-slate-600">
+            FY: {report.fyLabel} | AY: {report.ayLabel} | Period: {report.quarter} Ending
+          </p>
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">

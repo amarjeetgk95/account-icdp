@@ -8,6 +8,7 @@ interface UIState {
   setActiveOfficeId: (id: string) => void;
   setActiveFinancialYear: (year: number) => void;
   toggleSidebar: () => void;
+  initializeOffice: (officeId: string | null) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -22,11 +23,13 @@ export const useUIStore = create<UIState>()(
       setActiveOfficeId: (id) => set({ activeOfficeId: id }),
       setActiveFinancialYear: (year) => set({ activeFinancialYear: year }),
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+      initializeOffice: (officeId) => {
+        set({ activeOfficeId: officeId });
+      },
     }),
     {
       name: 'icdp-ui-store',
       partialize: (state) => ({
-        activeOfficeId: state.activeOfficeId,
         activeFinancialYear: state.activeFinancialYear,
         sidebarCollapsed: state.sidebarCollapsed,
       }),

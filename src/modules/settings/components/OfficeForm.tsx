@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { officeDetailsSchema, type OfficeDetailsInput } from '../validation/settings.schema';
+import type { OfficeDetailsInput } from '../validation/settings.schema';
 import { useOfficeDetails } from '../hooks/useOfficeDetails';
 
 export function OfficeForm() {
@@ -14,7 +13,6 @@ export function OfficeForm() {
     reset,
     formState: { errors, isSubmitting },
   } = useForm({
-    resolver: zodResolver(officeDetailsSchema),
     defaultValues: {
       officeName: '',
       subtitle: '',
@@ -48,7 +46,7 @@ export function OfficeForm() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="spinner h-8 w-8"></div>
       </div>
     );
   }
@@ -57,9 +55,7 @@ export function OfficeForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="officeName" className="label">
-            Office Name
-          </label>
+          <label htmlFor="officeName" className="label">Office Name</label>
           <input
             id="officeName"
             {...register('officeName')}
@@ -70,9 +66,7 @@ export function OfficeForm() {
         </div>
 
         <div>
-          <label htmlFor="subtitle" className="label">
-            Subtitle
-          </label>
+          <label htmlFor="subtitle" className="label">Subtitle</label>
           <input
             id="subtitle"
             {...register('subtitle')}
@@ -82,9 +76,7 @@ export function OfficeForm() {
         </div>
 
         <div className="md:col-span-2">
-          <label htmlFor="address" className="label">
-            Address
-          </label>
+          <label htmlFor="address" className="label">Address</label>
           <input
             id="address"
             {...register('address')}
@@ -94,9 +86,7 @@ export function OfficeForm() {
         </div>
 
         <div>
-          <label htmlFor="phone" className="label">
-            Phone Number
-          </label>
+          <label htmlFor="phone" className="label">Phone Number</label>
           <input
             id="phone"
             {...register('phone')}
@@ -106,9 +96,7 @@ export function OfficeForm() {
         </div>
 
         <div>
-          <label htmlFor="email" className="label">
-            Email ID
-          </label>
+          <label htmlFor="email" className="label">Email ID</label>
           <input
             id="email"
             type="email"
@@ -120,9 +108,7 @@ export function OfficeForm() {
         </div>
 
         <div>
-          <label htmlFor="gst" className="label">
-            GST Number
-          </label>
+          <label htmlFor="gst" className="label">GST Number</label>
           <input
             id="gst"
             {...register('gst')}
@@ -132,9 +118,7 @@ export function OfficeForm() {
         </div>
 
         <div>
-          <label htmlFor="tan" className="label">
-            Income Tax TAN
-          </label>
+          <label htmlFor="tan" className="label">Income Tax TAN</label>
           <input
             id="tan"
             {...register('tan')}
@@ -146,12 +130,8 @@ export function OfficeForm() {
 
       {submitStatus && (
         <div
-          className={`px-4 py-2 rounded-lg ${
-            submitStatus.type === 'success'
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : submitStatus.type === 'error'
-              ? 'bg-red-50 text-red-700 border border-red-200'
-              : 'bg-blue-50 text-blue-700 border border-blue-200'
+          className={`alert alert-${
+            submitStatus.type === 'success' ? 'success' : submitStatus.type === 'error' ? 'danger' : 'info'
           }`}
         >
           {submitStatus.message}

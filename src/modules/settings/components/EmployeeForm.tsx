@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { employeeSchema, type EmployeeInput } from '../validation/settings.schema';
 import { useEmployees } from '../hooks/useEmployees';
 
+
 interface EmployeeFormProps {
   editingEmployee: EmployeeInput | null;
   onCancel: () => void;
@@ -109,7 +110,7 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           <label htmlFor="name" className="label">
             Employee Name
           </label>
@@ -190,12 +191,8 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
 
       {submitStatus && (
         <div
-          className={`px-4 py-2 rounded-lg ${
-            submitStatus.type === 'success'
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : submitStatus.type === 'error'
-              ? 'bg-red-50 text-red-700 border border-red-200'
-              : 'bg-blue-50 text-blue-700 border border-blue-200'
+          className={`alert alert-${
+            submitStatus.type === 'success' ? 'success' : submitStatus.type === 'error' ? 'danger' : 'info'
           }`}
         >
           {submitStatus.message}

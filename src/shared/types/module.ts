@@ -13,7 +13,7 @@ export interface RouteDefinition {
 export interface ModuleDefinition {
   id: string;
   name: string;
-  icon: string;
+  icon?: string;
   navGroup: NavGroup;
   permissions?: UserRole[];
   featureFlag?: keyof FeatureFlagKeys;

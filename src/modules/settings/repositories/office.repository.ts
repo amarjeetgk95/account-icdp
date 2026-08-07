@@ -1,20 +1,23 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
+import { useAuthStore } from '@/core/auth/store';
 import type { OfficeDetailsInput } from '../validation/settings.schema';
 
 function getOfficeId(): string | null {
-  return useUIStore.getState().activeOfficeId;
+  const authOfficeId = useAuthStore.getState().user?.officeId || null;
+  if (authOfficeId) return authOfficeId;
+  return useUIStore.getState().activeOfficeId || null;
 }
 
 export const officeRepository = {
-  async get(): Promise<OfficeDetailsInput> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+  async get(officeId?: string): Promise<OfficeDetailsInput> {
+    const targetOfficeId = officeId || getOfficeId();
+    if (!targetOfficeId) throw new Error('No office selected');
 
     const { data, error } = await (supabase as any)
       .from('office_details')
       .select('office_name, subtitle, address, phone, email, gst, tan')
-      .eq('office_id', officeId)
+      .eq('office_id', targetOfficeId)
       .maybeSingle();
 
     if (error && error.code !== 'PGRST116') throw error;

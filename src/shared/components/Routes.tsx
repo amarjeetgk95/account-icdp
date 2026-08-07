@@ -21,6 +21,10 @@ export function Routes({ modules }: RoutesProps) {
           return null;
         }
 
+        if (isAdmin && module.navGroup !== 'admin') {
+          return null;
+        }
+
         return module.routes.map((route) => (
           <Route
             key={`${module.id}-${route.path}`}
@@ -30,7 +34,7 @@ export function Routes({ modules }: RoutesProps) {
         ));
       })}
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />} />
       <Route path="*" element={<NotFound />} />
     </RouterRoutes>
   );

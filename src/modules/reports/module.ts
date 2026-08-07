@@ -1,10 +1,9 @@
-import type { ModuleDefinition } from '@/shared/types/module';
+﻿import type { ModuleDefinition } from '@/shared/types/module';
 import { reportsRoutes } from './routes';
 
 const moduleDefinition: ModuleDefinition = {
   id: 'reports',
   name: 'Reports',
-  icon: '📊',
   navGroup: 'reports',
   routes: reportsRoutes,
   sidebar: true,

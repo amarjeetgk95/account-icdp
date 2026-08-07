@@ -1,10 +1,9 @@
-import type { ModuleDefinition } from '@/shared/types/module';
+﻿import type { ModuleDefinition } from '@/shared/types/module';
 import { dashboardRoutes } from './routes';
 
 const moduleDefinition: ModuleDefinition = {
   id: 'dashboard',
   name: 'Dashboard',
-  icon: '📊',
   navGroup: 'main',
   routes: dashboardRoutes,
   sidebar: true,

@@ -4,7 +4,7 @@ import { useFinancialYear } from '../hooks/useFinancialYear';
 export function FinancialYearForm() {
   const { currentYear, isLoading, changeYearAsync } = useFinancialYear();
   const [newYear, setNewYear] = useState<number | ''>('');
-  const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,7 +21,7 @@ export function FinancialYearForm() {
     }
 
     try {
-      setSubmitStatus({ type: 'info', message: 'Updating financial year...' });
+      setSubmitStatus({ type: 'success', message: 'Updating financial year...' });
       await changeYearAsync(newYear);
       setSubmitStatus({
         type: 'success',
@@ -42,13 +42,13 @@ export function FinancialYearForm() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="spinner h-8 w-8"></div>
       </div>
     );
   }
 
-  const currentYearLabel = currentYear ? `${currentYear}-${(currentYear as number) + 1}` : '-';
-  const suggestedYear = currentYear ? (currentYear as number) + 1 : '';
+  const currentYearLabel = currentYear ? `${currentYear}-${currentYear + 1}` : '-';
+  const suggestedYear = currentYear ? currentYear + 1 : '';
 
   return (
     <div className="space-y-4">
@@ -60,9 +60,7 @@ export function FinancialYearForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
-            <label htmlFor="currentFY" className="label">
-              Current Financial Year
-            </label>
+            <label htmlFor="currentFY" className="label">Current Financial Year</label>
             <input
               id="currentFY"
               type="text"
@@ -73,9 +71,7 @@ export function FinancialYearForm() {
           </div>
 
           <div>
-            <label htmlFor="newFY" className="label">
-              New Financial Year
-            </label>
+            <label htmlFor="newFY" className="label">New Financial Year</label>
             <input
               id="newFY"
               type="number"
@@ -96,18 +92,18 @@ export function FinancialYearForm() {
         </div>
 
         {showConfirm && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-amber-800 font-medium mb-2">
+          <div className="alert alert-warning">
+            <p className="font-medium mb-2">
               Are you sure you want to change the financial year to {newYear}-{Number(newYear) + 1}?
             </p>
-            <p className="text-amber-700 text-sm mb-3">
+            <p className="text-sm mb-3">
               All existing salary and vendor data will be kept. Nothing is deleted.
             </p>
             <div className="flex gap-2">
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className="btn btn-primary btn-sm">
                 Yes, Change Financial Year
               </button>
-              <button type="button" onClick={handleCancel} className="btn btn-secondary">
+              <button type="button" onClick={handleCancel} className="btn btn-secondary btn-sm">
                 Cancel
               </button>
             </div>
@@ -115,15 +111,7 @@ export function FinancialYearForm() {
         )}
 
         {submitStatus && !showConfirm && (
-          <div
-            className={`px-4 py-2 rounded-lg ${
-              submitStatus.type === 'success'
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : submitStatus.type === 'error'
-                ? 'bg-red-50 text-red-700 border border-red-200'
-                : 'bg-blue-50 text-blue-700 border border-blue-200'
-            }`}
-          >
+          <div className={`alert alert-${submitStatus.type === 'success' ? 'success' : 'danger'}`}>
             {submitStatus.message}
           </div>
         )}

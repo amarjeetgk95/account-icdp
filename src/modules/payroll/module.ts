@@ -1,10 +1,9 @@
-import type { ModuleDefinition } from '@/shared/types/module';
+﻿import type { ModuleDefinition } from '@/shared/types/module';
 import { payrollRoutes } from './routes';
 
 const moduleDefinition: ModuleDefinition = {
   id: 'payroll',
   name: 'Payroll',
-  icon: '💰',
   navGroup: 'main',
   routes: payrollRoutes,
   sidebar: true,

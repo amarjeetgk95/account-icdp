@@ -1,0 +1,16 @@
+{
+  "name": "ICDP Tax System",
+  "short_name": "ICDP",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "description": "Intensive Cattle Development Programme - Tax & Salary Management",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

@@ -1,13 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { officeService } from '../services/office.service';
+import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 import type { OfficeDetailsInput } from '../validation/settings.schema';
 
 export function useOfficeDetails() {
   const queryClient = useQueryClient();
+  const officeId = useActiveOfficeId();
 
   const detailsQuery = useQuery({
-    queryKey: ['office-details'],
+    queryKey: ['office-details', officeId],
     queryFn: () => officeService.getDetails(),
+    enabled: !!officeId,
   });
 
   const saveMutation = useMutation({

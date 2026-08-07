@@ -1,14 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { payrollService } from '../services/payroll.service';
+import { payrollRepository } from '../repositories/payroll.repository';
 import { useUIStore } from '@/core/stores/ui-store';
+import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 
 export function useRoster(month: string) {
   const fy = useUIStore((state) => state.activeFinancialYear);
+  const officeId = useActiveOfficeId();
 
   return useQuery({
-    queryKey: ['payroll-roster', month, fy],
+    queryKey: ['payroll-roster', month, fy, officeId],
     queryFn: () => payrollService.getRoster(month),
-    enabled: !!month,
+    enabled: !!month && !!officeId,
   });
 }
 
@@ -46,10 +49,23 @@ export function useCopyPreviousMonth() {
 
 export function useQuarterReport(quarter: string) {
   const fy = useUIStore((state) => state.activeFinancialYear);
+  const officeId = useActiveOfficeId();
 
   return useQuery({
-    queryKey: ['payroll-quarter-report', quarter, fy],
+    queryKey: ['payroll-quarter-report', quarter, fy, officeId],
     queryFn: () => payrollService.getQuarterReport(quarter, fy),
-    enabled: !!quarter,
+    enabled: !!quarter && !!officeId,
+  });
+}
+
+export function useMonthDataCheck(month: string) {
+  const fy = useUIStore((state) => state.activeFinancialYear);
+  const officeId = useActiveOfficeId();
+
+  return useQuery({
+    queryKey: ['payroll-month-check', month, fy, officeId],
+    queryFn: () => payrollRepository.checkMonthData(month, fy, officeId || undefined),
+    enabled: !!month && !!officeId,
+    staleTime: 60000,
   });
 }

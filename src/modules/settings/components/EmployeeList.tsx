@@ -30,45 +30,46 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="spinner h-8 w-8"></div>
       </div>
     );
   }
 
   if (employees.length === 0) {
     return (
-      <div className="text-center py-8 text-slate-500">
-        No employees registered yet.
+      <div className="empty-state">
+        <div className="empty-state-icon">👥</div>
+        <p>No employees registered yet.</p>
       </div>
     );
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-100 sticky top-0">
+      <table className="table">
+        <thead>
           <tr>
-            <th className="px-4 py-3 text-left font-semibold text-slate-600">#</th>
-            <th className="px-4 py-3 text-left font-semibold text-slate-600">Name</th>
-            <th className="px-4 py-3 text-left font-semibold text-slate-600">PAN</th>
-            <th className="px-4 py-3 text-left font-semibold text-slate-600">Join Date</th>
-            <th className="px-4 py-3 text-left font-semibold text-slate-600">Transfer Date</th>
-            <th className="px-4 py-3 text-center font-semibold text-slate-600">Actions</th>
+            <th>#</th>
+            <th className="text-left">Name</th>
+            <th className="text-left">PAN</th>
+            <th>Join Date</th>
+            <th>Transfer Date</th>
+            <th className="text-center">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody>
           {employees.map((employee, index) => (
-            <tr key={employee.id} className="hover:bg-slate-50">
-              <td className="px-4 py-3 text-slate-500">{index + 1}</td>
-              <td className="px-4 py-3 font-medium">{employee.name}</td>
-              <td className="px-4 py-3 font-mono text-sm">{employee.pan}</td>
-              <td className="px-4 py-3">
+            <tr key={employee.id}>
+              <td className="text-slate-500">{index + 1}</td>
+              <td className="font-medium">{employee.name}</td>
+              <td className="font-mono text-sm">{employee.pan}</td>
+              <td className="text-center">
                 {employee.join_date ? formatDate(employee.join_date) : '-'}
               </td>
-              <td className="px-4 py-3">
+              <td className="text-center">
                 {employee.transfer_date ? formatDate(employee.transfer_date) : '-'}
               </td>
-              <td className="px-4 py-3">
+              <td>
                 <div className="flex justify-center gap-2">
                   <button
                     onClick={() =>
@@ -80,19 +81,17 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
                         transferDate: employee.transfer_date || '',
                       })
                     }
-                    className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                    className="btn btn-sm btn-secondary"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(employee)}
-                    className={`px-3 py-1 text-sm rounded ${
-                      deleteConfirm?.id === employee.id
-                        ? 'bg-red-600 text-white hover:bg-red-700'
-                        : 'bg-red-50 text-red-600 hover:bg-red-100'
+                    className={`btn btn-sm ${
+                      deleteConfirm?.id === employee.id ? 'btn-danger' : 'btn-outline'
                     }`}
                   >
-                    {deleteConfirm?.id === employee.id ? 'Confirm Delete' : 'Delete'}
+                    {deleteConfirm?.id === employee.id ? 'Confirm' : 'Delete'}
                   </button>
                 </div>
                 {deleteConfirm?.id === employee.id && (

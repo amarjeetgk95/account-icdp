@@ -75,4 +75,33 @@ export const adminRepository = {
     if (error) throw error;
     return (data || []) as unknown as DataEntryReportRow[];
   },
+
+  async getFinancialYears(officeId: string): Promise<number[]> {
+    const years = new Set<number>();
+
+    const { data: salYears, error: salError } = await (supabase as any)
+      .from('employee_salaries')
+      .select('financial_year')
+      .eq('office_id', officeId);
+    if (salError) throw salError;
+    (salYears || []).forEach((row: any) => years.add(row.financial_year));
+
+    const { data: txYears, error: txError } = await (supabase as any)
+      .from('party_transactions')
+      .select('transaction_date')
+      .eq('office_id', officeId);
+    if (txError) throw txError;
+    (txYears || []).forEach((row: any) => {
+      const date = new Date(row.transaction_date);
+      if (isNaN(date.getTime())) return;
+      years.add(date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1);
+    });
+
+    if (years.size === 0) {
+      const now = new Date();
+      years.add(now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1);
+    }
+
+    return Array.from(years).sort((a, b) => b - a);
+  },
 };

@@ -24,12 +24,12 @@ interface FeatureFlagStore {
 
 const defaultFlags: FeatureFlags = {
   auth_module: true,
-  admin_module: false,
-  dashboard_module: false,
-  settings_module: false,
-  payroll_module: false,
-  parties_module: false,
-  reports_module: false,
+  admin_module: true,
+  dashboard_module: true,
+  settings_module: true,
+  payroll_module: true,
+  parties_module: true,
+  reports_module: true,
 };
 
 const allEnabledFlags: FeatureFlags = {

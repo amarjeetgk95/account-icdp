@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Party, TransactionInput } from '../types';
 import { formatCurrency } from '@/shared/utilities';
+import { Upload, FileSpreadsheet } from 'lucide-react';
 
 interface TransactionFormProps {
   parties: Party[];
@@ -21,6 +22,7 @@ export function TransactionForm({ parties, onSubmit, isLoading }: TransactionFor
   const [gstNo, setGstNo] = useState('');
   const [panNo, setPanNo] = useState('');
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<Party[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -306,7 +308,7 @@ export function TransactionForm({ parties, onSubmit, isLoading }: TransactionFor
         </div>
       )}
 
-      <div className="flex gap-2">
+  <div className="flex gap-2">
         <button type="submit" disabled={isLoading} className="btn btn-primary">
           {isLoading ? 'Saving...' : '💾 Save Transaction'}
         </button>
@@ -314,6 +316,76 @@ export function TransactionForm({ parties, onSubmit, isLoading }: TransactionFor
           Clear
         </button>
       </div>
+
+      <div className="border-t border-slate-200 pt-4 mt-4">
+        <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+          <FileSpreadsheet size={16} />
+          <span className="font-medium">Bulk Import</span>
+        </div>
+        <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-slate-300 rounded-lg p-4 cursor-pointer hover:bg-slate-50 transition-colors">
+          <input
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={handleCsvImport}
+            className="hidden"
+          />
+          <Upload size={24} className="text-slate-400 mb-1" />
+          <span className="text-sm text-slate-600">Click to upload CSV or paste from Excel</span>
+        </label>
+        {csvError && (
+          <div className="mt-2 text-sm text-red-600">{csvError}</div>
+        )}
+      </div>
     </form>
   );
+
+  function handleCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCsvError(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split('\n').filter((l) => l.trim());
+      if (lines.length < 2) {
+        setCsvError('File appears to be empty or has no data rows.');
+        return;
+      }
+
+      const headers = lines[0]?.split(',').map((h) => h.trim().toLowerCase()) || [];
+      const hasHeader = headers.includes('party') || headers.includes('name') || headers.includes('amount') || headers.includes('bill');
+      const dataLines = hasHeader ? lines.slice(1) : lines;
+
+      let parsedCount = 0;
+      for (const line of dataLines) {
+        const cols = line.split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''));
+        if (cols.length < 3) continue;
+
+        const entry: TransactionInput = {
+          partyName: cols[0] || '',
+          billNo: cols[1] || '',
+          date: cols[2] || '',
+          amount: parseFloat(cols[3] || cols[2]) || 0,
+          cgst: parseFloat(cols[4] || '0') || 0,
+          sgst: parseFloat(cols[5] || '0') || 0,
+          igst: parseFloat(cols[6] || '0') || 0,
+          incomeTax: parseFloat(cols[7] || '0') || 0,
+        };
+
+        if (entry.partyName && entry.billNo && entry.amount > 0) {
+          parsedCount++;
+        }
+      }
+
+      if (parsedCount > 0) {
+        alert(`Parsed ${parsedCount} transactions from CSV. Please save them individually.`);
+      } else {
+        setCsvError('No valid transactions found. Ensure columns are: Party Name, Bill No, Date, Amount, CGST, SGST, IGST, Income Tax');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
 }
