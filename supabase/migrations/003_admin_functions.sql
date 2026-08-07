@@ -1,6 +1,16 @@
 -- ICDP Tax System - Admin Functions
 -- Created: 2026-08-07
 
+-- Drop existing functions before recreating (handles return type changes)
+DROP FUNCTION IF EXISTS public.admin_list_users();
+DROP FUNCTION IF EXISTS public.admin_set_role(UUID, TEXT, UUID);
+DROP FUNCTION IF EXISTS public.admin_delete_user(UUID);
+DROP FUNCTION IF EXISTS public.admin_list_offices();
+DROP FUNCTION IF EXISTS public.admin_create_office(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_system_stats();
+DROP FUNCTION IF EXISTS public.admin_office_stats();
+DROP FUNCTION IF EXISTS public.admin_data_entry_report();
+
 -- Admin: List all users with their roles and offices
 CREATE OR REPLACE FUNCTION public.admin_list_users()
 RETURNS JSON AS $$
