@@ -154,18 +154,24 @@ export interface Database {
       };
       app_config: {
         Row: {
+          id: string;
+          office_id: string;
           key: string;
           value: string;
           created_at: string;
           updated_at: string;
         };
         Insert: {
+          id?: string;
+          office_id: string;
           key: string;
           value: string;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
+          id?: string;
+          office_id?: string;
           key?: string;
           value?: string;
           created_at?: string;
@@ -176,30 +182,39 @@ export interface Database {
         Row: {
           id: string;
           office_id: string;
-          name: string | null;
-          district: string | null;
-          address: string | null;
+          office_name: string | null;
           subtitle: string | null;
+          address: string | null;
+          phone: string | null;
+          email: string | null;
+          gst: string | null;
+          tan: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           office_id: string;
-          name?: string | null;
-          district?: string | null;
-          address?: string | null;
+          office_name?: string | null;
           subtitle?: string | null;
+          address?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          gst?: string | null;
+          tan?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           office_id?: string;
-          name?: string | null;
-          district?: string | null;
-          address?: string | null;
+          office_name?: string | null;
           subtitle?: string | null;
+          address?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          gst?: string | null;
+          tan?: string | null;
           created_at?: string;
           updated_at?: string;
         };

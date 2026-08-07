@@ -1,0 +1,121 @@
+import { supabase } from '@/core/supabase/client';
+import { useUIStore } from '@/core/stores/ui-store';
+import type { EmployeeInput } from '../validation/settings.schema';
+import type { Database } from '@/shared/database.types';
+
+type Employee = Database['public']['Tables']['employees']['Row'];
+
+function getOfficeId(): string | null {
+  return useUIStore.getState().activeOfficeId;
+}
+
+export const employeeRepository = {
+  async list(): Promise<Employee[]> {
+    const officeId = getOfficeId();
+    if (!officeId) throw new Error('No office selected');
+
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .eq('office_id', officeId)
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  async create(input: EmployeeInput): Promise<Employee> {
+    const officeId = getOfficeId();
+    if (!officeId) throw new Error('No office selected');
+
+    const { data: duplicate } = await supabase
+      .from('employees')
+      .select('id')
+      .eq('pan', input.pan)
+      .eq('office_id', officeId)
+      .maybeSingle();
+
+    if (duplicate) {
+      throw new Error('An employee with this PAN already exists in this office');
+    }
+
+    const payload = {
+      name: input.name,
+      pan: input.pan,
+      office_id: officeId,
+      join_date: input.joinDate || null,
+      transfer_date: input.transferDate || null,
+    };
+
+    const { data, error } = await (supabase as any)
+      .from('employees')
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async update(input: EmployeeInput): Promise<Employee> {
+    const officeId = getOfficeId();
+    if (!officeId) throw new Error('No office selected');
+    if (!input.id) throw new Error('Employee ID is required for update');
+
+    const { data: duplicate } = await supabase
+      .from('employees')
+      .select('id')
+      .eq('pan', input.pan)
+      .eq('office_id', officeId)
+      .neq('id', input.id)
+      .maybeSingle();
+
+    if (duplicate) {
+      throw new Error('An employee with this PAN already exists in this office');
+    }
+
+    const { data, error } = await (supabase as any)
+      .from('employees')
+      .update({
+        name: input.name,
+        pan: input.pan,
+        join_date: input.joinDate || null,
+        transfer_date: input.transferDate || null,
+      })
+      .eq('id', input.id)
+      .eq('office_id', officeId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async delete(id: string): Promise<void> {
+    const officeId = getOfficeId();
+    if (!officeId) throw new Error('No office selected');
+
+    const { error } = await supabase
+      .from('employees')
+      .delete()
+      .eq('id', id)
+      .eq('office_id', officeId);
+
+    if (error) throw error;
+  },
+
+  async getById(id: string): Promise<Employee | null> {
+    const officeId = getOfficeId();
+    if (!officeId) throw new Error('No office selected');
+
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .eq('id', id)
+      .eq('office_id', officeId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  },
+};
