@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEmployees } from '../hooks/useEmployees';
-import { formatDate } from '@/shared/utilities';
+import { useLatestSalaries } from '../hooks/useSalaryImport';
+import { formatDate, formatCurrency } from '@/shared/utilities';
 import type { EmployeeInput } from '../validation/employee.schema';
 import type { Database } from '@/shared/database.types';
 import { Pencil, Trash2 } from 'lucide-react';
@@ -13,6 +14,7 @@ interface EmployeeListProps {
 
 export function EmployeeList({ onEdit }: EmployeeListProps) {
   const { employees, isLoading, deleteAsync } = useEmployees();
+  const { data: salaryMap } = useLatestSalaries();
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; pan: string } | null>(null);
 
   const handleDelete = async (employee: Employee) => {
@@ -57,6 +59,7 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
               <th className="text-left">PAN</th>
               <th className="text-center">Join Date</th>
               <th className="text-center">Transfer Date</th>
+              <th className="text-center">Latest Salary</th>
               <th className="text-center" style={{ width: '140px' }}>Actions</th>
             </tr>
         </thead>
@@ -72,6 +75,17 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
               </td>
               <td className="text-center">
                 {employee.transfer_date ? formatDate(employee.transfer_date) : '-'}
+              </td>
+              <td className="text-center">
+                {employee.hprn_no && salaryMap ? (() => {
+                  const salary = salaryMap.get(employee.hprn_no.toLowerCase());
+                  return salary ? (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="font-mono text-xs">{formatCurrency(Number(salary.gross_salary))}</span>
+                      <span className="text-[0.68rem] text-slate-500">{salary.month} FY{salary.financial_year}</span>
+                    </div>
+                  ) : '-';
+                })() : '-'}
               </td>
               <td>
                 <div className="flex justify-center gap-1.5">

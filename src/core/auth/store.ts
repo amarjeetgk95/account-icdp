@@ -76,9 +76,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (!authListenerRegistered) {
         authListenerRegistered = true;
-        supabase.auth.onAuthStateChange(async (_event, newSession) => {
+        supabase.auth.onAuthStateChange(async (event, newSession) => {
           if (newSession?.user) {
             const currentUser = get().user;
+
+            if (event === 'TOKEN_REFRESHED' && currentUser?.id === newSession.user.id) {
+              return;
+            }
+
             set({
               user: {
                 id: newSession.user.id,

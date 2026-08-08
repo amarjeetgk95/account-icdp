@@ -174,6 +174,21 @@ export const payrollRepository = {
     return { copied: prevSalaries?.length || 0, created: records.length };
   },
 
+  async clearMonthSalary(month: string, fy: number, officeId?: string): Promise<number> {
+    const targetOfficeId = officeId || getOfficeId();
+    if (!targetOfficeId) throw new Error('No office selected');
+
+    const { count, error } = await (supabase as any)
+      .from('employee_salaries')
+      .delete()
+      .eq('office_id', targetOfficeId)
+      .eq('financial_year', fy)
+      .eq('month', month);
+
+    if (error) throw error;
+    return count || 0;
+  },
+
   async getQuarterReport(quarter: string, fy: number, officeId?: string): Promise<QuarterReport> {
     const targetOfficeId = officeId || getOfficeId();
     if (!targetOfficeId) throw new Error('No office selected');

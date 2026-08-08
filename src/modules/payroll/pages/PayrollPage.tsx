@@ -1,10 +1,12 @@
-﻿import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useUIStore } from '@/core/stores/ui-store';
 import { payrollService } from '../services/payroll.service';
-import { useRoster, useSaveSalary, useQuarterReport, useMonthDataCheck } from '../hooks/usePayroll';
+import { useRoster, useSaveSalary, useQuarterReport, useMonthDataCheck, useClearMonth } from '../hooks/usePayroll';
 import { SalaryEntryGrid } from '../components/SalaryEntryGrid';
 import { EmployeeRegistration } from '../components/EmployeeRegistration';
 import { QuarterReportView } from '../components/QuarterReport';
+import { SalaryExcelImport } from '../components/SalaryExcelImport';
+import { SalaryLookup } from '../components/SalaryLookup';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
@@ -48,6 +50,7 @@ export function PayrollPage() {
   const { data: roster = [], isLoading: rosterLoading, refetch: refetchRoster } = useRoster(selectedMonth);
   const { data: monthDataCheck } = useMonthDataCheck(selectedMonth);
   const saveSalary = useSaveSalary();
+  const clearMonth = useClearMonth();
   const { data: quarterReport, isLoading: reportLoading } = useQuarterReport(selectedQuarter);
   const { details: officeDetails } = useOfficeDetails();
 
@@ -199,84 +202,132 @@ export function PayrollPage() {
           ref={scrollRef}
           className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1"
         >
+          <div className="px-1 pb-4 space-y-4">
+            <SalaryExcelImport />
+            <SalaryLookup />
+          </div>
           <EmployeeRegistration scrollRef={scrollRef} />
         </div>
       )}
 
       {mode === 'entry' && (
-        <div className="flex-shrink-0 mb-3 flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Calendar size={14} className="text-slate-400" />
-            <span className="text-[0.72rem] font-bold text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 shrink-0">
-              FY {fyLabel}
-            </span>
-          </div>
-
-          <div className="relative shrink-0" ref={dropdownRef}>
-            <button
-              type="button"
-              onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-              title="Select the month for which you are entering salary data"
-              className="flex items-center gap-1.5 border border-slate-300 rounded-lg px-3 py-1.5 text-[0.82rem] font-semibold text-slate-800 bg-white hover:bg-slate-50 transition-colors"
-            >
-              {getMonthDisplay(selectedMonth)} <ChevronDown size={14} />
-            </button>
-            {showMonthDropdown && (
-              <div className="absolute z-50 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {monthOptions.map((m) => (
-                  <button
-                    key={m.value}
-                    onClick={() => handleMonthSelect(m.value)}
-                    className={
-                      'w-full px-3 py-2 text-left text-sm hover:bg-slate-50 transition-colors ' +
-                      (selectedMonth === m.value
-                        ? 'bg-blue-50 text-blue-700 font-semibold'
-                        : 'text-slate-700')
-                    }
-                  >
-                    {m.label}
-                  </button>
-                ))}
+        <div className="flex-shrink-0 mb-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Left: FY badge + Month selector */}
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-1.5">
+                <Calendar size={14} className="text-slate-400" />
+                <span className="fy-badge shrink-0">FY {fyLabel}</span>
               </div>
-            )}
+
+              <div className="relative shrink-0" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowMonthDropdown(!showMonthDropdown)}
+                  title="Select the month for which you are entering salary data"
+                  className="flex items-center gap-2 border border-slate-200 rounded-full px-4 py-1.5 text-sm font-semibold text-slate-800 bg-slate-50 hover:bg-white hover:border-slate-300 hover:shadow-sm transition-all"
+                >
+                  <span>{getMonthDisplay(selectedMonth)}</span>
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${showMonthDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                {showMonthDropdown && (
+                  <div className="absolute z-50 mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {monthOptions.map((m) => (
+                        <button
+                          key={m.value}
+                          onClick={() => handleMonthSelect(m.value)}
+                          className={
+                            'w-full px-3.5 py-2 text-left text-sm flex items-center justify-between hover:bg-slate-50 transition-colors ' +
+                            (selectedMonth === m.value
+                              ? 'bg-blue-50 text-blue-700 font-semibold'
+                              : 'text-slate-700')
+                          }
+                        >
+                          <span>{m.label}</span>
+                          {selectedMonth === m.value && (
+                            <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="w-px h-6 bg-slate-200 shrink-0 hidden sm:block" />
+
+            {/* Center: Toggle switches */}
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none shrink-0" title="Show DA & Other column">
+                <span className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={showDA}
+                    onChange={(e) => setShowDA(e.target.checked)}
+                  />
+                  <span className="toggle-slider toggle-amber" />
+                </span>
+                <span className="text-xs font-semibold text-slate-600">DA &amp; Other</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none shrink-0" title="Auto-fill from previous month data">
+                <span className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={autoFill}
+                    onChange={(e) => handleAutoFillToggle(e.target.checked)}
+                  />
+                  <span className="toggle-slider" />
+                </span>
+                <span className="text-xs font-semibold text-slate-600">Auto-fill</span>
+              </label>
+            </div>
+
+            {/* Right: Actions + record count */}
+            <div className="flex items-center gap-2 ml-auto">
+              {hasExistingData && (
+                <span className="stat-pill shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  {monthDataCheck.count} record{monthDataCheck.count > 1 ? 's' : ''}
+                </span>
+              )}
+
+              <button
+                onClick={handleLoadRoster}
+                disabled={rosterLoading}
+                className="btn btn-primary btn-sm text-xs shrink-0"
+              >
+                <RefreshCw size={13} className={rosterLoading ? 'animate-spin mr-1' : 'mr-1'} />
+                {rosterLoading ? 'Loading…' : 'Load Roster'}
+              </button>
+
+              {hasExistingData && (
+                <button
+                  onClick={async () => {
+                    if (
+                      window.confirm(
+                        `Clear ALL salary entries for ${getMonthDisplay(selectedMonth)}? This cannot be undone.`
+                      )
+                    ) {
+                      try {
+                        await clearMonth.mutateAsync(selectedMonth);
+                      } catch (e) {
+                        alert(e instanceof Error ? e.message : 'Failed to clear month');
+                      }
+                    }
+                  }}
+                  disabled={clearMonth.isPending}
+                  className="btn btn-outline btn-sm text-xs shrink-0 text-red-600 border-red-200 hover:bg-red-50"
+                  title="Delete all saved salary entries for the selected month"
+                >
+                  {clearMonth.isPending ? 'Clearing…' : 'Clear All'}
+                </button>
+              )}
+            </div>
           </div>
-
-          <button
-            onClick={handleLoadRoster}
-            disabled={rosterLoading}
-            className="btn btn-primary btn-sm text-[0.82rem] shrink-0"
-          >
-            <RefreshCw size={14} className="mr-1" /> {rosterLoading ? 'Loading...' : 'Load Roster'}
-          </button>
-
-          <div className="w-px h-5 bg-slate-200 shrink-0" />
-
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-[0.82rem] font-medium text-amber-700 cursor-pointer select-none shrink-0">
-              <input
-                type="checkbox"
-                checked={showDA}
-                onChange={(e) => setShowDA(e.target.checked)}
-                className="w-3.5 h-3.5 rounded border-slate-300"
-              />
-              Show DA &amp; Other
-            </label>
-            <label className="flex items-center gap-1.5 text-[0.82rem] font-medium text-slate-600 cursor-pointer select-none shrink-0">
-              <input
-                type="checkbox"
-                checked={autoFill}
-                onChange={(e) => handleAutoFillToggle(e.target.checked)}
-                className="w-3.5 h-3.5 rounded border-slate-300"
-              />
-              Auto-fill previous
-            </label>
-          </div>
-
-          {hasExistingData && (
-            <span className="text-[0.82rem] text-slate-500 shrink-0 ml-auto">
-              {monthDataCheck.count} record{monthDataCheck.count > 1 ? 's' : ''} found
-            </span>
-          )}
         </div>
       )}
 
@@ -331,6 +382,7 @@ export function PayrollPage() {
           <div className="card flex-1 flex flex-col overflow-hidden contain-none min-h-0 rounded-xl">
             <div className="card-body p-0 flex-1 overflow-hidden min-h-0">
               <SalaryEntryGrid
+                key={`${fy}-${selectedMonth}`}
                 roster={roster}
                 isLoading={rosterLoading}
                 showDA={showDA}

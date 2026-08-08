@@ -1,4 +1,5 @@
 import { payrollRepository } from '../repositories/payroll.repository';
+import { useUIStore } from '@/core/stores/ui-store';
 import { MONTHS } from '@/shared/constants';
 import type { EmployeeRosterItem, MonthOption, QuarterReport } from '../types';
 
@@ -47,6 +48,11 @@ export class PayrollService {
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
     return payrollRepository.copyPreviousMonth(prevMonth, month);
+  }
+
+  async clearMonth(month: string): Promise<number> {
+    const fy = useUIStore.getState().activeFinancialYear;
+    return payrollRepository.clearMonthSalary(month, fy);
   }
 
   async getEmployeePreviousMonthData(employeeId: string, month: string): Promise<{ gross: number; da: number; tax: number } | null> {

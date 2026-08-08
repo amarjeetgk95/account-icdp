@@ -716,6 +716,243 @@
   }
 
   /* ============================================================
+     TOGGLE SWITCH (replaces raw checkboxes)
+     ============================================================ */
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #CBD5E1;
+    border-radius: 20px;
+    transition: background 200ms ease, box-shadow 200ms ease;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 200ms ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    background: #2563EB;
+  }
+
+  .toggle-switch input:checked + .toggle-slider.toggle-amber {
+    background: #D97706;
+  }
+
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(16px);
+  }
+
+  .toggle-switch input:focus-visible + .toggle-slider {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  }
+
+  /* ============================================================
+     SALARY ENTRY GRID — CELLS
+     Google Sheets-style: borderless by default, border on hover,
+     ring + glow on focus, left-accent for dirty/modified cells
+     ============================================================ */
+  .salary-cell {
+    @apply text-right tabular-nums;
+    width: 7.5rem;
+    padding: 6px 10px;
+    font-size: 0.8125rem;
+    border-radius: 6px;
+    border: 1.5px solid transparent;
+    background: transparent;
+    outline: none;
+    transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+    -moz-appearance: textfield;
+  }
+
+  .salary-cell::-webkit-inner-spin-button,
+  .salary-cell::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .salary-cell:hover {
+    border-color: #CBD5E1;
+    background: #F8FAFC;
+  }
+
+  .salary-cell:focus {
+    border-color: #3B82F6;
+    background: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  .salary-cell.dirty {
+    border-left: 3px solid #3B82F6;
+    background: #EFF6FF;
+  }
+
+  .salary-cell.dirty:focus {
+    border-color: #3B82F6;
+    border-left-width: 3px;
+  }
+
+  /* ============================================================
+     SALARY GRID — HEADER & SCROLL SHADOW
+     ============================================================ */
+  .salary-grid-header {
+    @apply bg-slate-50 sticky top-0;
+    z-index: 10;
+    transition: box-shadow 200ms ease;
+  }
+
+  .salary-grid-header.scrolled {
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+  }
+
+  .salary-grid-header th {
+    @apply px-3 py-2.5 text-xs font-bold uppercase tracking-wider;
+    color: #475569;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #E2E8F0;
+  }
+
+  /* ============================================================
+     SALARY GRID — ROW STATES
+     ============================================================ */
+  .salary-row {
+    @apply transition-colors;
+    border-left: 3px solid transparent;
+  }
+
+  .salary-row:nth-child(odd) {
+    background: #FFFFFF;
+  }
+
+  .salary-row:nth-child(even) {
+    background: #F8FAFC;
+  }
+
+  .salary-row:hover {
+    background: #EFF6FF !important;
+  }
+
+  .salary-row-active {
+    border-left-color: #3B82F6 !important;
+    background: #EFF6FF !important;
+  }
+
+  /* ============================================================
+     SALARY GRID — TOTALS ROW
+     ============================================================ */
+  .salary-totals {
+    @apply sticky bottom-0 font-bold;
+    background: linear-gradient(to right, #F1F5F9, #E2E8F0);
+    border-top: 2px solid #CBD5E1;
+    z-index: 10;
+  }
+
+  .salary-totals td {
+    @apply px-3 py-2.5 text-sm;
+  }
+
+  /* ============================================================
+     SALARY GRID — FOOTER BAR
+     ============================================================ */
+  .salary-footer {
+    @apply flex-shrink-0 bg-white px-4 py-3 flex items-center justify-between;
+    border-top: 1px solid #E2E8F0;
+    box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.04), 0 -1px 3px rgba(15, 23, 42, 0.03);
+  }
+
+  .stat-pill {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold;
+    background: #F1F5F9;
+    color: #475569;
+    border: 1px solid #E2E8F0;
+  }
+
+  .stat-pill-warning {
+    background: #FEF3C7;
+    color: #92400E;
+    border-color: #FDE68A;
+  }
+
+  /* ============================================================
+     SAVE BUTTON PULSE
+     ============================================================ */
+  @keyframes save-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+  }
+
+  .btn-save-pulse {
+    @apply bg-green-600 hover:bg-green-700 text-white font-bold;
+    animation: save-pulse 2s ease-in-out infinite;
+  }
+
+  .btn-save-pulse:hover {
+    animation: none;
+  }
+
+  /* ============================================================
+     KEYBOARD SHORTCUT HINT
+     ============================================================ */
+  .kbd-hint {
+    @apply inline-flex items-center gap-1 text-xs font-medium;
+    color: #94A3B8;
+  }
+
+  .kbd-hint kbd {
+    @apply px-1.5 py-0.5 rounded text-xs font-mono font-bold;
+    background: #F1F5F9;
+    color: #64748B;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 1px 0 #CBD5E1;
+  }
+
+  /* ============================================================
+     UNSAVED CHANGES BANNER (compact, sticky)
+     ============================================================ */
+  .unsaved-banner {
+    @apply flex items-center justify-between px-4 py-2 text-sm font-semibold;
+    background: linear-gradient(to right, #FEF3C7, #FDE68A33);
+    color: #92400E;
+    border-bottom: 1px solid #FDE68A;
+    flex-shrink: 0;
+  }
+
+  /* ============================================================
+     LOADING PULSE ANIMATION
+     ============================================================ */
+  @keyframes loading-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .loading-pulse {
+    animation: loading-pulse 1.5s ease-in-out infinite;
+  }
+
+  /* ============================================================
      FY BADGE
      ============================================================ */
   .fy-badge {

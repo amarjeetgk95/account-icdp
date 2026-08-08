@@ -104,24 +104,65 @@ CREATE POLICY "offices_admin_all" ON public.offices FOR ALL USING (public.is_adm
 CREATE POLICY "office_details_office_view"  ON public.office_details FOR SELECT USING (public.can_access_office(office_id));
 CREATE POLICY "office_details_admin_all"    ON public.office_details FOR ALL USING (public.is_admin());
 
--- employees
+-- employees: drop existing, recreate with office manage policy
+DROP POLICY IF EXISTS "employees_office_view" ON public.employees;
+DROP POLICY IF EXISTS "employees_admin_all" ON public.employees;
+DROP POLICY IF EXISTS "Users can view employees in their office" ON public.employees;
+DROP POLICY IF EXISTS "Admins can manage all employees" ON public.employees;
+
 CREATE POLICY "employees_office_view" ON public.employees FOR SELECT USING (public.can_access_office(office_id));
+CREATE POLICY "employees_office_manage" ON public.employees FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
 CREATE POLICY "employees_admin_all"   ON public.employees FOR ALL USING (public.is_admin());
 
--- employee_salaries
+-- employee_salaries: ensure consistent office write policies
+DROP POLICY IF EXISTS "salaries_office_view" ON public.employee_salaries;
+DROP POLICY IF EXISTS "salaries_admin_all" ON public.employee_salaries;
+DROP POLICY IF EXISTS "Users can view salaries in their office" ON public.employee_salaries;
+DROP POLICY IF EXISTS "Admins can manage all salaries" ON public.employee_salaries;
+DROP POLICY IF EXISTS "Users can manage salaries in their office" ON public.employee_salaries;
+
 CREATE POLICY "salaries_office_view" ON public.employee_salaries FOR SELECT USING (public.can_access_office(office_id));
+CREATE POLICY "salaries_office_manage" ON public.employee_salaries FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
 CREATE POLICY "salaries_admin_all"   ON public.employee_salaries FOR ALL USING (public.is_admin());
 
 -- parties
+DROP POLICY IF EXISTS "parties_office_view" ON public.parties;
+DROP POLICY IF EXISTS "parties_admin_all" ON public.parties;
+DROP POLICY IF EXISTS "Users can view parties in their office" ON public.parties;
+DROP POLICY IF EXISTS "Admins can manage all parties" ON public.parties;
+
 CREATE POLICY "parties_office_view" ON public.parties FOR SELECT USING (public.can_access_office(office_id));
+CREATE POLICY "parties_office_manage" ON public.parties FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
 CREATE POLICY "parties_admin_all"   ON public.parties FOR ALL USING (public.is_admin());
 
 -- party_transactions
+DROP POLICY IF EXISTS "transactions_office_view" ON public.party_transactions;
+DROP POLICY IF EXISTS "transactions_admin_all" ON public.party_transactions;
+DROP POLICY IF EXISTS "Users can view transactions in their office" ON public.party_transactions;
+DROP POLICY IF EXISTS "Admins can manage all transactions" ON public.party_transactions;
+
 CREATE POLICY "transactions_office_view" ON public.party_transactions FOR SELECT USING (public.can_access_office(office_id));
+CREATE POLICY "transactions_office_manage" ON public.party_transactions FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
 CREATE POLICY "transactions_admin_all"   ON public.party_transactions FOR ALL USING (public.is_admin());
 
+-- office_details
+DROP POLICY IF EXISTS "office_details_office_view" ON public.office_details;
+DROP POLICY IF EXISTS "office_details_admin_all" ON public.office_details;
+DROP POLICY IF EXISTS "Users can view office details for accessible offices" ON public.office_details;
+DROP POLICY IF EXISTS "Admins can manage all office details" ON public.office_details;
+
+CREATE POLICY "office_details_office_view" ON public.office_details FOR SELECT USING (public.can_access_office(office_id));
+CREATE POLICY "office_details_office_manage" ON public.office_details FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
+CREATE POLICY "office_details_admin_all" ON public.office_details FOR ALL USING (public.is_admin());
+
 -- app_config
+DROP POLICY IF EXISTS "app_config_office_view" ON public.app_config;
+DROP POLICY IF EXISTS "app_config_admin_all" ON public.app_config;
+DROP POLICY IF EXISTS "Users can view config in their office" ON public.app_config;
+DROP POLICY IF EXISTS "Admins can manage all config" ON public.app_config;
+
 CREATE POLICY "app_config_office_view" ON public.app_config FOR SELECT USING (public.can_access_office(office_id));
+CREATE POLICY "app_config_office_manage" ON public.app_config FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
 CREATE POLICY "app_config_admin_all"   ON public.app_config FOR ALL USING (public.is_admin());
 
 -- ---------------------------------------------------------------------------

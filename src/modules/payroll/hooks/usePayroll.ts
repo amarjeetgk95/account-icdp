@@ -51,6 +51,20 @@ export function useCopyPreviousMonth() {
   });
 }
 
+export function useClearMonth() {
+  const queryClient = useQueryClient();
+  const fy = useUIStore((state) => state.activeFinancialYear);
+
+  return useMutation({
+    mutationFn: (month: string) => payrollService.clearMonth(month),
+    onSuccess: (_data, month) => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-roster', month, fy] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-month-check', month, fy] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}
+
 export function useQuarterReport(quarter: string) {
   const fy = useUIStore((state) => state.activeFinancialYear);
   const officeId = useActiveOfficeId();

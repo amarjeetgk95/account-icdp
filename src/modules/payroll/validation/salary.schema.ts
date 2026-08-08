@@ -1,17 +1,5 @@
 import { z } from 'zod';
 
-export const parsedSalarySchema = z.object({
-  hprnNo: z.string().min(1, 'HRPN No. is required'),
-  name: z.string().nullable().optional(),
-  basic: z.number().nullable().optional(),
-  da: z.number().nullable().optional(),
-  hra: z.number().nullable().optional(),
-  otherAllowance: z.number().nullable().optional(),
-  totalSalary: z.number().nullable().optional(),
-});
-
-export type ParsedSalaryRow = z.infer<typeof parsedSalarySchema>;
-
 export const salaryImportStatusSchema = z.enum([
   'matched',
   'unmatched',
@@ -21,7 +9,25 @@ export const salaryImportStatusSchema = z.enum([
 
 export type SalaryImportStatus = z.infer<typeof salaryImportStatusSchema>;
 
-export interface ClassifiedSalaryRow extends ParsedSalaryRow {
+// A single (HRPN, month, financial year, gross, incomeTax) record.
+export const parsedSalaryRecordSchema = z.object({
+  hprnNo: z.string().min(1, 'HRPN No. is required'),
+  name: z.string().optional(),
+  month: z.string().min(1, 'Month is required'),
+  financialYear: z.number().int(),
+  grossSalary: z
+    .number()
+    .min(0, 'Gross salary cannot be negative')
+    .transform((val) => Math.round(val * 100) / 100),
+  incomeTax: z
+    .number()
+    .min(0, 'Income tax cannot be negative')
+    .transform((val) => Math.round(val * 100) / 100),
+});
+
+export type ParsedSalaryRecord = z.infer<typeof parsedSalaryRecordSchema>;
+
+export interface ClassifiedSalaryRecord extends ParsedSalaryRecord {
   employeeId: string | null;
   status: SalaryImportStatus;
 }
@@ -33,4 +39,18 @@ export interface SalaryImportSummary {
   unmatched: number;
   duplicate: number;
   notDetected: number;
+}
+
+export interface SalaryPreviewSummary {
+  fileName: string;
+  hrpnColumnHeader: string;
+  totalRecords: number;
+  matchedRecords: number;
+  unmatchedRecords: number;
+  duplicateRecords: number;
+  invalidRecords: number;
+  distinctHrpnCount: number;
+  grossColumns: number;
+  incomeTaxColumns: number;
+  months: Array<{ month: string; financialYear: number }>;
 }

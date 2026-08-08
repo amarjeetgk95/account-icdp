@@ -5,6 +5,7 @@ import { Sidebar } from '@/shared/components/Sidebar';
 import { Header } from '@/shared/components/Header';
 import { CommandPalette } from '@/shared/components/CommandPalette';
 import { AuthGate } from '@/shared/components/AuthGate';
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { useAuthStore } from '@/core/auth/store';
 import { usePermissions } from '@/core/permissions/hooks';
 import { Navigate, useLocation } from 'react-router-dom';
@@ -50,35 +51,37 @@ export default function App() {
   const postLoginRedirect = isRoleLoaded ? (isAdmin ? '/admin' : '/dashboard') : null;
 
   return (
-    <AuthGate>
-      {!user && !isAuthPage && <Navigate to="/login" replace />}
-      {user && isAuthPage && !isRoleLoaded && <LoadingFallback />}
-      {user && isAuthPage && isRoleLoaded && postLoginRedirect && (
-        <Navigate to={postLoginRedirect} replace />
-      )}
+    <ErrorBoundary>
+      <AuthGate>
+        {!user && !isAuthPage && <Navigate to="/login" replace />}
+        {user && isAuthPage && !isRoleLoaded && <LoadingFallback />}
+        {user && isAuthPage && isRoleLoaded && postLoginRedirect && (
+          <Navigate to={postLoginRedirect} replace />
+        )}
 
-      {isAuthPage ? (
-        <main className="flex-1">
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes modules={modules} />
-          </Suspense>
-        </main>
-      ) : (
-        <Layout>
-          <Sidebar modules={modules} />
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <Header />
-            <main className="flex-1 overflow-hidden">
-              <div className="app-scroll h-full p-6">
-                <Suspense fallback={<LoadingFallback />}>
-                  <Routes modules={modules} />
-                </Suspense>
-              </div>
-            </main>
-          </div>
-          <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
-        </Layout>
-      )}
-    </AuthGate>
+        {isAuthPage ? (
+          <main className="flex-1">
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes modules={modules} />
+            </Suspense>
+          </main>
+        ) : (
+          <Layout>
+            <Sidebar modules={modules} />
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <Header />
+              <main className="flex-1 overflow-hidden">
+                <div className="app-scroll h-full p-6">
+                  <Suspense fallback={<LoadingFallback />}>
+                    <Routes modules={modules} />
+                  </Suspense>
+                </div>
+              </main>
+            </div>
+            <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
+          </Layout>
+        )}
+      </AuthGate>
+    </ErrorBoundary>
   );
 }

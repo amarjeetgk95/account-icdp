@@ -37,15 +37,15 @@ export type Database = {
         Relationships: []
       }
       salary_imports: {
-        Row: { id: string; office_id: string; pdf_filename: string; month: string; financial_year: number; total_records: number; matched_count: number; uploaded_by: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; office_id: string; pdf_filename: string; month: string; financial_year: number; total_records?: number; matched_count?: number; uploaded_by?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; office_id?: string; pdf_filename?: string; month?: string; financial_year?: number; total_records?: number; matched_count?: number; uploaded_by?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; office_id: string; excel_filename: string; financial_year: number; total_records: number; matched_count: number; uploaded_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; office_id: string; excel_filename: string; financial_year: number; total_records?: number; matched_count?: number; uploaded_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; office_id?: string; excel_filename?: string; financial_year?: number; total_records?: number; matched_count?: number; uploaded_by?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
       employee_salary: {
-        Row: { id: string; salary_import_id: string; employee_id: string | null; hrpn_no: string; office_id: string; name: string | null; month: string; financial_year: number; basic: number; da: number; hra: number; other_allowance: number; total_salary: number; status: string; created_at: string; updated_at: string }
-        Insert: { id?: string; salary_import_id: string; employee_id?: string | null; hrpn_no: string; office_id: string; name?: string | null; month: string; financial_year: number; basic?: number; da?: number; hra?: number; other_allowance?: number; total_salary?: number; status: string; created_at?: string; updated_at?: string }
-        Update: { id?: string; salary_import_id?: string; employee_id?: string | null; hrpn_no?: string; office_id?: string; name?: string | null; month?: string; financial_year?: number; basic?: number; da?: number; hra?: number; other_allowance?: number; total_salary?: number; status?: string; created_at?: string; updated_at?: string }
+        Row: { id: string; salary_import_id: string; employee_id: string | null; hprn_no: string; office_id: string; name: string | null; month: string; financial_year: number; gross_salary: number; income_tax: number; status: string; created_at: string; updated_at: string }
+        Insert: { id?: string; salary_import_id: string; employee_id?: string | null; hprn_no: string; office_id: string; name?: string | null; month: string; financial_year: number; gross_salary?: number; income_tax?: number; status: string; created_at?: string; updated_at?: string }
+        Update: { id?: string; salary_import_id?: string; employee_id?: string | null; hprn_no?: string; office_id?: string; name?: string | null; month?: string; financial_year?: number; gross_salary?: number; income_tax?: number; status?: string; created_at?: string; updated_at?: string }
         Relationships: []
       }
       parties: {
