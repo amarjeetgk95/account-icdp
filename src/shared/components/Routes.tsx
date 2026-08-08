@@ -7,13 +7,25 @@ interface RoutesProps {
   modules: ModuleDefinition[];
 }
 
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  );
+}
+
 export function Routes({ modules }: RoutesProps) {
-  const { isAdmin } = usePermissions();
+  const { isAdmin, isLoading } = usePermissions();
+
+  if (isLoading) {
+    return <LoadingFallback />;
+  }
 
   return (
     <RouterRoutes>
       {modules.map((module) => {
-        if (module.featureFlag && !isModuleEnabled(module.featureFlag)) {
+        if (!module.featureFlag || !isModuleEnabled(module.featureFlag)) {
           return null;
         }
 
@@ -21,7 +33,17 @@ export function Routes({ modules }: RoutesProps) {
           return null;
         }
 
-        if (isAdmin && module.navGroup !== 'admin') {
+        if (module.permissions?.includes('admin') && isAdmin) {
+          return module.routes.map((route) => (
+            <Route
+              key={`${module.id}-${route.path}`}
+              path={route.path}
+              element={route.element}
+            />
+          ));
+        }
+
+        if (!module.permissions?.includes('admin') && isAdmin) {
           return null;
         }
 
