@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { salaryService } from '../services/salary.service';
 import { FileSpreadsheet, Upload, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 
@@ -17,6 +17,7 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importSummary, setImportSummary] = useState<{
     importId: string;
     total: number;
@@ -33,6 +34,7 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
     setError(null);
     setPreview(null);
     setImportSummary(null);
+    setSelectedFile(file);
     setIsReading(true);
     try {
       const rows = await salaryService.readExcelRows(file);
@@ -47,15 +49,14 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
 
   const handleImport = async () => {
     if (!preview) return;
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) {
+    if (!selectedFile) {
       setError('No file selected');
       return;
     }
     setIsImporting(true);
     setError(null);
     try {
-      const summary = await salaryService.importSalary(file);
+      const summary = await salaryService.importSalary(selectedFile);
       setImportSummary({
         importId: summary.importId,
         total: summary.total,
@@ -63,6 +64,7 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
         unmatched: summary.unmatched,
       });
       setPreview(null);
+      setSelectedFile(null);
       onImported?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import salaries');
@@ -74,6 +76,12 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
   const handleBrowse = () => {
     fileInputRef.current?.click();
   };
+
+  useEffect(() => {
+    if (!preview && fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [preview]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -203,7 +211,14 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <button onClick={() => { setPreview(null); setError(null); }} className="btn btn-secondary btn-sm">
+            <button
+              onClick={() => {
+                setPreview(null);
+                setSelectedFile(null);
+                setError(null);
+              }}
+              className="btn btn-secondary btn-sm"
+            >
               Cancel
             </button>
             <button
