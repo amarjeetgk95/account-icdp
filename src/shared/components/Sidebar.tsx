@@ -1,8 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { useAuthStore } from '@/core/auth/store';
 import { usePermissions } from '@/core/permissions/hooks';
 import type { ModuleDefinition } from '@/shared/types/module';
-import { getModuleIcon } from '@/shared/icons';
+import { SectionIcon } from '@/shared/icons';
 import { isModuleEnabled } from '@/core/feature-flags/store';
 
 interface SidebarProps {
@@ -10,20 +9,80 @@ interface SidebarProps {
 }
 
 export function Sidebar({ modules }: SidebarProps) {
-  const { user, signOut } = useAuthStore();
-  const { isAdmin } = usePermissions();
+  const { isAdmin, isLoading } = usePermissions();
+
+  if (isLoading) {
+    return null;
+  }
 
   const visibleModules = modules.filter((m) => {
     if (m.sidebar === false) return false;
-    if (m.featureFlag && !isModuleEnabled(m.featureFlag)) return false;
+    if (!m.featureFlag || !isModuleEnabled(m.featureFlag)) return false;
+    if (m.permissions?.includes('admin') && !isAdmin) return false;
     if (isAdmin) return m.navGroup === 'admin';
-    if (m.permissions?.includes('admin')) return false;
     return true;
   });
 
   const mainModules = visibleModules.filter((m) => m.navGroup === 'main');
   const reportModules = visibleModules.filter((m) => m.navGroup === 'reports');
   const adminModules = visibleModules.filter((m) => m.navGroup === 'admin');
+
+  const renderOfficeSidebar = () => (
+    <>
+      {mainModules.length > 0 && (
+        <div className="sidebar-group">
+          <p className="sidebar-group-label">Workspace</p>
+          {mainModules.map((module) => (
+            <NavItem key={module.id} module={module} />
+          ))}
+        </div>
+      )}
+      {reportModules.length > 0 && (
+        <div className="sidebar-group">
+          <p className="sidebar-group-label">Reports</p>
+          {reportModules.map((module) => (
+            <NavItem key={module.id} module={module} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  const renderAdminSidebar = () => {
+    const adminConsoleItems: { path: string; label: string; icon?: string }[] = [];
+
+    for (const module of adminModules) {
+      if (module.children && module.children.length > 0) {
+        for (const child of module.children) {
+          adminConsoleItems.push({
+            path: child.path,
+            label: child.label,
+            icon: child.icon,
+          });
+        }
+      }
+    }
+
+    return (
+      <div className="sidebar-group">
+        <p className="sidebar-group-label">Admin Console</p>
+        {adminConsoleItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) =>
+              `sidebar-link sidebar-child-link ${isActive ? 'sidebar-link-active sidebar-child-link-active' : ''}`
+            }
+          >
+            <span className="sidebar-link-icon">
+              <SectionIcon id={item.icon || ''} size={18} />
+            </span>
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <aside className="sidebar">
@@ -36,73 +95,49 @@ export function Sidebar({ modules }: SidebarProps) {
       </div>
 
       <nav className="sidebar-nav">
-        {isAdmin ? (
-          <div className="sidebar-group">
-            <p className="sidebar-group-label">Admin Console</p>
-            {adminModules.map((module) => (
-              <NavItem key={module.id} module={module} />
-            ))}
-          </div>
-        ) : (
-          <>
-            {mainModules.length > 0 && (
-              <div className="sidebar-group">
-                <p className="sidebar-group-label">Workspace</p>
-                {mainModules.map((module) => (
-                  <NavItem key={module.id} module={module} />
-                ))}
-              </div>
-            )}
-            {reportModules.length > 0 && (
-              <div className="sidebar-group">
-                <p className="sidebar-group-label">Reports</p>
-                {reportModules.map((module) => (
-                  <NavItem key={module.id} module={module} />
-                ))}
-              </div>
-            )}
-          </>
-        )}
+        {isAdmin ? renderAdminSidebar() : renderOfficeSidebar()}
       </nav>
-
-      <div className="sidebar-user">
-        <div className="user-avatar">{user?.email?.[0]?.toUpperCase() || '?'}</div>
-        <div className="sidebar-user-info">
-          <div className="sidebar-user-email">{user?.email}</div>
-          <button onClick={signOut} className="sidebar-user-role hover:text-red-600 transition-colors text-left">
-            Sign Out
-          </button>
-        </div>
-      </div>
     </aside>
   );
 }
-
-const TONE_MAP: Record<string, 'blue' | 'green'> = {
-  dashboard: 'blue',
-  payroll: 'blue',
-  parties: 'green',
-  reports: 'green',
-  settings: 'blue',
-  admin: 'blue',
-};
 
 function NavItem({ module }: { module: ModuleDefinition }) {
   const route = module.routes[0];
   if (!route) return null;
 
-  const Icon = getModuleIcon(module.id);
-  const tone = TONE_MAP[module.id] || 'blue';
+  const children = module.children;
+
+  if (children && children.length > 0) {
+    return (
+      <div>
+        {children.map((child) => (
+          <NavLink
+            key={child.path}
+            to={child.path}
+            className={({ isActive }) =>
+              `sidebar-link sidebar-child-link ${isActive ? 'sidebar-link-active sidebar-child-link-active' : ''}`
+            }
+          >
+            <span className="sidebar-link-icon">
+              <SectionIcon id={child.icon ?? ''} size={18} />
+            </span>
+            <span>{child.label}</span>
+          </NavLink>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <NavLink
       to={route.path}
-      data-tone={tone}
       className={({ isActive }) =>
         `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
       }
     >
-      <Icon className="sidebar-link-icon" size={18} />
+      <span className="sidebar-link-icon">
+        <span className="text-lg">{module.icon || '📄'}</span>
+      </span>
       <span>{module.name}</span>
     </NavLink>
   );

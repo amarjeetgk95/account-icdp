@@ -223,6 +223,20 @@
   .sidebar-link[data-tone="blue"] .sidebar-link-icon { color: #2563EB; }
   .sidebar-link[data-tone="green"] .sidebar-link-icon { color: #16A34A; }
 
+  .sidebar-child-link {
+    margin-left: 18px;
+  }
+
+  .sidebar-link-active.sidebar-child-link-active::before {
+    display: none;
+  }
+
+  .sidebar-child-link-active {
+    color: #1D4ED8;
+    background: #EFF6FF;
+    font-weight: 700;
+  }
+
   .sidebar-user {
     @apply p-4 border-t border-slate-200 flex items-center gap-3;
   }
@@ -543,7 +557,7 @@
      PAGE HEADER
      ============================================================ */
   .page-header {
-    @apply flex flex-wrap justify-between items-end gap-4 mb-6;
+    @apply flex flex-wrap justify-between items-end gap-3 mb-3;
   }
 
   .page-title {
@@ -567,33 +581,33 @@
     position: sticky;
     top: 0;
     z-index: 20;
-    display: flex;
-    gap: 8px;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 6px;
     background: #FFFFFF;
     border: 1px solid #E5EAF1;
-    border-top: 3.5px solid #2563EB;
+    border-top: 3px solid #2563EB;
     border-radius: 12px;
-    padding: 8px 12px;
-    margin-bottom: 20px;
+    padding: 5px 8px;
+    margin-bottom: 10px;
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
     overflow: hidden;
     box-sizing: border-box;
-    max-width: fit-content;
+    width: 100%;
   }
 
   .step-link {
-    flex: 1 1 0px;
-    min-width: 0;
     text-align: center;
-    padding: 9px 12px;
-    font-size: 14px;
+    padding: 7px 14px;
+    font-size: 13px;
     font-weight: 700;
     color: #64748B;
     text-decoration: none;
     border-radius: 8px;
     transition: all 180ms ease;
     white-space: nowrap;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
@@ -606,14 +620,24 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     background: #EFF6FF;
     color: #2563EB;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     flex-shrink: 0;
+  }
+
+  .step-link.active .step-num {
+    background: rgba(255, 255, 255, 0.25);
+    color: #FFFFFF;
+  }
+
+  .step-link.active .step-num {
+    background: rgba(255, 255, 255, 0.25);
+    color: #FFFFFF;
   }
 
   .step-link:hover {
@@ -645,6 +669,50 @@
 
   .step-link::before {
     content: none;
+  }
+
+  /* ============================================================
+     PAYROLL TAB NAVIGATION
+     ============================================================ */
+  .payroll-tabs {
+    display: flex;
+    gap: 2px;
+    background: #F1F5F9;
+    border-radius: 12px;
+    padding: 4px;
+    width: fit-content;
+  }
+
+  .payroll-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748B;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 150ms ease;
+    white-space: nowrap;
+  }
+
+  .payroll-tab:hover {
+    color: #0F172A;
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  }
+
+  .payroll-tab.active {
+    color: #1D4ED8;
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.15);
+  }
+
+  .payroll-tab.active svg {
+    color: #2563EB;
   }
 
   /* ============================================================

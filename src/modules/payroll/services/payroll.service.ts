@@ -42,11 +42,18 @@ export class PayrollService {
     return payrollRepository.saveBulkSalary(month, entries);
   }
 
-  async copyPreviousMonth(month: string): Promise<void> {
+  async copyPreviousMonth(month: string): Promise<{ copied: number; created: number }> {
     const monthIdx = MONTHS.indexOf(month as any);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
-    return payrollRepository.copyPreviousMonth(prevMonth);
+    return payrollRepository.copyPreviousMonth(prevMonth, month);
+  }
+
+  async getEmployeePreviousMonthData(employeeId: string, month: string): Promise<{ gross: number; da: number; tax: number } | null> {
+    const monthIdx = MONTHS.indexOf(month as any);
+    if (monthIdx === -1) throw new Error('Invalid month');
+    const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
+    return payrollRepository.getEmployeeSalaryForMonth(employeeId, prevMonth);
   }
 
   async getQuarterReport(quarter: string, fy: number, officeId?: string): Promise<QuarterReport> {

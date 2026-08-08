@@ -10,6 +10,11 @@ const moduleDefinition: ModuleDefinition = {
   sidebar: true,
   featureFlag: 'admin_module',
   order: 10,
+  children: [
+    { path: '/admin', label: 'Overview', icon: 'overview' },
+    { path: '/admin/users', label: 'User Management', icon: 'users' },
+    { path: '/admin/reports', label: 'Data Entry & Reports', icon: 'reports' },
+  ],
 };
 
 export default moduleDefinition;

@@ -11,6 +11,8 @@ import type {
   Office,
   DataEntryReportRow,
   CreateUserInput,
+  OfficeCompletion,
+  AuditLogEntry,
 } from '../types';
 
 export class AdminService {
@@ -70,11 +72,22 @@ export class AdminService {
       officeId = newOffice.id;
     }
 
-    return adminRepository.createUser(input.email, input.password, input.role, officeId!);
+    if (input.password) {
+      return adminRepository.createUser(input.email, input.password, input.role, officeId!);
+    }
+    return adminRepository.inviteUser(input.email, input.role, officeId!);
   }
 
   async getDataEntryReport(): Promise<DataEntryReportRow[]> {
     return adminRepository.getDataEntryReport();
+  }
+
+  async getEntryCompletion(): Promise<OfficeCompletion[]> {
+    return adminRepository.getEntryCompletion();
+  }
+
+  async listAuditLogs(limit = 100): Promise<AuditLogEntry[]> {
+    return adminRepository.listAuditLogs(limit);
   }
 
   async getFinancialYears(officeId: string): Promise<number[]> {
@@ -104,7 +117,7 @@ export class AdminService {
     if (!emailRegex.test(input.email)) {
       throw new Error('Invalid email format');
     }
-    if (input.password.length < 8) {
+    if (input.password !== undefined && input.password.length < 8) {
       throw new Error('Password must be at least 8 characters');
     }
     if (!input.officeName || input.officeName.trim().length < 2) {

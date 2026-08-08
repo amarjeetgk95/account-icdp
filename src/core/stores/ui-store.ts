@@ -5,7 +5,7 @@ interface UIState {
   activeOfficeId: string | null;
   activeFinancialYear: number;
   sidebarCollapsed: boolean;
-  setActiveOfficeId: (id: string) => void;
+  setActiveOfficeId: (id: string | null) => void;
   setActiveFinancialYear: (year: number) => void;
   toggleSidebar: () => void;
   initializeOffice: (officeId: string | null) => void;

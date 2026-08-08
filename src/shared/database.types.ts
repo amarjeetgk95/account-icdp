@@ -2,54 +2,69 @@
 
 export type Database = {
   public: {
+    Views: Record<string, never>,
     Tables: {
       profiles: {
         Row: { id: string; email: string; role: 'admin' | 'office'; office_id: string | null; created_at: string; updated_at: string }
         Insert: { id: string; email: string; role?: 'admin' | 'office'; office_id?: string | null; created_at?: string; updated_at?: string }
         Update: { id?: string; email?: string; role?: 'admin' | 'office'; office_id?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
       }
       offices: {
         Row: { id: string; name: string; district: string | null; current_fy: number; created_at: string; updated_at: string }
         Insert: { id?: string; name: string; district?: string | null; current_fy?: number; created_at?: string; updated_at?: string }
         Update: { id?: string; name?: string; district?: string | null; current_fy?: number; created_at?: string; updated_at?: string }
+        Relationships: []
       }
       office_details: {
         Row: { id: string; office_id: string; office_name: string | null; subtitle: string | null; address: string | null; phone: string | null; email: string | null; gst: string | null; tan: string | null; created_at: string; updated_at: string }
         Insert: { id?: string; office_id: string; office_name?: string | null; subtitle?: string | null; address?: string | null; phone?: string | null; email?: string | null; gst?: string | null; tan?: string | null; created_at?: string; updated_at?: string }
         Update: { id?: string; office_id?: string; office_name?: string | null; subtitle?: string | null; address?: string | null; phone?: string | null; email?: string | null; gst?: string | null; tan?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
       }
       employees: {
         Row: { id: string; name: string; pan: string; join_date: string | null; transfer_date: string | null; office_id: string; created_at: string; updated_at: string }
         Insert: { id?: string; name: string; pan: string; join_date?: string | null; transfer_date?: string | null; office_id: string; created_at?: string; updated_at?: string }
         Update: { id?: string; name?: string; pan?: string; join_date?: string | null; transfer_date?: string | null; office_id?: string; created_at?: string; updated_at?: string }
+        Relationships: []
       }
       employee_salaries: {
         Row: { id: string; employee_id: string; financial_year: number; month: string; gross: number; da: number; tax: number; office_id: string; created_at: string; updated_at: string }
         Insert: { id?: string; employee_id: string; financial_year: number; month: string; gross?: number; da?: number; tax?: number; office_id: string; created_at?: string; updated_at?: string }
         Update: { id?: string; employee_id?: string; financial_year?: number; month?: string; gross?: number; da?: number; tax?: number; office_id?: string; created_at?: string; updated_at?: string }
+        Relationships: []
       }
       parties: {
         Row: { id: string; name: string; gst_no: string | null; pan_no: string | null; office_id: string; created_at: string; updated_at: string }
         Insert: { id?: string; name: string; gst_no?: string | null; pan_no?: string | null; office_id: string; created_at?: string; updated_at?: string }
         Update: { id?: string; name?: string; gst_no?: string | null; pan_no?: string | null; office_id?: string; created_at?: string; updated_at?: string }
+        Relationships: []
       }
       party_transactions: {
         Row: { id: string; party_id: string; office_id: string; cpin_no: string | null; bill_no: string; transaction_date: string; amount: number; cgst: number; sgst: number; igst: number; total_gst: number; income_tax: number; created_at: string; updated_at: string }
         Insert: { id?: string; party_id: string; office_id: string; cpin_no?: string | null; bill_no: string; transaction_date: string; amount?: number; cgst?: number; sgst?: number; igst?: number; total_gst?: number; income_tax?: number; created_at?: string; updated_at?: string }
         Update: { id?: string; party_id?: string; office_id?: string; cpin_no?: string | null; bill_no?: string; transaction_date?: string; amount?: number; cgst?: number; sgst?: number; igst?: number; total_gst?: number; income_tax?: number; created_at?: string; updated_at?: string }
+        Relationships: []
       }
       app_config: {
         Row: { id: string; office_id: string; key: string; value: string; created_at: string; updated_at: string }
         Insert: { id?: string; office_id: string; key: string; value: string; created_at?: string; updated_at?: string }
         Update: { id?: string; office_id?: string; key?: string; value?: string; created_at?: string; updated_at?: string }
+        Relationships: []
       }
     }
     Functions: {
       admin_list_users: { Args: Record<string, never>; Returns: Json }
-      admin_set_role: { Args: { user_id: string; new_role: string; new_office_id: string }; Returns: Json }
+      admin_set_role: { Args: { user_id: string; new_role: string; new_office_id: string | null }; Returns: Json }
       admin_delete_user: { Args: { user_id: string }; Returns: Json }
+      admin_deleteUser: { Args: { user_id: string }; Returns: Json }
       admin_list_offices: { Args: Record<string, never>; Returns: Json }
       admin_create_office: { Args: { office_name: string; office_district: string }; Returns: Json }
+      admin_create_user: { Args: { user_email: string; user_password: string; user_role: string; user_office_id: string }; Returns: Json }
+      admin_invite_user: { Args: { user_email: string; user_role: string; user_office_id: string }; Returns: Json }
+      admin_entry_completion: { Args: Record<string, never>; Returns: Json }
+      admin_office_financial_years: { Args: { target_office_id: string }; Returns: Json }
+      admin_audit_list: { Args: { limit_count?: number }; Returns: Json }
       get_system_stats: { Args: Record<string, never>; Returns: Json }
       admin_office_stats: { Args: Record<string, never>; Returns: Json }
       admin_data_entry_report: { Args: Record<string, never>; Returns: Json }

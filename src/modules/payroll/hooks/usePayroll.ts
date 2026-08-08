@@ -38,11 +38,15 @@ export function useSaveSalary() {
 
 export function useCopyPreviousMonth() {
   const queryClient = useQueryClient();
+  const fy = useUIStore((state) => state.activeFinancialYear);
 
   return useMutation({
     mutationFn: (month: string) => payrollService.copyPreviousMonth(month),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payroll-roster'] });
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['payroll-roster', variables, fy],
+      });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 }

@@ -10,20 +10,21 @@ type ReportSub = '24q' | 'gst' | 'it';
 interface AdminReportsProps {
   offices: Office[];
   officesLoading: boolean;
+  officeId: string;
+  onOfficeIdChange: (officeId: string) => void;
 }
 
-export function AdminReports({ offices, officesLoading }: AdminReportsProps) {
-  const [selectedOfficeId, setSelectedOfficeId] = useState('');
+export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChange }: AdminReportsProps) {
   const [selectedFY, setSelectedFY] = useState<number | null>(null);
   const [selectedQuarter, setSelectedQuarter] = useState('Q1');
   const [activeSub, setActiveSub] = useState<ReportSub>('24q');
 
-  const { data: years } = useOfficeFinancialYears(selectedOfficeId || null);
-  const { data: officeDetails } = useReportOfficeDetails(selectedOfficeId || null);
+  const { data: years } = useOfficeFinancialYears(officeId || null);
+  const { data: officeDetails } = useReportOfficeDetails(officeId || null);
   const activeFY = selectedFY ?? (years && years.length > 0 ? years[0] : null);
-  const { data: quarterReport, isLoading: quarterLoading } = useAdminQuarterReport(activeSub === '24q' ? selectedQuarter : 'Q1', activeFY, selectedOfficeId || null);
-  const { data: gstReport, isLoading: gstLoading } = useAdminGSTReport(activeSub === 'gst' ? selectedQuarter : 'Q1', activeFY, selectedOfficeId || null);
-  const { data: itReport, isLoading: itLoading } = useAdminIncomeTaxReport(activeSub === 'it' ? selectedQuarter : 'Q1', activeFY, selectedOfficeId || null);
+  const { data: quarterReport, isLoading: quarterLoading } = useAdminQuarterReport(activeSub === '24q' ? selectedQuarter : null, activeFY, officeId || null);
+  const { data: gstReport, isLoading: gstLoading } = useAdminGSTReport(activeSub === 'gst' ? selectedQuarter : null, activeFY, officeId || null);
+  const { data: itReport, isLoading: itLoading } = useAdminIncomeTaxReport(activeSub === 'it' ? selectedQuarter : null, activeFY, officeId || null);
 
   const office = officeDetails || { officeName: '', subtitle: '', address: '', phone: '', email: '', gst: '', tan: '' };
   const fyLabel = activeFY != null ? `${activeFY}-${String(activeFY + 1).slice(-2)}` : '-';
@@ -50,7 +51,7 @@ export function AdminReports({ offices, officesLoading }: AdminReportsProps) {
     }
   };
 
-  const officeName = offices.find((o) => o.id === selectedOfficeId)?.name || '';
+  const officeName = offices.find((o) => o.id === officeId)?.name || '';
 
   return (
     <div className="space-y-4">
@@ -58,7 +59,15 @@ export function AdminReports({ offices, officesLoading }: AdminReportsProps) {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div>
             <label className="label">Report Office</label>
-            <select value={selectedOfficeId} onChange={(e) => { setSelectedOfficeId(e.target.value); setSelectedFY(null); }} className="input" disabled={officesLoading}>
+            <select
+              value={officeId}
+              onChange={(e) => {
+                onOfficeIdChange(e.target.value);
+                setSelectedFY(null);
+              }}
+              className="input"
+              disabled={officesLoading}
+            >
               <option value="">{officesLoading ? 'Loading offices...' : 'Select office'}</option>
               {offices.map((o) => (
                 <option key={o.id} value={o.id}>{o.name}</option>
@@ -67,7 +76,7 @@ export function AdminReports({ offices, officesLoading }: AdminReportsProps) {
           </div>
           <div>
             <label className="label">Financial Year</label>
-            <select value={activeFY ?? ''} onChange={(e) => setSelectedFY(parseInt(e.target.value, 10))} className="input" disabled={!selectedOfficeId}>
+            <select value={activeFY ?? ''} onChange={(e) => setSelectedFY(parseInt(e.target.value, 10))} className="input" disabled={!officeId}>
               <option value="">Select FY</option>
               {(years || []).map((y) => (
                 <option key={y} value={y}>{y}-{String(y + 1).slice(-2)}</option>
@@ -97,7 +106,7 @@ export function AdminReports({ offices, officesLoading }: AdminReportsProps) {
         <button onClick={() => setActiveSub('it')} className={"px-4 py-2 text-sm font-medium border-b-2 " + (activeSub === 'it' ? 'border-amber-600 text-amber-600' : 'border-transparent text-slate-500')}>26Q Income Tax</button>
       </div>
 
-      {!selectedOfficeId ? (
+      {!officeId ? (
         <div className="empty-state"><p>Select an office to generate reports.</p></div>
       ) : activeSub === '24q' ? (
         quarterLoading ? <div className="spinner h-10 w-10 mx-auto"></div> :

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService } from '../services/employee.service';
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
-import type { EmployeeInput } from '../validation/settings.schema';
+import type { EmployeeInput } from '../validation/employee.schema';
 
 export function useEmployees() {
   const queryClient = useQueryClient();

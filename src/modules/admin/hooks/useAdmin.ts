@@ -29,6 +29,7 @@ export function useUsers() {
       adminService.setUserRole(userId, role, officeId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
     },
   });
 
@@ -37,6 +38,7 @@ export function useUsers() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['admin-offices'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
     },
   });
 
@@ -46,8 +48,10 @@ export function useUsers() {
     isError: usersQuery.isError,
     error: usersQuery.error,
     setUserRole: setUserRoleMutation.mutate,
+    setUserRoleAsync: setUserRoleMutation.mutateAsync,
     isSettingRole: setUserRoleMutation.isPending,
     deleteUser: deleteUserMutation.mutate,
+    deleteUserAsync: deleteUserMutation.mutateAsync,
     isDeleting: deleteUserMutation.isPending,
   };
 }
@@ -67,6 +71,7 @@ export function useCreateUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['admin-offices'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
     },
   });
 }
@@ -75,6 +80,20 @@ export function useDataEntryReport() {
   return useQuery({
     queryKey: ['admin-data-entry-report'],
     queryFn: () => adminService.getDataEntryReport(),
+  });
+}
+
+export function useEntryCompletion() {
+  return useQuery({
+    queryKey: ['admin-entry-completion'],
+    queryFn: () => adminService.getEntryCompletion(),
+  });
+}
+
+export function useAuditLogs() {
+  return useQuery({
+    queryKey: ['admin-audit'],
+    queryFn: () => adminService.listAuditLogs(),
   });
 }
 
@@ -94,26 +113,26 @@ export function useReportOfficeDetails(officeId: string | null) {
   });
 }
 
-export function useAdminQuarterReport(quarter: string, fy: number | null, officeId: string | null) {
+export function useAdminQuarterReport(quarter: string | null, fy: number | null, officeId: string | null) {
   return useQuery({
     queryKey: ['admin-quarter-report', quarter, fy, officeId],
-    queryFn: () => adminService.getQuarterReport(quarter, fy!, officeId!),
+    queryFn: () => adminService.getQuarterReport(quarter!, fy!, officeId!),
     enabled: !!quarter && !!fy && !!officeId,
   });
 }
 
-export function useAdminGSTReport(quarter: string, fy: number | null, officeId: string | null) {
+export function useAdminGSTReport(quarter: string | null, fy: number | null, officeId: string | null) {
   return useQuery({
     queryKey: ['admin-gst-report', quarter, fy, officeId],
-    queryFn: () => adminService.getGSTReport(fy!, quarter, officeId!),
+    queryFn: () => adminService.getGSTReport(fy!, quarter!, officeId!),
     enabled: !!quarter && !!fy && !!officeId,
   });
 }
 
-export function useAdminIncomeTaxReport(quarter: string, fy: number | null, officeId: string | null) {
+export function useAdminIncomeTaxReport(quarter: string | null, fy: number | null, officeId: string | null) {
   return useQuery({
     queryKey: ['admin-it-report', quarter, fy, officeId],
-    queryFn: () => adminService.getIncomeTaxReport(fy!, quarter, officeId!),
+    queryFn: () => adminService.getIncomeTaxReport(fy!, quarter!, officeId!),
     enabled: !!quarter && !!fy && !!officeId,
   });
 }

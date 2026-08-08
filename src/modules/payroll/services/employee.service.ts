@@ -1,5 +1,5 @@
 import { employeeRepository } from '../repositories/employee.repository';
-import type { EmployeeInput } from '../validation/settings.schema';
+import type { EmployeeInput } from '../validation/employee.schema';
 import type { Database } from '@/shared/database.types';
 
 type Employee = Database['public']['Tables']['employees']['Row'];

@@ -1,7 +1,7 @@
 import { useAuthStore } from '@/core/auth/store';
 import { useUIStore } from '@/core/stores/ui-store';
 import { useState, useRef, useEffect } from 'react';
-import { CalendarDays, LogOut, Search } from 'lucide-react';
+import { CalendarDays, LogOut, Search, Shield, UserCheck } from 'lucide-react';
 
 export function Header() {
   const { user, signOut } = useAuthStore();
@@ -56,6 +56,19 @@ export function Header() {
           </span>
         )}
 
+        {user?.role === 'admin' && (
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[50px] text-xs font-bold border bg-blue-50 text-blue-700 border-blue-300">
+            <Shield size={11} />
+            Admin
+          </span>
+        )}
+        {user?.role === 'office' && (
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[50px] text-xs font-bold border bg-green-50 text-green-700 border-green-300">
+            <UserCheck size={11} />
+            Office User
+          </span>
+        )}
+
         <div className="relative" ref={menuRef}>
           <button className="user-avatar" onClick={() => setMenuOpen(!menuOpen)} title={user?.email || ''}>
             {initials}
@@ -79,3 +92,4 @@ export function Header() {
     </header>
   );
 }
+

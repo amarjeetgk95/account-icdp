@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useEmployees } from '../hooks/useEmployees';
 import { formatDate } from '@/shared/utilities';
-import type { EmployeeInput } from '../validation/settings.schema';
+import type { EmployeeInput } from '../validation/employee.schema';
 import type { Database } from '@/shared/database.types';
+import { Pencil, Trash2 } from 'lucide-react';
 
 type Employee = Database['public']['Tables']['employees']['Row'];
 
@@ -39,7 +40,8 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
     return (
       <div className="empty-state">
         <div className="empty-state-icon">👥</div>
-        <p>No employees registered yet.</p>
+        <p className="empty-state-text">No employees registered yet.</p>
+        <p className="text-xs text-slate-400 mt-1">Add employees using the form above to get started.</p>
       </div>
     );
   }
@@ -49,18 +51,18 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
       <table className="table">
         <thead>
           <tr>
-            <th>#</th>
+            <th className="text-center" style={{ width: '50px' }}>#</th>
             <th className="text-left">Name</th>
             <th className="text-left">PAN</th>
-            <th>Join Date</th>
-            <th>Transfer Date</th>
-            <th className="text-center">Actions</th>
+            <th className="text-center">Join Date</th>
+            <th className="text-center">Transfer Date</th>
+            <th className="text-center" style={{ width: '140px' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
           {employees.map((employee, index) => (
             <tr key={employee.id}>
-              <td className="text-slate-500">{index + 1}</td>
+              <td className="text-slate-500 text-center">{index + 1}</td>
               <td className="font-medium">{employee.name}</td>
               <td className="font-mono text-sm">{employee.pan}</td>
               <td className="text-center">
@@ -70,7 +72,7 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
                 {employee.transfer_date ? formatDate(employee.transfer_date) : '-'}
               </td>
               <td>
-                <div className="flex justify-center gap-2">
+                <div className="flex justify-center gap-1.5">
                   <button
                     onClick={() =>
                       onEdit({
@@ -81,22 +83,24 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
                         transferDate: employee.transfer_date || '',
                       })
                     }
-                    className="btn btn-sm btn-secondary"
+                    className="btn btn-icon btn-sm btn-secondary"
+                    title="Edit employee"
                   >
-                    Edit
+                    <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => handleDelete(employee)}
-                    className={`btn btn-sm ${
+                    className={`btn btn-icon btn-sm ${
                       deleteConfirm?.id === employee.id ? 'btn-danger' : 'btn-outline'
                     }`}
+                    title={deleteConfirm?.id === employee.id ? 'Click again to confirm' : 'Delete employee'}
                   >
-                    {deleteConfirm?.id === employee.id ? 'Confirm' : 'Delete'}
+                    <Trash2 size={14} />
                   </button>
                 </div>
                 {deleteConfirm?.id === employee.id && (
-                  <p className="text-xs text-red-500 mt-1 text-center">
-                    This will permanently delete all salary data for {deleteConfirm.name}
+                  <p className="text-xs text-red-500 mt-1.5 text-center font-medium">
+                    This will delete all salary data for {deleteConfirm.name}
                   </p>
                 )}
               </td>

@@ -98,13 +98,28 @@ export const payrollRepository = {
     return `Successfully saved ${entries.length} records for ${month}.`;
   },
 
-  async copyPreviousMonth(fromMonth: string): Promise<void> {
+  async getEmployeeSalaryForMonth(employeeId: string, month: string): Promise<{ gross: number; da: number; tax: number } | null> {
+    const fy = getFinancialYear();
+    const { data, error } = await (supabase as any)
+      .from('employee_salaries')
+      .select('gross, da, tax')
+      .eq('financial_year', fy)
+      .eq('month', month)
+      .eq('employee_id', employeeId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data ? { gross: Number(data.gross) || 0, da: Number(data.da) || 0, tax: Number(data.tax) || 0 } : null;
+  },
+
+  async copyPreviousMonth(fromMonth: string, toMonth: string): Promise<{ copied: number; created: number }> {
     const officeId = getOfficeId();
     const fy = getFinancialYear();
     if (!officeId) throw new Error('No office selected');
 
     const monthIdx = MONTHS.indexOf(fromMonth as any);
-    if (monthIdx === -1) throw new Error('Invalid month');
+    if (monthIdx === -1) throw new Error('Invalid source month');
+    if (fromMonth === toMonth) throw new Error('Source and target month cannot be the same');
 
     const { data: employees } = await (supabase as any)
       .from('employees')
@@ -141,7 +156,7 @@ export const payrollRepository = {
         employee_id: emp.id,
         office_id: officeId,
         financial_year: fy,
-        month: fromMonth,
+        month: toMonth,
         gross: prev.gross,
         da: prev.da,
         tax: prev.tax,
@@ -155,6 +170,8 @@ export const payrollRepository = {
 
       if (error) throw error;
     }
+
+    return { copied: prevSalaries?.length || 0, created: records.length };
   },
 
   async getQuarterReport(quarter: string, fy: number, officeId?: string): Promise<QuarterReport> {

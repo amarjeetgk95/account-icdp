@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { employeeSchema, type EmployeeInput } from '../validation/settings.schema';
+import { employeeSchema, type EmployeeInput } from '../validation/employee.schema';
 import { useEmployees } from '../hooks/useEmployees';
-
+import { Save, X, UserPlus, RefreshCw } from 'lucide-react';
 
 interface EmployeeFormProps {
   editingEmployee: EmployeeInput | null;
@@ -77,7 +77,7 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
     setValue('name', emp.name);
     setValue('pan', emp.pan);
     setShowDropdown(false);
-    setSubmitStatus({ type: 'info', message: 'Employee found. Updating record.' });
+    setSubmitStatus({ type: 'info', message: 'Employee found. Update their details below.' });
   };
 
   const onSubmit = async (data: EmployeeInput) => {
@@ -94,6 +94,7 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
 
       reset();
       onCancel();
+      setTimeout(() => setSubmitStatus(null), 3000);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save employee';
       setSubmitStatus({ type: 'error', message });
@@ -109,22 +110,35 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {submitStatus && (
+        <div
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+            submitStatus.type === 'success'
+              ? 'bg-green-50 text-green-700 border border-green-200'
+              : submitStatus.type === 'error'
+              ? 'bg-red-50 text-red-700 border border-red-200'
+              : 'bg-blue-50 text-blue-700 border border-blue-200'
+          }`}
+        >
+          {submitStatus.message}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="relative" ref={dropdownRef}>
           <label htmlFor="name" className="label">
-            Employee Name
+            Employee Name <span className="text-red-400">*</span>
           </label>
           <input
             id="name"
             {...register('name')}
             className="input"
-            placeholder="Type to search..."
+            placeholder="Type to search existing..."
             autoComplete="off"
           />
-          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+          {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
           {showDropdown && searchResults.length > 0 && (
             <div
-              ref={dropdownRef}
               className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
             >
               {searchResults.map((emp, idx) => (
@@ -132,10 +146,10 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
                   key={idx}
                   type="button"
                   onClick={() => selectEmployee(emp)}
-                  className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-0"
+                  className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-0 transition-colors"
                 >
-                  <span className="font-medium">{emp.name}</span>
-                  <span className="text-slate-500 text-sm ml-2">{emp.pan}</span>
+                  <span className="font-medium text-sm">{emp.name}</span>
+                  <span className="text-slate-500 text-xs ml-2">{emp.pan}</span>
                 </button>
               ))}
             </div>
@@ -144,7 +158,7 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
 
         <div>
           <label htmlFor="pan" className="label">
-            PAN Number
+            PAN Number <span className="text-red-400">*</span>
           </label>
           <input
             id="pan"
@@ -157,7 +171,7 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
               setValue('pan', sanitized);
             }}
           />
-          {errors.pan && <p className="text-red-500 text-sm mt-1">{errors.pan.message}</p>}
+          {errors.pan && <p className="text-red-500 text-xs mt-1">{errors.pan.message}</p>}
         </div>
 
         <div>
@@ -170,8 +184,8 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
             {...register('joinDate')}
             className="input"
           />
-          {errors.joinDate && <p className="text-red-500 text-sm mt-1">{errors.joinDate.message}</p>}
-          <p className="text-slate-400 text-xs mt-1">Leave blank if active since March 1</p>
+          {errors.joinDate && <p className="text-red-500 text-xs mt-1">{errors.joinDate.message}</p>}
+          <p className="text-slate-400 text-xs mt-1">Leave blank if active since start</p>
         </div>
 
         <div>
@@ -184,26 +198,32 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
             {...register('transferDate')}
             className="input"
           />
-          {errors.transferDate && <p className="text-red-500 text-sm mt-1">{errors.transferDate.message}</p>}
-          <p className="text-slate-400 text-xs mt-1">Leave blank if staying all year</p>
+          {errors.transferDate && <p className="text-red-500 text-xs mt-1">{errors.transferDate.message}</p>}
+          <p className="text-slate-400 text-xs mt-1">Leave blank if not transferred</p>
         </div>
       </div>
 
-      {submitStatus && (
-        <div
-          className={`alert alert-${
-            submitStatus.type === 'success' ? 'success' : submitStatus.type === 'error' ? 'danger' : 'info'
-          }`}
-        >
-          {submitStatus.message}
-        </div>
-      )}
-
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2 pt-1">
         <button type="submit" disabled={isSubmitting} className="btn btn-primary">
-          {isSubmitting ? 'Saving...' : editingEmployee ? 'Update' : 'Save'}
+          {isSubmitting ? (
+            <>
+              <RefreshCw size={14} className="animate-spin mr-1.5" />
+              Saving...
+            </>
+          ) : editingEmployee ? (
+            <>
+              <Save size={14} className="mr-1.5" />
+              Update Employee
+            </>
+          ) : (
+            <>
+              <UserPlus size={14} className="mr-1.5" />
+              Add Employee
+            </>
+          )}
         </button>
         <button type="button" onClick={handleClear} className="btn btn-secondary">
+          <X size={14} className="mr-1.5" />
           Clear
         </button>
       </div>

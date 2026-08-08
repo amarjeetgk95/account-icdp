@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/core/supabase/client';
 import { useAuthStore } from '@/core/auth/store';
+import type { UserRole } from '@/shared/types/module';
 
 interface UserProfile {
   id: string;
@@ -10,41 +9,26 @@ interface UserProfile {
 }
 
 export function usePermissions() {
-  const { user } = useAuthStore();
+  const { user, isRoleLoaded } = useAuthStore();
 
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ['user-profile', user?.id],
-    queryFn: async (): Promise<UserProfile | null> => {
-      if (!user) return null;
+  const role = user?.role ?? null;
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, office_id')
-        .eq('id', user.id)
-        .single<{ id: string; role: 'admin' | 'office'; office_id: string | null }>();
-
-      if (error) {
-        console.error('Failed to fetch profile:', error);
-        return null;
+  const profile: UserProfile | null = role
+    ? {
+        id: user?.id ?? '',
+        email: user?.email ?? '',
+        role: role,
+        office_id: user?.officeId ?? null,
       }
-
-      return {
-        id: data.id,
-        email: user.email,
-        role: data.role,
-        office_id: data.office_id,
-      };
-    },
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000,
-  });
+    : null;
 
   return {
     profile,
-    isLoading,
-    isAdmin: profile?.role === 'admin',
-    isOffice: profile?.role === 'office',
-    officeId: profile?.office_id,
+    isLoading: !isRoleLoaded,
+    isAdmin: role === 'admin',
+    isOffice: role === 'office',
+    officeId: user?.officeId ?? null,
+    role: role as UserRole | null,
   };
 }
 

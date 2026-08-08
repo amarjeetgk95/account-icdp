@@ -10,6 +10,12 @@ export interface RouteDefinition {
   children?: RouteDefinition[];
 }
 
+export interface SidebarChild {
+  path: string;
+  label: string;
+  icon?: string;
+}
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -20,6 +26,7 @@ export interface ModuleDefinition {
   routes: RouteDefinition[];
   sidebar?: boolean;
   order?: number;
+  children?: SidebarChild[];
 }
 
 export interface FeatureFlagKeys {

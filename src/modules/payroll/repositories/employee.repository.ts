@@ -1,7 +1,7 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
-import type { EmployeeInput } from '../validation/settings.schema';
+import type { EmployeeInput } from '../validation/employee.schema';
 import type { Database } from '@/shared/database.types';
 
 type Employee = Database['public']['Tables']['employees']['Row'];

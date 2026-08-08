@@ -14,6 +14,7 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isInitialized: boolean;
+  isRoleLoaded: boolean;
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -36,18 +37,25 @@ async function loadProfileIntoStores(userId: string): Promise<void> {
           role: profile.role,
           officeId: profile.office_id,
         },
+        isRoleLoaded: true,
       });
       useUIStore.getState().initializeOffice(profile.office_id);
+    } else {
+      useAuthStore.setState({ isRoleLoaded: true });
     }
   } catch (error) {
     logger.warn('Could not load profile', 'auth', error);
+    useAuthStore.setState({ isRoleLoaded: true });
   }
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+let authListenerRegistered = false;
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
   isInitialized: false,
+  isRoleLoaded: false,
 
   initialize: async () => {
     try {
@@ -58,24 +66,37 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (session?.user) {
         set({
           user: { id: session.user.id, email: session.user.email || '' },
+          isRoleLoaded: false,
         });
         await loadProfileIntoStores(session.user.id);
+      } else {
+        set({ isRoleLoaded: true });
       }
       set({ isLoading: false, isInitialized: true });
 
-      supabase.auth.onAuthStateChange((_event, newSession) => {
-        if (newSession?.user) {
-          set({
-            user: { id: newSession.user.id, email: newSession.user.email || '' },
-          });
-          loadProfileIntoStores(newSession.user.id);
-        } else {
-          set({ user: null });
-        }
-      });
+      if (!authListenerRegistered) {
+        authListenerRegistered = true;
+        supabase.auth.onAuthStateChange(async (_event, newSession) => {
+          if (newSession?.user) {
+            const currentUser = get().user;
+            set({
+              user: {
+                id: newSession.user.id,
+                email: newSession.user.email || '',
+                role: currentUser?.role,
+                officeId: currentUser?.officeId,
+              },
+              isRoleLoaded: false,
+            });
+            await loadProfileIntoStores(newSession.user.id);
+          } else {
+            set({ user: null, isRoleLoaded: true });
+          }
+        });
+      }
     } catch (error) {
       logger.error('Auth initialization failed', 'auth', error);
-      set({ user: null, isLoading: false, isInitialized: true });
+      set({ user: null, isLoading: false, isInitialized: true, isRoleLoaded: true });
     }
   },
 
@@ -93,6 +114,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (data?.user) {
       set({
         user: { id: data.user.id, email: data.user.email || '' },
+        isRoleLoaded: false,
       });
       await loadProfileIntoStores(data.user.id);
       set({ isLoading: false, isInitialized: true });

@@ -10,4 +10,12 @@ export const adminRoutes: RouteDefinition[] = [
     path: '/admin',
     element: <AdminPage />,
   },
+  {
+    path: '/admin/users',
+    element: <AdminPage />,
+  },
+  {
+    path: '/admin/reports',
+    element: <AdminPage />,
+  },
 ];

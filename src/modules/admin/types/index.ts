@@ -34,8 +34,15 @@ export interface Office {
   id: string;
   name: string;
   district: string | null;
-  current_fy: number;
+  current_fy?: number;
   users: number;
+}
+
+export interface OfficeCompletion {
+  office_id: string;
+  office_name: string;
+  fy: number;
+  months: string[];
 }
 
 export interface DataEntryReportRow {
@@ -58,7 +65,18 @@ export interface DataEntryReportRow {
 
 export interface CreateUserInput {
   email: string;
-  password: string;
+  password?: string;
   role: 'admin' | 'office';
   officeName: string;
+}
+
+export type UserInviteMethod = 'password' | 'invite';
+
+export interface AuditLogEntry {
+  id: number;
+  admin_email: string | null;
+  action: string;
+  target_email: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
 }
