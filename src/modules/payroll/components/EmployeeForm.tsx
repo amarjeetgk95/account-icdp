@@ -27,6 +27,7 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
   } = useForm<EmployeeInput>({
     resolver: zodResolver(employeeSchema),
     defaultValues: {
+      hprnNo: '',
       name: '',
       pan: '',
       joinDate: '',
@@ -41,6 +42,7 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
     if (editingEmployee) {
       reset({
         id: editingEmployee.id,
+        hprnNo: editingEmployee.hprnNo || '',
         name: editingEmployee.name,
         pan: editingEmployee.pan,
         joinDate: editingEmployee.joinDate || '',
@@ -124,7 +126,22 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div>
+          <label htmlFor="hprnNo" className="label">
+            HRPN No.
+          </label>
+          <input
+            id="hprnNo"
+            {...register('hprnNo')}
+            className="input"
+            placeholder="Optional"
+            maxLength={50}
+            onChange={(e) => setValue('hprnNo', e.target.value)}
+          />
+          {errors.hprnNo && <p className="text-red-500 text-xs mt-1">{errors.hprnNo.message}</p>}
+        </div>
+
         <div className="relative" ref={dropdownRef}>
           <label htmlFor="name" className="label">
             Employee Name <span className="text-red-400">*</span>

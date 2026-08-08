@@ -43,6 +43,7 @@ export const employeeRepository = {
     }
 
     const payload = {
+      hprn_no: input.hprnNo || null,
       name: input.name,
       pan: input.pan,
       office_id: officeId,
@@ -80,6 +81,7 @@ export const employeeRepository = {
     const { data, error } = await (supabase as any)
       .from('employees')
       .update({
+        hprn_no: input.hprnNo || null,
         name: input.name,
         pan: input.pan,
         join_date: input.joinDate || null,

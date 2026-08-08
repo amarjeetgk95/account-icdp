@@ -23,9 +23,11 @@ export type Database = {
         Relationships: []
       }
       employees: {
-        Row: { id: string; name: string; pan: string; join_date: string | null; transfer_date: string | null; office_id: string; created_at: string; updated_at: string }
-        Insert: { id?: string; name: string; pan: string; join_date?: string | null; transfer_date?: string | null; office_id: string; created_at?: string; updated_at?: string }
-        Update: { id?: string; name?: string; pan?: string; join_date?: string | null; transfer_date?: string | null; office_id?: string; created_at?: string; updated_at?: string }
+        Row: { id: string; hprn_no: string | null; name: string; pan: string; join_date: string | null; transfer_date: string | null; office_id: string; created_at: string; updated_at: string }
+
+        Insert: { id?: string; hprn_no?: string | null; name: string; pan: string; join_date?: string | null; transfer_date?: string | null; office_id: string; created_at?: string; updated_at?: string }
+
+        Update: { id?: string; hprn_no?: string | null; name?: string; pan?: string; join_date?: string | null; transfer_date?: string | null; office_id?: string; created_at?: string; updated_at?: string }
         Relationships: []
       }
       employee_salaries: {

@@ -5,6 +5,11 @@ const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 export const employeeSchema = z
   .object({
     id: z.string().optional(),
+    hprnNo: z
+      .string()
+      .optional()
+      .transform((val) => (val ? val.trim() : val))
+      .refine((val) => !val || val.length <= 50, 'HRPN No. must be at most 50 characters'),
     name: z
       .string()
       .min(2, 'Name must be at least 2 characters')
