@@ -1,35 +1,34 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { payrollService } from '../services/payroll.service';
 import { payrollRepository } from '../repositories/payroll.repository';
-import { useUIStore } from '@/core/stores/ui-store';
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 
-export function useRoster(month: string) {
-  const fy = useUIStore((state) => state.activeFinancialYear);
+export function useRoster(month: string, fy: number) {
   const officeId = useActiveOfficeId();
 
   return useQuery({
     queryKey: ['payroll-roster', month, fy, officeId],
-    queryFn: () => payrollService.getRoster(month),
+    queryFn: () => payrollService.getRoster(month, fy),
     enabled: !!month && !!officeId,
   });
 }
 
 export function useSaveSalary() {
   const queryClient = useQueryClient();
-  const fy = useUIStore((state) => state.activeFinancialYear);
 
   return useMutation({
     mutationFn: ({
       month,
+      fy,
       entries,
     }: {
       month: string;
+      fy: number;
       entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>;
-    }) => payrollService.saveBulkSalary(month, entries),
+    }) => payrollService.saveBulkSalary(month, entries, fy),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['payroll-roster', variables.month, fy],
+        queryKey: ['payroll-roster', variables.month, variables.fy],
       });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
@@ -38,13 +37,18 @@ export function useSaveSalary() {
 
 export function useCopyPreviousMonth() {
   const queryClient = useQueryClient();
-  const fy = useUIStore((state) => state.activeFinancialYear);
 
   return useMutation({
-    mutationFn: (month: string) => payrollService.copyPreviousMonth(month),
+    mutationFn: ({
+      month,
+      fy,
+    }: {
+      month: string;
+      fy: number;
+    }) => payrollService.copyPreviousMonth(month, fy),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['payroll-roster', variables, fy],
+        queryKey: ['payroll-roster', variables.month, variables.fy],
       });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
@@ -53,20 +57,23 @@ export function useCopyPreviousMonth() {
 
 export function useClearMonth() {
   const queryClient = useQueryClient();
-  const fy = useUIStore((state) => state.activeFinancialYear);
 
   return useMutation({
-    mutationFn: (month: string) => payrollService.clearMonth(month),
-    onSuccess: (_data, month) => {
-      queryClient.invalidateQueries({ queryKey: ['payroll-roster', month, fy] });
-      queryClient.invalidateQueries({ queryKey: ['payroll-month-check', month, fy] });
+    mutationFn: ({ month, fy }: { month: string; fy: number }) =>
+      payrollService.clearMonth(month, fy),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['payroll-roster', variables.month, variables.fy],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['payroll-month-check', variables.month, variables.fy],
+      });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 }
 
-export function useQuarterReport(quarter: string) {
-  const fy = useUIStore((state) => state.activeFinancialYear);
+export function useQuarterReport(quarter: string, fy: number) {
   const officeId = useActiveOfficeId();
 
   return useQuery({
@@ -76,8 +83,7 @@ export function useQuarterReport(quarter: string) {
   });
 }
 
-export function useMonthDataCheck(month: string) {
-  const fy = useUIStore((state) => state.activeFinancialYear);
+export function useMonthDataCheck(month: string, fy: number) {
   const officeId = useActiveOfficeId();
 
   return useQuery({

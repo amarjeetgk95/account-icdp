@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import { Building2, CalendarDays } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { OfficeForm } from '../components/OfficeForm';
-import { FinancialYearForm } from '../components/FinancialYearForm';
 
-type TabId = 'office' | 'year';
+type TabId = 'office';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType; description: string }[] = [
   { id: 'office', label: 'Office Details', icon: Building2, description: 'Manage office address, phone, GSTIN, and TAN details' },
-  { id: 'year', label: 'Financial Year', icon: CalendarDays, description: 'Set the active financial year' },
 ];
 
 export function SettingsPage() {
@@ -18,7 +16,7 @@ export function SettingsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">Manage office details and financial year settings</p>
+          <p className="page-subtitle">Manage office details</p>
         </div>
       </div>
 
@@ -49,17 +47,6 @@ export function SettingsPage() {
             </div>
             <div className="card-body">
               <OfficeForm />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'year' && (
-          <div className="card">
-            <div className="card-header">
-              <h2 className="text-lg font-semibold text-slate-800">Financial Year</h2>
-            </div>
-            <div className="card-body">
-              <FinancialYearForm />
             </div>
           </div>
         )}

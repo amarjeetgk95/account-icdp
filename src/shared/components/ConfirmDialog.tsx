@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertTriangle } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -50,7 +51,7 @@ export function ConfirmDialog({
 
   const confirmed = !requireText || typed.trim().toLowerCase() === requireText.toLowerCase();
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4"
       onMouseDown={onCancel}
@@ -105,6 +106,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+      </div>,
+    document.body
   );
 }

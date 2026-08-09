@@ -43,6 +43,11 @@ const MONTHS: Record<string, { name: string; num: number }> = {
   december: { name: 'December', num: 12 },
 };
 
+const MONTH_NAME_BY_NUM: Record<number, string> = {};
+for (const info of Object.values(MONTHS)) {
+  MONTH_NAME_BY_NUM[info.num] = info.name;
+}
+
 const MONTH_YEAR_RE = /\b([A-Za-z]{3,9})[-/.\s]?\s*(\d{2,4})\b/;
 
 export interface ParsedMonthYear {
@@ -58,8 +63,15 @@ export function parseMonthYear(header: string): ParsedMonthYear | null {
   if (!entry) return null;
   let year = parseInt(m[2], 10);
   if (m[2].length === 2) year = 2000 + year;
-  const financialYear = entry.num >= 4 ? year : year - 1;
-  return { month: entry.name, financialYear, monthNum: entry.num };
+
+  // Excel headers name the WORK month (e.g. "July" = July salary paid in
+  // August). The entry slot is the PAYMENT month, i.e. the month AFTER the
+  // work month, so shift it forward and derive the slot's financial year.
+  const slotMonthNum = (entry.num % 12) + 1;
+  const slotYear = entry.num === 12 ? year + 1 : year;
+  const financialYear = slotMonthNum >= 4 ? slotYear : slotYear - 1;
+
+  return { month: MONTH_NAME_BY_NUM[slotMonthNum], financialYear, monthNum: slotMonthNum };
 }
 
 export function classifyColumnType(header: string): 'gross' | 'income_tax' | null {

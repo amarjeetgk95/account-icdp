@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { payrollService } from '../services/payroll.service';
 import { useEmployeeSalary } from '../hooks/useSalaryImport';
-import { useUIStore } from '@/core/stores/ui-store';
 import { formatCurrency } from '@/shared/utilities';
 import { Search, Banknote, ReceiptText, LoaderCircle } from 'lucide-react';
 
@@ -10,11 +9,10 @@ interface MonthOption {
   label: string;
 }
 
-export function SalaryLookup() {
-  const fy = useUIStore((state) => state.activeFinancialYear);
+export function SalaryLookup({ fy, initialHrpn }: { fy: number; initialHrpn?: string }) {
   const months: MonthOption[] = payrollService.getMonthOptions(fy);
 
-  const [hrpn, setHrpn] = useState('');
+  const [hrpn, setHrpn] = useState(initialHrpn || '');
   const [month, setMonth] = useState(() => payrollService.getEntryMonth());
 
   const { data: salary, isLoading, refetch } = useEmployeeSalary(hrpn, month, fy);

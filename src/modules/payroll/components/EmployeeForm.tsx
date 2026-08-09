@@ -3,17 +3,22 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { employeeSchema, type EmployeeInput } from '../validation/employee.schema';
 import { useEmployees } from '../hooks/useEmployees';
+import { getActiveEntryMonths } from '../utils/employeeDates';
+import { useUIStore } from '@/core/stores/ui-store';
+import { MONTHS } from '@/shared/constants';
 import { Save, X, UserPlus, RefreshCw } from 'lucide-react';
 
 interface EmployeeFormProps {
   editingEmployee: EmployeeInput | null;
   onCancel: () => void;
+  onSelect?: (employee: EmployeeInput) => void;
+  fy?: number;
 }
 
-export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
+export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: EmployeeFormProps) {
   const { createAsync, updateAsync } = useEmployees();
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
-  const [searchResults, setSearchResults] = useState<Array<{ name: string; pan: string }>>([]);
+  const [searchResults, setSearchResults] = useState<EmployeeInput[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +42,11 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
 
   const { employees } = useEmployees();
   const nameValue = watch('name');
+  const joinDateValue = watch('joinDate');
+  const transferDateValue = watch('transferDate');
+  const storeFY = useUIStore((state) => state.activeFinancialYear);
+  const resolvedFY = fy ?? storeFY;
+  const fyLabel = `${resolvedFY}-${String(resolvedFY + 1).slice(-2)}`;
 
   useEffect(() => {
     if (editingEmployee) {
@@ -56,7 +66,14 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
       const matches = employees
         .filter((emp) => emp.name.toLowerCase().includes(nameValue.toLowerCase()))
         .slice(0, 8)
-        .map((emp) => ({ name: emp.name, pan: emp.pan }));
+        .map((emp) => ({
+          id: emp.id,
+          hprnNo: emp.hprn_no || '',
+          name: emp.name,
+          pan: emp.pan,
+          joinDate: emp.join_date || '',
+          transferDate: emp.transfer_date || '',
+        }));
       setSearchResults(matches);
       setShowDropdown(matches.length > 0);
     } else {
@@ -75,9 +92,8 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectEmployee = (emp: { name: string; pan: string }) => {
-    setValue('name', emp.name);
-    setValue('pan', emp.pan);
+  const selectEmployee = (emp: EmployeeInput) => {
+    onSelect?.(emp);
     setShowDropdown(false);
     setSubmitStatus({ type: 'info', message: 'Employee found. Update their details below.' });
   };
@@ -193,7 +209,7 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
 
         <div>
           <label htmlFor="joinDate" className="label">
-            Join Date
+            Join Date {!editingEmployee && <span className="text-red-400">*</span>}
           </label>
           <input
             id="joinDate"
@@ -202,7 +218,11 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
             className="input"
           />
           {errors.joinDate && <p className="text-red-500 text-xs mt-1">{errors.joinDate.message}</p>}
-          <p className="text-slate-400 text-xs mt-1">Leave blank if active since start</p>
+          <p className="text-slate-400 text-xs mt-1">
+            {editingEmployee
+              ? 'Leave blank to keep the existing record unchanged'
+              : 'Start of service — required for payroll eligibility'}
+          </p>
         </div>
 
         <div>
@@ -216,9 +236,34 @@ export function EmployeeForm({ editingEmployee, onCancel }: EmployeeFormProps) {
             className="input"
           />
           {errors.transferDate && <p className="text-red-500 text-xs mt-1">{errors.transferDate.message}</p>}
-          <p className="text-slate-400 text-xs mt-1">Leave blank if not transferred</p>
+          <p className="text-slate-400 text-xs mt-1">Leave blank — enter only if the employee is transferred mid-year</p>
         </div>
       </div>
+
+      {(joinDateValue || transferDateValue) && (
+        <div className="rounded-lg px-3 py-2 text-sm bg-blue-50 border border-blue-200 text-blue-800">
+          {(() => {
+            const activeMonths = getActiveEntryMonths(resolvedFY, joinDateValue || null, transferDateValue || null);
+            if (activeMonths.length === 0) {
+              return <span>Not active for any entry in FY {fyLabel}.</span>;
+            }
+            const first = activeMonths[0];
+            const last = activeMonths[activeMonths.length - 1];
+            const nextIdx = MONTHS.indexOf(last) + 1;
+            return (
+              <span>
+                <b>Active for entry:</b> {first} → {last}
+                {transferDateValue && nextIdx < MONTHS.length && (
+                  <span className="text-amber-700">
+                    {' '}
+                    — removed from entry from {MONTHS[nextIdx]} onward
+                  </span>
+                )}
+              </span>
+            );
+          })()}
+        </div>
+      )}
 
       <div className="flex items-center gap-2 pt-1">
         <button type="submit" disabled={isSubmitting} className="btn btn-primary">

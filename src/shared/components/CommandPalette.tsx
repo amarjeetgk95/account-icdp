@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useModules } from '@/modules';
-import { Search, Command, X } from 'lucide-react';
+import { useEmployees } from '@/modules/payroll/hooks/useEmployees';
+import { Search, Command, X, User } from 'lucide-react';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const modules = useModules();
+  const { employees } = useEmployees();
 
   useEffect(() => {
     if (isOpen) {
@@ -39,16 +41,36 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     })),
   );
 
-  const filtered = query
+  const q = query.trim().toLowerCase();
+
+  const pageResults = q
     ? flattenedRoutes.filter(
         (r) =>
-          r.label.toLowerCase().includes(query.toLowerCase()) ||
-          r.moduleName.toLowerCase().includes(query.toLowerCase()),
+          r.label.toLowerCase().includes(q) ||
+          r.moduleName.toLowerCase().includes(q),
       )
     : flattenedRoutes.slice(0, 12);
 
+  const employeeResults = q
+    ? employees
+        .filter(
+          (e) =>
+            e.name.toLowerCase().includes(q) ||
+            (e.hprn_no || '').toLowerCase().includes(q) ||
+            e.pan.toLowerCase().includes(q),
+        )
+        .slice(0, 6)
+    : [];
+
   const handleNavigate = (path: string) => {
     navigate(path);
+    setQuery('');
+    onClose();
+  };
+
+  const handleNavigateEmployee = (employee: (typeof employees)[number]) => {
+    const params = employee.hprn_no ? `?tab=employees&hrpn=${encodeURIComponent(employee.hprn_no)}` : '?tab=employees';
+    navigate(`/payroll${params}`);
     setQuery('');
     onClose();
   };
@@ -65,7 +87,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search pages, actions... (Esc to close)"
+            placeholder="Search pages and employees... (Esc to close)"
             className="flex-1 outline-none text-sm text-slate-700 placeholder-slate-400"
           />
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded">
@@ -73,26 +95,52 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           </button>
         </div>
         <div className="max-h-80 overflow-y-auto py-2">
-          {filtered.length === 0 ? (
+          {pageResults.length === 0 && employeeResults.length === 0 ? (
             <div className="px-4 py-8 text-center text-slate-500 text-sm">No results found</div>
           ) : (
-            filtered.map((route, idx) => (
-              <button
-                key={`${route.moduleId}-${route.path}`}
-                onClick={() => handleNavigate(route.path)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors group"
-              >
-                <Search size={16} className="text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" />
-                <div className="flex items-center gap-2">
-                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 text-slate-500 rounded">
-                    {idx + 1}
-                  </kbd>
-                  <span className="font-medium text-slate-700">{route.moduleName}</span>
-                  <span className="text-slate-400">/</span>
-                  <span className="text-slate-500">{route.path === '/' ? 'Main' : route.path}</span>
+            <>
+              {employeeResults.length > 0 && (
+                <div className="px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Employees
                 </div>
-              </button>
-            ))
+              )}
+              {employeeResults.map((employee) => (
+                <button
+                  key={employee.id}
+                  onClick={() => handleNavigateEmployee(employee)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors group"
+                >
+                  <User size={16} className="text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium text-slate-700 truncate">{employee.name}</span>
+                    <span className="text-slate-400 font-mono text-xs shrink-0">{employee.hprn_no || '-'}</span>
+                    <span className="text-slate-400 font-mono text-xs shrink-0">{employee.pan}</span>
+                  </div>
+                </button>
+              ))}
+              {pageResults.length > 0 && (
+                <div className="px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Pages
+                </div>
+              )}
+              {pageResults.map((route, idx) => (
+                <button
+                  key={`${route.moduleId}-${route.path}`}
+                  onClick={() => handleNavigate(route.path)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors group"
+                >
+                  <Search size={16} className="text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" />
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 text-slate-500 rounded">
+                      {idx + 1}
+                    </kbd>
+                    <span className="font-medium text-slate-700">{route.moduleName}</span>
+                    <span className="text-slate-400">/</span>
+                    <span className="text-slate-500">{route.path === '/' ? 'Main' : route.path}</span>
+                  </div>
+                </button>
+              ))}
+            </>
           )}
         </div>
         <div className="px-4 py-2 border-t border-slate-200 text-[10px] text-slate-500 flex items-center gap-1">

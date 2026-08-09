@@ -2,6 +2,7 @@ import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
 import { MONTHS } from '@/shared/constants';
+import { isActiveInEntryMonth } from '../utils/employeeDates';
 import type { EmployeeRosterItem, QuarterReport } from '../types';
 import type { Database } from '@/shared/database.types';
 
@@ -12,10 +13,6 @@ function getOfficeId(): string | null {
   const authOfficeId = useAuthStore.getState().user?.officeId || null;
   if (authOfficeId) return authOfficeId;
   return useUIStore.getState().activeOfficeId || null;
-}
-
-function getFinancialYear(): number {
-  return useUIStore.getState().activeFinancialYear;
 }
 
 export const payrollRepository = {
@@ -33,14 +30,13 @@ export const payrollRepository = {
     return { count: count || 0 };
   },
 
-  async getRosterForMonth(month: string): Promise<EmployeeRosterItem[]> {
+  async getRosterForMonth(month: string, fy: number): Promise<EmployeeRosterItem[]> {
     const officeId = getOfficeId();
-    const fy = getFinancialYear();
     if (!officeId) throw new Error('No office selected');
 
     const { data: employees } = await (supabase as any)
       .from('employees')
-      .select('id, name, pan')
+      .select('id, name, pan, join_date, transfer_date')
       .eq('office_id', officeId)
       .order('name');
 
@@ -58,6 +54,7 @@ export const payrollRepository = {
 
     return (employees || [])
       .filter((emp: Employee) => emp.name && emp.pan)
+      .filter((emp: Employee) => isActiveInEntryMonth(emp.join_date, emp.transfer_date, fy, month))
       .map((emp: Employee) => {
         const sal = salMap[emp.id];
         return {
@@ -74,10 +71,11 @@ export const payrollRepository = {
 
   async saveBulkSalary(
     month: string,
-    entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>
+    entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>,
+    fy: number
   ): Promise<string> {
     const officeId = getOfficeId();
-    const fy = getFinancialYear();
+    if (!officeId) throw new Error('No office selected');
     if (!officeId) throw new Error('No office selected');
 
     const records = entries.map((e) => ({
@@ -98,8 +96,7 @@ export const payrollRepository = {
     return `Successfully saved ${entries.length} records for ${month}.`;
   },
 
-  async getEmployeeSalaryForMonth(employeeId: string, month: string): Promise<{ gross: number; da: number; tax: number } | null> {
-    const fy = getFinancialYear();
+  async getEmployeeSalaryForMonth(employeeId: string, month: string, fy: number): Promise<{ gross: number; da: number; tax: number } | null> {
     const { data, error } = await (supabase as any)
       .from('employee_salaries')
       .select('gross, da, tax')
@@ -112,9 +109,8 @@ export const payrollRepository = {
     return data ? { gross: Number(data.gross) || 0, da: Number(data.da) || 0, tax: Number(data.tax) || 0 } : null;
   },
 
-  async copyPreviousMonth(fromMonth: string, toMonth: string): Promise<{ copied: number; created: number }> {
+  async copyPreviousMonth(fromMonth: string, toMonth: string, fy: number): Promise<{ copied: number; created: number }> {
     const officeId = getOfficeId();
-    const fy = getFinancialYear();
     if (!officeId) throw new Error('No office selected');
 
     const monthIdx = MONTHS.indexOf(fromMonth as any);
@@ -139,15 +135,12 @@ export const payrollRepository = {
       prevMap[s.employee_id] = s;
     });
 
-    const now = new Date();
     const records: any[] = [];
 
     (employees || []).forEach((emp: Employee) => {
-      const join = emp.join_date ? new Date(emp.join_date) : null;
-      const transfer = emp.transfer_date ? new Date(emp.transfer_date) : null;
-
-      if (!join || join.getTime() > now.getTime()) return;
-      if (transfer && transfer.getTime() <= now.getTime()) return;
+      // Only employees who worked at least one day in the TARGET month's
+      // work period may be copied forward (uses the target slot, not today).
+      if (!isActiveInEntryMonth(emp.join_date, emp.transfer_date, fy, toMonth)) return;
 
       const prev = prevMap[emp.id];
       if (!prev) return;

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useUIStore } from '@/core/stores/ui-store';
 import { payrollService } from '../services/payroll.service';
 import { useRoster, useSaveSalary, useQuarterReport, useMonthDataCheck, useClearMonth } from '../hooks/usePayroll';
@@ -34,7 +35,10 @@ const TABS: { id: Mode; label: string; icon: React.ElementType; description: str
 ];
 
 export function PayrollPage() {
-  const [mode, setMode] = useState<Mode>('entry');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'employees' ? 'employees' : 'entry';
+  const initialHrpn = searchParams.get('hrpn') || '';
+  const [mode, setMode] = useState<Mode>(initialTab);
   const [selectedMonth, setSelectedMonth] = useState(() => payrollService.getEntryMonth());
   const [selectedQuarter, setSelectedQuarter] = useState('Q1');
   const [showDA, setShowDA] = useState(false);
@@ -51,11 +55,11 @@ export function PayrollPage() {
   const fy = useUIStore((state) => state.activeFinancialYear);
   const monthOptions = payrollService.getMonthOptions(fy);
 
-  const { data: roster = [], isLoading: rosterLoading, refetch: refetchRoster } = useRoster(selectedMonth);
-  const { data: monthDataCheck } = useMonthDataCheck(selectedMonth);
+  const { data: roster = [], isLoading: rosterLoading, refetch: refetchRoster } = useRoster(selectedMonth, fy);
+  const { data: monthDataCheck } = useMonthDataCheck(selectedMonth, fy);
   const saveSalary = useSaveSalary();
   const clearMonth = useClearMonth();
-  const { data: quarterReport, isLoading: reportLoading } = useQuarterReport(selectedQuarter);
+  const { data: quarterReport, isLoading: reportLoading } = useQuarterReport(selectedQuarter, fy);
   const { details: officeDetails } = useOfficeDetails();
 
   const office = officeDetails || { officeName: '', subtitle: '', address: '', phone: '', email: '', gst: '', tan: '' };
@@ -148,7 +152,7 @@ export function PayrollPage() {
   const handleSave = async (entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>) => {
     setSaveStatus({ type: 'info', message: 'Saving...' });
     try {
-      const result = await saveSalary.mutateAsync({ month: selectedMonth, entries });
+      const result = await saveSalary.mutateAsync({ month: selectedMonth, entries, fy });
       setSaveStatus({ type: 'success', message: result });
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (error) {
@@ -226,9 +230,9 @@ export function PayrollPage() {
           className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1"
         >
           <div className="px-1 pb-4 space-y-4">
-            <SalaryLookup />
+            <SalaryLookup fy={fy} initialHrpn={initialHrpn} />
           </div>
-          <EmployeeRegistration scrollRef={scrollRef} />
+          <EmployeeRegistration scrollRef={scrollRef} fy={fy} />
         </div>
       )}
 
@@ -344,7 +348,7 @@ export function PayrollPage() {
                       )
                     ) {
                       try {
-                        await clearMonth.mutateAsync(selectedMonth);
+                        await clearMonth.mutateAsync({ month: selectedMonth, fy });
                       } catch (e) {
                         alert(e instanceof Error ? e.message : 'Failed to clear month');
                       }
@@ -420,6 +424,7 @@ export function PayrollPage() {
                 showDA={showDA}
                 selectedMonth={selectedMonth}
                 autoFill={autoFill}
+                fy={fy}
                 onSave={handleSave}
               />
             </div>

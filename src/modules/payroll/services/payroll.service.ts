@@ -1,5 +1,4 @@
 import { payrollRepository } from '../repositories/payroll.repository';
-import { useUIStore } from '@/core/stores/ui-store';
 import { MONTHS } from '@/shared/constants';
 import type { EmployeeRosterItem, MonthOption, QuarterReport } from '../types';
 
@@ -31,35 +30,35 @@ export class PayrollService {
     return MONTHS[entryIdx];
   }
 
-  async getRoster(month: string): Promise<EmployeeRosterItem[]> {
-    return payrollRepository.getRosterForMonth(month);
+  async getRoster(month: string, fy: number): Promise<EmployeeRosterItem[]> {
+    return payrollRepository.getRosterForMonth(month, fy);
   }
 
   async saveBulkSalary(
     month: string,
-    entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>
+    entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>,
+    fy: number
   ): Promise<string> {
     this.validateEntries(entries);
-    return payrollRepository.saveBulkSalary(month, entries);
+    return payrollRepository.saveBulkSalary(month, entries, fy);
   }
 
-  async copyPreviousMonth(month: string): Promise<{ copied: number; created: number }> {
+  async copyPreviousMonth(month: string, fy: number): Promise<{ copied: number; created: number }> {
     const monthIdx = MONTHS.indexOf(month as any);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
-    return payrollRepository.copyPreviousMonth(prevMonth, month);
+    return payrollRepository.copyPreviousMonth(prevMonth, month, fy);
   }
 
-  async clearMonth(month: string): Promise<number> {
-    const fy = useUIStore.getState().activeFinancialYear;
+  async clearMonth(month: string, fy: number): Promise<number> {
     return payrollRepository.clearMonthSalary(month, fy);
   }
 
-  async getEmployeePreviousMonthData(employeeId: string, month: string): Promise<{ gross: number; da: number; tax: number } | null> {
+  async getEmployeePreviousMonthData(employeeId: string, month: string, fy: number): Promise<{ gross: number; da: number; tax: number } | null> {
     const monthIdx = MONTHS.indexOf(month as any);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
-    return payrollRepository.getEmployeeSalaryForMonth(employeeId, prevMonth);
+    return payrollRepository.getEmployeeSalaryForMonth(employeeId, prevMonth, fy);
   }
 
   async getQuarterReport(quarter: string, fy: number, officeId?: string): Promise<QuarterReport> {

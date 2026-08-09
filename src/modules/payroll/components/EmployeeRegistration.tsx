@@ -6,9 +6,10 @@ import { Users } from 'lucide-react';
 
 interface EmployeeRegistrationProps {
   scrollRef?: RefObject<HTMLDivElement | null>;
+  fy?: number;
 }
 
-export function EmployeeRegistration({ scrollRef }: EmployeeRegistrationProps) {
+export function EmployeeRegistration({ scrollRef, fy }: EmployeeRegistrationProps) {
   const [editingEmployee, setEditingEmployee] = useState<EmployeeInput | null>(null);
 
   const handleEditEmployee = (employee: EmployeeInput) => {
@@ -41,7 +42,12 @@ export function EmployeeRegistration({ scrollRef }: EmployeeRegistrationProps) {
           </div>
         </div>
         <div className="card-body">
-          <EmployeeForm editingEmployee={editingEmployee} onCancel={handleCancelEdit} />
+          <EmployeeForm
+            editingEmployee={editingEmployee}
+            onCancel={handleCancelEdit}
+            onSelect={handleEditEmployee}
+            fy={fy}
+          />
         </div>
       </div>
 

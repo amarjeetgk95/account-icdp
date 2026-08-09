@@ -101,38 +101,38 @@ describe('PayrollService.copyPreviousMonth', () => {
   it('calls repository.copyPreviousMonth with correct fromMonth and toMonth', async () => {
     mockCopy.mockResolvedValue({ copied: 5, created: 5 });
 
-    await service.copyPreviousMonth('August');
+    await service.copyPreviousMonth('August', 2025);
 
-    expect(mockCopy).toHaveBeenCalledWith('July', 'August');
+    expect(mockCopy).toHaveBeenCalledWith('July', 'August', 2025);
   });
 
   it('handles Q4 boundary (January -> December)', async () => {
     mockCopy.mockResolvedValue({ copied: 3, created: 3 });
 
-    await service.copyPreviousMonth('January');
+    await service.copyPreviousMonth('January', 2025);
 
-    expect(mockCopy).toHaveBeenCalledWith('December', 'January');
+    expect(mockCopy).toHaveBeenCalledWith('December', 'January', 2025);
   });
 
   it('handles FY boundary (April -> March)', async () => {
     mockCopy.mockResolvedValue({ copied: 2, created: 2 });
 
-    await service.copyPreviousMonth('April');
+    await service.copyPreviousMonth('April', 2025);
 
-    expect(mockCopy).toHaveBeenCalledWith('March', 'April');
+    expect(mockCopy).toHaveBeenCalledWith('March', 'April', 2025);
   });
 
   it('returns the result from the repository', async () => {
     const mockResult = { copied: 10, created: 8 };
     mockCopy.mockResolvedValue(mockResult);
 
-    const result = await service.copyPreviousMonth('July');
+    const result = await service.copyPreviousMonth('July', 2025);
 
     expect(result).toEqual(mockResult);
   });
 
   it('throws error for invalid month', async () => {
-    await expect(service.copyPreviousMonth('InvalidMonth')).rejects.toThrow('Invalid month');
+    await expect(service.copyPreviousMonth('InvalidMonth', 2025)).rejects.toThrow('Invalid month');
   });
 });
 
@@ -147,29 +147,29 @@ describe('PayrollService.getEmployeePreviousMonthData', () => {
   it('calls repository with the previous month', async () => {
     mockGetEmp.mockResolvedValue({ gross: 30000, da: 5000, tax: 2000 });
 
-    await service.getEmployeePreviousMonthData('emp-123', 'August');
+    await service.getEmployeePreviousMonthData('emp-123', 'August', 2025);
 
-    expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'July');
+    expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'July', 2025);
   });
 
   it('handles FY boundary correctly', async () => {
     mockGetEmp.mockResolvedValue({ gross: 30000, da: 5000, tax: 2000 });
 
-    await service.getEmployeePreviousMonthData('emp-123', 'April');
+    await service.getEmployeePreviousMonthData('emp-123', 'April', 2025);
 
-    expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'March');
+    expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'March', 2025);
   });
 
   it('returns null when no data found', async () => {
     mockGetEmp.mockResolvedValue(null);
 
-    const result = await service.getEmployeePreviousMonthData('emp-123', 'August');
+    const result = await service.getEmployeePreviousMonthData('emp-123', 'August', 2025);
 
     expect(result).toBeNull();
   });
 
   it('throws error for invalid month', async () => {
-    await expect(service.getEmployeePreviousMonthData('emp-123', 'Invalid')).rejects.toThrow('Invalid month');
+    await expect(service.getEmployeePreviousMonthData('emp-123', 'Invalid', 2025)).rejects.toThrow('Invalid month');
   });
 });
 
@@ -183,25 +183,25 @@ describe('PayrollService.validateEntries (via saveBulkSalary)', () => {
 
   it('throws error when employeeId is missing', async () => {
     await expect(
-      service.saveBulkSalary('August', [{ employeeId: '', gross: 30000, da: 5000, tax: 2000 }])
+      service.saveBulkSalary('August', [{ employeeId: '', gross: 30000, da: 5000, tax: 2000 }], 2025)
     ).rejects.toThrow('Employee ID is required');
   });
 
   it('throws error for negative gross', async () => {
     await expect(
-      service.saveBulkSalary('August', [{ employeeId: 'emp-1', gross: -100, da: 0, tax: 0 }])
+      service.saveBulkSalary('August', [{ employeeId: 'emp-1', gross: -100, da: 0, tax: 0 }], 2025)
     ).rejects.toThrow('Salary values cannot be negative');
   });
 
   it('throws error for negative da', async () => {
     await expect(
-      service.saveBulkSalary('August', [{ employeeId: 'emp-1', gross: 30000, da: -50, tax: 0 }])
+      service.saveBulkSalary('August', [{ employeeId: 'emp-1', gross: 30000, da: -50, tax: 0 }], 2025)
     ).rejects.toThrow('Salary values cannot be negative');
   });
 
   it('throws error for negative tax', async () => {
     await expect(
-      service.saveBulkSalary('August', [{ employeeId: 'emp-1', gross: 30000, da: 0, tax: -200 }])
+      service.saveBulkSalary('August', [{ employeeId: 'emp-1', gross: 30000, da: 0, tax: -200 }], 2025)
     ).rejects.toThrow('Salary values cannot be negative');
   });
 
@@ -210,7 +210,7 @@ describe('PayrollService.validateEntries (via saveBulkSalary)', () => {
     const result = await service.saveBulkSalary('August', [
       { employeeId: 'emp-1', gross: 30000, da: 5000, tax: 2000 },
       { employeeId: 'emp-2', gross: 25000, da: 4000, tax: 1500 },
-    ]);
+    ], 2025);
     expect(result).toBe('Successfully saved 2 records for August.');
   });
 });

@@ -5,7 +5,6 @@ import { payrollService } from '../services/payroll.service';
 import { useCopyPreviousMonth } from '../hooks/usePayroll';
 import { Save, X, Copy, AlertTriangle } from 'lucide-react';
 import { MONTHS } from '@/shared/constants';
-import { useUIStore } from '@/core/stores/ui-store';
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 
@@ -15,6 +14,7 @@ interface SalaryEntryGridProps {
   showDA: boolean;
   selectedMonth: string;
   autoFill: boolean;
+  fy: number;
   onSave: (entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>) => void;
 }
 
@@ -29,11 +29,10 @@ export interface SalaryEntryGridHandle {
 }
 
 export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGridProps>(function SalaryEntryGrid(
-  { roster, isLoading, showDA, selectedMonth, autoFill, onSave },
+  { roster, isLoading, showDA, selectedMonth, autoFill, fy, onSave },
   ref
 ) {
   const officeId = useActiveOfficeId();
-  const fy = useUIStore((state) => state.activeFinancialYear);
   const storageKey =
     officeId && fy && selectedMonth
       ? `payroll-draft:${officeId}:${fy}:${selectedMonth}`
@@ -181,7 +180,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
           : emp.gross > 0 || emp.da > 0 || emp.tax > 0;
         if (!hasData) {
           try {
-            const prevData = await payrollService.getEmployeePreviousMonthData(emp.id, selectedMonth);
+            const prevData = await payrollService.getEmployeePreviousMonthData(emp.id, selectedMonth, fy);
             if (prevData) {
               if (cancelled) return;
               setOverriddenEntries((prev) => ({
@@ -210,7 +209,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
       cancelled = true;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoFill, selectedMonth, roster, showDA, markDirty]);
+  }, [autoFill, selectedMonth, roster, showDA, fy, markDirty]);
 
   const updateEntry = (id: string, field: 'gross' | 'da' | 'tax', value: string) => {
     const num = parseFloat(value) || 0;
@@ -365,7 +364,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
 
     setLoadingEmployeeId(id);
     try {
-      const prevData = await payrollService.getEmployeePreviousMonthData(id, selectedMonth);
+      const prevData = await payrollService.getEmployeePreviousMonthData(id, selectedMonth, fy);
       if (prevData) {
         setOverriddenEntries((prev) => ({
           ...prev,
@@ -389,7 +388,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
   const handleCopyAllPrevMonth = async () => {
     if (!selectedMonth) return;
     try {
-      const result = await copyMutation.mutateAsync(selectedMonth);
+      const result = await copyMutation.mutateAsync({ month: selectedMonth, fy });
       const { copied, created } = result;
       if (created === 0) {
         alert(`No data copied. Previous month had ${copied} records but no new entries were created.`);

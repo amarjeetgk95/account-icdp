@@ -17,6 +17,9 @@ export function useEmployees() {
     mutationFn: (input: EmployeeInput) => employeeService.addEmployee(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-roster'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-month-check'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 
@@ -24,6 +27,9 @@ export function useEmployees() {
     mutationFn: (input: EmployeeInput) => employeeService.updateEmployee(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-roster'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-month-check'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 
@@ -32,6 +38,9 @@ export function useEmployees() {
       employeeService.deleteEmployee(id, pan),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-roster'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-month-check'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 

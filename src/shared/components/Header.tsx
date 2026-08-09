@@ -1,13 +1,67 @@
 import { useAuthStore } from '@/core/auth/store';
 import { useUIStore } from '@/core/stores/ui-store';
+import { financialYearRepository } from '@/modules/settings/repositories/financialYear.repository';
 import { useState, useRef, useEffect } from 'react';
 import { CalendarDays, LogOut, Search, Shield, UserCheck } from 'lucide-react';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export function Header() {
   const { user, signOut } = useAuthStore();
   const activeFinancialYear = useUIStore((s) => s.activeFinancialYear);
+  const setActiveFinancialYear = useUIStore((s) => s.setActiveFinancialYear);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pendingFY, setPendingFY] = useState<number | null>(null);
+  const [switchingFY, setSwitchingFY] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    financialYearRepository
+      .getCurrent()
+      .then((year) => {
+        if (cancelled) return;
+        if (Number.isInteger(year) && year !== useUIStore.getState().activeFinancialYear) {
+          setActiveFinancialYear(year);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [setActiveFinancialYear]);
+
+  const handleFYChange = async (year: number) => {
+    const previous = useUIStore.getState().activeFinancialYear;
+    setActiveFinancialYear(year);
+    try {
+      await financialYearRepository.set(year);
+    } catch (error) {
+      setActiveFinancialYear(previous);
+      alert(error instanceof Error ? error.message : 'Failed to change financial year');
+    }
+  };
+
+  const handleFYSelect = (year: number) => {
+    if (year === activeFinancialYear) return;
+    setPendingFY(year);
+  };
+
+  const confirmFYChange = async () => {
+    if (pendingFY === null) return;
+    setSwitchingFY(true);
+    await handleFYChange(pendingFY);
+    setSwitchingFY(false);
+    setPendingFY(null);
+  };
+
+  const fyLabel = (y: number) => `FY ${y}-${String(y + 1).slice(-2)}`;
+
+  const nowYear = new Date().getFullYear();
+  const fyOptions = [nowYear - 4, nowYear - 3, nowYear - 2, nowYear - 1, nowYear, nowYear + 1];
+  if (!fyOptions.includes(activeFinancialYear)) {
+    fyOptions.push(activeFinancialYear);
+    fyOptions.sort((a, b) => a - b);
+  }
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -41,19 +95,32 @@ export function Header() {
 
       <div className="app-header-actions">
         <button
-          className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors hidden sm:flex items-center gap-1"
-          title="Search (Ctrl+K)"
+          className="flex items-center gap-2 px-3 py-1.5 min-w-56 text-xs text-slate-500 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-colors shadow-sm"
+          title="Search pages and employees (Ctrl+K)"
           onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
         >
-          <Search size={12} />
-          <kbd className="font-mono text-xs">Ctrl</kbd> + <kbd className="font-mono text-xs">K</kbd>
+          <Search size={13} />
+          <span className="flex-1 text-left">Search pages, employees…</span>
+          <kbd className="font-mono text-[10px] bg-slate-100 border border-slate-200 rounded px-1 py-0.5">Ctrl</kbd>
+          <kbd className="font-mono text-[10px] bg-slate-100 border border-slate-200 rounded px-1 py-0.5">K</kbd>
         </button>
 
         {activeFinancialYear && (
-          <span className="fy-badge">
-            <CalendarDays size={13} />
-            FY {activeFinancialYear}-{String(activeFinancialYear + 1).slice(-2)}
-          </span>
+          <div className="relative inline-flex items-center">
+            <CalendarDays size={13} className="pointer-events-none absolute left-3 text-green-600" />
+            <select
+              value={activeFinancialYear}
+              onChange={(e) => handleFYSelect(Number(e.target.value))}
+              className="fy-badge cursor-pointer pl-8 pr-8 appearance-none"
+              title="Select active financial year (applies across all modules)"
+            >
+              {fyOptions.map((y) => (
+                <option key={y} value={y}>
+                  FY {y}-{String(y + 1).slice(-2)}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
 
         {user?.role === 'admin' && (
@@ -89,6 +156,23 @@ export function Header() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingFY !== null}
+        title="Switch Financial Year"
+        confirmLabel="Switch Year"
+        busy={switchingFY}
+        onConfirm={confirmFYChange}
+        onCancel={() => setPendingFY(null)}
+        message={
+          <>
+            Are you sure you want to switch the active financial year from{' '}
+            <b>{fyLabel(activeFinancialYear)}</b> to <b>{pendingFY != null ? fyLabel(pendingFY) : ''}</b>?
+            <br />
+            <span className="text-slate-500">This applies across all modules (payroll, reports, and parties).</span>
+          </>
+        }
+      />
     </header>
   );
 }
