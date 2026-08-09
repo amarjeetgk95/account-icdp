@@ -207,7 +207,7 @@ export const partyRepository = {
     const monthRanges = months.map((m) => {
       const monthNum = MONTHS.indexOf(m);
       const year = monthNum < 9 ? fy : fy + 1;
-      const month = (monthNum % 12) + 1;
+      const month = ((monthNum + 3) % 12) + 1;
       return { year, month };
     });
 
@@ -276,7 +276,7 @@ export const partyRepository = {
     const monthRanges = months.map((m) => {
       const monthNum = MONTHS.indexOf(m);
       const year = monthNum < 9 ? fy : fy + 1;
-      const month = (monthNum % 12) + 1;
+      const month = ((monthNum + 3) % 12) + 1;
       return { year, month };
     });
 

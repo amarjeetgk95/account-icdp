@@ -82,29 +82,41 @@
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 14px;
+    height: 14px;
   }
 
   ::-webkit-scrollbar-track {
-    background: transparent;
+    background: #F1F5F9;
+    border-radius: 8px;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
+    background: #94A3B8;
+    border: 3px solid #F1F5F9;
+    border-radius: 8px;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #64748B;
   }
 
-  /* GPU-promoted scroll container for buttery scrolling */
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Firefox scrollbar: wider + always-visible colored thumb */
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: #94A3B8 #F1F5F9;
+  }
+
+  /* Main scroll container: plain, dependency-free vertical scrolling */
   .app-scroll {
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    will-change: scroll-position;
   }
 }
 
@@ -473,11 +485,6 @@
   }
   .table tbody tr:nth-child(even):hover {
     background: #F1F5F9;
-  }
-
-  .table tbody {
-    content-visibility: auto;
-    contain-intrinsic-size: 0 400px;
   }
 
   .table-sm th, .table-sm td {
@@ -1123,15 +1130,15 @@
     border: 1.25pt solid #fdba74;
   }
 
-  .report-print-area .report-scroll {
+  .report-print-area   .report-scroll {
     overflow-x: auto;
-    content-visibility: auto;
   }
 
-  /* GPU-accelerated scroll for wide table containers */
+  /* Horizontal scroll containers: only contain the horizontal axis so that
+     vertical wheel/trackpad scrolling always chains up to the page scroll
+     container instead of "sticking" over wide tables. */
   .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    overscroll-behavior-x: contain;
   }
 
   .report-print-area .report-table {
@@ -1306,35 +1313,132 @@
     color: #1D4ED8;
   }
 
+  /* ============================================================
+     PRINT ENGINE
+     Prints ONLY the active report (.report-print-area). All app
+     chrome (sidebar, header, top tabs, page titles) is hidden so
+     the output is a clean, isolated government-style document.
+     ============================================================ */
   @media print {
     .no-print {
       display: none !important;
     }
 
-    aside {
+    aside,
+    .app-header,
+    .sidebar,
+    .app-header-actions {
       display: none !important;
     }
 
-    .app-header {
-      display: none !important;
+    /* Unclip the layout: drop fixed-height scroll wrappers so
+       multi-page reports flow naturally instead of being cut off. */
+    html,
+    body,
+    #root,
+    main,
+    .flex,
+    .flex-1,
+    .app-scroll,
+    .card,
+    .card-body,
+    .report-scroll,
+    .overflow-x-auto {
+      overflow: visible !important;
+      height: auto !important;
+      max-height: none !important;
+      min-height: 0 !important;
     }
 
-    main {
-      padding: 0 !important;
+    /* `contain` on cards/sidebar would clip an absolutely-positioned
+       report, so strip it for print. */
+    .card,
+    .card-body,
+    .stat-tile,
+    .sidebar {
+      contain: none !important;
     }
 
     body {
       background: white !important;
+      visibility: hidden;
+    }
+
+    /* Neutralize animation/transition/transform in print. This keeps any
+       ancestor of the report (e.g. a card animated with a fill-mode that
+       leaves transform: translateY(0)) from becoming the containing block
+       of the absolutely-positioned report — otherwise the report gets
+       pushed down / vertically off-centre on the page. Also prevents a
+       mid-animation opacity:0 snapshot from blanking the printout. */
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+      transform: none !important;
+    }
+
+    /* Reveal only the report area */
+    .report-print-area,
+    .report-print-area * {
+      visibility: visible;
+    }
+
+    .report-print-area {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      border: none !important;
+      border-radius: 0;
+      background: white;
+      box-shadow: none !important;
     }
 
     .card {
       border: none !important;
       box-shadow: none !important;
+      padding: 0 !important;
+    }
+
+    /* Tables: repeat the header/footer row on every page, keep rows intact */
+    thead {
+      display: table-header-group;
+    }
+
+    tfoot {
+      display: table-footer-group;
+    }
+
+    tr,
+    .govt-footer-signatures,
+    .report-title-container {
+      break-inside: avoid;
+    }
+
+    /* Compact print typography so wide tables (e.g. 24Q) fit A4 */
+    .report-print-area {
+      font-size: 9pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-print-area table,
+    .report-print-area .report-table {
+      font-size: 7.5pt;
+    }
+
+    .report-print-area table td,
+    .report-print-area table th {
+      font-size: 7.5pt;
+      padding: 3px 4px;
     }
 
     @page {
-      size: A4;
-      margin: 15mm;
+      size: A4 portrait;
+      margin: 10mm 9mm;
     }
   }
 }

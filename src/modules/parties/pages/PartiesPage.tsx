@@ -17,13 +17,19 @@ import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
 import { downloadCsv } from '@/shared/utilities';
 import { useUIStore } from '@/core/stores/ui-store';
-import { FileImage } from 'lucide-react';
+import { FileImage, FileText, LayoutDashboard, Receipt } from 'lucide-react';
 import type { TransactionInput } from '../types';
 
-type ReportTab = 'gst' | 'it';
+type SectionTab = 'overview' | 'gst' | 'it';
+
+const SECTION_TABS: { id: SectionTab; label: string; icon: React.ElementType; description: string }[] = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Vendor summary, new transactions, and recent activity' },
+  { id: 'gst', label: 'GST Report', icon: FileText, description: 'GST TDS statement summary report' },
+  { id: 'it', label: '26Q Income Tax', icon: Receipt, description: '26Q other than salary TDS statement' },
+];
 
 export function PartiesPage() {
-  const [activeReportTab, setActiveReportTab] = useState<ReportTab>('gst');
+  const [activeTab, setActiveTab] = useState<SectionTab>('overview');
   const [selectedQuarter, setSelectedQuarter] = useState('Q1');
   const [showPreview, setShowPreview] = useState(false);
 
@@ -35,10 +41,10 @@ export function PartiesPage() {
   const saveBulkTransactions = useSaveBulkTransactions();
   const { data: officeDetails } = useOfficeDetails();
   const { data: gstReport, isLoading: gstLoading } = useGSTReport(
-    activeReportTab === 'gst' ? selectedQuarter : 'Q1'
+    activeTab === 'gst' ? selectedQuarter : 'Q1'
   );
   const { data: itReport, isLoading: itLoading } = useIncomeTaxReport(
-    activeReportTab === 'it' ? selectedQuarter : 'Q1'
+    activeTab === 'it' ? selectedQuarter : 'Q1'
   );
 
   const fyLabel = `${fy}-${String(fy + 1).slice(-2)}`;
@@ -133,124 +139,131 @@ export function PartiesPage() {
       </div>
 
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Summary Stats */}
-        <div className="animate-fade-in">
-          <SummaryCards transactions={transactions} partiesCount={parties.length} />
-        </div>
-
-        {/* New Transaction Form */}
-        <div className="card no-print animate-fade-in animate-fade-in-delay-1">
-          <div className="card-header">
-            <h2 className="font-semibold">New Transaction</h2>
-          </div>
-          <div className="card-body">
-            <TransactionForm
-              parties={parties}
-              onSubmit={handleSave}
-              onBulkSubmit={handleBulkSave}
-              isLoading={saveTransaction.isPending}
-            />
-          </div>
-        </div>
-
-        {/* Recent Transactions */}
-        <div className="card no-print animate-fade-in animate-fade-in-delay-2">
-          <div className="card-header">
-            <h2 className="font-semibold">Recent Transactions</h2>
-          </div>
-          <div className="card-body">
-            <TransactionsTable transactions={transactions} isLoading={txLoading} />
-          </div>
-        </div>
-
-        {/* Report Tab Switcher */}
-        <div className="step-nav">
-          <button
-            onClick={() => setActiveReportTab('gst')}
-            className={'step-link ' + (activeReportTab === 'gst' ? 'active' : '')}
-          >
-            <span className="step-num">1</span> GST Report
-          </button>
-          <button
-            onClick={() => setActiveReportTab('it')}
-            className={'step-link ' + (activeReportTab === 'it' ? 'active' : '')}
-          >
-            <span className="step-num">2</span> 26Q Income Tax
-          </button>
-        </div>
-
-        {/* Report Card */}
-        <div className="card animate-fade-in">
-          <div className="card-header no-print">
-            <div className="flex flex-wrap gap-2 items-center">
-              <select
-                value={selectedQuarter}
-                onChange={(e) => setSelectedQuarter(e.target.value)}
-                className="input w-24"
-              >
-                <option>Q1</option>
-                <option>Q2</option>
-                <option>Q3</option>
-                <option>Q4</option>
-                <option>Yearly</option>
-              </select>
-              <button onClick={() => window.print()} className="btn btn-secondary text-sm">
-                Print
-              </button>
+        {/* Sticky top navigation */}
+        <div className="payroll-tabs sticky top-0 z-20 flex-shrink-0">
+          {SECTION_TABS.map((tab) => {
+            const TabIcon = tab.icon;
+            return (
               <button
-                onClick={activeReportTab === 'gst' ? exportGstCSV : exportItCSV}
-                className="btn btn-outline text-sm"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`payroll-tab ${activeTab === tab.id ? 'active' : ''}`}
+                title={tab.description}
               >
-                CSV
+                <TabIcon size={16} />
+                <span>{tab.label}</span>
               </button>
-              <button
-                onClick={() => setShowPreview(true)}
-                className="btn btn-outline text-sm"
-              >
-                <FileImage size={14} className="mr-1" /> Preview
-              </button>
-              <span className="text-xs text-slate-500 ml-auto">FY: {fyLabel}</span>
+            );
+          })}
+        </div>
+
+        {activeTab === 'overview' && (
+          <>
+            {/* Summary Stats */}
+            <div className="animate-fade-in">
+              <SummaryCards transactions={transactions} partiesCount={parties.length} />
+            </div>
+
+            {/* New Transaction Form */}
+            <div className="card no-print animate-fade-in animate-fade-in-delay-1">
+              <div className="card-header">
+                <h2 className="font-semibold">New Transaction</h2>
+              </div>
+              <div className="card-body">
+                <TransactionForm
+                  parties={parties}
+                  onSubmit={handleSave}
+                  onBulkSubmit={handleBulkSave}
+                  isLoading={saveTransaction.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Recent Transactions */}
+            <div className="card no-print animate-fade-in animate-fade-in-delay-2">
+              <div className="card-header">
+                <h2 className="font-semibold">Recent Transactions</h2>
+              </div>
+              <div className="card-body">
+                <TransactionsTable transactions={transactions} isLoading={txLoading} />
+              </div>
+            </div>
+          </>
+        )}
+
+        {(activeTab === 'gst' || activeTab === 'it') && (
+          <div className="card animate-fade-in">
+            <div className="card-header no-print">
+              <div className="flex flex-wrap gap-2 items-center">
+                <select
+                  value={selectedQuarter}
+                  onChange={(e) => setSelectedQuarter(e.target.value)}
+                  className="input w-24"
+                >
+                  <option>Q1</option>
+                  <option>Q2</option>
+                  <option>Q3</option>
+                  <option>Q4</option>
+                  <option>Yearly</option>
+                </select>
+                <button onClick={() => window.print()} className="btn btn-secondary text-sm">
+                  Print
+                </button>
+                <button
+                  onClick={activeTab === 'gst' ? exportGstCSV : exportItCSV}
+                  className="btn btn-outline text-sm"
+                >
+                  CSV
+                </button>
+                <button
+                  onClick={() => setShowPreview(true)}
+                  className="btn btn-outline text-sm"
+                >
+                  <FileImage size={14} className="mr-1" /> Preview
+                </button>
+                <span className="text-xs text-slate-500 ml-auto">FY: {fyLabel}</span>
+              </div>
+            </div>
+            <div className="card-body">
+              {activeTab === 'gst' && (
+                <ReportPrintArea
+                  office={office}
+                  leftLabel="GSTIN NO :-"
+                  leftValue={office.gst || '24SRTD00979G1DD'}
+                  rightMeta={
+                    <>
+                      <span>
+                        Financial Year: {fyLabel} | Quarter: {gstReport?.quarter || selectedQuarter}
+                      </span>
+                    </>
+                  }
+                  title="GST TDS STATEMENT SUMMARY REPORT"
+                  badgeClass="report-badge-gst"
+                >
+                  <GSTReportSection report={gstReport} isLoading={gstLoading} />
+                </ReportPrintArea>
+              )}
+              {activeTab === 'it' && (
+                <ReportPrintArea
+                  office={office}
+                  leftLabel="TAN NO :-"
+                  leftValue={office.tan || 'SRTDO0979G'}
+                  rightMeta={
+                    <>
+                      <span>
+                        Financial Year: {fyLabel} | Quarter: {itReport?.quarter || selectedQuarter}
+                      </span>
+                    </>
+                  }
+                  title="26Q OTHER THAN SALARY STATEMENT"
+                  badgeClass="report-badge-it"
+                >
+                  <ITReportSection report={itReport} isLoading={itLoading} />
+                </ReportPrintArea>
+              )}
             </div>
           </div>
-          <div className="card-body">
-            {activeReportTab === 'gst' && (
-              <ReportPrintArea
-                office={office}
-                leftLabel="GSTIN NO :-"
-                leftValue={office.gst || '24SRTD00979G1DD'}
-                rightMeta={
-                  <>
-                    <span>
-                      Financial Year: {fyLabel} | Quarter: {gstReport?.quarter || selectedQuarter}
-                    </span>
-                  </>
-                }
-                title="GST TDS STATEMENT SUMMARY REPORT"
-                badgeClass="report-badge-gst"
-              >
-                <GSTReportSection report={gstReport} isLoading={gstLoading} />
-              </ReportPrintArea>
-            )}
-            {activeReportTab === 'it' && (
-              <ReportPrintArea
-                office={office}
-                leftLabel="TAN NO :-"
-                leftValue={office.tan || 'SRTDO0979G'}
-                rightMeta={
-                  <>
-                    <span>
-                      Financial Year: {fyLabel} | Quarter: {itReport?.quarter || selectedQuarter}
-                    </span>
-                  </>
-                }
-                title="26Q OTHER THAN SALARY STATEMENT"
-                badgeClass="report-badge-it"
-              >
-                <ITReportSection report={itReport} isLoading={itLoading} />
-              </ReportPrintArea>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Preview Modal — reuses the same report components (no duplication!) */}
@@ -259,7 +272,7 @@ export function PartiesPage() {
         onClose={() => setShowPreview(false)}
         title="Report Preview"
       >
-        {activeReportTab === 'gst' && (
+        {activeTab === 'gst' && (
           <ReportPrintArea
             office={office}
             leftLabel="GSTIN NO :-"
@@ -277,7 +290,7 @@ export function PartiesPage() {
             <GSTReportSection report={gstReport} isLoading={gstLoading} />
           </ReportPrintArea>
         )}
-        {activeReportTab === 'it' && (
+        {activeTab === 'it' && (
           <ReportPrintArea
             office={office}
             leftLabel="TAN NO :-"

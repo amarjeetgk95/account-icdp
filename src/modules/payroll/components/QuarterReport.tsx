@@ -55,7 +55,7 @@ export function QuarterReportView({ report, isLoading, showHeader = true }: Quar
           <thead>
             <tr className="bg-slate-100">
               <th rowSpan={2} className="px-2 py-1.5 border border-slate-300 align-middle text-center" style={{ width: '40px' }}>Sr.</th>
-              <th rowSpan={2} className="px-2 py-1.5 border border-slate-300 align-middle text-left">Name</th>
+              <th rowSpan={2} className="px-2 py-1.5 border border-slate-300 align-middle text-left whitespace-nowrap">Name</th>
               <th rowSpan={2} className="px-2 py-1.5 border border-slate-300 align-middle text-center" style={{ width: '90px' }}>PAN No.</th>
               <th colSpan={5} className="px-2 py-1.5 border border-slate-300 text-center font-semibold">Income</th>
               <th colSpan={4} className="px-2 py-1.5 border border-slate-300 text-center font-semibold">Deduction</th>
@@ -89,7 +89,7 @@ export function QuarterReportView({ report, isLoading, showHeader = true }: Quar
             {report.rows.map((row, idx) => (
               <tr key={idx} className="hover:bg-slate-50 transition-colors">
                 <td className="px-2 py-1.5 border border-slate-300 text-center">{idx + 1}</td>
-                <td className="px-2 py-1.5 border border-slate-300 font-medium">{row.name}</td>
+                <td className="px-2 py-1.5 border border-slate-300 font-medium whitespace-nowrap">{row.name}</td>
                 <td className="px-2 py-1.5 border border-slate-300 text-center font-mono">{row.pan}</td>
                 {row.g.map((v, i) => (
                   <td key={i} className="px-2 py-1.5 border border-slate-300 text-right tabular-nums">

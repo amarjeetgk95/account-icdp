@@ -1,19 +1,20 @@
 import { useState } from 'react';
+import { Building2, CalendarDays } from 'lucide-react';
 import { OfficeForm } from '../components/OfficeForm';
 import { FinancialYearForm } from '../components/FinancialYearForm';
 
 type TabId = 'office' | 'year';
 
+const TABS: { id: TabId; label: string; icon: React.ElementType; description: string }[] = [
+  { id: 'office', label: 'Office Details', icon: Building2, description: 'Manage office address, phone, GSTIN, and TAN details' },
+  { id: 'year', label: 'Financial Year', icon: CalendarDays, description: 'Set the active financial year' },
+];
+
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('office');
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: 'office', label: 'Office Details' },
-    { id: 'year', label: 'Financial Year' },
-  ];
-
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="page-header">
         <div>
           <h1 className="page-title">Settings</h1>
@@ -21,18 +22,22 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="step-nav">
-        {tabs.map((tab, idx) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={"step-link " + (activeTab === tab.id ? 'active' : '')}
-          >
-            <span className="step-num">{idx + 1}</span>
-            {tab.label}
-          </button>
-        ))}
+      {/* Sticky top navigation */}
+      <div className="payroll-tabs sticky top-0 z-20 flex-shrink-0">
+        {TABS.map((tab) => {
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`payroll-tab ${activeTab === tab.id ? 'active' : ''}`}
+              title={tab.description}
+            >
+              <TabIcon size={16} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Content */}
