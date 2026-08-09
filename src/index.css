@@ -10,9 +10,9 @@
 }
 
 @page landscape {
-  size: A4 landscape;
-  margin: 5mm 6mm;
-}
+   size: A4 landscape;
+   margin: 4mm 5mm;
+ }
 
 /* ============================================================
    ICDP TAX SYSTEM — GLOBAL STYLES
@@ -1704,16 +1704,29 @@
       font-size: 8pt;
     }
 
-    .report-print-area.report-compact table td,
-    .report-print-area.report-compact table th {
-      font-size: 6.5pt;
-      padding: 1.5px 3px;
-    }
+     .report-print-area.report-compact table td,
+     .report-print-area.report-compact table th {
+       font-size: 6.5pt;
+       padding: 1.5px 3px;
+     }
 
-    /* Reports that opt into landscape (e.g. the Budget Head report) use a
-       named page so the browser prints those pages in A4 landscape. */
-    .report-landscape {
-      page: landscape;
-    }
+    /* ---- Budget Head: collapse whitespace for a single-page fit ----
+       Zero out the generous screen margins (monthly-block gutters,
+       inter-section gaps and caption gutders) that balloon the printed
+       height when carried over from screen styles. */
+     .report-print-area .bh-monthly-block { margin-bottom: 0 !important; }
+     .report-print-area .bh-caption { margin-bottom: 1px !important; }
+     .report-print-area .bh-q-band { margin-bottom: 0 !important; padding: 2px 4px; }
+     .report-print-area .bh-q-band::after { height: 1px; }
+     /* space-y-8 between Table 1 and Table 2 */
+     .report-print-area .space-y-8 > section ~ section { margin-top: 2px !important; }
+     /* remove inter-row vertical rhythm on Budget Head tables */
+     .report-print-area .bh-table tbody tr { margin: 0; }
+
+     /* Reports that opt into landscape (e.g. the Budget Head report) use a
+        named page so the browser prints those pages in A4 landscape. */
+     .report-landscape {
+       page: landscape;
+     }
   }
 }

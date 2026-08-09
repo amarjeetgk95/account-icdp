@@ -57,7 +57,7 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
   const printReport = () => {
     const style = document.createElement('style');
     style.id = 'icdp-print-landscape';
-    style.innerHTML = '@media print { @page { size: A4 landscape; margin: 5mm 6mm; } }';
+    style.innerHTML = '@media print { @page { size: A4 landscape; margin: 4mm 5mm; } }';
     document.head.appendChild(style);
     window.print();
     const cleanup = () => {
