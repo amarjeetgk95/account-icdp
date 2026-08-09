@@ -22,12 +22,18 @@ export type Database = {
         Update: { id?: string; office_id?: string; office_name?: string | null; subtitle?: string | null; address?: string | null; phone?: string | null; email?: string | null; gst?: string | null; tan?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
+      budget_heads: {
+        Row: { id: string; office_id: string; code: string; name: string; sort_order: number; created_at: string; updated_at: string }
+        Insert: { id?: string; office_id: string; code: string; name: string; sort_order?: number; created_at?: string; updated_at?: string }
+        Update: { id?: string; office_id?: string; code?: string; name?: string; sort_order?: number; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       employees: {
-        Row: { id: string; hprn_no: string | null; name: string; pan: string; join_date: string | null; transfer_date: string | null; office_id: string; created_at: string; updated_at: string }
+        Row: { id: string; hprn_no: string | null; name: string; pan: string; join_date: string | null; transfer_date: string | null; budget_head_id: string | null; office_id: string; created_at: string; updated_at: string }
 
-        Insert: { id?: string; hprn_no?: string | null; name: string; pan: string; join_date?: string | null; transfer_date?: string | null; office_id: string; created_at?: string; updated_at?: string }
+        Insert: { id?: string; hprn_no?: string | null; name: string; pan: string; join_date?: string | null; transfer_date?: string | null; budget_head_id?: string | null; office_id: string; created_at?: string; updated_at?: string }
 
-        Update: { id?: string; hprn_no?: string | null; name?: string; pan?: string; join_date?: string | null; transfer_date?: string | null; office_id?: string; created_at?: string; updated_at?: string }
+        Update: { id?: string; hprn_no?: string | null; name?: string; pan?: string; join_date?: string | null; transfer_date?: string | null; budget_head_id?: string | null; office_id?: string; created_at?: string; updated_at?: string }
         Relationships: []
       }
       employee_salaries: {

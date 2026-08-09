@@ -36,8 +36,9 @@ vi.mock('../repositories/payroll.repository', () => ({
     getRosterForMonth: vi.fn(),
     saveBulkSalary: vi.fn(),
     getEmployeeSalaryForMonth: vi.fn(),
-    copyPreviousMonth: vi.fn(),
+    getPreviousMonthSalaries: vi.fn(),
     getQuarterReport: vi.fn(),
+    getBudgetHeadReport: vi.fn(),
     checkMonthData: vi.fn(),
   },
 }));
@@ -90,49 +91,49 @@ describe('PayrollService.getEntryMonth', () => {
   });
 });
 
-describe('PayrollService.copyPreviousMonth', () => {
+describe('PayrollService.getPreviousMonthData', () => {
   const service = new PayrollService();
-  const mockCopy = payrollRepository.copyPreviousMonth as unknown as ReturnType<typeof vi.fn>;
+  const mockGetPrev = payrollRepository.getPreviousMonthSalaries as unknown as ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('calls repository.copyPreviousMonth with correct fromMonth and toMonth', async () => {
-    mockCopy.mockResolvedValue({ copied: 5, created: 5 });
+  it('calls repository with the previous month', async () => {
+    mockGetPrev.mockResolvedValue([]);
 
-    await service.copyPreviousMonth('August', 2025);
+    await service.getPreviousMonthData('August', 2025);
 
-    expect(mockCopy).toHaveBeenCalledWith('July', 'August', 2025);
+    expect(mockGetPrev).toHaveBeenCalledWith('July', 2025);
   });
 
   it('handles Q4 boundary (January -> December)', async () => {
-    mockCopy.mockResolvedValue({ copied: 3, created: 3 });
+    mockGetPrev.mockResolvedValue([]);
 
-    await service.copyPreviousMonth('January', 2025);
+    await service.getPreviousMonthData('January', 2025);
 
-    expect(mockCopy).toHaveBeenCalledWith('December', 'January', 2025);
+    expect(mockGetPrev).toHaveBeenCalledWith('December', 2025);
   });
 
   it('handles FY boundary (April -> March)', async () => {
-    mockCopy.mockResolvedValue({ copied: 2, created: 2 });
+    mockGetPrev.mockResolvedValue([]);
 
-    await service.copyPreviousMonth('April', 2025);
+    await service.getPreviousMonthData('April', 2025);
 
-    expect(mockCopy).toHaveBeenCalledWith('March', 'April', 2025);
+    expect(mockGetPrev).toHaveBeenCalledWith('March', 2025);
   });
 
   it('returns the result from the repository', async () => {
-    const mockResult = { copied: 10, created: 8 };
-    mockCopy.mockResolvedValue(mockResult);
+    const mockResult = [{ employeeId: 'emp-1', gross: 30000, da: 5000, tax: 2000 }];
+    mockGetPrev.mockResolvedValue(mockResult);
 
-    const result = await service.copyPreviousMonth('July', 2025);
+    const result = await service.getPreviousMonthData('July', 2025);
 
     expect(result).toEqual(mockResult);
   });
 
   it('throws error for invalid month', async () => {
-    await expect(service.copyPreviousMonth('InvalidMonth', 2025)).rejects.toThrow('Invalid month');
+    await expect(service.getPreviousMonthData('InvalidMonth', 2025)).rejects.toThrow('Invalid month');
   });
 });
 
@@ -235,5 +236,32 @@ describe('PayrollService.getQuarterReport', () => {
 
     expect(mockReport).toHaveBeenCalledWith('Q1', 2025, 'office-1');
     expect(result).toEqual(mockResult);
+  });
+});
+
+describe('PayrollService.getBudgetHeadReport', () => {
+  const service = new PayrollService();
+  const mockReport = payrollRepository.getBudgetHeadReport as unknown as ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('passes fy and office to repository', async () => {
+    const mockResult = { fy: 2025, fyLabel: '2025-26', monthLabels: [], groups: [], totals: { gross: 0, da: 0, tax: 0, net: 0 } };
+    mockReport.mockResolvedValue(mockResult);
+
+    const result = await service.getBudgetHeadReport(2025, 'office-1');
+
+    expect(mockReport).toHaveBeenCalledWith(2025, 'office-1');
+    expect(result).toEqual(mockResult);
+  });
+
+  it('uses default office when none provided', async () => {
+    mockReport.mockResolvedValue({ fy: 2025, fyLabel: '2025-26', monthLabels: [], groups: [], totals: { gross: 0, da: 0, tax: 0, net: 0 } });
+
+    await service.getBudgetHeadReport(2025);
+
+    expect(mockReport).toHaveBeenCalledWith(2025, undefined);
   });
 });

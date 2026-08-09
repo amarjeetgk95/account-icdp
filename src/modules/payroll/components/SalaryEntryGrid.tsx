@@ -2,8 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImper
 import type { EmployeeRosterItem } from '../types';
 import { formatCurrency } from '@/shared/utilities';
 import { payrollService } from '../services/payroll.service';
-import { useCopyPreviousMonth } from '../hooks/usePayroll';
-import { Save, X, Copy, AlertTriangle } from 'lucide-react';
+import { Save, X, Copy, AlertTriangle, Search, SearchX } from 'lucide-react';
 import { MONTHS } from '@/shared/constants';
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
@@ -16,6 +15,7 @@ interface SalaryEntryGridProps {
   autoFill: boolean;
   fy: number;
   onSave: (entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 interface EntryValues {
@@ -24,12 +24,25 @@ interface EntryValues {
   tax: number;
 }
 
+const MAX_VALUE = 9999999;
+
+const parseAmount = (value: string | number): number => {
+  const n = parseFloat(String(value).replace(/[^\d.]/g, ''));
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(MAX_VALUE, Math.round(n * 100) / 100);
+};
+
+const formatInput = (n: number): string => {
+  if (n === 0) return '';
+  return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+};
+
 export interface SalaryEntryGridHandle {
   applyImportedValues: (records: ClassifiedSalaryRecord[]) => number;
 }
 
 export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGridProps>(function SalaryEntryGrid(
-  { roster, isLoading, showDA, selectedMonth, autoFill, fy, onSave },
+  { roster, isLoading, showDA, selectedMonth, autoFill, fy, onSave, onDirtyChange },
   ref
 ) {
   const officeId = useActiveOfficeId();
@@ -57,12 +70,13 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
 
   const [dirtyCells, setDirtyCells] = useState<Set<string>>(new Set());
   const [activeCell, setActiveCell] = useState<{ id: string; field: string } | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [hasChanges, setHasChanges] = useState(() => Object.keys(overriddenEntries).length > 0);
   const [loadingEmployeeId, setLoadingEmployeeId] = useState<string | null>(null);
   const [missingPrevData, setMissingPrevData] = useState<Record<string, boolean>>({});
   const [isScrolled, setIsScrolled] = useState(false);
+  const [filter, setFilter] = useState('');
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
 
-  const copyMutation = useCopyPreviousMonth();
   const cellRefs = useRef<Map<string, HTMLInputElement | null>>(new Map());
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -88,6 +102,22 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
   }, [roster.length]);
+
+  // Notify parent when dirty state changes
+  useEffect(() => {
+    onDirtyChange?.(hasChanges);
+  }, [hasChanges, onDirtyChange]);
+
+  // Warn before leaving the page with unsaved edits
+  useEffect(() => {
+    if (!hasChanges) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasChanges]);
 
   // Ctrl+S keyboard shortcut to save
   useEffect(() => {
@@ -134,6 +164,38 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
     });
     return result;
   }, [roster, overriddenEntries]);
+
+  const visibleRoster = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return roster;
+    return roster.filter(
+      (emp) => emp.name.toLowerCase().includes(q) || emp.pan.toLowerCase().includes(q)
+    );
+  }, [roster, filter]);
+
+  const startEditing = (key: string, id: string, field: 'gross' | 'da' | 'tax') => {
+    setDrafts((prev) => ({ ...prev, [key]: entries[id][field] ? String(entries[id][field]) : '' }));
+    setActiveCell({ id, field });
+  };
+
+  const changeEditing = (key: string, id: string, field: 'gross' | 'da' | 'tax', value: string) => {
+    setDrafts((prev) => ({ ...prev, [key]: value }));
+    updateEntry(id, field, value);
+  };
+
+  const endEditing = (key: string) => {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const inputValue = (key: string, value: number): string => {
+    const draft = drafts[key];
+    if (draft !== undefined) return draft;
+    return formatInput(value);
+  };
 
   useImperativeHandle(
     ref,
@@ -212,57 +274,49 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
   }, [autoFill, selectedMonth, roster, showDA, fy, markDirty]);
 
   const updateEntry = (id: string, field: 'gross' | 'da' | 'tax', value: string) => {
-    const num = parseFloat(value) || 0;
+    const num = parseAmount(value);
     setOverriddenEntries((prev) => ({
       ...prev,
-      [id]: { ...entries[id], [field]: Math.max(0, num) },
+      [id]: { ...entries[id], [field]: num },
     }));
     markDirty(id, field);
     setHasChanges(true);
   };
 
-  const handlePaste = (e: React.ClipboardEvent, rowIndex: number) => {
+  const handlePaste = (e: React.ClipboardEvent, rowIndex: number, colIndex: number) => {
     e.preventDefault();
     const text = e.clipboardData.getData('text');
     const lines = text.split('\n').filter((l) => l.trim().length > 0);
-    const parsed = lines.map((l) => l.split(/\t|\|/)).filter((row) => row && row.length >= 3);
-
+    const parsed = lines.map((l) => l.split(/\t|,/).map((c) => c.trim()).filter((c) => c.length > 0));
     if (parsed.length === 0) return;
 
-    const headerLower = (parsed[0] || []).map((c: string) => c.trim().toLowerCase());
-    const hasHeader =
-      headerLower.includes('gross') ||
-      headerLower.includes('salary') ||
-      headerLower.includes('name') ||
-      headerLower.includes('tax');
-
-    const dataRows = hasHeader ? parsed.slice(1) : parsed;
-
-    const startingEmp = roster[rowIndex];
-    if (!startingEmp) return;
-
-    const startIndex = roster.indexOf(startingEmp);
-
+    const cols = getCols();
     let updated = false;
-    dataRows.forEach((row, i) => {
-      const empIndex = startIndex + i;
-      if (empIndex >= roster.length) return;
-      const emp = roster[empIndex];
-      const vals = row.map((v: string) => v.trim().replace(/[,₹\s]/g, ''));
 
-      if (vals.length >= 3) {
-        const gross = parseFloat(vals[0]) || 0;
-        const da = parseFloat(vals[1]) || 0;
-        const tax = parseFloat(vals[2]) || 0;
-        setOverriddenEntries((prev) => ({
-          ...prev,
-          [emp.id]: { gross: Math.max(0, gross), da: Math.max(0, da), tax: Math.max(0, tax) },
-        }));
-        markDirty(emp.id, 'gross');
-        if (showDA) markDirty(emp.id, 'da');
-        markDirty(emp.id, 'tax');
-        updated = true;
+    setOverriddenEntries((prev) => {
+      const next = { ...prev };
+      parsed.forEach((row, i) => {
+        const empIndex = rowIndex + i;
+        const emp = visibleRoster[empIndex];
+        if (!emp) return;
+        let col = colIndex;
+        for (const cell of row) {
+          if (col >= cols.length) break;
+          const field = cols[col] as 'gross' | 'da' | 'tax';
+          next[emp.id] = { ...(next[emp.id] ?? { gross: 0, da: 0, tax: 0 }), [field]: parseAmount(cell) };
+          col += 1;
+        }
+      });
+      return next;
+    });
+
+    parsed.forEach((row, i) => {
+      const emp = visibleRoster[rowIndex + i];
+      if (!emp) return;
+      for (let c = colIndex; c < Math.min(row.length + colIndex, cols.length); c++) {
+        markDirty(emp.id, cols[c] as 'gross' | 'da' | 'tax');
       }
+      updated = true;
     });
 
     if (updated) setHasChanges(true);
@@ -275,6 +329,11 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
     const cols = showDA ? ['gross', 'da', 'tax'] : ['gross', 'tax'];
     const numCols = cols.length;
 
+    if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+      e.preventDefault();
+      return;
+    }
+
     switch (e.key) {
       case 'Escape': {
         e.preventDefault();
@@ -285,9 +344,9 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
         e.preventDefault();
         const nextCol = (colIndex + (e.shiftKey ? -1 : 1) + numCols) % numCols;
         const nextRow = rowIndex + (e.shiftKey && colIndex === 0 ? -1 : !e.shiftKey && colIndex === numCols - 1 ? 1 : 0);
-        if (nextRow >= 0 && nextRow < roster.length) {
+        if (nextRow >= 0 && nextRow < visibleRoster.length) {
           const nextField = cols[nextCol];
-          const nextId = roster[nextRow].id;
+          const nextId = visibleRoster[nextRow].id;
           setActiveCell({ id: nextId, field: nextField });
           const key = cellKey(nextId, nextField);
           setTimeout(() => cellRefs.current.get(key)?.focus(), 0);
@@ -299,9 +358,9 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
         e.preventDefault();
         const enterRow = e.shiftKey ? rowIndex - 1 : rowIndex + 1;
         const enterCol = colIndex;
-        if (enterRow >= 0 && enterRow < roster.length) {
+        if (enterRow >= 0 && enterRow < visibleRoster.length) {
           const enterField = cols[enterCol];
-          const enterId = roster[enterRow].id;
+          const enterId = visibleRoster[enterRow].id;
           setActiveCell({ id: enterId, field: enterField });
           const key = cellKey(enterId, enterField);
           setTimeout(() => cellRefs.current.get(key)?.focus(), 0);
@@ -313,7 +372,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
         e.preventDefault();
         if (rowIndex > 0) {
           const nextField = cols[colIndex];
-          const nextId = roster[rowIndex - 1].id;
+          const nextId = visibleRoster[rowIndex - 1].id;
           setActiveCell({ id: nextId, field: nextField });
           const key = cellKey(nextId, nextField);
           setTimeout(() => cellRefs.current.get(key)?.focus(), 0);
@@ -323,9 +382,9 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
 
       case 'ArrowDown': {
         e.preventDefault();
-        if (rowIndex < roster.length - 1) {
+        if (rowIndex < visibleRoster.length - 1) {
           const nextField = cols[colIndex];
-          const nextId = roster[rowIndex + 1].id;
+          const nextId = visibleRoster[rowIndex + 1].id;
           setActiveCell({ id: nextId, field: nextField });
           const key = cellKey(nextId, nextField);
           setTimeout(() => cellRefs.current.get(key)?.focus(), 0);
@@ -386,17 +445,41 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
   };
 
   const handleCopyAllPrevMonth = async () => {
-    if (!selectedMonth) return;
+    if (!selectedMonth || roster.length === 0) return;
     try {
-      const result = await copyMutation.mutateAsync({ month: selectedMonth, fy });
-      const { copied, created } = result;
-      if (created === 0) {
-        alert(`No data copied. Previous month had ${copied} records but no new entries were created.`);
-      } else {
-        alert(`Successfully copied ${created} employee entries from the previous month.`);
+      const prevData = await payrollService.getPreviousMonthData(selectedMonth, fy);
+      const prevMap = new Map(prevData.map((d) => [d.employeeId, d]));
+      const toApply = roster.filter((emp) => prevMap.has(emp.id));
+
+      if (toApply.length === 0) {
+        alert('No previous month data found to copy.');
+        return;
       }
+
+      setOverriddenEntries((prev) => {
+        const next = { ...prev };
+        for (const emp of toApply) {
+          const prevEntry = prevMap.get(emp.id);
+          if (prevEntry) {
+            next[emp.id] = { gross: prevEntry.gross, da: prevEntry.da, tax: prevEntry.tax };
+          }
+        }
+        return next;
+      });
+
+      toApply.forEach((emp) => {
+        markDirty(emp.id, 'gross');
+        if (showDA) markDirty(emp.id, 'da');
+        markDirty(emp.id, 'tax');
+      });
+      setHasChanges(true);
+
+      alert(
+        `Loaded ${toApply.length} employee entries from the previous month as a draft.\n` +
+          'Review the grid, then click "Save Now" to commit (or Discard to clear).'
+      );
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to copy previous month data');
+      alert(error instanceof Error ? error.message : 'Failed to fetch previous month data');
     }
   };
 
@@ -490,17 +573,53 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
         </div>
       )}
 
+      {/* Filter toolbar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 bg-white flex-shrink-0">
+        <div className="relative flex-1 max-w-xs">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter by name or PAN…"
+            className="input pl-8 py-1.5 text-xs"
+            aria-label="Filter employees by name or PAN"
+          />
+        </div>
+        {filter.trim() && (
+          <span className="text-xs text-slate-500 shrink-0 tabular-nums">
+            {visibleRoster.length} of {roster.length} shown
+          </span>
+        )}
+        {filter.trim() && (
+          <button
+            onClick={() => setFilter('')}
+            className="text-xs font-semibold text-slate-400 hover:text-slate-600 shrink-0 transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
       <div
         ref={scrollContainerRef}
         className="overflow-x-auto flex-1 overflow-y-auto"
-        onPaste={(e) => handlePaste(e, 0)}
       >
-        <table className="w-full text-sm">
+        {visibleRoster.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <SearchX size={28} className="text-slate-300 mb-2" />
+            <p className="text-sm text-slate-500 font-medium">No employees match &quot;{filter}&quot;.</p>
+            <button onClick={() => setFilter('')} className="text-xs text-blue-600 hover:underline mt-1">
+              Clear filter
+            </button>
+          </div>
+        ) : (
+        <table className="w-full text-sm salary-grid-table">
           <thead className={`salary-grid-header ${isScrolled ? 'scrolled' : ''}`}>
             <tr>
-              <th className="text-center" style={{ width: '44px' }}>#</th>
-              <th className="text-left">Employee</th>
-              <th className="text-left">PAN No.</th>
+              <th className="text-center salary-col-index">#</th>
+              <th className="text-left salary-col-name">Employee</th>
+              <th className="text-left salary-col-pan">PAN No.</th>
               <th className="text-right">Gross</th>
               {showDA && (
                 <th className="text-right" style={{ color: '#B45309' }}>DA &amp; Other</th>
@@ -508,7 +627,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
               <th className="text-right">Tax</th>
               <th className="text-right" style={{ color: '#4338CA' }}>Net Payable</th>
               {showDA && (
-                <th className="text-center" style={{ color: '#15803D' }}>Total</th>
+                <th className="text-right" style={{ color: '#15803D' }}>Gross+DA</th>
               )}
               <th className="text-center" style={{ width: '64px' }} title="Copy from previous month">
                 Prev
@@ -516,7 +635,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
             </tr>
           </thead>
           <tbody>
-            {roster.map((emp, idx) => {
+            {visibleRoster.map((emp, idx) => {
               const entry = entries[emp.id] || { gross: 0, da: 0, tax: 0 };
               const total = entry.gross + entry.da;
               const hasData = entry.gross > 0 || entry.da > 0 || entry.tax > 0;
@@ -528,64 +647,73 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
 
               return (
                 <tr key={emp.id} className={`salary-row ${isRowActive ? 'salary-row-active' : ''}`}>
-                  <td className="px-3 py-2 text-slate-400 text-center text-xs font-medium">{idx + 1}</td>
-                  <td className="px-3 py-2 font-semibold text-slate-800 truncate max-w-[220px]">{emp.name}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-500 tracking-wide">{emp.pan}</td>
+                  <td className="px-3 py-2 text-slate-400 text-center text-sm font-medium salary-col-index">{idx + 1}</td>
+                  <td className="px-3 py-2 font-semibold text-slate-800 whitespace-nowrap truncate text-center text-sm salary-col-name">{emp.name}</td>
+                  <td className="px-3 py-2 font-mono text-sm text-slate-500 tracking-wide whitespace-nowrap text-center salary-col-pan">{emp.pan}</td>
 
-                  <td className="px-2 py-1.5">
+                  <td className="px-3 py-2">
                     <input
-                      type="number"
-                      value={entry.gross || ''}
-                      onChange={(e) => updateEntry(emp.id, 'gross', e.target.value)}
+                      type="text"
+                      inputMode="decimal"
+                      value={inputValue(cellKey(emp.id, 'gross'), entry.gross)}
+                      onChange={(e) => changeEditing(cellKey(emp.id, 'gross'), emp.id, 'gross', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, emp.id, 'gross', idx, cols.indexOf('gross'))}
-                      onFocus={() => setActiveCell({ id: emp.id, field: 'gross' })}
+                      onFocus={() => startEditing(cellKey(emp.id, 'gross'), emp.id, 'gross')}
+                      onBlur={() => endEditing(cellKey(emp.id, 'gross'))}
+                      onPaste={(e) => handlePaste(e, idx, cols.indexOf('gross'))}
                       onWheel={handleWheel}
                       ref={(el) => {
                         if (el) cellRefs.current.set(cellKey(emp.id, 'gross'), el);
                       }}
                       className={`salary-cell ${isDirtyGross ? 'dirty' : ''}`}
                       placeholder="0"
-                      min="0"
+                      aria-label={`Gross salary for ${emp.name}`}
                     />
                   </td>
 
                   {showDA && (
-                    <td className="px-2 py-1.5">
+                    <td className="px-3 py-2">
                       <input
-                        type="number"
-                        value={entry.da || ''}
-                        onChange={(e) => updateEntry(emp.id, 'da', e.target.value)}
+                        type="text"
+                        inputMode="decimal"
+                        value={inputValue(cellKey(emp.id, 'da'), entry.da)}
+                        onChange={(e) => changeEditing(cellKey(emp.id, 'da'), emp.id, 'da', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, emp.id, 'da', idx, cols.indexOf('da'))}
-                        onFocus={() => setActiveCell({ id: emp.id, field: 'da' })}
+                        onFocus={() => startEditing(cellKey(emp.id, 'da'), emp.id, 'da')}
+                        onBlur={() => endEditing(cellKey(emp.id, 'da'))}
+                        onPaste={(e) => handlePaste(e, idx, cols.indexOf('da'))}
                         onWheel={handleWheel}
                         ref={(el) => {
                           if (el) cellRefs.current.set(cellKey(emp.id, 'da'), el);
                         }}
                         className={`salary-cell ${isDirtyDA ? 'dirty' : ''}`}
                         placeholder="0"
-                        min="0"
+                        aria-label={`DA and other for ${emp.name}`}
                       />
                     </td>
                   )}
 
-                  <td className="px-2 py-1.5">
+                  <td className="px-3 py-2">
                     <input
-                      type="number"
-                      value={entry.tax || ''}
-                      onChange={(e) => updateEntry(emp.id, 'tax', e.target.value)}
+                      type="text"
+                      inputMode="decimal"
+                      value={inputValue(cellKey(emp.id, 'tax'), entry.tax)}
+                      onChange={(e) => changeEditing(cellKey(emp.id, 'tax'), emp.id, 'tax', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, emp.id, 'tax', idx, cols.indexOf('tax'))}
-                      onFocus={() => setActiveCell({ id: emp.id, field: 'tax' })}
+                      onFocus={() => startEditing(cellKey(emp.id, 'tax'), emp.id, 'tax')}
+                      onBlur={() => endEditing(cellKey(emp.id, 'tax'))}
+                      onPaste={(e) => handlePaste(e, idx, cols.indexOf('tax'))}
                       onWheel={handleWheel}
                       ref={(el) => {
                         if (el) cellRefs.current.set(cellKey(emp.id, 'tax'), el);
                       }}
                       className={`salary-cell ${isDirtyTax ? 'dirty' : ''}`}
                       placeholder="0"
-                      min="0"
+                      aria-label={`Tax for ${emp.name}`}
                     />
                   </td>
 
-                  <td className="px-3 py-2 text-right font-bold text-indigo-700 text-sm tabular-nums">
+                  <td className="px-3 py-2 text-center font-bold text-indigo-700 text-sm tabular-nums">
                     {formatCurrency(total - entry.tax)}
                   </td>
 
@@ -597,7 +725,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
                     {loadingEmployeeId === emp.id ? (
                       <div className="spinner h-4 w-4 mx-auto"></div>
                     ) : hasData ? (
-                      <span className="text-xs text-slate-300">—</span>
+                      <span className="text-sm text-slate-300">—</span>
                     ) : hasPrevData ? (
                       <button
                         onClick={() => handleCopyPrevMonth(emp.id)}
@@ -607,7 +735,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
                         <Copy size={13} />
                       </button>
                     ) : (
-                      <span className="text-xs text-red-300" title="No data found for previous month">
+                      <span className="text-sm text-red-300" title="No data found for previous month">
                         —
                       </span>
                     )}
@@ -618,36 +746,37 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
           </tbody>
           <tfoot className="salary-totals">
             <tr>
-              <td colSpan={3} className="text-right text-slate-600 font-bold text-xs uppercase tracking-wider">
+              <td colSpan={3} className="text-center text-slate-600 font-bold text-xs uppercase tracking-wider salary-col-label">
                 Total
               </td>
             {showDA && (
               <>
-                <td className="text-right text-slate-700">{formatCurrency(totals.gross)}</td>
-                <td className="text-right text-amber-700">{formatCurrency(totals.da)}</td>
-                <td className="text-right text-red-600">{formatCurrency(totals.tax)}</td>
-                <td className="text-right text-indigo-700 font-extrabold">
+                <td className="text-center text-slate-700 tabular-nums">{formatCurrency(totals.gross)}</td>
+                <td className="text-center text-amber-700 tabular-nums">{formatCurrency(totals.da)}</td>
+                <td className="text-center text-red-600 tabular-nums">{formatCurrency(totals.tax)}</td>
+                <td className="text-center text-indigo-700 font-extrabold tabular-nums">
                   {formatCurrency(totals.gross + totals.da - totals.tax)}
                 </td>
-                <td className="text-center text-green-700 font-extrabold">{formatCurrency(totals.gross + totals.da)}</td>
+                <td className="text-center text-green-700 font-extrabold tabular-nums">{formatCurrency(totals.gross + totals.da)}</td>
                 <td></td>
               </>
             )}
             {!showDA && (
               <>
-                <td className="text-right text-slate-700">{formatCurrency(totals.gross)}</td>
-                <td className="text-right text-red-600">{formatCurrency(totals.tax)}</td>
-                <td className="text-right text-indigo-700 font-extrabold">{formatCurrency(totals.gross - totals.tax)}</td>
+                <td className="text-center text-slate-700 tabular-nums">{formatCurrency(totals.gross)}</td>
+                <td className="text-center text-red-600 tabular-nums">{formatCurrency(totals.tax)}</td>
+                <td className="text-center text-indigo-700 font-extrabold tabular-nums">{formatCurrency(totals.gross - totals.tax)}</td>
                 <td></td>
               </>
             )}
             </tr>
           </tfoot>
         </table>
+        )}
       </div>
 
       {/* Elevated footer bar */}
-      <div className="salary-footer text-sm">
+      <div className="salary-footer text-xs">
         <div className="flex items-center gap-3">
           <span className="stat-pill">
             <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -665,11 +794,10 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopyAllPrevMonth}
-            disabled={copyMutation.isPending}
             className="btn btn-outline btn-sm text-xs"
-            title="Copy all data from the previous month"
+            title="Load all data from the previous month as a draft"
           >
-            <Copy size={13} className="mr-1" /> {copyMutation.isPending ? 'Copying…' : 'Copy Prev Month'}
+            <Copy size={13} className="mr-1" /> Copy Prev Month
           </button>
           {hasChanges ? (
             <>

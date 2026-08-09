@@ -8,6 +8,8 @@ import { EmployeeRegistration } from '../components/EmployeeRegistration';
 import { QuarterReportView } from '../components/QuarterReport';
 import { SalaryExcelImport } from '../components/SalaryExcelImport';
 import { SalaryLookup } from '../components/SalaryLookup';
+import { BudgetHeadManager } from '../components/BudgetHeadManager';
+import { BudgetHeadReport } from '../components/BudgetHeadReport';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
@@ -24,13 +26,15 @@ import {
   Banknote,
   Users,
   Calendar,
+  Landmark,
 } from 'lucide-react';
 
-type Mode = 'entry' | 'report' | 'employees';
+type Mode = 'entry' | 'report' | 'employees' | 'budget';
 
 const TABS: { id: Mode; label: string; icon: React.ElementType; description: string }[] = [
   { id: 'entry', label: 'Monthly Entry', icon: Banknote, description: 'Enter salary, DA, and tax for the selected month' },
   { id: 'report', label: 'Quarterly Report', icon: FileText, description: 'Generate 24Q TDS reports for compliance' },
+  { id: 'budget', label: 'Budget Head Report', icon: Landmark, description: 'Manage budget heads and view head-wise salary statements' },
   { id: 'employees', label: 'Employee Registration', icon: Users, description: 'Add, edit, and manage employee master data' },
 ];
 
@@ -47,6 +51,7 @@ export function PayrollPage() {
   const [showExcelImport, setShowExcelImport] = useState(false);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [isGridDirty, setIsGridDirty] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -78,9 +83,22 @@ export function PayrollPage() {
   }, []);
 
   const handleMonthSelect = (month: string) => {
+    if (month === selectedMonth) {
+      setShowMonthDropdown(false);
+      return;
+    }
+    if (
+      isGridDirty &&
+      !window.confirm(
+        `You have unsaved changes in ${getMonthDisplay(selectedMonth)}. Switch to ${getMonthDisplay(month)} anyway? Your edits are kept as a draft.`
+      )
+    ) {
+      return;
+    }
     setSelectedMonth(month);
     setShowMonthDropdown(false);
     setAutoFill(false);
+    setIsGridDirty(false);
   };
 
   const handleAutoFillToggle = (checked: boolean) => {
@@ -236,6 +254,32 @@ export function PayrollPage() {
         </div>
       )}
 
+      {mode === 'budget' && (
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
+          <div className="px-1 pb-4 space-y-4">
+            <BudgetHeadManager />
+            <div className="card">
+              <div className="card-header">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                    <Landmark size={16} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-800">Budget Head Wise Salary Statement</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Head-wise gross, DA, tax, and net totals for each quarter — FY {fyLabel}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="card-body">
+                <BudgetHeadReport fy={fy} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {mode === 'entry' && (
         <div className="flex-shrink-0 mb-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
@@ -299,7 +343,10 @@ export function PayrollPage() {
                 </span>
                 <span className="text-xs font-semibold text-slate-600">DA &amp; Other</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer select-none shrink-0" title="Auto-fill from previous month data">
+              <label
+                className="flex items-center gap-2 cursor-pointer select-none shrink-0"
+                title="When ON, empty salary cells (Gross, DA, Tax) are automatically filled from the previous month's data for the same employee. Cells that already have values are left unchanged."
+              >
                 <span className="toggle-switch">
                   <input
                     type="checkbox"
@@ -308,7 +355,7 @@ export function PayrollPage() {
                   />
                   <span className="toggle-slider" />
                 </span>
-                <span className="text-xs font-semibold text-slate-600">Auto-fill</span>
+                <span className="text-xs font-semibold text-slate-600">Auto-fill from Prev Month</span>
               </label>
               <button
                 type="button"
@@ -370,7 +417,7 @@ export function PayrollPage() {
         <div className="flex-shrink-0 mb-3 flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
           <div className="flex items-center gap-2">
             <FileText size={14} className="text-slate-400" />
-            <span className="text-[0.72rem] font-bold text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 shrink-0">
+            <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 shrink-0">
               FY {fyLabel}
             </span>
           </div>
@@ -378,7 +425,7 @@ export function PayrollPage() {
           <select
             value={selectedQuarter}
             onChange={(e) => setSelectedQuarter(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-1.5 text-[0.82rem] font-semibold text-slate-800 bg-white shrink-0"
+            className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 bg-white shrink-0"
           >
             <option value="Q1">Q1 (Apr-Jun)</option>
             <option value="Q2">Q2 (Jul-Sep)</option>
@@ -386,25 +433,25 @@ export function PayrollPage() {
             <option value="Q4">Q4 (Jan-Mar)</option>
           </select>
 
-          <span className="text-[0.82rem] text-slate-500 shrink-0">
+          <span className="text-xs text-slate-500 shrink-0">
             {quarterMonths.map((m, i) => `${m}-${i === quarterMonths.length - 1 && selectedQuarter === 'Q4' ? y2 : y1}`).join(', ')}
           </span>
 
           <div className="flex items-center gap-2 shrink-0 ml-auto">
-            <button onClick={() => window.print()} className="btn btn-secondary btn-sm text-[0.82rem]">
+            <button onClick={() => window.print()} className="btn btn-secondary btn-sm text-xs">
               <FileText size={14} className="mr-1" /> Print
             </button>
             <button
               onClick={export24QCSV}
               disabled={!quarterReport || quarterReport.rows.length === 0}
-              className="btn btn-outline btn-sm text-[0.82rem]"
+              className="btn btn-outline btn-sm text-xs"
             >
               <Download size={14} className="mr-1" /> CSV
             </button>
             <button
               onClick={exportPDF}
               disabled={!quarterReport || quarterReport.rows.length === 0}
-              className="btn btn-outline btn-sm text-[0.82rem]"
+              className="btn btn-outline btn-sm text-xs"
             >
               <FileImage size={14} className="mr-1" /> Preview
             </button>
@@ -426,6 +473,7 @@ export function PayrollPage() {
                 autoFill={autoFill}
                 fy={fy}
                 onSave={handleSave}
+                onDirtyChange={setIsGridDirty}
               />
             </div>
           </div>

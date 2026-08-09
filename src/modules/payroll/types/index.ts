@@ -41,6 +41,43 @@ export interface QuarterReport {
   rows: QuarterReportRow[];
 }
 
+export interface BudgetHead {
+  id: string;
+  officeId: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+}
+
+export interface BudgetHeadInput {
+  id?: string;
+  code: string;
+  name: string;
+}
+
+export interface BudgetHeadQuarterTotals {
+  gross: number;
+  da: number;
+  tax: number;
+  net: number;
+}
+
+export interface BudgetHeadReportGroup {
+  code: string | null;
+  name: string;
+  months: BudgetHeadQuarterTotals[];
+  quarters: [BudgetHeadQuarterTotals, BudgetHeadQuarterTotals, BudgetHeadQuarterTotals, BudgetHeadQuarterTotals];
+  totals: BudgetHeadQuarterTotals;
+}
+
+export interface BudgetHeadReport {
+  fy: number;
+  fyLabel: string;
+  monthLabels: string[];
+  groups: BudgetHeadReportGroup[];
+  totals: BudgetHeadQuarterTotals;
+}
+
 export interface BulkSalarySaveInput {
   month: string;
   financialYear: number;

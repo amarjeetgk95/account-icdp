@@ -30,6 +30,7 @@ export const employeeSchema = z
       .optional()
       .nullable()
       .refine((val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val), 'Invalid date format'),
+    budgetHeadId: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (!data.id && !data.joinDate) {

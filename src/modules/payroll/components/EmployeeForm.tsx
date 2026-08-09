@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { employeeSchema, type EmployeeInput } from '../validation/employee.schema';
 import { useEmployees } from '../hooks/useEmployees';
+import { useBudgetHeads } from '../hooks/useBudgetHeads';
 import { getActiveEntryMonths } from '../utils/employeeDates';
 import { useUIStore } from '@/core/stores/ui-store';
 import { MONTHS } from '@/shared/constants';
@@ -37,10 +38,12 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
       pan: '',
       joinDate: '',
       transferDate: '',
+      budgetHeadId: '',
     },
   });
 
   const { employees } = useEmployees();
+  const { heads } = useBudgetHeads();
   const nameValue = watch('name');
   const joinDateValue = watch('joinDate');
   const transferDateValue = watch('transferDate');
@@ -57,6 +60,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
         pan: editingEmployee.pan,
         joinDate: editingEmployee.joinDate || '',
         transferDate: editingEmployee.transferDate || '',
+        budgetHeadId: editingEmployee.budgetHeadId ? String(editingEmployee.budgetHeadId) : '',
       });
     }
   }, [editingEmployee, reset]);
@@ -73,6 +77,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
           pan: emp.pan,
           joinDate: emp.join_date || '',
           transferDate: emp.transfer_date || '',
+          budgetHeadId: emp.budget_head_id ? String(emp.budget_head_id) : '',
         }));
       setSearchResults(matches);
       setShowDropdown(matches.length > 0);
@@ -142,7 +147,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
         <div>
           <label htmlFor="hprnNo" className="label">
             HRPN No.
@@ -150,7 +155,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
           <input
             id="hprnNo"
             {...register('hprnNo')}
-            className="input"
+            className="input text-sm"
             placeholder="Optional"
             maxLength={50}
             onChange={(e) => setValue('hprnNo', e.target.value)}
@@ -165,7 +170,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
           <input
             id="name"
             {...register('name')}
-            className="input"
+            className="input text-sm"
             placeholder="Type to search existing..."
             autoComplete="off"
           />
@@ -196,7 +201,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
           <input
             id="pan"
             {...register('pan')}
-            className="input uppercase"
+            className="input uppercase text-sm"
             placeholder="ABCDE1234F"
             maxLength={10}
             onChange={(e) => {
@@ -215,7 +220,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             id="joinDate"
             type="date"
             {...register('joinDate')}
-            className="input"
+            className="input text-sm"
           />
           {errors.joinDate && <p className="text-red-500 text-xs mt-1">{errors.joinDate.message}</p>}
           <p className="text-slate-400 text-xs mt-1">
@@ -233,15 +238,30 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             id="transferDate"
             type="date"
             {...register('transferDate')}
-            className="input"
+            className="input text-sm"
           />
           {errors.transferDate && <p className="text-red-500 text-xs mt-1">{errors.transferDate.message}</p>}
           <p className="text-slate-400 text-xs mt-1">Leave blank — enter only if the employee is transferred mid-year</p>
         </div>
+
+        <div>
+          <label htmlFor="budgetHeadId" className="label">
+            Budget Head
+          </label>
+          <select id="budgetHeadId" {...register('budgetHeadId')} className="input text-sm">
+            <option value="">— None —</option>
+            {heads.map((head) => (
+              <option key={head.id} value={head.id}>
+                {head.code} — {head.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-slate-400 text-xs mt-1">Classifies salary for the Budget Head Report</p>
+        </div>
       </div>
 
       {(joinDateValue || transferDateValue) && (
-        <div className="rounded-lg px-3 py-2 text-sm bg-blue-50 border border-blue-200 text-blue-800">
+        <div className="rounded-lg px-3 py-2 text-xs bg-blue-50 border border-blue-200 text-blue-800">
           {(() => {
             const activeMonths = getActiveEntryMonths(resolvedFY, joinDateValue || null, transferDateValue || null);
             if (activeMonths.length === 0) {

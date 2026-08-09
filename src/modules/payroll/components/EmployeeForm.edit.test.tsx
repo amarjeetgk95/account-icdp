@@ -19,6 +19,13 @@ vi.mock('../hooks/useEmployees', () => ({
   }),
 }));
 
+vi.mock('../hooks/useBudgetHeads', () => ({
+  useBudgetHeads: () => ({
+    heads: [],
+    isLoading: false,
+  }),
+}));
+
 vi.mock('@/core/stores/ui-store', () => ({
   useUIStore: () => 2026,
 }));

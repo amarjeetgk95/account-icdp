@@ -51,7 +51,7 @@ export function QuarterReportView({ report, isLoading, showHeader = true }: Quar
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse">
+        <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-slate-100">
               <th rowSpan={2} className="px-2 py-1.5 border border-slate-300 align-middle text-center" style={{ width: '40px' }}>Sr.</th>

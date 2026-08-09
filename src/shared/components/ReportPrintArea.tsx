@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 
-interface OfficeDetails {
+export interface OfficeDetails {
   officeName: string;
   subtitle: string;
   address: string;
@@ -11,17 +11,21 @@ interface OfficeDetails {
 }
 
 interface ReportPrintAreaProps {
-  office: OfficeDetails;
+  office: Partial<OfficeDetails>;
   leftLabel: string;
   leftValue: string;
   rightMeta: ReactNode;
   title: string;
   badgeClass?: string;
   footerExtra?: ReactNode;
+  pageOrientation?: 'portrait' | 'landscape';
+  showSignature?: boolean;
+  showLetterhead?: boolean;
+  compact?: boolean;
   children: ReactNode;
 }
 
-const DEFAULT_OFFICE: OfficeDetails = {
+export const DEFAULT_OFFICE: OfficeDetails = {
   officeName: 'Deputy Director of Animal Husbandry',
   subtitle: 'Intensive Cattle Development Programme - Surat',
   address: 'Patel Nagar, A.K. Road, Surat - 395008',
@@ -39,6 +43,10 @@ export function ReportPrintArea({
   title,
   badgeClass = 'report-badge-emp',
   footerExtra,
+  pageOrientation = 'portrait',
+  showSignature = true,
+  showLetterhead = true,
+  compact = false,
   children,
 }: ReportPrintAreaProps) {
   const o = { ...DEFAULT_OFFICE, ...office };
@@ -48,13 +56,23 @@ export function ReportPrintArea({
   if (o.email && o.email.trim()) addrParts.push('Email: ' + o.email);
   const address = addrParts.length ? addrParts.join(' | ') : DEFAULT_OFFICE.address + ' | ' + DEFAULT_OFFICE.phone;
 
+  const cls = [
+    'report-print-area',
+    pageOrientation === 'landscape' ? 'report-landscape' : '',
+    compact ? 'report-compact' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className="report-print-area">
-      <div className="govt-letterhead">
-        <div className="govt-title-primary">{o.officeName || DEFAULT_OFFICE.officeName}</div>
-        <div className="govt-title-secondary">{o.subtitle || DEFAULT_OFFICE.subtitle}</div>
-        <div className="govt-address-line">{address}</div>
-      </div>
+    <div className={cls}>
+      {showLetterhead && (
+        <div className="govt-letterhead">
+          <div className="govt-title-primary">{o.officeName || DEFAULT_OFFICE.officeName}</div>
+          <div className="govt-title-secondary">{o.subtitle || DEFAULT_OFFICE.subtitle}</div>
+          <div className="govt-address-line">{address}</div>
+        </div>
+      )}
       <div className="govt-meta-bar">
         <div>
           {leftLabel} <span className="font-bold">{leftValue || ''}</span>
@@ -65,15 +83,17 @@ export function ReportPrintArea({
         <div className={'report-title-badge ' + badgeClass}>{title}</div>
       </div>
       <div className="report-scroll">{children}</div>
-      <div className="govt-footer-signatures">
-        <div>Received Date: ___________________</div>
-        <div className="sign-right">
-          Assistant Administrative cum Account Officer
-          <br />
-          Intensive Cattle Development Programme - Surat
-          {footerExtra}
+      {showSignature && (
+        <div className="govt-footer-signatures">
+          <div>Received Date: ___________________</div>
+          <div className="sign-right">
+            Assistant Administrative cum Account Officer
+            <br />
+            Intensive Cattle Development Programme - Surat
+            {footerExtra}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

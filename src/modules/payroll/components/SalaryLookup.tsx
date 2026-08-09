@@ -26,7 +26,7 @@ export function SalaryLookup({ fy, initialHrpn }: { fy: number; initialHrpn?: st
       </h3>
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col">
-          <label className="text-[0.72rem] font-medium text-slate-500">HRPN No.</label>
+          <label className="text-xs font-medium text-slate-500">HRPN No.</label>
           <input
             type="text"
             value={hrpn}
@@ -36,7 +36,7 @@ export function SalaryLookup({ fy, initialHrpn }: { fy: number; initialHrpn?: st
           />
         </div>
         <div className="flex flex-col">
-          <label className="text-[0.72rem] font-medium text-slate-500">Month</label>
+          <label className="text-xs font-medium text-slate-500">Month</label>
           <select
             value={month}
             onChange={(e) => setMonth(e.target.value)}

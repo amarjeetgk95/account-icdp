@@ -1,10 +1,10 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
-import type { EmployeeInput } from '../validation/employee.schema';
 import type { Database } from '@/shared/database.types';
+import type { BudgetHeadInput } from '../types';
 
-type Employee = Database['public']['Tables']['employees']['Row'];
+type BudgetHeadRow = Database['public']['Tables']['budget_heads']['Row'];
 
 function getOfficeId(): string | null {
   const authOfficeId = useAuthStore.getState().user?.officeId || null;
@@ -12,48 +12,45 @@ function getOfficeId(): string | null {
   return useUIStore.getState().activeOfficeId || null;
 }
 
-export const employeeRepository = {
-  async list(): Promise<Employee[]> {
+export const budgetHeadRepository = {
+  async list(): Promise<BudgetHeadRow[]> {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data, error } = await supabase
-      .from('employees')
+    const { data, error } = await (supabase as any)
+      .from('budget_heads')
       .select('*')
       .eq('office_id', officeId)
-      .order('name');
+      .order('sort_order', { ascending: true })
+      .order('code', { ascending: true });
 
     if (error) throw error;
     return data || [];
   },
 
-  async create(input: EmployeeInput): Promise<Employee> {
+  async create(input: BudgetHeadInput): Promise<BudgetHeadRow> {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data: duplicate } = await supabase
-      .from('employees')
+    const { data: duplicate } = await (supabase as any)
+      .from('budget_heads')
       .select('id')
-      .eq('pan', input.pan)
+      .eq('code', input.code)
       .eq('office_id', officeId)
       .maybeSingle();
 
     if (duplicate) {
-      throw new Error('An employee with this PAN already exists in this office');
+      throw new Error(`A budget head with code "${input.code}" already exists in this office`);
     }
 
     const payload = {
-      hprn_no: input.hprnNo || null,
+      code: input.code,
       name: input.name,
-      pan: input.pan,
       office_id: officeId,
-      join_date: input.joinDate || null,
-      transfer_date: input.transferDate || null,
-      budget_head_id: input.budgetHeadId || null,
     };
 
     const { data, error } = await (supabase as any)
-      .from('employees')
+      .from('budget_heads')
       .insert(payload)
       .select()
       .single();
@@ -62,32 +59,28 @@ export const employeeRepository = {
     return data;
   },
 
-  async update(input: EmployeeInput): Promise<Employee> {
+  async update(input: BudgetHeadInput): Promise<BudgetHeadRow> {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
-    if (!input.id) throw new Error('Employee ID is required for update');
+    if (!input.id) throw new Error('Budget head ID is required for update');
 
-    const { data: duplicate } = await supabase
-      .from('employees')
+    const { data: duplicate } = await (supabase as any)
+      .from('budget_heads')
       .select('id')
-      .eq('pan', input.pan)
+      .eq('code', input.code)
       .eq('office_id', officeId)
       .neq('id', input.id)
       .maybeSingle();
 
     if (duplicate) {
-      throw new Error('An employee with this PAN already exists in this office');
+      throw new Error(`A budget head with code "${input.code}" already exists in this office`);
     }
 
     const { data, error } = await (supabase as any)
-      .from('employees')
+      .from('budget_heads')
       .update({
-        hprn_no: input.hprnNo || null,
+        code: input.code,
         name: input.name,
-        pan: input.pan,
-        join_date: input.joinDate || null,
-        transfer_date: input.transferDate || null,
-        budget_head_id: input.budgetHeadId || null,
       })
       .eq('id', input.id)
       .eq('office_id', officeId)
@@ -102,8 +95,8 @@ export const employeeRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { error } = await supabase
-      .from('employees')
+    const { error } = await (supabase as any)
+      .from('budget_heads')
       .delete()
       .eq('id', id)
       .eq('office_id', officeId);
@@ -111,12 +104,12 @@ export const employeeRepository = {
     if (error) throw error;
   },
 
-  async getById(id: string): Promise<Employee | null> {
+  async getById(id: string): Promise<BudgetHeadRow | null> {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data, error } = await supabase
-      .from('employees')
+    const { data, error } = await (supabase as any)
+      .from('budget_heads')
       .select('*')
       .eq('id', id)
       .eq('office_id', officeId)

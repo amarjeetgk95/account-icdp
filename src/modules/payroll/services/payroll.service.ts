@@ -1,6 +1,6 @@
 import { payrollRepository } from '../repositories/payroll.repository';
 import { MONTHS } from '@/shared/constants';
-import type { EmployeeRosterItem, MonthOption, QuarterReport } from '../types';
+import type { EmployeeRosterItem, MonthOption, QuarterReport, BudgetHeadReport } from '../types';
 
 export class PayrollService {
   getMonthOptions(financialYear: number): MonthOption[] {
@@ -43,11 +43,14 @@ export class PayrollService {
     return payrollRepository.saveBulkSalary(month, entries, fy);
   }
 
-  async copyPreviousMonth(month: string, fy: number): Promise<{ copied: number; created: number }> {
+  async getPreviousMonthData(
+    month: string,
+    fy: number
+  ): Promise<Array<{ employeeId: string; gross: number; da: number; tax: number }>> {
     const monthIdx = MONTHS.indexOf(month as any);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
-    return payrollRepository.copyPreviousMonth(prevMonth, month, fy);
+    return payrollRepository.getPreviousMonthSalaries(prevMonth, fy);
   }
 
   async clearMonth(month: string, fy: number): Promise<number> {
@@ -66,6 +69,10 @@ export class PayrollService {
       throw new Error('Invalid quarter');
     }
     return payrollRepository.getQuarterReport(quarter, fy, officeId);
+  }
+
+  async getBudgetHeadReport(fy: number, officeId?: string): Promise<BudgetHeadReport> {
+    return payrollRepository.getBudgetHeadReport(fy, officeId);
   }
 
   private validateEntries(

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useEmployees } from '../hooks/useEmployees';
+import { useBudgetHeads } from '../hooks/useBudgetHeads';
 import { useLatestSalaries } from '../hooks/useSalaryImport';
 import { formatDate, formatCurrency } from '@/shared/utilities';
 import type { EmployeeInput } from '../validation/employee.schema';
@@ -14,8 +15,11 @@ interface EmployeeListProps {
 
 export function EmployeeList({ onEdit }: EmployeeListProps) {
   const { employees, isLoading, deleteAsync } = useEmployees();
+  const { heads } = useBudgetHeads();
   const { data: salaryMap } = useLatestSalaries();
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; pan: string } | null>(null);
+
+  const headMap = new Map(heads.map((head) => [head.id, head]));
 
   const handleDelete = async (employee: Employee) => {
     if (deleteConfirm?.id === employee.id) {
@@ -50,13 +54,14 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="table">
+      <table className="table text-sm">
         <thead>
             <tr>
               <th className="text-center" style={{ width: '50px' }}>#</th>
               <th className="text-left">HRPN No.</th>
               <th className="text-left">Name</th>
               <th className="text-left">PAN</th>
+              <th className="text-center">Budget Head</th>
               <th className="text-center">Join Date</th>
               <th className="text-center">Transfer Date</th>
               <th className="text-center">Latest Salary</th>
@@ -67,9 +72,19 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
           {employees.map((employee, index) => (
             <tr key={employee.id}>
               <td className="text-slate-500 text-center">{index + 1}</td>
-              <td className="font-mono text-sm">{employee.hprn_no || '-'}</td>
+              <td className="font-mono">{employee.hprn_no || '-'}</td>
               <td className="font-medium">{employee.name}</td>
-              <td className="font-mono text-sm">{employee.pan}</td>
+              <td className="font-mono">{employee.pan}</td>
+              <td className="text-center">
+                {employee.budget_head_id ? (() => {
+                  const head = headMap.get(employee.budget_head_id);
+                  return head ? (
+                    <span className="text-xs font-medium">
+                      {head.code} — {head.name}
+                    </span>
+                  ) : '-';
+                })() : '-'}
+              </td>
               <td className="text-center">
                 {employee.join_date ? formatDate(employee.join_date) : '-'}
               </td>
@@ -81,8 +96,8 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
                   const salary = salaryMap.get(employee.hprn_no.toLowerCase());
                   return salary ? (
                     <div className="flex flex-col items-center gap-0.5">
-                      <span className="font-mono text-xs">{formatCurrency(Number(salary.gross_salary))}</span>
-                      <span className="text-[0.68rem] text-slate-500">{salary.month} FY{salary.financial_year}</span>
+                      <span className="font-mono">{formatCurrency(Number(salary.gross_salary))}</span>
+                      <span className="text-xs text-slate-500">{salary.month} FY{salary.financial_year}</span>
                     </div>
                   ) : '-';
                 })() : '-'}
@@ -98,6 +113,7 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
                     pan: employee.pan,
                     joinDate: employee.join_date || '',
                     transferDate: employee.transfer_date || '',
+                    budgetHeadId: employee.budget_head_id || '',
                   })
                     }
                     className="btn btn-icon btn-sm btn-secondary"

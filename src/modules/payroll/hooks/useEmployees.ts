@@ -19,6 +19,7 @@ export function useEmployees() {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-roster'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-month-check'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -29,6 +30,7 @@ export function useEmployees() {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-roster'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-month-check'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -40,6 +42,7 @@ export function useEmployees() {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-roster'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-month-check'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });

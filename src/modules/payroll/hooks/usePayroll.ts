@@ -30,26 +30,10 @@ export function useSaveSalary() {
       queryClient.invalidateQueries({
         queryKey: ['payroll-roster', variables.month, variables.fy],
       });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-    },
-  });
-}
-
-export function useCopyPreviousMonth() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      month,
-      fy,
-    }: {
-      month: string;
-      fy: number;
-    }) => payrollService.copyPreviousMonth(month, fy),
-    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['payroll-roster', variables.month, variables.fy],
+        queryKey: ['payroll-month-check', variables.month, variables.fy],
       });
+      queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -68,6 +52,7 @@ export function useClearMonth() {
       queryClient.invalidateQueries({
         queryKey: ['payroll-month-check', variables.month, variables.fy],
       });
+      queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -80,6 +65,16 @@ export function useQuarterReport(quarter: string, fy: number) {
     queryKey: ['payroll-quarter-report', quarter, fy, officeId],
     queryFn: () => payrollService.getQuarterReport(quarter, fy),
     enabled: !!quarter && !!officeId,
+  });
+}
+
+export function useBudgetHeadReport(fy: number) {
+  const officeId = useActiveOfficeId();
+
+  return useQuery({
+    queryKey: ['payroll-budget-head-report', fy, officeId],
+    queryFn: () => payrollService.getBudgetHeadReport(fy),
+    enabled: !!officeId,
   });
 }
 

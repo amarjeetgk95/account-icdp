@@ -1,9 +1,8 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
-import { MONTHS } from '@/shared/constants';
 import { isActiveInEntryMonth } from '../utils/employeeDates';
-import type { EmployeeRosterItem, QuarterReport } from '../types';
+import type { EmployeeRosterItem, QuarterReport, BudgetHeadReport, BudgetHeadReportGroup } from '../types';
 import type { Database } from '@/shared/database.types';
 
 type Employee = Database['public']['Tables']['employees']['Row'];
@@ -93,7 +92,8 @@ export const payrollRepository = {
       .upsert(records, { onConflict: 'employee_id,financial_year,month' });
 
     if (error) throw error;
-    return `Successfully saved ${entries.length} records for ${month}.`;
+    const withData = entries.filter((e) => e.gross > 0 || e.da > 0 || e.tax > 0).length;
+    return `Saved ${withData} of ${entries.length} record${entries.length !== 1 ? 's' : ''} for ${month}.`;
   },
 
   async getEmployeeSalaryForMonth(employeeId: string, month: string, fy: number): Promise<{ gross: number; da: number; tax: number } | null> {
@@ -109,62 +109,28 @@ export const payrollRepository = {
     return data ? { gross: Number(data.gross) || 0, da: Number(data.da) || 0, tax: Number(data.tax) || 0 } : null;
   },
 
-  async copyPreviousMonth(fromMonth: string, toMonth: string, fy: number): Promise<{ copied: number; created: number }> {
+  async getPreviousMonthSalaries(
+    month: string,
+    fy: number
+  ): Promise<Array<{ employeeId: string; gross: number; da: number; tax: number }>> {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const monthIdx = MONTHS.indexOf(fromMonth as any);
-    if (monthIdx === -1) throw new Error('Invalid source month');
-    if (fromMonth === toMonth) throw new Error('Source and target month cannot be the same');
-
-    const { data: employees } = await (supabase as any)
-      .from('employees')
-      .select('id, name, join_date, transfer_date')
-      .eq('office_id', officeId)
-      .order('id');
-
-    const { data: prevSalaries } = await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from('employee_salaries')
       .select('employee_id, gross, da, tax')
       .eq('financial_year', fy)
-      .eq('month', fromMonth)
+      .eq('month', month)
       .eq('office_id', officeId);
 
-    const prevMap: Record<string, Salary> = {};
-    (prevSalaries || []).forEach((s: Salary) => {
-      prevMap[s.employee_id] = s;
-    });
+    if (error) throw error;
 
-    const records: any[] = [];
-
-    (employees || []).forEach((emp: Employee) => {
-      // Only employees who worked at least one day in the TARGET month's
-      // work period may be copied forward (uses the target slot, not today).
-      if (!isActiveInEntryMonth(emp.join_date, emp.transfer_date, fy, toMonth)) return;
-
-      const prev = prevMap[emp.id];
-      if (!prev) return;
-
-      records.push({
-        employee_id: emp.id,
-        office_id: officeId,
-        financial_year: fy,
-        month: toMonth,
-        gross: prev.gross,
-        da: prev.da,
-        tax: prev.tax,
-      });
-    });
-
-    if (records.length > 0) {
-      const { error } = await (supabase as any)
-        .from('employee_salaries')
-        .upsert(records, { onConflict: 'employee_id,financial_year,month' });
-
-      if (error) throw error;
-    }
-
-    return { copied: prevSalaries?.length || 0, created: records.length };
+    return (data || []).map((s: Salary) => ({
+      employeeId: s.employee_id,
+      gross: Number(s.gross) || 0,
+      da: Number(s.da) || 0,
+      tax: Number(s.tax) || 0,
+    }));
   },
 
   async clearMonthSalary(month: string, fy: number, officeId?: string): Promise<number> {
@@ -259,6 +225,132 @@ export const payrollRepository = {
         paid: `${labelCfg.paid[i]}-${labelCfg.paidYear[i] ? y2 : y1}`,
       })),
       rows,
+    };
+  },
+
+  async getBudgetHeadReport(fy: number, officeId?: string): Promise<BudgetHeadReport> {
+    const targetOfficeId = officeId || getOfficeId();
+    if (!targetOfficeId) throw new Error('No office selected');
+
+    const monthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
+
+    const round = (n: number) => Math.round(n * 100) / 100;
+
+    const { data: employees } = await (supabase as any)
+      .from('employees')
+      .select('id, name, pan, budget_head_id')
+      .eq('office_id', targetOfficeId);
+
+    const { data: heads } = await (supabase as any)
+      .from('budget_heads')
+      .select('id, code, name')
+      .eq('office_id', targetOfficeId)
+      .order('sort_order', { ascending: true })
+      .order('code', { ascending: true });
+
+    const { data: salaries } = await (supabase as any)
+      .from('employee_salaries')
+      .select('employee_id, month, gross, da, tax')
+      .eq('financial_year', fy)
+      .eq('office_id', targetOfficeId);
+
+    const headMap: Record<string, { code: string; name: string }> = {};
+    (heads || []).forEach((h: { id: string; code: string; name: string }) => {
+      headMap[h.id] = { code: h.code, name: h.name };
+    });
+
+    const salMap: Record<string, Record<string, Salary>> = {};
+    (salaries || []).forEach((s: Salary) => {
+      if (!salMap[s.employee_id]) salMap[s.employee_id] = {};
+      salMap[s.employee_id][s.month] = s;
+    });
+
+    const emptyCell = () => ({ gross: 0, da: 0, tax: 0, net: 0 });
+
+    const groups: BudgetHeadReportGroup[] = [];
+    const groupIndex: Record<string, number> = {};
+    const ensureGroup = (headId: string | null) => {
+      const key = headId || '__unassigned__';
+      if (groupIndex[key] === undefined) {
+        const head = headId ? headMap[headId] : undefined;
+        groupIndex[key] = groups.length;
+        groups.push({
+          code: head ? head.code : null,
+          name: head ? head.name : '(Unassigned)',
+          months: monthNames.map(() => emptyCell()),
+          quarters: [emptyCell(), emptyCell(), emptyCell(), emptyCell()],
+          totals: emptyCell(),
+        });
+      }
+      return groups[groupIndex[key]];
+    };
+
+    (employees || []).forEach((emp: Employee & { budget_head_id: string | null }) => {
+      if (!emp.name || !emp.pan) return;
+
+      const sm = salMap[emp.id] || {};
+      const group = ensureGroup(emp.budget_head_id || null);
+
+      monthNames.forEach((m, i) => {
+        const r = sm[m] || {};
+        const gross = round(r.gross || 0);
+        const da = round(r.da || 0);
+        const tax = round(r.tax || 0);
+        const cell = group.months[i];
+        cell.gross = round(cell.gross + gross);
+        cell.da = round(cell.da + da);
+        cell.tax = round(cell.tax + tax);
+        cell.net = round(gross + da - tax);
+      });
+    });
+
+    const activeGroups = groups.filter((g) => {
+      g.quarters = monthNames.reduce((acc, _m, i) => {
+        const cell = g.months[i];
+        const qi = Math.floor(i / 3);
+        acc[qi].gross = round(acc[qi].gross + cell.gross);
+        acc[qi].da = round(acc[qi].da + cell.da);
+        acc[qi].tax = round(acc[qi].tax + cell.tax);
+        acc[qi].net = round(acc[qi].net + cell.net);
+        return acc;
+      }, g.quarters);
+
+      g.totals = g.months.reduce(
+        (acc, cell) => {
+          acc.gross = round(acc.gross + cell.gross);
+          acc.da = round(acc.da + cell.da);
+          acc.tax = round(acc.tax + cell.tax);
+          acc.net = round(acc.net + cell.net);
+          return acc;
+        },
+        emptyCell()
+      );
+
+      return g.totals.gross !== 0 || g.totals.da !== 0 || g.totals.tax !== 0;
+    });
+
+    const totals = activeGroups.reduce(
+      (acc, g) => {
+        acc.gross = round(acc.gross + g.totals.gross);
+        acc.da = round(acc.da + g.totals.da);
+        acc.tax = round(acc.tax + g.totals.tax);
+        acc.net = round(acc.net + g.totals.net);
+        return acc;
+      },
+      emptyCell()
+    );
+
+    const y1 = String(fy).slice(-2);
+    const y2 = String(fy + 1).slice(-2);
+
+    const monthLabels = monthNames.map((m, i) => `${m.slice(0, 3)}-${i < 9 ? y1 : y2}`);
+
+    return {
+      fy,
+      fyLabel: `${fy}-${y2}`,
+      monthLabels,
+      groups: activeGroups,
+      totals,
     };
   },
 };

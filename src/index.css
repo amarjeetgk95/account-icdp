@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Page setup for printed reports. `landscape` is a named page used by the
+   Budget Head report; every other report prints in A4 portrait. */
+@page {
+  size: A4 portrait;
+  margin: 10mm 9mm;
+}
+
+@page landscape {
+  size: A4 landscape;
+  margin: 5mm 6mm;
+}
+
 /* ============================================================
    ICDP TAX SYSTEM — GLOBAL STYLES
    Design: Clean & Modern Gov (indigo/teal, soft shadows, refined)
@@ -784,10 +796,11 @@
      ring + glow on focus, left-accent for dirty/modified cells
      ============================================================ */
   .salary-cell {
-    @apply text-right tabular-nums;
-    width: 7.5rem;
+    @apply text-center tabular-nums;
+    width: 100%;
+    height: 2.25rem;
     padding: 6px 10px;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     border-radius: 6px;
     border: 1.5px solid transparent;
     background: transparent;
@@ -824,24 +837,61 @@
   }
 
   /* ============================================================
+     SALARY GRID — TABLE LAYOUT (dynamic column widths)
+     ============================================================ */
+  .salary-grid-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 720px;
+  }
+
+  /* ============================================================
      SALARY GRID — HEADER & SCROLL SHADOW
      ============================================================ */
   .salary-grid-header {
-    @apply bg-slate-50 sticky top-0;
-    z-index: 10;
+    position: sticky;
+    top: 0;
+    background: #F8FAFC;
+    z-index: 20;
     transition: box-shadow 200ms ease;
+  }
+
+  .salary-grid-header th {
+    @apply px-3 py-2.5 text-[0.8rem] font-bold tracking-wider;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #475569;
+    letter-spacing: 0.05em;
+    text-align: center;
+    border-bottom: 2px solid #E2E8F0;
+    background: #F8FAFC;
   }
 
   .salary-grid-header.scrolled {
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
   }
 
-  .salary-grid-header th {
-    @apply px-3 py-2.5 text-xs font-bold uppercase tracking-wider;
-    color: #475569;
-    letter-spacing: 0.05em;
-    border-bottom: 2px solid #E2E8F0;
+  /* Sticky left columns (index / employee / PAN) */
+  .salary-col-index {
+    position: sticky;
+    left: 0;
+    width: 44px;
   }
+
+  .salary-col-name {
+    position: sticky;
+    left: 44px;
+    width: 220px;
+  }
+
+  .salary-col-pan {
+    position: sticky;
+    left: 264px;
+    width: 130px;
+  }
+
+  thead th.salary-col-index { z-index: 40; }
+  thead th.salary-col-name { z-index: 40; }
+  thead th.salary-col-pan { z-index: 40; }
 
   /* ============================================================
      SALARY GRID — ROW STATES
@@ -849,6 +899,23 @@
   .salary-row {
     @apply transition-colors;
     border-left: 3px solid transparent;
+  }
+
+  .salary-row td {
+    vertical-align: middle;
+  }
+
+  .salary-row td.salary-col-index,
+  .salary-row td.salary-col-name,
+  .salary-row td.salary-col-pan {
+    position: sticky;
+    z-index: 2;
+  }
+
+  .salary-row td.salary-col-pan,
+  thead th.salary-col-pan,
+  .salary-totals td.salary-col-label {
+    box-shadow: 1px 0 0 #CBD5E1;
   }
 
   .salary-row:nth-child(odd) {
@@ -859,7 +926,25 @@
     background: #F8FAFC;
   }
 
+  .salary-row:nth-child(odd) .salary-col-index,
+  .salary-row:nth-child(odd) .salary-col-name,
+  .salary-row:nth-child(odd) .salary-col-pan {
+    background: #FFFFFF;
+  }
+
+  .salary-row:nth-child(even) .salary-col-index,
+  .salary-row:nth-child(even) .salary-col-name,
+  .salary-row:nth-child(even) .salary-col-pan {
+    background: #F8FAFC;
+  }
+
   .salary-row:hover {
+    background: #EFF6FF !important;
+  }
+
+  .salary-row:hover .salary-col-index,
+  .salary-row:hover .salary-col-name,
+  .salary-row:hover .salary-col-pan {
     background: #EFF6FF !important;
   }
 
@@ -868,18 +953,36 @@
     background: #EFF6FF !important;
   }
 
+  .salary-row-active .salary-col-index,
+  .salary-row-active .salary-col-name,
+  .salary-row-active .salary-col-pan {
+    background: #EFF6FF !important;
+  }
+
+  .salary-row-active .salary-col-index {
+    box-shadow: inset 3px 0 0 #3B82F6;
+  }
+
   /* ============================================================
      SALARY GRID — TOTALS ROW
      ============================================================ */
   .salary-totals {
-    @apply sticky bottom-0 font-bold;
-    background: linear-gradient(to right, #F1F5F9, #E2E8F0);
-    border-top: 2px solid #CBD5E1;
-    z-index: 10;
+    @apply font-bold;
   }
 
   .salary-totals td {
     @apply px-3 py-2.5 text-sm;
+    position: sticky;
+    bottom: 0;
+    background: #EEF2F7;
+    border-top: 2px solid #94A3B8;
+    z-index: 10;
+  }
+
+  .salary-totals td.salary-col-label {
+    position: sticky;
+    left: 0;
+    z-index: 12;
   }
 
   /* ============================================================
@@ -1314,6 +1417,132 @@
   }
 
   /* ============================================================
+     BUDGET HEAD UNIFIED TABLE — screen styles
+     Single table with Q1-Q4 column groups; each quarter gets a
+     distinct tint so readers can scan columns at a glance.
+     ============================================================ */
+   .bh-table {
+     @apply mx-auto text-xs border-collapse;
+     width: 100%;
+     min-width: 1024px;
+   }
+  /* ---- Color profile: blue / green / white (refined) ----
+      Blue families mark quarter column groups; green marks FY totals
+      and the grand-total footer. White is the base surface. */
+
+   .bh-table td,
+   .bh-table th {
+     border: 1px solid #dbeafe;
+   }
+   /* Budget Head column: auto-shrink, left-aligned, blue accent */
+   .bh-head-col {
+     width: 1%;
+     white-space: nowrap;
+     text-align: left !important;
+     font-weight: 600;
+     background: #f8fafc;
+     border-left: 3px solid #60a5fa;
+   }
+   /* Quarter group header */
+   .bh-qh {
+     text-align: center !important;
+     font-weight: 700;
+   }
+   .bh-qh-sub {
+     font-weight: 400;
+     opacity: 0.7;
+     color: #0369a1;
+   }
+  /* Sub-headers (Gross / IT / Net) */
+  .bh-sub {
+    text-align: center !important;
+    font-weight: 600;
+    font-size: 0.65rem;
+  }
+   /* Left-border on first cell of each quarter group — blue */
+   .bh-qs { border-left: 2px solid #93c5fd !important; }
+
+  /* ---- Color profile: blue / green / white (refined) ----
+      Blue families mark quarter column groups; green marks FY totals
+      and the grand-total footer. White is the base surface. */
+
+   /* Quarter group headers: progressive blue tints */
+    .bh-q1-hd { background: #dbeafe; }  /* blue-100 */
+    .bh-q2-hd { background: #bfdbfe; }  /* blue-200 */
+    .bh-q3-hd { background: #93c5fd; }  /* blue-300 */
+    .bh-q4-hd { background: #60a5fa; }  /* blue-400 */
+
+   /* Quarter data-cell accents: very light blue tints (uniform) */
+    .bh-q1,
+    .bh-q2,
+    .bh-q3,
+    .bh-q4 { background: rgba(147,197,253,.08); }
+
+   /* FY Total column — green family */
+    .bh-fy-hd { background: #dcfce7; color: #065f46; }  /* green-200 / green-800 */
+    .bh-fy    { background: #bbf7d0; }  /* green-300 */
+
+   /* Data row hover — barely perceptible blue */
+    .bh-row:hover td { background: rgba(147,197,253,.06); }
+
+   /* Grand Total footer row — dominant green */
+    .bh-grand td {
+      background: #86efac !important;  /* green-400 */
+      color: #14532d;
+      font-weight: 700;
+      border-top: 2px solid #22c55e;
+    }
+
+    /* Report section captions — blue bar */
+    .bh-caption {
+      @apply text-center font-bold uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
+      color: #1e3a5f;
+      background: #bfdbfe;  /* blue-200 */
+      border: 1px solid #93c5fd;
+      border-bottom: 2px solid #60a5fa;
+      padding: 3px 6px;
+      margin-bottom: 6px;
+    }
+
+    /* Quarter divider bands — blue */
+    .bh-q1-band { border-left-color: #60a5fa; }
+    .bh-q2-band { border-left-color: #2563eb; }
+    .bh-q3-band { border-left-color: #1d4ed8; }
+    .bh-q4-band { border-left-color: #1e40af; }
+
+    /* Month-wise detail: quarter blocks & divider bands */
+    .bh-monthly-block {
+      margin-bottom: 16px;
+    }
+    .bh-monthly-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .bh-q-band {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      text-align: left !important;
+      padding: 4px 8px;
+      margin-bottom: 4px;
+      border: 1px solid #93c5fd;
+      border-left: 6px solid #0d47a1;
+      background: #f0f9ff;
+    }
+    .bh-q-band::after {
+      content: '';
+      flex: 1;
+      height: 2px;
+      background: currentColor;
+      opacity: 0.2;
+    }
+
+  /* ============================================================
      PRINT ENGINE
      Prints ONLY the active report (.report-print-area). All app
      chrome (sidebar, header, top tabs, page titles) is hidden so
@@ -1436,9 +1665,55 @@
       padding: 3px 4px;
     }
 
-    @page {
-      size: A4 portrait;
-      margin: 10mm 9mm;
+    /* ---- Budget Head unified table: single-page fit ---- */
+    .report-print-area .bh-table {
+      width: 100% !important;
+    }
+    .report-print-area .bh-table td,
+    .report-print-area .bh-table th {
+      font-size: 6.5pt !important;
+      padding: 1.5px 3px !important;
+      min-width: 0 !important;
+      width: auto !important;
+    }
+    .report-print-area .bh-table .bh-head-col {
+      width: 1% !important;
+    }
+
+    /* Compact reports (e.g. Budget Head): tighten letterhead/title spacing and
+       panel padding so everything fits one landscape page. */
+    .report-print-area.report-compact .govt-letterhead {
+      padding-bottom: 2px;
+      margin-bottom: 2px;
+    }
+    .report-print-area.report-compact .govt-title-secondary {
+      margin-top: 1px;
+    }
+    .report-print-area.report-compact .govt-address-line {
+      margin-top: 1px;
+    }
+    .report-print-area.report-compact .govt-meta-bar {
+      padding: 4px;
+      margin-bottom: 4px;
+    }
+    .report-print-area.report-compact .report-title-container {
+      margin: 4px 0 6px;
+    }
+    .report-print-area.report-compact .report-title-badge {
+      padding: 2px 16px;
+      font-size: 8pt;
+    }
+
+    .report-print-area.report-compact table td,
+    .report-print-area.report-compact table th {
+      font-size: 6.5pt;
+      padding: 1.5px 3px;
+    }
+
+    /* Reports that opt into landscape (e.g. the Budget Head report) use a
+       named page so the browser prints those pages in A4 landscape. */
+    .report-landscape {
+      page: landscape;
     }
   }
 }
