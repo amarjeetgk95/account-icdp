@@ -1417,129 +1417,129 @@
   }
 
   /* ============================================================
-     BUDGET HEAD UNIFIED TABLE — screen styles
-     Single table with Q1-Q4 column groups; each quarter gets a
-     distinct tint so readers can scan columns at a glance.
+     BUDGET HEAD REPORT — screen styles
+     90% white surface: colour appears only as a 10% tint.
+     Blue  (~10%) marks quarter column groups.
+     Green (~10%) marks FY totals and the grand-total footer.
      ============================================================ */
    .bh-table {
      @apply mx-auto text-xs border-collapse;
      width: 100%;
      min-width: 1024px;
    }
-  /* ---- Color profile: blue / green / white (refined) ----
-      Blue families mark quarter column groups; green marks FY totals
-      and the grand-total footer. White is the base surface. */
-
    .bh-table td,
    .bh-table th {
-     border: 1px solid #dbeafe;
+     border: 1px solid #e2e8f0;
+     padding: 4px 8px;
+     text-align: right;
+     font-variant-numeric: tabular-nums;
+     white-space: nowrap;
    }
-   /* Budget Head column: auto-shrink, left-aligned, blue accent */
+   /* Budget Head column: fixed width, left-aligned, single accent rule */
    .bh-head-col {
      width: 1%;
      white-space: nowrap;
      text-align: left !important;
      font-weight: 600;
-     background: #f8fafc;
-     border-left: 3px solid #60a5fa;
+     background: #ffffff;
+     border-left: 2px solid #cbd5e1;
    }
-   /* Quarter group header */
+   /* Quarter group header (top row spanning 3 cols) */
    .bh-qh {
      text-align: center !important;
-     font-weight: 700;
+     font-weight: 600;
    }
    .bh-qh-sub {
      font-weight: 400;
-     opacity: 0.7;
-     color: #0369a1;
+     opacity: 0.6;
+     color: #64748b;
    }
-  /* Sub-headers (Gross / IT / Net) */
-  .bh-sub {
-    text-align: center !important;
-    font-weight: 600;
-    font-size: 0.65rem;
-  }
-   /* Left-border on first cell of each quarter group — blue */
-   .bh-qs { border-left: 2px solid #93c5fd !important; }
+   /* Sub-headers (Gross / IT / Net) */
+   .bh-sub {
+     text-align: center !important;
+     font-weight: 500;
+     font-size: 0.65rem;
+     color: #475569;
+   }
+   /* Separator at the start of each quarter data group — hairline, near-white */
+   .bh-qs { border-left: 1px dashed #e2e8f0 !important; }
 
-  /* ---- Color profile: blue / green / white (refined) ----
-      Blue families mark quarter column groups; green marks FY totals
-      and the grand-total footer. White is the base surface. */
+   /* ---- 10% BLUE: quarter group headers ---- */
+   .bh-q1-hd,
+   .bh-q2-hd,
+   .bh-q3-hd,
+   .bh-q4-hd { background: rgba(59,139,255,.05); }
 
-   /* Quarter group headers: progressive blue tints */
-    .bh-q1-hd { background: #dbeafe; }  /* blue-100 */
-    .bh-q2-hd { background: #bfdbfe; }  /* blue-200 */
-    .bh-q3-hd { background: #93c5fd; }  /* blue-300 */
-    .bh-q4-hd { background: #60a5fa; }  /* blue-400 */
+   /* Quarter data cells — pure white */
+   .bh-q1,
+   .bh-q2,
+   .bh-q3,
+   .bh-q4 { background: #ffffff; }
 
-   /* Quarter data-cell accents: very light blue tints (uniform) */
-    .bh-q1,
-    .bh-q2,
-    .bh-q3,
-    .bh-q4 { background: rgba(147,197,253,.08); }
+   /* ---- 10% GREEN: FY total column ---- */
+   .bh-fy-hd {
+     background: rgba(4,171,130,.05);
+     color: #047857;
+   }
+   .bh-fy {
+     background: rgba(4,171,130,.04);
+     font-weight: 700;
+   }
 
-   /* FY Total column — green family */
-    .bh-fy-hd { background: #dcfce7; color: #065f46; }  /* green-200 / green-800 */
-    .bh-fy    { background: #bbf7d0; }  /* green-300 */
+   /* Data row hover — barely perceptible blue mist */
+   .bh-row:hover td { background: rgba(59,139,255,.03); }
 
-   /* Data row hover — barely perceptible blue */
-    .bh-row:hover td { background: rgba(147,197,253,.06); }
+   /* ---- Grand Total footer: subtle green bar ---- */
+   .bh-grand td {
+     background: rgba(4,171,130,.06) !important;
+     color: #065f46;
+     font-weight: 700;
+     border-top: 1px solid #94a3b8;
+   }
 
-   /* Grand Total footer row — dominant green */
-    .bh-grand td {
-      background: #86efac !important;  /* green-400 */
-      color: #14532d;
-      font-weight: 700;
-      border-top: 2px solid #22c55e;
-    }
+   /* ---- Report section captions: white bar, thin rules ---- */
+   .bh-caption {
+     @apply text-center font-bold uppercase;
+     font-size: 0.7rem;
+     letter-spacing: 0.03em;
+     color: #475569;
+     background: #ffffff;
+     border: 1px solid #e2e8f0;
+     border-bottom: 2px solid #94a3b8;
+     padding: 3px 6px;
+     margin-bottom: 6px;
+   }
 
-    /* Report section captions — blue bar */
-    .bh-caption {
-      @apply text-center font-bold uppercase;
-      font-size: 0.7rem;
-      letter-spacing: 0.03em;
-      color: #1e3a5f;
-      background: #bfdbfe;  /* blue-200 */
-      border: 1px solid #93c5fd;
-      border-bottom: 2px solid #60a5fa;
-      padding: 3px 6px;
-      margin-bottom: 6px;
-    }
+   /* ---- Month-wise detail: quarter blocks ----
+      Each quarter is a pure-white block separated by a single blue
+      accent stripe; no coloured background mass. */
+   .bh-monthly-block {
+     margin-bottom: 16px;
+   }
+   .bh-monthly-block:last-child {
+     margin-bottom: 0;
+   }
 
-    /* Quarter divider bands — blue */
-    .bh-q1-band { border-left-color: #60a5fa; }
-    .bh-q2-band { border-left-color: #2563eb; }
-    .bh-q3-band { border-left-color: #1d4ed8; }
-    .bh-q4-band { border-left-color: #1e40af; }
-
-    /* Month-wise detail: quarter blocks & divider bands */
-    .bh-monthly-block {
-      margin-bottom: 16px;
-    }
-    .bh-monthly-block:last-child {
-      margin-bottom: 0;
-    }
-
-    .bh-q-band {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 800;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      text-align: left !important;
-      padding: 4px 8px;
-      margin-bottom: 4px;
-      border: 1px solid #93c5fd;
-      border-left: 6px solid #0d47a1;
-      background: #f0f9ff;
-    }
+   .bh-q-band {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+     font-weight: 700;
+     letter-spacing: 0.05em;
+     text-transform: uppercase;
+     text-align: left !important;
+     padding: 4px 8px;
+     margin-bottom: 4px;
+     border: 1px solid #e2e8f0;
+     border-left: 6px solid #3b82f6;
+     background: #ffffff;
+   }
     .bh-q-band::after {
       content: '';
       flex: 1;
-      height: 2px;
-      background: currentColor;
-      opacity: 0.2;
+      height: 1px;
+      background: rgba(148,163,189,.35);
+      opacity: 0.6;
     }
 
   /* ============================================================
