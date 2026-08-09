@@ -107,34 +107,48 @@ export class SalaryService {
     const financialYear = this.deriveFinancialYear(classified);
     const matchedCount = classified.filter((c) => c.status === 'matched').length;
 
-    const importRecord = await salaryRepository.createImport({
-      excelFilename: file.name,
-      financialYear,
-      totalRecords: classified.length,
-      matchedCount,
-    });
+    let importRecord: { id: string } | null = null;
+    try {
+      importRecord = await salaryRepository.createImport({
+        excelFilename: file.name,
+        financialYear,
+        totalRecords: classified.length,
+        matchedCount,
+      });
+    } catch (err) {
+      console.warn('[SalaryImport] Could not create import record:', err);
+    }
 
-    const salaryRows = classified.map((c) => ({
-      salary_import_id: importRecord.id,
-      employee_id: c.employeeId,
-      hprn_no: c.hprnNo,
-      name: c.name ?? null,
-      month: c.month,
-      financial_year: c.financialYear,
-      gross_salary: c.grossSalary,
-      income_tax: c.incomeTax,
-      status: c.status,
-    }));
+    if (importRecord) {
+      const salaryRows = classified.map((c) => ({
+        salary_import_id: importRecord.id,
+        employee_id: c.employeeId,
+        hprn_no: c.hprnNo,
+        name: c.name ?? null,
+        month: c.month,
+        financial_year: c.financialYear,
+        gross_salary: c.grossSalary,
+        income_tax: c.incomeTax,
+        status: c.status,
+      }));
 
-    await salaryRepository.upsertSalaries(salaryRows);
+      try {
+        await salaryRepository.upsertSalaries(salaryRows);
+      } catch (err) {
+        console.warn('[SalaryImport] Could not write lookup rows:', err);
+      }
+    }
+
+    const appliedToGrid = await salaryRepository.upsertToPayrollGrid(classified);
 
     return {
-      importId: importRecord.id,
+      importId: importRecord?.id ?? '',
       total: classified.length,
       matched: matchedCount,
       unmatched: classified.filter((c) => c.status === 'unmatched').length,
       duplicate: 0,
       notDetected: 0,
+      appliedToGrid,
     };
   }
 }

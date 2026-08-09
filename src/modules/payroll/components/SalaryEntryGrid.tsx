@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import type { EmployeeRosterItem } from '../types';
 import { formatCurrency } from '@/shared/utilities';
 import { payrollService } from '../services/payroll.service';
@@ -7,6 +7,7 @@ import { Save, X, Copy, AlertTriangle } from 'lucide-react';
 import { MONTHS } from '@/shared/constants';
 import { useUIStore } from '@/core/stores/ui-store';
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
+import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 
 interface SalaryEntryGridProps {
   roster: EmployeeRosterItem[];
@@ -23,7 +24,14 @@ interface EntryValues {
   tax: number;
 }
 
-export function SalaryEntryGrid({ roster, isLoading, showDA, selectedMonth, autoFill, onSave }: SalaryEntryGridProps) {
+export interface SalaryEntryGridHandle {
+  applyImportedValues: (records: ClassifiedSalaryRecord[]) => number;
+}
+
+export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGridProps>(function SalaryEntryGrid(
+  { roster, isLoading, showDA, selectedMonth, autoFill, onSave },
+  ref
+) {
   const officeId = useActiveOfficeId();
   const fy = useUIStore((state) => state.activeFinancialYear);
   const storageKey =
@@ -127,6 +135,36 @@ export function SalaryEntryGrid({ roster, isLoading, showDA, selectedMonth, auto
     });
     return result;
   }, [roster, overriddenEntries]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      applyImportedValues(records) {
+        const matches = records.filter(
+          (r) => r.employeeId && r.month === selectedMonth && r.financialYear === fy
+        );
+        if (matches.length === 0) return 0;
+
+        setOverriddenEntries((prev) => {
+          const next = { ...prev };
+          for (const r of matches) {
+            const empId = r.employeeId as string;
+            const existing = next[empId] ?? entries[empId] ?? { gross: 0, da: 0, tax: 0 };
+            next[empId] = { ...existing, gross: r.grossSalary, tax: r.incomeTax };
+          }
+          return next;
+        });
+
+        matches.forEach((r) => {
+          markDirty(r.employeeId as string, 'gross');
+          markDirty(r.employeeId as string, 'tax');
+        });
+        setHasChanges(true);
+        return matches.length;
+      },
+    }),
+    [entries, markDirty, selectedMonth, fy]
+  );
 
   useEffect(() => {
     if (!autoFill || !selectedMonth || roster.length === 0) return;
@@ -655,4 +693,4 @@ export function SalaryEntryGrid({ roster, isLoading, showDA, selectedMonth, auto
       </div>
     </div>
   );
-}
+});

@@ -39,6 +39,7 @@ export interface SalaryImportSummary {
   unmatched: number;
   duplicate: number;
   notDetected: number;
+  appliedToGrid: number;
 }
 
 export interface SalaryPreviewSummary {

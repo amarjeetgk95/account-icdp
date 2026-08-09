@@ -2,11 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useUIStore } from '@/core/stores/ui-store';
 import { payrollService } from '../services/payroll.service';
 import { useRoster, useSaveSalary, useQuarterReport, useMonthDataCheck, useClearMonth } from '../hooks/usePayroll';
-import { SalaryEntryGrid } from '../components/SalaryEntryGrid';
+import { SalaryEntryGrid, type SalaryEntryGridHandle } from '../components/SalaryEntryGrid';
 import { EmployeeRegistration } from '../components/EmployeeRegistration';
 import { QuarterReportView } from '../components/QuarterReport';
 import { SalaryExcelImport } from '../components/SalaryExcelImport';
 import { SalaryLookup } from '../components/SalaryLookup';
+import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
@@ -16,6 +17,7 @@ import {
   Download,
   FileText,
   FileImage,
+  FileSpreadsheet,
   RefreshCw,
   AlertCircle,
   Banknote,
@@ -38,11 +40,13 @@ export function PayrollPage() {
   const [showDA, setShowDA] = useState(false);
   const [autoFill, setAutoFill] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showExcelImport, setShowExcelImport] = useState(false);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const salaryGridRef = useRef<SalaryEntryGridHandle>(null);
 
   const fy = useUIStore((state) => state.activeFinancialYear);
   const monthOptions = payrollService.getMonthOptions(fy);
@@ -81,6 +85,25 @@ export function PayrollPage() {
 
   const handleLoadRoster = () => {
     refetchRoster();
+  };
+
+  const handleImported = (records: ClassifiedSalaryRecord[]) => {
+    const applied = salaryGridRef.current?.applyImportedValues(records) ?? 0;
+    const monthName = getMonthDisplay(selectedMonth);
+    const matched = records.filter((r) => r.status === 'matched').length;
+    if (applied > 0) {
+      setSaveStatus({
+        type: 'success',
+        message: `Imported ${matched} record${matched !== 1 ? 's' : ''} (all months saved). ${applied} placed into ${monthName} grid.`,
+      });
+    } else {
+      setSaveStatus({
+        type: 'info',
+        message: `Imported ${matched} record${matched !== 1 ? 's' : ''}. No rows for ${monthName} FY ${fyLabel} — select a month present in the file to view them.`,
+      });
+    }
+    setTimeout(() => setSaveStatus(null), 5000);
+    setShowExcelImport(false);
   };
 
   const export24QCSV = () => {
@@ -203,7 +226,6 @@ export function PayrollPage() {
           className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1"
         >
           <div className="px-1 pb-4 space-y-4">
-            <SalaryExcelImport />
             <SalaryLookup />
           </div>
           <EmployeeRegistration scrollRef={scrollRef} />
@@ -284,6 +306,15 @@ export function PayrollPage() {
                 </span>
                 <span className="text-xs font-semibold text-slate-600">Auto-fill</span>
               </label>
+              <button
+                type="button"
+                onClick={() => setShowExcelImport(true)}
+                className="btn btn-outline btn-sm text-xs shrink-0 text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300"
+                title="Import salary data from an Excel file"
+              >
+                <FileSpreadsheet size={13} className="mr-1" />
+                Excel Import
+              </button>
             </div>
 
             {/* Right: Actions + record count */}
@@ -383,6 +414,7 @@ export function PayrollPage() {
             <div className="card-body p-0 flex-1 overflow-hidden min-h-0">
               <SalaryEntryGrid
                 key={`${fy}-${selectedMonth}`}
+                ref={salaryGridRef}
                 roster={roster}
                 isLoading={rosterLoading}
                 showDA={showDA}
@@ -470,6 +502,14 @@ export function PayrollPage() {
         ) : (
           <div className="text-center py-12 text-slate-500">No data to preview.</div>
         )}
+      </PreviewModal>
+
+      <PreviewModal
+        isOpen={showExcelImport}
+        onClose={() => setShowExcelImport(false)}
+        title="Excel Salary Import"
+      >
+        <SalaryExcelImport onImported={handleImported} />
       </PreviewModal>
     </div>
   );

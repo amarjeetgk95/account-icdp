@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { usePermissions } from '@/core/permissions/hooks';
 import type { ModuleDefinition } from '@/shared/types/module';
-import { SectionIcon } from '@/shared/icons';
+import { ModuleIcon, SectionIcon } from '@/shared/icons';
 import { isModuleEnabled } from '@/core/feature-flags/store';
 
 interface SidebarProps {
@@ -136,7 +136,7 @@ function NavItem({ module }: { module: ModuleDefinition }) {
       }
     >
       <span className="sidebar-link-icon">
-        <span className="text-lg">{module.icon || '📄'}</span>
+        <ModuleIcon id={module.icon || module.id} size={18} />
       </span>
       <span>{module.name}</span>
     </NavLink>

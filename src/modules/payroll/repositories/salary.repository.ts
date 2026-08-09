@@ -2,6 +2,7 @@ import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
 import type { Database } from '@/shared/database.types';
+import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 
 type SalaryImport = Database['public']['Tables']['salary_imports']['Row'];
 type SalaryImportInsert = Database['public']['Tables']['salary_imports']['Insert'];
@@ -57,6 +58,29 @@ export const salaryRepository = {
     const payload: EmployeeSalaryInsert[] = rows.map((r) => ({ ...r, office_id: officeId }));
     const { error } = await supabase.from('employee_salary').insert(payload);
     if (error) throw error;
+  },
+
+  async upsertToPayrollGrid(records: ClassifiedSalaryRecord[]): Promise<number> {
+    const officeId = getOfficeId();
+    if (!officeId) throw new Error('No office selected');
+    const rows = records
+      .filter((r) => r.status === 'matched' && r.employeeId)
+      .map((r) => ({
+        employee_id: r.employeeId as string,
+        office_id: officeId,
+        financial_year: r.financialYear,
+        month: r.month,
+        gross: Math.round(r.grossSalary * 100) / 100,
+        da: 0,
+        tax: Math.round(r.incomeTax * 100) / 100,
+      }));
+    if (rows.length === 0) return 0;
+
+    const { error } = await (supabase as any)
+      .from('employee_salaries')
+      .upsert(rows, { onConflict: 'employee_id,financial_year,month' });
+    if (error) throw error;
+    return rows.length;
   },
 
   async getByHrpn(

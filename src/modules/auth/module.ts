@@ -4,7 +4,6 @@ import { authRoutes } from './routes';
 const moduleDefinition: ModuleDefinition = {
   id: 'auth',
   name: 'Authentication',
-  icon: '🔐',
   navGroup: 'main',
   routes: authRoutes,
   sidebar: false,

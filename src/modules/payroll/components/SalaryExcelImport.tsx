@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { salaryService } from '../services/salary.service';
 import { FileSpreadsheet, Upload, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 
 interface ImportedPreviewProps {
-  onImported?: () => void;
+  onImported?: (records: ClassifiedSalaryRecord[]) => void;
 }
 
 export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
@@ -23,6 +24,7 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
     total: number;
     matched: number;
     unmatched: number;
+    appliedToGrid: number;
   } | null>(null);
 
   const handleFile = useCallback(async (file: File) => {
@@ -56,18 +58,32 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
     setIsImporting(true);
     setError(null);
     try {
+      const classified = preview.classified;
       const summary = await salaryService.importSalary(selectedFile);
       setImportSummary({
         importId: summary.importId,
         total: summary.total,
         matched: summary.matched,
         unmatched: summary.unmatched,
+        appliedToGrid: summary.appliedToGrid,
       });
       setPreview(null);
       setSelectedFile(null);
-      onImported?.();
+      onImported?.(classified);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import salaries');
+      console.error('[SalaryExcelImport] import failed:', err);
+      let msg: string;
+      if (typeof err === 'string') {
+        msg = err;
+      } else if (err && typeof err === 'object') {
+        const e = err as { message?: string; code?: string; details?: string; hint?: string };
+        const parts = [e.message, e.code, e.details, e.hint].filter(Boolean);
+        msg = parts.length ? parts.join(' | ') : JSON.stringify(err);
+        if (!msg) msg = 'Failed to import salaries';
+      } else {
+        msg = 'Failed to import salaries';
+      }
+      setError(msg);
     } finally {
       setIsImporting(false);
     }
@@ -210,7 +226,7 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
             </table>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t">
+          <div className="flex justify-end gap-2 pt-2 border-t sticky bottom-0 bg-white">
             <button
               onClick={() => {
                 setPreview(null);
@@ -241,8 +257,9 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
 
       {importSummary && (
         <div className="alert alert-success flex items-center gap-2">
-          <CheckCircle size={14} /> Imported {importSummary.matched} matched / {importSummary.unmatched} new
-          ({importSummary.total} total). New salary records can be retrieved by HRPN + Month.
+          <CheckCircle size={14} /> Imported {importSummary.matched} matched / {importSummary.unmatched} unmatched
+          ({importSummary.total} total). {importSummary.appliedToGrid} records added to payroll data — switch the
+          selected month in the grid to view each one.
         </div>
       )}
     </div>

@@ -5,8 +5,8 @@
 
 -- A single Excel import run (one file = one import record for a given financial year).
 CREATE TABLE IF NOT EXISTS public.salary_imports (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  office_id UUID NOT NULL REFERENCES public.offices(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  office_id BIGINT NOT NULL REFERENCES public.offices(id) ON DELETE CASCADE,
   excel_filename TEXT NOT NULL,
   financial_year INTEGER NOT NULL,
   total_records INTEGER NOT NULL DEFAULT 0,
@@ -18,11 +18,11 @@ CREATE TABLE IF NOT EXISTS public.salary_imports (
 
 -- One row per (HRPN, month, financial year) holding the Gross + Income Tax pair.
 CREATE TABLE IF NOT EXISTS public.employee_salary (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   salary_import_id UUID NOT NULL REFERENCES public.salary_imports(id) ON DELETE CASCADE,
   employee_id TEXT,
   hprn_no TEXT NOT NULL,
-  office_id UUID NOT NULL REFERENCES public.offices(id) ON DELETE CASCADE,
+  office_id BIGINT NOT NULL REFERENCES public.offices(id) ON DELETE CASCADE,
   name TEXT,
   month TEXT NOT NULL,
   financial_year INTEGER NOT NULL,
