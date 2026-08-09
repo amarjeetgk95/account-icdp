@@ -311,4 +311,117 @@ export const partyRepository = {
       },
     };
   },
+
+  async saveBulkTransactions(
+    inputs: TransactionInput[]
+  ): Promise<{ saved: number; errors: string[] }> {
+    const officeId = getOfficeId();
+    if (!officeId) throw new Error('No office selected');
+
+    let saved = 0;
+    const errors: string[] = [];
+
+    // Pre-fetch all parties for this office to avoid repeated queries
+    const { data: existingParties } = await (supabase as any)
+      .from('parties')
+      .select('id, name, gst_no, pan_no')
+      .eq('office_id', officeId);
+
+    const partyCache = new Map<string, any>();
+    for (const p of existingParties || []) {
+      partyCache.set(p.name.trim().toUpperCase(), p);
+    }
+
+    for (let i = 0; i < inputs.length; i++) {
+      const input = inputs[i];
+      const rowLabel = `Row ${i + 1} (${input.partyName || 'unnamed'})`;
+
+      try {
+        if (!input.partyName?.trim()) {
+          errors.push(`${rowLabel}: Party name is required`);
+          continue;
+        }
+        if (!input.billNo?.trim()) {
+          errors.push(`${rowLabel}: Bill number is required`);
+          continue;
+        }
+        if (!input.amount || input.amount <= 0) {
+          errors.push(`${rowLabel}: Amount must be greater than 0`);
+          continue;
+        }
+
+        const gstNo = input.gstNo?.trim().toUpperCase() || '';
+        const panNo = input.panNo?.trim().toUpperCase() || '';
+        const targetName = input.partyName.trim().toUpperCase();
+
+        // Find or create party
+        let party = partyCache.get(targetName);
+        if (!party) {
+          const { data: inserted, error: insertErr } = await (supabase as any)
+            .from('parties')
+            .insert({
+              name: input.partyName.trim(),
+              gst_no: gstNo || null,
+              pan_no: panNo || null,
+              office_id: officeId,
+            })
+            .select()
+            .single();
+
+          if (insertErr) {
+            errors.push(`${rowLabel}: Failed to create party — ${insertErr.message}`);
+            continue;
+          }
+          party = inserted;
+          partyCache.set(targetName, party);
+        }
+
+        // Check for duplicate bill_no
+        const { data: dups } = await (supabase as any)
+          .from('party_transactions')
+          .select('id')
+          .eq('party_id', party.id)
+          .eq('bill_no', input.billNo.trim())
+          .eq('office_id', officeId);
+
+        if (dups && dups.length > 0) {
+          errors.push(`${rowLabel}: Duplicate bill no "${input.billNo}" for this party`);
+          continue;
+        }
+
+        const cgst = money(input.cgst || 0);
+        const sgst = money(input.sgst || 0);
+        const igst = money(input.igst || 0);
+        const totalGst = cgst + sgst + igst;
+        const incomeTax = money(input.incomeTax || 0);
+
+        const { error: txErr } = await (supabase as any)
+          .from('party_transactions')
+          .insert({
+            party_id: party.id,
+            office_id: officeId,
+            cpin_no: input.cpinNo?.trim() || null,
+            bill_no: input.billNo.trim(),
+            transaction_date: input.date || new Date().toISOString().split('T')[0],
+            amount: money(input.amount),
+            cgst,
+            sgst,
+            igst,
+            total_gst: totalGst,
+            income_tax: incomeTax,
+          });
+
+        if (txErr) {
+          errors.push(`${rowLabel}: ${txErr.message}`);
+          continue;
+        }
+
+        saved++;
+      } catch (err) {
+        errors.push(`${rowLabel}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+    }
+
+    return { saved, errors };
+  },
 };

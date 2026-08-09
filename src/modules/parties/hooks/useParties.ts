@@ -48,6 +48,19 @@ export function useSaveTransaction() {
   });
 }
 
+export function useSaveBulkTransactions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (inputs: TransactionInput[]) => partyService.saveBulkTransactions(inputs),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parties-list'] });
+      queryClient.invalidateQueries({ queryKey: ['parties-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}
+
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
 

@@ -1,33 +1,47 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { PartyTransaction, TransactionInput } from '../types';
-import { formatCurrency } from '@/shared/utilities';
+import { formatCurrency, formatDate } from '@/shared/utilities';
 import { useUpdateTransaction, useDeleteTransaction } from '../hooks/useParties';
-import { Edit, Trash2, Check, X } from 'lucide-react';
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { Edit, Trash2, Check, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TransactionsTableProps {
   transactions: PartyTransaction[];
   isLoading: boolean;
 }
 
+const PAGE_SIZE = 15;
+
 export function TransactionsTable({ transactions, isLoading }: TransactionsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<TransactionInput>>({});
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
   const updateMutation = useUpdateTransaction();
   const deleteMutation = useDeleteTransaction();
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
+  // Filter transactions by search term
+  const filtered = useMemo(() => {
+    if (!search.trim()) return transactions;
+    const q = search.toLowerCase();
+    return transactions.filter(
+      (tx) =>
+        tx.party_name.toLowerCase().includes(q) ||
+        tx.bill_no.toLowerCase().includes(q)
     );
-  }
+  }, [transactions, search]);
 
-  if (transactions.length === 0) {
-    return <div className="text-center py-8 text-slate-500">No transactions yet.</div>;
-  }
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const totals = transactions.reduce(
+  // Reset to page 1 when search changes
+  useMemo(() => setPage(1), [search]);
+
+  const totals = filtered.reduce(
     (acc, tx) => ({
       amount: acc.amount + tx.amount,
       cgst: acc.cgst + tx.cgst,
@@ -38,6 +52,24 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
     }),
     { amount: 0, cgst: 0, sgst: 0, igst: 0, totalGst: 0, incomeTax: 0 }
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (transactions.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-4xl mb-3">📝</div>
+        <p className="text-slate-500 font-medium">No transactions yet.</p>
+        <p className="text-xs text-slate-400 mt-1">Add your first transaction above.</p>
+      </div>
+    );
+  }
 
   const startEdit = (tx: PartyTransaction) => {
     setEditingId(tx.id);
@@ -67,173 +99,264 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
     }
   };
 
-  const deleteTx = async (id: string) => {
-    if (!confirm('Delete this transaction?')) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync(deleteTarget);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to delete');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
+  // Generate page numbers for pagination
+  const pageNumbers: number[] = [];
+  const maxVisible = 5;
+  let startPage = Math.max(1, safePage - Math.floor(maxVisible / 2));
+  const endPage = Math.min(totalPages, startPage + maxVisible - 1);
+  startPage = Math.max(1, endPage - maxVisible + 1);
+  for (let i = startPage; i <= endPage; i++) pageNumbers.push(i);
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-100">
-          <tr>
-            <th className="px-3 py-2 text-left font-semibold text-slate-600">Party</th>
-            <th className="px-3 py-2 text-left font-semibold text-slate-600">Bill No</th>
-            <th className="px-3 py-2 text-right font-semibold text-slate-600">Amount</th>
-            <th className="px-3 py-2 text-right font-semibold text-green-700">CGST</th>
-            <th className="px-3 py-2 text-right font-semibold text-green-700">SGST</th>
-            <th className="px-3 py-2 text-right font-semibold text-green-700">IGST</th>
-            <th className="px-3 py-2 text-right font-semibold text-green-700">Total GST</th>
-            <th className="px-3 py-2 text-right font-semibold text-red-600">Income Tax</th>
-            <th className="px-3 py-2 text-right font-semibold text-slate-600">Date</th>
-            <th className="px-3 py-2 text-center font-semibold text-slate-600 w-20">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {transactions.map((tx) => {
-            const isEditing = editingId === tx.id;
-            return (
-              <tr key={tx.id} className="hover:bg-slate-50">
-                <td className="px-3 py-2 font-medium">{tx.party_name}</td>
-                <td className="px-3 py-2">
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editData.billNo || ''}
-                      onChange={(e) => setEditData({ ...editData, billNo: e.target.value })}
-                      className="w-24 px-2 py-1 border border-slate-300 rounded text-sm"
-                    />
-                  ) : (
-                    tx.bill_no
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right font-bold">
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={editData.amount || ''}
-                      onChange={(e) => setEditData({ ...editData, amount: parseFloat(e.target.value) || 0 })}
-                      className="w-20 px-2 py-1 border border-slate-300 rounded text-right text-sm"
-                    />
-                  ) : (
-                    formatCurrency(tx.amount)
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right text-green-700">
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={editData.cgst || ''}
-                      onChange={(e) => setEditData({ ...editData, cgst: parseFloat(e.target.value) || 0 })}
-                      className="w-16 px-2 py-1 border border-slate-300 rounded text-right text-sm"
-                    />
-                  ) : (
-                    formatCurrency(tx.cgst)
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right text-green-700">
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={editData.sgst || ''}
-                      onChange={(e) => setEditData({ ...editData, sgst: parseFloat(e.target.value) || 0 })}
-                      className="w-16 px-2 py-1 border border-slate-300 rounded text-right text-sm"
-                    />
-                  ) : (
-                    formatCurrency(tx.sgst)
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right text-green-700">
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={editData.igst || ''}
-                      onChange={(e) => setEditData({ ...editData, igst: parseFloat(e.target.value) || 0 })}
-                      className="w-16 px-2 py-1 border border-slate-300 rounded text-right text-sm"
-                    />
-                  ) : (
-                    formatCurrency(tx.igst)
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right text-green-700 font-bold">
-                  {isEditing ? (
-                    <span className="text-slate-500">—</span>
-                  ) : (
-                    formatCurrency(tx.total_gst)
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right text-red-600">
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={editData.incomeTax || ''}
-                      onChange={(e) => setEditData({ ...editData, incomeTax: parseFloat(e.target.value) || 0 })}
-                      className="w-20 px-2 py-1 border border-slate-300 rounded text-right text-sm"
-                    />
-                  ) : (
-                    formatCurrency(tx.income_tax)
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right text-slate-500">{tx.transaction_date}</td>
-                <td className="px-3 py-2 text-center">
-                  {isEditing ? (
-                    <>
-                      <button
-                        onClick={saveEdit}
-                        disabled={updateMutation.isPending}
-                        className="p-1 text-green-600 hover:text-green-700 rounded"
-                        title="Save"
-                      >
-                        <Check size={14} />
-                      </button>
-                      <button onClick={cancelEdit} className="p-1 text-slate-500 hover:text-slate-700 rounded" title="Cancel">
-                        <X size={14} />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => startEdit(tx)}
-                        className="p-1 text-indigo-600 hover:text-indigo-700 rounded"
-                        title="Edit"
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button
-                        onClick={() => deleteTx(tx.id)}
-                        disabled={deleteMutation.isPending}
-                        className="p-1 text-red-500 hover:text-red-700 rounded"
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot className="bg-slate-50 font-bold">
-          <tr>
-            <td colSpan={2} className="px-3 py-2 text-right">
-              Total
-            </td>
-            <td className="px-3 py-2 text-right">{formatCurrency(totals.amount)}</td>
-            <td className="px-3 py-2 text-right text-green-700">{formatCurrency(totals.cgst)}</td>
-            <td className="px-3 py-2 text-right text-green-700">{formatCurrency(totals.sgst)}</td>
-            <td className="px-3 py-2 text-right text-green-700">{formatCurrency(totals.igst)}</td>
-            <td className="px-3 py-2 text-right text-green-700">{formatCurrency(totals.totalGst)}</td>
-            <td className="px-3 py-2 text-right text-red-600">{formatCurrency(totals.incomeTax)}</td>
-            <td className="px-3 py-2"></td>
-            <td className="px-3 py-2"></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+    <>
+      {/* Search bar */}
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="search-input-wrapper flex-1 max-w-xs">
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input input-sm"
+            placeholder="Search party or bill no..."
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="tx-count-badge">{filtered.length} transactions</span>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <table className="tx-table">
+          <thead>
+            <tr>
+              <th className="text-left">Party</th>
+              <th className="text-left">Bill No</th>
+              <th className="text-right">Amount</th>
+              <th className="text-right" style={{ color: '#15803D' }}>CGST</th>
+              <th className="text-right" style={{ color: '#15803D' }}>SGST</th>
+              <th className="text-right" style={{ color: '#15803D' }}>IGST</th>
+              <th className="text-right" style={{ color: '#15803D' }}>Total GST</th>
+              <th className="text-right" style={{ color: '#DC2626' }}>Income Tax</th>
+              <th className="text-right">Date</th>
+              <th className="text-center w-20">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.map((tx) => {
+              const isEditing = editingId === tx.id;
+              return (
+                <tr key={tx.id} className={isEditing ? 'editing-row' : ''}>
+                  <td className="font-medium">{tx.party_name}</td>
+                  <td>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editData.billNo || ''}
+                        onChange={(e) => setEditData({ ...editData, billNo: e.target.value })}
+                        className="w-24 px-2 py-1 border border-amber-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      />
+                    ) : (
+                      tx.bill_no
+                    )}
+                  </td>
+                  <td className="text-right font-bold">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editData.amount || ''}
+                        onChange={(e) =>
+                          setEditData({ ...editData, amount: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-24 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      />
+                    ) : (
+                      formatCurrency(tx.amount)
+                    )}
+                  </td>
+                  <td className="text-right text-green-700">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editData.cgst || ''}
+                        onChange={(e) =>
+                          setEditData({ ...editData, cgst: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-16 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      />
+                    ) : (
+                      formatCurrency(tx.cgst)
+                    )}
+                  </td>
+                  <td className="text-right text-green-700">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editData.sgst || ''}
+                        onChange={(e) =>
+                          setEditData({ ...editData, sgst: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-16 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      />
+                    ) : (
+                      formatCurrency(tx.sgst)
+                    )}
+                  </td>
+                  <td className="text-right text-green-700">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editData.igst || ''}
+                        onChange={(e) =>
+                          setEditData({ ...editData, igst: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-16 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      />
+                    ) : (
+                      formatCurrency(tx.igst)
+                    )}
+                  </td>
+                  <td className="text-right text-green-700 font-bold">
+                    {isEditing ? (
+                      <span className="text-slate-400">—</span>
+                    ) : (
+                      formatCurrency(tx.total_gst)
+                    )}
+                  </td>
+                  <td className="text-right text-red-600">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editData.incomeTax || ''}
+                        onChange={(e) =>
+                          setEditData({ ...editData, incomeTax: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-20 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      />
+                    ) : (
+                      formatCurrency(tx.income_tax)
+                    )}
+                  </td>
+                  <td className="text-right text-slate-500">{formatDate(tx.transaction_date)}</td>
+                  <td className="text-center">
+                    {isEditing ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={saveEdit}
+                          disabled={updateMutation.isPending}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Save"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+                          title="Cancel"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => startEdit(tx)}
+                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(tx.id)}
+                          disabled={deleteMutation.isPending}
+                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={2} className="text-right font-bold">
+                Total ({filtered.length})
+              </td>
+              <td className="text-right">{formatCurrency(totals.amount)}</td>
+              <td className="text-right text-green-700">{formatCurrency(totals.cgst)}</td>
+              <td className="text-right text-green-700">{formatCurrency(totals.sgst)}</td>
+              <td className="text-right text-green-700">{formatCurrency(totals.igst)}</td>
+              <td className="text-right text-green-700">{formatCurrency(totals.totalGst)}</td>
+              <td className="text-right text-red-600">{formatCurrency(totals.incomeTax)}</td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="pagination">
+          <span className="pagination-info">
+            Showing {(safePage - 1) * PAGE_SIZE + 1}–
+            {Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </span>
+          <div className="pagination-buttons">
+            <button
+              className="pagination-btn"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            {pageNumbers.map((n) => (
+              <button
+                key={n}
+                className={`pagination-btn ${n === safePage ? 'active' : ''}`}
+                onClick={() => setPage(n)}
+              >
+                {n}
+              </button>
+            ))}
+            <button
+              className="pagination-btn"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this transaction? This action cannot be undone."
+        confirmLabel="Delete"
+        danger
+        busy={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
   );
 }
