@@ -21,7 +21,7 @@ export const employeeRepository = {
       .from('employees')
       .select('*')
       .eq('office_id', officeId)
-      .order('name');
+      .order('created_at');
 
     if (error) throw error;
     return data || [];
@@ -52,7 +52,7 @@ export const employeeRepository = {
       budget_head_id: input.budgetHeadId || null,
     };
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('employees')
       .insert(payload)
       .select()
@@ -79,7 +79,7 @@ export const employeeRepository = {
       throw new Error('An employee with this PAN already exists in this office');
     }
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('employees')
       .update({
         hprn_no: input.hprnNo || null,

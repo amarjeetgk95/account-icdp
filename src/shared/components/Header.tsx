@@ -2,13 +2,16 @@ import { useAuthStore } from '@/core/auth/store';
 import { useUIStore } from '@/core/stores/ui-store';
 import { financialYearRepository } from '@/modules/settings/repositories/financialYear.repository';
 import { useState, useRef, useEffect } from 'react';
-import { CalendarDays, LogOut, Search, Shield, UserCheck } from 'lucide-react';
+import { CalendarDays, LogOut, Search, Shield, UserCheck, Sun, Moon } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
+import { toast } from './Toast';
 
 export function Header() {
   const { user, signOut } = useAuthStore();
   const activeFinancialYear = useUIStore((s) => s.activeFinancialYear);
   const setActiveFinancialYear = useUIStore((s) => s.setActiveFinancialYear);
+  const theme = useUIStore((s) => s.theme);
+  const toggleTheme = useUIStore((s) => s.toggleTheme);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pendingFY, setPendingFY] = useState<number | null>(null);
   const [switchingFY, setSwitchingFY] = useState(false);
@@ -35,9 +38,10 @@ export function Header() {
     setActiveFinancialYear(year);
     try {
       await financialYearRepository.set(year);
+      toast.success(`Financial year changed to FY ${year}-${(year + 1) % 100}`);
     } catch (error) {
       setActiveFinancialYear(previous);
-      alert(error instanceof Error ? error.message : 'Failed to change financial year');
+      toast.error(error instanceof Error ? error.message : 'Failed to change financial year');
     }
   };
 
@@ -95,14 +99,22 @@ export function Header() {
 
       <div className="app-header-actions">
         <button
-          className="flex items-center gap-2 px-3 py-1.5 min-w-56 text-xs text-slate-500 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-colors shadow-sm"
+          className="flex items-center gap-2 px-3 py-1.5 min-w-56 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 transition-colors shadow-sm"
           title="Search pages and employees (Ctrl+K)"
           onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
         >
           <Search size={13} />
           <span className="flex-1 text-left">Search pages, employees…</span>
-          <kbd className="font-mono text-[10px] bg-slate-100 border border-slate-200 rounded px-1 py-0.5">Ctrl</kbd>
-          <kbd className="font-mono text-[10px] bg-slate-100 border border-slate-200 rounded px-1 py-0.5">K</kbd>
+          <kbd className="font-mono text-[10px] bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1 py-0.5">Ctrl</kbd>
+          <kbd className="font-mono text-[10px] bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1 py-0.5">K</kbd>
+        </button>
+
+        <button
+          onClick={toggleTheme}
+          className="p-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+        >
+          {theme === 'dark' ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-slate-700" />}
         </button>
 
         {activeFinancialYear && (
@@ -124,13 +136,13 @@ export function Header() {
         )}
 
         {user?.role === 'admin' && (
-          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[50px] text-xs font-bold border bg-blue-50 text-blue-700 border-blue-300">
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[50px] text-xs font-bold border bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800">
             <Shield size={11} />
             Admin
           </span>
         )}
         {user?.role === 'office' && (
-          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[50px] text-xs font-bold border bg-green-50 text-green-700 border-green-300">
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[50px] text-xs font-bold border bg-green-50 dark:bg-emerald-950/50 text-green-700 dark:text-emerald-300 border-green-300 dark:border-emerald-800">
             <UserCheck size={11} />
             Office User
           </span>

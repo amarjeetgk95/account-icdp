@@ -1,4 +1,4 @@
-﻿import { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Users, Shield, BarChart3, FileSpreadsheet, Clock, RefreshCw, TrendingUp, Activity } from 'lucide-react';
 import { useAuthStore } from '@/core/auth/store';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -127,26 +127,23 @@ export function AdminPage() {
   const ActiveIcon = section.icon;
 
   const statCards = [
-    { label: 'Total Users', value: stats?.users, color: 'border-blue-500', text: 'text-blue-600', icon: Users, iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
-    { label: 'Admins', value: stats?.admins, color: 'border-purple-500', text: 'text-purple-600', icon: Shield, iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
-    { label: 'Offices', value: stats?.offices, color: 'border-green-500', text: 'text-green-600', icon: BarChart3, iconBg: 'bg-green-100', iconColor: 'text-green-600' },
-    { label: 'Employees', value: stats?.employees, color: 'border-amber-500', text: 'text-amber-600', icon: Users, iconBg: 'bg-amber-100', iconColor: 'text-amber-600' },
-    { label: 'Salary Records', value: stats?.salaries, color: 'border-emerald-500', text: 'text-emerald-600', icon: FileSpreadsheet, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600' },
-    { label: 'Vendors', value: stats?.parties, color: 'border-cyan-500', text: 'text-cyan-600', icon: Users, iconBg: 'bg-cyan-100', iconColor: 'text-cyan-600' },
-    { label: 'Transactions', value: stats?.transactions, color: 'border-indigo-500', text: 'text-indigo-600', icon: BarChart3, iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600' },
+    { label: 'Total Users', value: stats?.users, icon: Users, iconBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+    { label: 'Admins', value: stats?.admins, icon: Shield, iconBg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
+    { label: 'Offices', value: stats?.offices, icon: BarChart3, iconBg: 'bg-green-500/10 text-green-600 dark:text-green-400' },
+    { label: 'Employees', value: stats?.employees, icon: Users, iconBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+    { label: 'Salary Records', value: stats?.salaries, icon: FileSpreadsheet, iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    { label: 'Vendors', value: stats?.parties, icon: Users, iconBg: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' },
+    { label: 'Transactions', value: stats?.transactions, icon: BarChart3, iconBg: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
     {
       label: 'Current FY',
       value: stats ? `${stats.fy}-${String(stats.fy + 1).slice(-2)}` : undefined,
-      color: 'border-rose-500',
-      text: 'text-rose-600',
       icon: Clock,
-      iconBg: 'bg-rose-100',
-      iconColor: 'text-rose-600',
+      iconBg: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
     },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto space-y-6">
       <div className="page-header">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -161,7 +158,7 @@ export function AdminPage() {
           onClick={() => {
             useAuthStore.getState().initialize();
           }}
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm text-xs"
           title="Refresh data"
         >
           <RefreshCw size={14} className="mr-1.5" />
@@ -170,7 +167,7 @@ export function AdminPage() {
       </div>
 
       <div className="step-nav">
-        {SECTIONS.map((sec, _idx) => {
+        {SECTIONS.map((sec) => {
           const SecIcon = sec.icon;
           return (
             <button
@@ -198,12 +195,17 @@ export function AdminPage() {
             {statCards.map((card) => {
               const Icon = card.icon;
               return (
-                <div key={card.label} className={`stat-tile stat-tile-accent ${card.color}`}>
-                  <div className={`stat-tile-icon ${card.iconBg} ${card.iconColor}`}>
+                <div
+                  key={card.label}
+                  className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between group"
+                >
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">{card.label}</p>
+                    <h3 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 tracking-tight">{card.value ?? '-'}</h3>
+                  </div>
+                  <div className={`p-3 rounded-xl transition-transform group-hover:scale-110 ${card.iconBg}`}>
                     <Icon size={20} />
                   </div>
-                  <div className="stat-label">{card.label}</div>
-                  <div className={`stat-value ${card.text}`}>{card.value ?? '-'}</div>
                 </div>
               );
             })}

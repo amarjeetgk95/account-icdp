@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
-@tailwind utilities;
-
-/* Page setup for printed reports. `landscape` is a named page used by the
+@tailwind utilities;/* Page setup for printed reports. `landscape` is a named page used by the
    Budget Head report; every other report prints in A4 portrait. */
 @page {
   size: A4 portrait;
@@ -21,31 +21,44 @@
 
 @layer base {
   :root {
-    /* Blue primary + green accent — matches vanilla design */
-    --color-primary: 37 99 235;
-    --color-primary-hover: 29 78 216;
-    --color-accent: 22 163 74;
-    --color-accent-hover: 21 128 61;
+    /* Indigo primary + Teal accent — Premium Modern Gov */
+    --color-primary: 79 70 229; /* Indigo 600 */
+    --color-primary-hover: 67 56 202; /* Indigo 700 */
+    --color-accent: 13 148 136; /* Teal 600 */
+    --color-accent-hover: 15 118 110; /* Teal 700 */
     --color-sidebar: 255 255 255;
-    --color-sidebar-text: 51 65 85;
-    --color-background: 255 255 255;
+    --color-sidebar-text: 71 85 105;
+    --color-background: 248 250 252; /* Slate 50 mesh/off-white */
     --color-surface: 255 255 255;
     --color-border: 226 232 240;
     --color-text: 15 23 42;
     --color-text-secondary: 71 85 105;
     --color-text-muted: 148 163 184;
-    --color-success: 22 163 74;
-    --color-warning: 217 119 6;
-    --color-error: 220 38 38;
+    --color-success: 16 185 129;
+    --color-warning: 245 158 11;
+    --color-error: 239 68 68;
     --radius-sm: 8px;
-    --radius-md: 10px;
+    --radius-md: 12px;
     --radius-lg: 16px;
-    --radius-xl: 20px;
-    /* Layered shadows from vanilla */
-    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
-    --shadow-float: 0 18px 35px -12px rgba(15, 23, 42, 0.14), 0 4px 10px rgba(15, 23, 42, 0.06);
-    --shadow-primary: 0 12px 24px -8px rgba(37, 99, 235, 0.45);
-    --shadow-accent: 0 12px 24px -8px rgba(22, 163, 74, 0.4);
+    --radius-xl: 24px;
+    /* Elevated smooth shadows */
+    --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-float: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    --shadow-primary: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+    --shadow-accent: 0 10px 15px -3px rgba(13, 148, 136, 0.3);
+  }
+
+  .dark {
+    --color-sidebar: 15 23 42; /* Slate 900 */
+    --color-sidebar-text: 226 232 240;
+    --color-background: 2 6 23; /* Slate 950 deep */
+    --color-surface: 15 23 42; /* Slate 900 */
+    --color-border: 51 65 85;
+    --color-text: 248 250 252;
+    --color-text-secondary: 203 213 225;
+    --color-text-muted: 148 163 184;
+    --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --shadow-float: 0 25px 30px -5px rgba(0, 0, 0, 0.6);
   }
 
   * {
@@ -58,8 +71,8 @@
   }
 
   body {
-    @apply bg-white text-slate-900;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200;
+    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     margin: 0;
     padding: 0;
     min-height: 100vh;
@@ -70,14 +83,15 @@
 
   h1, h2, h3, h4, h5, h6 {
     margin: 0;
-    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
     line-height: 1.25;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
   }
 
-  h1 { font-size: 1.5rem; }
-  h2 { font-size: 1.25rem; }
-  h3 { font-size: 1.1rem; }
+  h1 { font-size: 1.75rem; font-weight: 700; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
 
   p {
     margin: 0;
@@ -137,8 +151,8 @@
      APP HEADER
      ============================================================ */
   .app-header {
-    @apply h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 sticky top-0 z-30;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    @apply h-16 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0 sticky top-0 z-30 transition-all;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
     will-change: transform;
     transform: translateZ(0);
   }
@@ -148,14 +162,12 @@
   }
 
   .app-header-logo {
-    @apply w-9 h-9 rounded-xl text-white flex items-center justify-center font-bold text-sm;
-    background: linear-gradient(135deg, #2563EB 0%, #16A34A 100%);
-    box-shadow: 0 6px 16px -6px rgba(37, 99, 235, 0.45);
+    @apply w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow-primary transition-transform hover:scale-105;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
   }
 
   .app-header-title {
-    @apply font-extrabold text-slate-800 text-base leading-tight;
-    letter-spacing: -0.02em;
+    @apply font-heading font-bold text-slate-800 dark:text-slate-100 text-[1.1rem] leading-tight tracking-tight;
   }
 
   .app-header-subtitle {
@@ -177,89 +189,56 @@
   }
 
   /* ============================================================
-     SIDEBAR NAVIGATION (light, white-dominant)
+     SIDEBAR NAVIGATION (Floating Glassmorphism)
      ============================================================ */
   .sidebar {
-    @apply w-[268px] bg-white border-r border-slate-200 flex flex-col h-full shrink-0;
+    @apply w-[260px] bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800 flex flex-col h-[calc(100vh-32px)] shrink-0 m-4 rounded-3xl shadow-float overflow-hidden transition-all;
     contain: layout style;
   }
 
   .sidebar-logo {
-    @apply h-16 px-5 flex items-center gap-3 border-b border-slate-200;
+    @apply h-20 flex items-center px-6 gap-3 shrink-0 border-b border-slate-100 dark:border-slate-800/50;
   }
 
   .sidebar-logo-icon {
-    @apply w-[42px] h-[42px] rounded-xl text-white flex items-center justify-center font-bold text-[1.3rem];
-    background: linear-gradient(135deg, #2563EB 0%, #16A34A 100%);
-    box-shadow: 0 6px 16px -6px rgba(37, 99, 235, 0.45);
+    @apply w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-heading font-bold text-sm shadow-primary transition-transform hover:-translate-y-1 hover:shadow-lg;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
   }
 
   .sidebar-nav {
-    @apply flex-1 overflow-y-auto py-5 px-3;
-  }
-
-  .sidebar-group {
-    @apply mb-5;
+    @apply flex-1 overflow-y-auto px-4 py-6 space-y-8;
   }
 
   .sidebar-group-label {
-    @apply px-4 mb-2 text-[0.66rem] font-bold uppercase tracking-wide;
-    color: #94A3B8;
+    @apply text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-3;
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-[0.68rem] rounded-[10px] text-sm font-semibold transition-all duration-150 w-full;
-    position: relative;
-    color: #334155;
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 font-medium text-sm transition-all duration-200 border border-transparent;
   }
 
   .sidebar-link:hover {
-    @apply text-slate-900;
-    background: #F8FAFC;
+    @apply bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border-slate-200/60 dark:border-slate-700 shadow-sm translate-x-1;
   }
 
   .sidebar-link-active {
-    font-weight: 700;
+    @apply bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border-slate-200 dark:border-slate-700 shadow-sm;
   }
-  .sidebar-link-active[data-tone="blue"] {
-    background: #EFF6FF;
-    color: #1D4ED8;
-  }
-  .sidebar-link-active[data-tone="green"] {
-    background: #F0FDF4;
-    color: #15803D;
-  }
-  .sidebar-link-active::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 20%;
-    bottom: 20%;
-    width: 3px;
-    border-radius: 0 3px 3px 0;
-  }
-  .sidebar-link-active[data-tone="blue"]::before { background: #2563EB; }
-  .sidebar-link-active[data-tone="green"]::before { background: #16A34A; }
 
   .sidebar-link-icon {
-    @apply w-5 h-5 flex items-center justify-center;
-    font-size: 1.1rem;
+    @apply flex items-center justify-center text-slate-400 dark:text-slate-500 transition-colors;
   }
-  .sidebar-link[data-tone="blue"] .sidebar-link-icon { color: #2563EB; }
-  .sidebar-link[data-tone="green"] .sidebar-link-icon { color: #16A34A; }
+
+  .sidebar-link:hover .sidebar-link-icon {
+    @apply text-indigo-500 dark:text-indigo-400;
+  }
+
+  .sidebar-link-active .sidebar-link-icon {
+    @apply text-indigo-600 dark:text-indigo-400;
+  }
 
   .sidebar-child-link {
-    margin-left: 18px;
-  }
-
-  .sidebar-link-active.sidebar-child-link-active::before {
-    display: none;
-  }
-
-  .sidebar-child-link-active {
-    color: #1D4ED8;
-    background: #EFF6FF;
-    font-weight: 700;
+    @apply pl-10 py-2 text-[13px] opacity-80;
   }
 
   .sidebar-user {
@@ -1498,17 +1477,63 @@
    }
 
    /* ---- Report section captions: white bar, thin rules ---- */
-   .bh-caption {
-     @apply text-center font-bold uppercase;
-     font-size: 0.7rem;
-     letter-spacing: 0.03em;
-     color: #475569;
-     background: #ffffff;
-     border: 1px solid #e2e8f0;
-     border-bottom: 2px solid #94a3b8;
-     padding: 3px 6px;
-     margin-bottom: 6px;
-   }
+    .bh-caption {
+      @apply text-center font-bold uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
+      color: #475569;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-bottom: 2px solid #94a3b8;
+      padding: 3px 6px;
+      margin-bottom: 6px;
+    }
+
+    /* ---- DARK MODE OVERRIDES FOR BUDGET HEAD TABLE ---- */
+    .dark .bh-table td,
+    .dark .bh-table th {
+      border-color: #334155;
+      color: #f8fafc;
+    }
+    .dark .bh-head-col {
+      background: #1e293b;
+      color: #f8fafc;
+      border-left-color: #64748b;
+    }
+    .dark .bh-q1-hd,
+    .dark .bh-q2-hd,
+    .dark .bh-q3-hd,
+    .dark .bh-q4-hd {
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+    }
+    .dark .bh-q1,
+    .dark .bh-q2,
+    .dark .bh-q3,
+    .dark .bh-q4 {
+      background: #1e293b;
+    }
+    .dark .bh-fy-hd {
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+    }
+    .dark .bh-fy {
+      background: rgba(16, 185, 129, 0.1);
+      color: #f8fafc;
+    }
+    .dark .bh-row:hover td {
+      background: rgba(59, 130, 246, 0.1);
+    }
+    .dark .bh-grand td {
+      background: rgba(16, 185, 129, 0.2) !important;
+      color: #6ee7b7;
+      border-top-color: #475569;
+    }
+    .dark .bh-caption {
+      background: #1e293b;
+      color: #cbd5e1;
+      border-color: #334155;
+    }
 
    /* ---- Month-wise detail: quarter blocks ----
       Each quarter is a pure-white block separated by a single blue

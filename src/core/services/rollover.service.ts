@@ -17,7 +17,7 @@ export const rolloverService = {
       throw new Error('Invalid financial year');
     }
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('app_config')
       .upsert(
         {
@@ -41,7 +41,7 @@ export const rolloverService = {
       return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
     }
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('app_config')
       .select('value')
       .eq('key', 'currentFY')

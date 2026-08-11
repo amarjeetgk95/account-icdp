@@ -22,7 +22,7 @@ interface AuthState {
 
 async function loadProfileIntoStores(userId: string): Promise<void> {
   try {
-    const { data: profile } = await (supabase as any)
+    const { data: profile } = await supabase
       .from('profiles')
       .select('role, office_id')
       .eq('id', userId)

@@ -3,9 +3,7 @@ import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
 import { MONTHS } from '@/shared/constants';
 import type { Party, PartyTransaction, TransactionInput, GSTReport, IncomeTaxReport } from '../types';
-import type { Database } from '@/shared/database.types';
 
-type PartyRow = Database['public']['Tables']['parties']['Row'];
 
 function getOfficeId(): string | null {
   const authOfficeId = useAuthStore.getState().user?.officeId || null;
@@ -22,7 +20,7 @@ export const partyRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('parties')
       .select('id, name, gst_no, pan_no')
       .eq('office_id', officeId)
@@ -36,7 +34,7 @@ export const partyRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('party_transactions')
       .select('id, bill_no, transaction_date, amount, cgst, sgst, igst, total_gst, income_tax, parties(id, name)')
       .eq('office_id', officeId)
@@ -83,18 +81,18 @@ export const partyRepository = {
     const incomeTax = money(input.incomeTax || 0);
     const totalGst = cgst + sgst + igst;
 
-    const { data: parties } = await (supabase as any)
+    const { data: parties } = await supabase
       .from('parties')
       .select('id, name, gst_no, pan_no')
       .eq('office_id', officeId);
 
     const targetName = input.partyName.trim().toUpperCase();
     let party = (parties || []).find(
-      (p: PartyRow) => p.name.trim().toUpperCase() === targetName
+      (p) => p.name.trim().toUpperCase() === targetName
     );
 
     if (!party) {
-      const { data: inserted } = await (supabase as any)
+      const { data: inserted } = await supabase
         .from('parties')
         .insert({
           name: input.partyName.trim(),
@@ -104,15 +102,18 @@ export const partyRepository = {
         })
         .select()
         .single();
+      if (!inserted) throw new Error('Failed to create party record');
       party = inserted;
     } else if ((!party.gst_no && gstNo) || (!party.pan_no && panNo)) {
       const upd: any = {};
       if (!party.gst_no && gstNo) upd.gst_no = gstNo;
       if (!party.pan_no && panNo) upd.pan_no = panNo;
-      await (supabase as any).from('parties').update(upd).eq('id', party.id);
+      await supabase.from('parties').update(upd).eq('id', party.id);
     }
 
-    const { data: dups } = await (supabase as any)
+    if (!party) throw new Error('Party not found');
+
+    const { data: dups } = await supabase
       .from('party_transactions')
       .select('id')
       .eq('party_id', party.id)
@@ -123,7 +124,7 @@ export const partyRepository = {
       throw new Error('A transaction for this party and bill number already exists');
     }
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('party_transactions')
       .insert({
         party_id: party.id,
@@ -157,7 +158,7 @@ export const partyRepository = {
     if (updates.incomeTax !== undefined) upd.income_tax = money(updates.incomeTax || 0);
     if (updates.cpinNo !== undefined) upd.cpin_no = updates.cpinNo.trim() || null;
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('party_transactions')
       .update(upd)
       .eq('id', id)
@@ -171,7 +172,7 @@ export const partyRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('party_transactions')
       .delete()
       .eq('id', id)
@@ -195,7 +196,7 @@ export const partyRepository = {
     const isYearly = quarter === 'Yearly';
     const months = isYearly ? MONTHS : quarterMonths[quarter] || quarterMonths.Q1;
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('party_transactions')
       .select('bill_no, cpin_no, transaction_date, amount, cgst, sgst, igst, total_gst, parties(name, gst_no)')
       .eq('office_id', targetOfficeId)
@@ -264,7 +265,7 @@ export const partyRepository = {
     const isYearly = quarter === 'Yearly';
     const months = isYearly ? MONTHS : quarterMonths[quarter] || quarterMonths.Q1;
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('party_transactions')
       .select('bill_no, transaction_date, amount, income_tax, parties(name, pan_no)')
       .eq('office_id', targetOfficeId)
@@ -322,7 +323,7 @@ export const partyRepository = {
     const errors: string[] = [];
 
     // Pre-fetch all parties for this office to avoid repeated queries
-    const { data: existingParties } = await (supabase as any)
+    const { data: existingParties } = await supabase
       .from('parties')
       .select('id, name, gst_no, pan_no')
       .eq('office_id', officeId);
@@ -357,7 +358,7 @@ export const partyRepository = {
         // Find or create party
         let party = partyCache.get(targetName);
         if (!party) {
-          const { data: inserted, error: insertErr } = await (supabase as any)
+          const { data: inserted, error: insertErr } = await supabase
             .from('parties')
             .insert({
               name: input.partyName.trim(),
@@ -377,7 +378,7 @@ export const partyRepository = {
         }
 
         // Check for duplicate bill_no
-        const { data: dups } = await (supabase as any)
+        const { data: dups } = await supabase
           .from('party_transactions')
           .select('id')
           .eq('party_id', party.id)
@@ -395,7 +396,7 @@ export const partyRepository = {
         const totalGst = cgst + sgst + igst;
         const incomeTax = money(input.incomeTax || 0);
 
-        const { error: txErr } = await (supabase as any)
+        const { error: txErr } = await supabase
           .from('party_transactions')
           .insert({
             party_id: party.id,

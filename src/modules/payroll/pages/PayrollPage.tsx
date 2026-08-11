@@ -259,19 +259,6 @@ export function PayrollPage() {
           <div className="px-1 pb-4 space-y-4">
             <BudgetHeadManager />
             <div className="card">
-              <div className="card-header">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-                    <Landmark size={16} />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-slate-800">Budget Head Wise Salary Statement</h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Head-wise gross, DA, tax, and net totals for each quarter — FY {fyLabel}
-                    </p>
-                  </div>
-                </div>
-              </div>
               <div className="card-body">
                 <BudgetHeadReport fy={fy} />
               </div>

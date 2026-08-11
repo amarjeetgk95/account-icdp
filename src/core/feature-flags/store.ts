@@ -57,7 +57,7 @@ export const useFeatureFlags = create<FeatureFlagStore>()(
       resetFlags: () => set({ flags: defaultFlags }),
       getModuleStatus: () => {
         const flags = get().flags;
-        const status: Record<keyof FeatureFlags, 'enabled' | 'disabled'> = {} as any;
+        const status = {} as Record<keyof FeatureFlags, 'enabled' | 'disabled'>;
         (Object.keys(flags) as Array<keyof FeatureFlags>).forEach((key) => {
           status[key] = flags[key] ? 'enabled' : 'disabled';
         });

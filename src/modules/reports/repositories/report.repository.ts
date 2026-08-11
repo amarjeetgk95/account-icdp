@@ -50,7 +50,7 @@ export const reportRepository = {
       .from('employees')
       .select('id, name, pan')
       .eq('office_id', officeId)
-      .order('id');
+      .order('created_at', { ascending: true });
 
     const { data: salaries } = await (supabase as any)
       .from('employee_salaries')

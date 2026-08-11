@@ -82,3 +82,6 @@ export function downloadCsv(filename: string, headers: string[], rows: Array<Arr
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(link.href), 500);
 }
+
+export * from './excelExport';
+

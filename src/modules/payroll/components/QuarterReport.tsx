@@ -1,5 +1,6 @@
 import type { QuarterReport as QuarterReportType } from '../types';
-import { formatCurrency } from '@/shared/utilities';
+import { formatCurrency, export24QExcel } from '@/shared/utilities';
+import { FileSpreadsheet } from 'lucide-react';
 
 interface QuarterReportProps {
   report: QuarterReportType | null;
@@ -42,11 +43,21 @@ export function QuarterReportView({ report, isLoading, showHeader = true }: Quar
   return (
     <div className="space-y-4">
       {showHeader && (
-        <div className="text-center space-y-1 py-4 border-b border-slate-200">
-          <h2 className="text-lg font-bold">24Q Employee Salary &amp; Tax Deduction Statement</h2>
-          <p className="text-sm text-slate-600">
-            FY: {report.fyLabel} | AY: {report.ayLabel} | Period: {report.quarter} Ending
-          </p>
+        <div className="flex items-center justify-between py-4 border-b border-slate-200">
+          <div className="text-left space-y-1">
+            <h2 className="text-lg font-bold">24Q Employee Salary &amp; Tax Deduction Statement</h2>
+            <p className="text-sm text-slate-600">
+              FY: {report.fyLabel} | AY: {report.ayLabel} | Period: {report.quarter} Ending
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => export24QExcel(report)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export Formatted 24Q Excel
+          </button>
         </div>
       )}
 

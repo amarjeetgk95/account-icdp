@@ -1,4 +1,4 @@
-﻿import type { Json } from './json.types';
+import type { Json } from './json.types';
 
 export type Database = {
   public: {
@@ -64,7 +64,15 @@ export type Database = {
         Row: { id: string; party_id: string; office_id: string; cpin_no: string | null; bill_no: string; transaction_date: string; amount: number; cgst: number; sgst: number; igst: number; total_gst: number; income_tax: number; created_at: string; updated_at: string }
         Insert: { id?: string; party_id: string; office_id: string; cpin_no?: string | null; bill_no: string; transaction_date: string; amount?: number; cgst?: number; sgst?: number; igst?: number; total_gst?: number; income_tax?: number; created_at?: string; updated_at?: string }
         Update: { id?: string; party_id?: string; office_id?: string; cpin_no?: string | null; bill_no?: string; transaction_date?: string; amount?: number; cgst?: number; sgst?: number; igst?: number; total_gst?: number; income_tax?: number; created_at?: string; updated_at?: string }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "party_transactions_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       app_config: {
         Row: { id: string; office_id: string; key: string; value: string; created_at: string; updated_at: string }
@@ -91,6 +99,9 @@ export type Database = {
       current_office_id: { Args: Record<string, never>; Returns: string }
       can_access_office: { Args: { target_office_id: string }; Returns: boolean }
       is_admin: { Args: Record<string, never>; Returns: boolean }
+      get_payroll_quarter_report: { Args: { p_office_id: string; p_financial_year: number; p_quarter: string }; Returns: Json }
+      get_budget_head_report: { Args: { p_office_id: string; p_financial_year: number }; Returns: Json }
+      get_party_tds_summary: { Args: { p_office_id: string; p_financial_year: number }; Returns: Json }
     }
   }
 }

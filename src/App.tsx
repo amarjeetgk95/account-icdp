@@ -6,6 +6,8 @@ import { Header } from '@/shared/components/Header';
 import { CommandPalette } from '@/shared/components/CommandPalette';
 import { AuthGate } from '@/shared/components/AuthGate';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
+import { ToastContainer } from '@/shared/components/Toast';
+import { SkeletonTable, SkeletonCard } from '@/shared/components/Skeleton';
 import { useAuthStore } from '@/core/auth/store';
 import { usePermissions } from '@/core/permissions/hooks';
 import { Navigate, useLocation } from 'react-router-dom';
@@ -13,8 +15,13 @@ import { useEffect, useState, Suspense } from 'react';
 
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+      <SkeletonTable rows={6} cols={5} />
     </div>
   );
 }
@@ -81,6 +88,7 @@ export default function App() {
             <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
           </Layout>
         )}
+        <ToastContainer />
       </AuthGate>
     </ErrorBoundary>
   );

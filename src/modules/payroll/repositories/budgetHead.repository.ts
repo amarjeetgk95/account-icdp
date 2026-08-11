@@ -17,7 +17,7 @@ export const budgetHeadRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('budget_heads')
       .select('*')
       .eq('office_id', officeId)
@@ -32,7 +32,7 @@ export const budgetHeadRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data: duplicate } = await (supabase as any)
+    const { data: duplicate } = await supabase
       .from('budget_heads')
       .select('id')
       .eq('code', input.code)
@@ -49,7 +49,7 @@ export const budgetHeadRepository = {
       office_id: officeId,
     };
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('budget_heads')
       .insert(payload)
       .select()
@@ -64,7 +64,7 @@ export const budgetHeadRepository = {
     if (!officeId) throw new Error('No office selected');
     if (!input.id) throw new Error('Budget head ID is required for update');
 
-    const { data: duplicate } = await (supabase as any)
+    const { data: duplicate } = await supabase
       .from('budget_heads')
       .select('id')
       .eq('code', input.code)
@@ -76,7 +76,7 @@ export const budgetHeadRepository = {
       throw new Error(`A budget head with code "${input.code}" already exists in this office`);
     }
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('budget_heads')
       .update({
         code: input.code,
@@ -95,7 +95,7 @@ export const budgetHeadRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('budget_heads')
       .delete()
       .eq('id', id)
@@ -108,7 +108,7 @@ export const budgetHeadRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('budget_heads')
       .select('*')
       .eq('id', id)

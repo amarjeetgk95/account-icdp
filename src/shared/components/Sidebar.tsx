@@ -89,8 +89,8 @@ export function Sidebar({ modules }: SidebarProps) {
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">IC</div>
         <div>
-          <div className="text-sm font-bold text-slate-800 leading-tight">ICDP</div>
-          <div className="text-[10px] text-slate-400 font-medium">Tax System</div>
+          <div className="text-sm font-heading font-bold text-slate-800 dark:text-slate-100 leading-tight">ICDP</div>
+          <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Tax System</div>
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { Save, X, Copy, AlertTriangle, Search, SearchX } from 'lucide-react';
 import { MONTHS } from '@/shared/constants';
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
+import { useUnsavedChanges } from '@/shared/hooks/useUnsavedChanges';
 
 interface SalaryEntryGridProps {
   roster: EmployeeRosterItem[];
@@ -71,6 +72,8 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
   const [dirtyCells, setDirtyCells] = useState<Set<string>>(new Set());
   const [activeCell, setActiveCell] = useState<{ id: string; field: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(() => Object.keys(overriddenEntries).length > 0);
+
+  useUnsavedChanges(hasChanges);
   const [loadingEmployeeId, setLoadingEmployeeId] = useState<string | null>(null);
   const [missingPrevData, setMissingPrevData] = useState<Record<string, boolean>>({});
   const [isScrolled, setIsScrolled] = useState(false);

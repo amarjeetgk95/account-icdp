@@ -3,10 +3,7 @@ import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
 import { isActiveInEntryMonth } from '../utils/employeeDates';
 import type { EmployeeRosterItem, QuarterReport, BudgetHeadReport, BudgetHeadReportGroup } from '../types';
-import type { Database } from '@/shared/database.types';
 
-type Employee = Database['public']['Tables']['employees']['Row'];
-type Salary = Database['public']['Tables']['employee_salaries']['Row'];
 
 function getOfficeId(): string | null {
   const authOfficeId = useAuthStore.getState().user?.officeId || null;
@@ -19,7 +16,7 @@ export const payrollRepository = {
     const targetOfficeId = officeId || getOfficeId();
     if (!targetOfficeId) throw new Error('No office selected');
 
-    const { count } = await (supabase as any)
+    const { count } = await supabase
       .from('employee_salaries')
       .select('*', { count: 'exact', head: true })
       .eq('financial_year', fy)
@@ -33,28 +30,28 @@ export const payrollRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data: employees } = await (supabase as any)
+    const { data: employees } = await supabase
       .from('employees')
       .select('id, name, pan, join_date, transfer_date')
       .eq('office_id', officeId)
       .order('name');
 
-    const { data: salaries } = await (supabase as any)
+    const { data: salaries } = await supabase
       .from('employee_salaries')
       .select('employee_id, gross, da, tax')
       .eq('financial_year', fy)
       .eq('month', month)
       .eq('office_id', officeId);
 
-    const salMap: Record<string, Salary> = {};
-    (salaries || []).forEach((s: Salary) => {
+    const salMap: Record<string, { gross: number; da: number; tax: number }> = {};
+    (salaries || []).forEach((s) => {
       salMap[s.employee_id] = s;
     });
 
     return (employees || [])
-      .filter((emp: Employee) => emp.name && emp.pan)
-      .filter((emp: Employee) => isActiveInEntryMonth(emp.join_date, emp.transfer_date, fy, month))
-      .map((emp: Employee) => {
+      .filter((emp) => emp.name && emp.pan)
+      .filter((emp) => isActiveInEntryMonth(emp.join_date, emp.transfer_date, fy, month))
+      .map((emp) => {
         const sal = salMap[emp.id];
         return {
           id: emp.id,
@@ -75,7 +72,6 @@ export const payrollRepository = {
   ): Promise<string> {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
-    if (!officeId) throw new Error('No office selected');
 
     const records = entries.map((e) => ({
       employee_id: e.employeeId,
@@ -87,7 +83,7 @@ export const payrollRepository = {
       tax: Math.round(e.tax * 100) / 100,
     }));
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('employee_salaries')
       .upsert(records, { onConflict: 'employee_id,financial_year,month' });
 
@@ -97,7 +93,7 @@ export const payrollRepository = {
   },
 
   async getEmployeeSalaryForMonth(employeeId: string, month: string, fy: number): Promise<{ gross: number; da: number; tax: number } | null> {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('employee_salaries')
       .select('gross, da, tax')
       .eq('financial_year', fy)
@@ -116,7 +112,7 @@ export const payrollRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('employee_salaries')
       .select('employee_id, gross, da, tax')
       .eq('financial_year', fy)
@@ -125,7 +121,7 @@ export const payrollRepository = {
 
     if (error) throw error;
 
-    return (data || []).map((s: Salary) => ({
+    return (data || []).map((s) => ({
       employeeId: s.employee_id,
       gross: Number(s.gross) || 0,
       da: Number(s.da) || 0,
@@ -137,7 +133,7 @@ export const payrollRepository = {
     const targetOfficeId = officeId || getOfficeId();
     if (!targetOfficeId) throw new Error('No office selected');
 
-    const { count, error } = await (supabase as any)
+    const { count, error } = await supabase
       .from('employee_salaries')
       .delete()
       .eq('office_id', targetOfficeId)
@@ -161,27 +157,27 @@ export const payrollRepository = {
 
     const months = quarterConfig[quarter] || quarterConfig.Q1;
 
-    const { data: employees } = await (supabase as any)
+    const { data: employees } = await supabase
       .from('employees')
       .select('id, name, pan')
       .eq('office_id', targetOfficeId)
-      .order('id');
+      .order('created_at', { ascending: true });
 
-    const { data: salaries } = await (supabase as any)
+    const { data: salaries } = await supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
       .eq('financial_year', fy)
       .eq('office_id', targetOfficeId);
 
-    const salMap: Record<string, Record<string, Salary>> = {};
-    (salaries || []).forEach((s: Salary) => {
+    const salMap: Record<string, Record<string, { gross: number; da: number; tax: number }>> = {};
+    (salaries || []).forEach((s) => {
       if (!salMap[s.employee_id]) salMap[s.employee_id] = {};
       salMap[s.employee_id][s.month] = s;
     });
 
     const rows = (employees || [])
-      .filter((emp: Employee) => emp.name && emp.pan)
-      .map((emp: Employee) => {
+      .filter((emp) => emp.name && emp.pan)
+      .map((emp) => {
         const sm = salMap[emp.id] || {};
         const g = [0, 0, 0];
         const t = [0, 0, 0];
@@ -236,19 +232,20 @@ export const payrollRepository = {
 
     const round = (n: number) => Math.round(n * 100) / 100;
 
-    const { data: employees } = await (supabase as any)
+    const { data: employees } = await supabase
       .from('employees')
       .select('id, name, pan, budget_head_id')
-      .eq('office_id', targetOfficeId);
+      .eq('office_id', targetOfficeId)
+      .order('created_at', { ascending: true });
 
-    const { data: heads } = await (supabase as any)
+    const { data: heads } = await supabase
       .from('budget_heads')
       .select('id, code, name')
       .eq('office_id', targetOfficeId)
       .order('sort_order', { ascending: true })
       .order('code', { ascending: true });
 
-    const { data: salaries } = await (supabase as any)
+    const { data: salaries } = await supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
       .eq('financial_year', fy)
@@ -259,8 +256,8 @@ export const payrollRepository = {
       headMap[h.id] = { code: h.code, name: h.name };
     });
 
-    const salMap: Record<string, Record<string, Salary>> = {};
-    (salaries || []).forEach((s: Salary) => {
+    const salMap: Record<string, Record<string, { gross: number; da: number; tax: number }>> = {};
+    (salaries || []).forEach((s) => {
       if (!salMap[s.employee_id]) salMap[s.employee_id] = {};
       salMap[s.employee_id][s.month] = s;
     });
@@ -285,7 +282,7 @@ export const payrollRepository = {
       return groups[groupIndex[key]];
     };
 
-    (employees || []).forEach((emp: Employee & { budget_head_id: string | null }) => {
+    (employees || []).forEach((emp) => {
       if (!emp.name || !emp.pan) return;
 
       const sm = salMap[emp.id] || {};

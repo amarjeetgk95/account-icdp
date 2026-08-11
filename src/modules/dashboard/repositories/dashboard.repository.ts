@@ -5,26 +5,28 @@ import { MONTHS, QUARTER_MONTHS, getQuarterForMonth } from '@/shared/constants';
 
 const MONTH_ORDER = [...MONTHS];
 import type { DashboardData, MonthlyRoadmapData, Task, RecentTransaction } from '../types';
-import type { Database } from '@/shared/database.types';
 
-type Employee = Database['public']['Tables']['employees']['Row'];
-type Salary = Database['public']['Tables']['employee_salaries']['Row'];
+interface SalaryItem {
+  employee_id: string;
+  month: string;
+  gross: number;
+  da: number;
+  tax: number;
+}
 
 interface SalaryMap {
   [employeeId: string]: {
-    [month: string]: Salary;
+    [month: string]: SalaryItem;
   };
 }
 
 function getOfficeId(): string | null {
-  // Auth profile office is the source of truth; UI store is only an
-  // admin office-switch override.
   const authOfficeId = useAuthStore.getState().user?.officeId || null;
   if (authOfficeId) return authOfficeId;
   return useUIStore.getState().activeOfficeId || null;
 }
 
-function buildSalaryMap(salaries: Salary[]): SalaryMap {
+function buildSalaryMap(salaries: SalaryItem[]): SalaryMap {
   const map: SalaryMap = {};
   salaries.forEach((sal) => {
     if (!map[sal.employee_id]) map[sal.employee_id] = {};
@@ -65,23 +67,24 @@ function getCurrentQuarter(): string {
 export const dashboardRepository = {
   async getSummary(): Promise<DashboardData> {
     const officeId = getOfficeId();
+    if (!officeId) throw new Error('No office selected');
     const fy = getFinancialYear();
     const now = new Date();
     const nowTime = now.getTime();
 
-    const { data: employees } = await (supabase as any)
+    const { data: employees } = await supabase
       .from('employees')
       .select('id, name, pan, join_date, transfer_date')
       .eq('office_id', officeId)
-      .order('id');
+      .order('created_at', { ascending: true });
 
-    const { data: salaries } = await (supabase as any)
+    const { data: salaries } = await supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
       .eq('financial_year', fy)
       .eq('office_id', officeId);
 
-    const { data: transactions } = await (supabase as any)
+    const { data: transactions } = await supabase
       .from('party_transactions')
       .select('id, transaction_date, amount, total_gst, income_tax, parties(id, name)')
       .eq('office_id', officeId)
@@ -114,7 +117,7 @@ export const dashboardRepository = {
       tax: 0,
     }));
 
-    (employees || []).forEach((emp: Employee) => {
+    (employees || []).forEach((emp) => {
       const name = emp.name?.trim() || '';
       const pan = emp.pan?.trim().toUpperCase() || '';
       if (!name) return;
@@ -171,7 +174,7 @@ export const dashboardRepository = {
       }
     });
 
-    (transactions || []).forEach((tx: any) => {
+    ((transactions || []) as Array<{ id: string; transaction_date: string; amount: number; total_gst: number; income_tax: number; parties: { id: string; name: string } | null }>).forEach((tx) => {
       const partyName = tx.parties?.name;
       if (partyName) uniqueVendors.add(partyName);
     });
@@ -246,9 +249,9 @@ export const dashboardRepository = {
       });
     }
 
-    const recentTransactions: RecentTransaction[] = (transactions || [])
+    const recentTransactions: RecentTransaction[] = ((transactions || []) as Array<{ id: string; transaction_date: string; amount: number; total_gst: number; income_tax: number; parties: { id: string; name: string } | null }>)
       .slice(0, 5)
-      .map((tx: any) => ({
+      .map((tx) => ({
         partyName: tx.parties?.name || 'Unknown',
         amount: money(tx.amount),
         gst: money(tx.total_gst),
