@@ -65,10 +65,10 @@ export function SummaryCards({ transactions, partiesCount }: SummaryCardsProps) 
 
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 {card.label}
               </p>
-              <p className={`text-xl font-extrabold ${card.text} tracking-tight`}>{card.value}</p>
+              <p className={`text-2xl font-black ${card.text} tracking-tight`}>{card.value}</p>
               <p className="text-xs text-slate-400 font-medium">{card.sub}</p>
             </div>
             <div

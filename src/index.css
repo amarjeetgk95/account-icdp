@@ -10,9 +10,9 @@
 }
 
 @page landscape {
-   size: A4 landscape;
-   margin: 4mm 5mm;
- }
+  size: A4 landscape;
+  margin: 4mm 5mm;
+}
 
 /* ============================================================
    ICDP TAX SYSTEM — GLOBAL STYLES
@@ -68,6 +68,7 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-size: 105%;
   }
 
   body {
@@ -78,7 +79,7 @@
     min-height: 100vh;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     letter-spacing: -0.011em;
-    font-size: 0.95rem;
+    font-size: 1rem;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -151,8 +152,7 @@
      APP HEADER
      ============================================================ */
   .app-header {
-    @apply h-16 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0 sticky top-0 z-30 transition-all;
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+    @apply h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-float grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 shrink-0 z-30 mt-4 mr-4 mb-3 transition-all;
     will-change: transform;
     transform: translateZ(0);
   }
@@ -162,8 +162,7 @@
   }
 
   .app-header-logo {
-    @apply w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow-primary transition-transform hover:scale-105;
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+    @apply w-10 h-10 rounded-xl object-contain transition-transform hover:scale-105;
   }
 
   .app-header-title {
@@ -189,11 +188,32 @@
   }
 
   /* ============================================================
-     SIDEBAR NAVIGATION (Floating Glassmorphism)
+     SIDEBAR NAVIGATION (Floating Glassmorphism & Responsive Drawer)
      ============================================================ */
   .sidebar {
-    @apply w-[260px] bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200 dark:border-slate-800 flex flex-col h-[calc(100vh-32px)] shrink-0 m-4 rounded-3xl shadow-float overflow-hidden transition-all;
+    @apply w-[260px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 flex flex-col h-[calc(100vh-32px)] shrink-0 m-4 rounded-3xl shadow-float overflow-hidden transition-all duration-300 z-30;
     contain: layout style;
+  }
+
+  .sidebar-collapsed {
+    @apply w-[72px] m-4;
+  }
+
+  .sidebar-collapsed .sidebar-logo {
+    @apply px-3 justify-center;
+  }
+
+  .sidebar-collapsed .sidebar-nav {
+    @apply px-2.5 space-y-4;
+  }
+
+  @media (max-width: 1023px) {
+    .sidebar {
+      @apply fixed top-0 left-0 bottom-0 h-screen m-0 rounded-none z-50 transform -translate-x-full shadow-2xl transition-transform duration-300;
+    }
+    .sidebar.sidebar-mobile-open {
+      @apply translate-x-0 w-[260px];
+    }
   }
 
   .sidebar-logo {
@@ -201,32 +221,39 @@
   }
 
   .sidebar-logo-icon {
-    @apply w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-heading font-bold text-sm shadow-primary transition-transform hover:-translate-y-1 hover:shadow-lg;
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+    @apply w-10 h-10 rounded-2xl object-contain transition-transform hover:-translate-y-0.5;
   }
 
+  .sidebar-logo-text {
+    @apply text-sm font-heading font-bold text-slate-800 dark:text-slate-100 leading-tight tracking-tight;
+  }
   .sidebar-nav {
-    @apply flex-1 overflow-y-auto px-4 py-6 space-y-8;
+    @apply flex-1 overflow-y-auto px-4 py-6 space-y-6;
   }
 
   .sidebar-group-label {
-    @apply text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-3;
+    @apply text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-2;
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 font-medium text-sm transition-all duration-200 border border-transparent;
+    @apply relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 font-medium text-sm transition-all duration-200 border border-transparent;
   }
 
   .sidebar-link:hover {
-    @apply bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border-slate-200/60 dark:border-slate-700 shadow-sm translate-x-1;
+    @apply bg-white dark:bg-slate-800/80 text-indigo-600 dark:text-indigo-400 border-slate-200/60 dark:border-slate-700/60 shadow-sm;
   }
 
   .sidebar-link-active {
-    @apply bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border-slate-200 dark:border-slate-700 shadow-sm;
+    @apply bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border-slate-200/80 dark:border-slate-700 shadow-sm font-semibold;
+  }
+
+  .sidebar-link-active::before {
+    content: '';
+    @apply absolute left-0 top-2 bottom-2 w-1 bg-indigo-600 dark:bg-indigo-400 rounded-r-full shadow-sm;
   }
 
   .sidebar-link-icon {
-    @apply flex items-center justify-center text-slate-400 dark:text-slate-500 transition-colors;
+    @apply flex items-center justify-center text-slate-400 dark:text-slate-500 transition-colors shrink-0;
   }
 
   .sidebar-link:hover .sidebar-link-icon {
@@ -238,7 +265,7 @@
   }
 
   .sidebar-child-link {
-    @apply pl-10 py-2 text-[13px] opacity-80;
+    @apply pl-9 py-2 text-[13px] opacity-90;
   }
 
   .sidebar-user {
@@ -334,21 +361,19 @@
      FORM CONTROLS
      ============================================================ */
   .input {
-    @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-[10px] text-[0.92rem] font-medium text-slate-900 transition-all duration-150 focus:outline-none;
+    @apply w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[10px] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-150 focus:outline-none;
   }
-  .input::placeholder { color: #94A3B8; }
   .input:focus {
     border-color: #2563EB;
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
   }
 
   .input-sm {
-    @apply px-2.5 py-1.5 text-xs;
+    @apply px-2.5 py-1.5 text-xs font-medium;
   }
 
   .label {
-    @apply block text-xs font-semibold mb-1.5;
-    color: #475569;
+    @apply block text-xs font-bold uppercase tracking-wider mb-1.5 text-slate-600 dark:text-slate-300;
   }
 
   .form-group {
@@ -560,13 +585,12 @@
   }
 
   .page-title {
-    @apply text-xl font-extrabold text-slate-800;
+    @apply text-2xl font-extrabold text-slate-800 dark:text-slate-100;
     letter-spacing: -0.02em;
   }
 
   .page-subtitle {
-    @apply text-sm mt-1;
-    color: #64748B;
+    @apply text-xs font-medium text-slate-500 dark:text-slate-400 mt-1;
   }
 
   .page-actions {
@@ -774,8 +798,10 @@
      Google Sheets-style: borderless by default, border on hover,
      ring + glow on focus, left-accent for dirty/modified cells
      ============================================================ */
-  .salary-cell {
-    @apply text-center tabular-nums;
+   .salary-cell {
+    @apply text-right tabular-nums font-semibold text-slate-800 dark:text-slate-100;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
     width: 100%;
     height: 2.25rem;
     padding: 6px 10px;
@@ -798,16 +824,31 @@
     border-color: #CBD5E1;
     background: #F8FAFC;
   }
+  .dark .salary-cell:hover {
+    border-color: #475569;
+    background: #1E293B;
+  }
 
   .salary-cell:focus {
     border-color: #3B82F6;
     background: #FFFFFF;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 1px 2px rgba(0,0,0,0.05);
   }
+  .dark .salary-cell:focus {
+    border-color: #3B82F6;
+    background: #0F172A;
+    color: #F8FAFC;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  }
 
   .salary-cell.dirty {
     border-left: 3px solid #3B82F6;
     background: #EFF6FF;
+  }
+  .dark .salary-cell.dirty {
+    border-left: 3px solid #3B82F6;
+    background: rgba(59, 130, 246, 0.15);
+    color: #93C5FD;
   }
 
   .salary-cell.dirty:focus {
@@ -834,15 +875,22 @@
     z-index: 20;
     transition: box-shadow 200ms ease;
   }
+  .dark .salary-grid-header {
+    background: #1E293B;
+  }
 
   .salary-grid-header th {
     @apply px-3 py-2.5 text-[0.8rem] font-bold tracking-wider;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #475569;
     letter-spacing: 0.05em;
-    text-align: center;
     border-bottom: 2px solid #E2E8F0;
     background: #F8FAFC;
+  }
+  .dark .salary-grid-header th {
+    color: #94A3B8;
+    border-bottom-color: #334155;
+    background: #1E293B;
   }
 
   .salary-grid-header.scrolled {
@@ -896,13 +944,24 @@
   .salary-totals td.salary-col-label {
     box-shadow: 1px 0 0 #CBD5E1;
   }
+  .dark .salary-row td.salary-col-pan,
+  .dark thead th.salary-col-pan,
+  .dark .salary-totals td.salary-col-label {
+    box-shadow: 1px 0 0 #334155;
+  }
 
   .salary-row:nth-child(odd) {
     background: #FFFFFF;
   }
+  .dark .salary-row:nth-child(odd) {
+    background: #0F172A;
+  }
 
   .salary-row:nth-child(even) {
     background: #F8FAFC;
+  }
+  .dark .salary-row:nth-child(even) {
+    background: rgba(30, 41, 59, 0.5);
   }
 
   .salary-row:nth-child(odd) .salary-col-index,
@@ -910,15 +969,28 @@
   .salary-row:nth-child(odd) .salary-col-pan {
     background: #FFFFFF;
   }
+  .dark .salary-row:nth-child(odd) .salary-col-index,
+  .dark .salary-row:nth-child(odd) .salary-col-name,
+  .dark .salary-row:nth-child(odd) .salary-col-pan {
+    background: #0F172A;
+  }
 
   .salary-row:nth-child(even) .salary-col-index,
   .salary-row:nth-child(even) .salary-col-name,
   .salary-row:nth-child(even) .salary-col-pan {
     background: #F8FAFC;
   }
+  .dark .salary-row:nth-child(even) .salary-col-index,
+  .dark .salary-row:nth-child(even) .salary-col-name,
+  .dark .salary-row:nth-child(even) .salary-col-pan {
+    background: #1E293B;
+  }
 
   .salary-row:hover {
     background: #EFF6FF !important;
+  }
+  .dark .salary-row:hover {
+    background: rgba(59, 130, 246, 0.12) !important;
   }
 
   .salary-row:hover .salary-col-index,
@@ -926,16 +998,30 @@
   .salary-row:hover .salary-col-pan {
     background: #EFF6FF !important;
   }
+  .dark .salary-row:hover .salary-col-index,
+  .dark .salary-row:hover .salary-col-name,
+  .dark .salary-row:hover .salary-col-pan {
+    background: #1E293B !important;
+  }
 
   .salary-row-active {
     border-left-color: #3B82F6 !important;
     background: #EFF6FF !important;
+  }
+  .dark .salary-row-active {
+    border-left-color: #3B82F6 !important;
+    background: rgba(59, 130, 246, 0.2) !important;
   }
 
   .salary-row-active .salary-col-index,
   .salary-row-active .salary-col-name,
   .salary-row-active .salary-col-pan {
     background: #EFF6FF !important;
+  }
+  .dark .salary-row-active .salary-col-index,
+  .dark .salary-row-active .salary-col-name,
+  .dark .salary-row-active .salary-col-pan {
+    background: #1E293B !important;
   }
 
   .salary-row-active .salary-col-index {
@@ -957,6 +1043,10 @@
     border-top: 2px solid #94A3B8;
     z-index: 10;
   }
+  .dark .salary-totals td {
+    background: #1E293B;
+    border-top-color: #475569;
+  }
 
   .salary-totals td.salary-col-label {
     position: sticky;
@@ -972,6 +1062,11 @@
     border-top: 1px solid #E2E8F0;
     box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.04), 0 -1px 3px rgba(15, 23, 42, 0.03);
   }
+  .dark .salary-footer {
+    background: #0F172A;
+    border-top-color: #1E293B;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+  }
 
   .stat-pill {
     @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold;
@@ -979,11 +1074,21 @@
     color: #475569;
     border: 1px solid #E2E8F0;
   }
+  .dark .stat-pill {
+    background: #1E293B;
+    color: #94A3B8;
+    border-color: #334155;
+  }
 
   .stat-pill-warning {
     background: #FEF3C7;
     color: #92400E;
     border-color: #FDE68A;
+  }
+  .dark .stat-pill-warning {
+    background: rgba(180, 83, 9, 0.25);
+    color: #FCD34D;
+    border-color: rgba(217, 119, 6, 0.4);
   }
 
   /* ============================================================
@@ -1018,6 +1123,12 @@
     border: 1px solid #E2E8F0;
     box-shadow: 0 1px 0 #CBD5E1;
   }
+  .dark .kbd-hint kbd {
+    background: #1E293B;
+    color: #94A3B8;
+    border-color: #334155;
+    box-shadow: 0 1px 0 #0F172A;
+  }
 
   /* ============================================================
      UNSAVED CHANGES BANNER (compact, sticky)
@@ -1028,6 +1139,11 @@
     color: #92400E;
     border-bottom: 1px solid #FDE68A;
     flex-shrink: 0;
+  }
+  .dark .unsaved-banner {
+    background: linear-gradient(to right, rgba(120, 53, 15, 0.5), rgba(180, 83, 9, 0.25));
+    color: #FCD34D;
+    border-bottom-color: rgba(217, 119, 6, 0.4);
   }
 
   /* ============================================================
@@ -1051,6 +1167,11 @@
     background: #F0FDF4;
     color: #16A34A;
     border-color: #BBF7D0;
+  }
+  .dark .fy-badge {
+    background: rgba(6, 78, 59, 0.4);
+    color: #34D399;
+    border-color: #065F46;
   }
 
   /* ============================================================
@@ -1753,5 +1874,503 @@
      .report-landscape {
        page: landscape;
      }
+   }
+
+  /* ============================================================
+     ADMIN — DATA ENTRY & REPORTS (dark-mode polish)
+     Scoped dark-mode overrides for the shared .table and
+     .payroll-tabs classes used by the Data Entry & Reports
+     section. Print/report-table internals are untouched.
+     ============================================================ */
+  .dark .data-entry-table thead { background: #1e293b; }
+  .dark .data-entry-table th { color: #94a3b8; border-color: #334155; }
+  .dark .data-entry-table td { color: #cbd5e1; }
+  .dark .data-entry-table tbody tr:nth-child(even) { background: rgba(148, 163, 184, 0.07); }
+  .dark .data-entry-table tbody tr:hover,
+  .dark .data-entry-table tbody tr:nth-child(even):hover { background: #1e293b; }
+
+  .data-entry-total { background: #f1f5f9; }
+  .data-entry-total td { border-top: 2px solid #cbd5e1; }
+  .dark .data-entry-total { background: #1e293b; }
+  .dark .data-entry-total td { border-top-color: #475569; }
+
+  .dark .payroll-tabs { background: #1e293b; }
+  .dark .payroll-tab { color: #94a3b8; }
+  .dark .payroll-tab:hover { background: #334155; color: #f1f5f9; box-shadow: none; }
+  .dark .payroll-tab.active { background: #334155; color: #93c5fd; box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35); }
+  .dark .payroll-tab.active svg { color: #93c5fd; }
+
+  /* ============================================================
+     ADMIN MODULE — OVERVIEW UI
+     KPI tiles, dark-aware tables.
+     Scoped (admin-kpi / admin-table) so the shared design-system
+     classes remain untouched for the rest of the app.
+     ============================================================ */
+
+  /* ---- KPI tiles (Overview stat cards) ---- */
+  .admin-kpi {
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  }
+  .admin-kpi:hover {
+    transform: translateY(-2px);
+    border-color: #C7D2FE;
+    box-shadow: var(--shadow-float);
+  }
+  .dark .admin-kpi:hover {
+    border-color: #4F46E5;
+  }
+  .admin-kpi .stat-label { color: #64748B; }
+  .dark .admin-kpi .stat-label { color: #94A3B8; }
+  .admin-kpi .stat-value { color: #0F172A; }
+  .dark .admin-kpi .stat-value { color: #F8FAFC; }
+
+  /* ---- Dark-aware tables (scoped to admin Overview components) ---- */
+  .admin-table .table thead { background: #F8FAFC; }
+  .admin-table .table th { color: #475569; }
+  .dark .admin-table .table thead { background: #1E293B; }
+  .dark .admin-table .table th { color: #94A3B8; border-color: #334155; }
+  .dark .admin-table .table td { color: #E2E8F0; border-color: rgba(148, 163, 184, 0.14); }
+  .dark .admin-table .table tbody tr:nth-child(even) { background: #1E293B; }
+  .dark .admin-table .table tbody tr:nth-child(even):hover { background: #334155; }
+  .dark .admin-table .table tbody tr:hover { background: #334155; }
+
+  /* ---- Entry completion: sticky office column ---- */
+  .ec-sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    min-width: 150px;
+    max-width: 190px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #FFFFFF;
+    box-shadow: 1px 0 0 rgba(148, 163, 184, 0.3);
+  }
+  .admin-table .table thead .ec-sticky-col { z-index: 8; background: #F8FAFC; }
+  .admin-table .table tbody tr:nth-child(even) .ec-sticky-col { background: #F8FAFC; }
+  .admin-table .table tbody tr:hover .ec-sticky-col { background: #F1F5F9; }
+  .dark .ec-sticky-col { background: #0F172A; }
+  .dark .admin-table .table thead .ec-sticky-col { background: #1E293B; }
+  .dark .admin-table .table tbody tr:nth-child(even) .ec-sticky-col { background: #1E293B; }
+  .dark .admin-table .table tbody tr:hover .ec-sticky-col { background: #334155; }
+
+  /* ---- Office stats table: clickable rows ---- */
+  .ost-row { transition: background-color 120ms ease, box-shadow 120ms ease; }
+  .admin-table .table tbody tr.ost-row:hover { background: #EFF6FF; }
+  .dark .admin-table .table tbody tr.ost-row:hover { background: rgba(79, 70, 229, 0.18); }
+  .admin-table .table tbody tr.ost-row:focus-visible {
+    outline: 2px solid #4F46E5;
+    outline-offset: -2px;
+  }
+
+  .ost-row-active,
+  .ost-row-active:hover {
+    background: #EEF2FF !important;
+    box-shadow: inset 3px 0 0 #4F46E5;
+  }
+  .dark .ost-row-active,
+  .dark .ost-row-active:hover {
+    background: rgba(79, 70, 229, 0.22) !important;
+    box-shadow: inset 3px 0 0 #6366F1;
+  }
+
+  /* ============================================================
+     ADMIN — DATA ENTRY & REPORTS (MATERIAL DESIGN 3)
+     Scoped on-screen refinements for the Data Entry Summary
+     table, Report Controls filter bar and report sub-tabs.
+     Regulatory print output (ReportPrintArea / report-table /
+     report-badge-*) is intentionally left untouched.
+     ============================================================ */
+
+  /* ---- Report Controls: labelled select fields with leading icons ---- */
+  .report-controls .field-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94A3B8;
+    pointer-events: none;
+    transition: color 150ms ease;
+  }
+  .report-controls .relative:focus-within .field-icon {
+    color: #4F46E5;
+  }
+  .report-controls .input {
+    padding-left: 2.35rem;
+    cursor: pointer;
+  }
+  .report-controls .input:focus {
+    border-color: #4F46E5;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  }
+
+  /* ---- Data Entry Summary: Material data table ---- */
+  .de-table {
+    min-width: 1080px;
+  }
+  .de-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  .de-table thead th {
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+    font-size: 11px;
+    letter-spacing: 0.07em;
+    color: #64748B;
+    background-color: #F8FAFC;
+    border-bottom: 2px solid #E2E8F0;
+    white-space: nowrap;
+  }
+  .dark .de-table thead th {
+    color: #94A3B8;
+    background-color: #1E293B;
+    border-bottom-color: #334155;
+  }
+  .de-table tbody td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  }
+  .dark .de-table tbody td {
+    border-bottom-color: rgba(148, 163, 184, 0.14);
+  }
+  .de-table tbody tr:nth-child(even) {
+    background: transparent;
+  }
+  .de-table tbody tr {
+    transition: background-color 120ms ease;
+  }
+  .de-table tbody tr:hover td {
+    background: #EEF2FF;
+  }
+  .dark .de-table tbody tr:hover td {
+    background: rgba(79, 70, 229, 0.12);
+  }
+  .de-table tfoot {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+  }
+  .de-table tfoot td {
+    background-color: #F1F5F9;
+    border-top: 2px solid #CBD5E1;
+  }
+  .dark .de-table tfoot td {
+    background-color: #1E293B;
+    border-top-color: #475569;
+  }
+
+  /* ---- Report sub-tabs: full-width Material segmented control ---- */
+  .report-subtabs {
+    width: 100%;
+  }
+  .report-subtabs .payroll-tab {
+    flex: 1;
+    justify-content: center;
+  }
+  .report-subtabs .payroll-tab.active {
+    color: #4F46E5;
+    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.35), 0 1px 2px rgba(15, 23, 42, 0.08);
+  }
+  .report-subtabs .payroll-tab.active svg {
+    color: #4F46E5;
+  }
+  .dark .report-subtabs .payroll-tab.active {
+    color: #A5B4FC;
+    box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.4);
+  }
+  .dark .report-subtabs .payroll-tab.active svg {
+    color: #A5B4FC;
+  }
+
+  /* ============================================================
+     USER MANAGEMENT — MATERIAL DESIGN 3 REFINEMENTS
+     Scoped to the User Management section (um-* / admin-audit)
+     so shared design-system classes remain untouched elsewhere.
+     Indigo primary #4F46E5, teal accent #0D9488, dark-aware.
+     ============================================================ */
+
+  /* ---- Page wrapper: dark-aware alerts ---- */
+  .um-page .alert { @apply rounded-xl; }
+  .dark .um-page .alert-info {
+    background: rgba(14, 165, 233, 0.12);
+    color: #7DD3FC;
+    border-color: rgba(14, 165, 233, 0.25);
+  }
+  .dark .um-page .alert-success {
+    background: rgba(16, 185, 129, 0.12);
+    color: #6EE7B7;
+    border-color: rgba(16, 185, 129, 0.25);
+  }
+  .dark .um-page .alert-danger {
+    background: rgba(239, 68, 68, 0.12);
+    color: #FCA5A5;
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+
+  /* ---- Cards & consistent headers ---- */
+  .um-card { transition: box-shadow 0.2s ease, border-color 0.2s ease; }
+  .um-card:hover { border-color: #C7D2FE; box-shadow: var(--shadow-float); }
+  .dark .um-card:hover { border-color: #4F46E5; }
+
+  .um-card-head {
+    @apply flex items-center gap-3.5 px-5 py-4 border-b border-slate-100 dark:border-slate-800;
+  }
+
+  .um-icon-tile {
+    @apply w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-md;
+  }
+
+  .um-card-title {
+    @apply text-base font-heading font-semibold text-slate-800 dark:text-slate-100;
+  }
+
+  .um-card-sub {
+    @apply text-xs text-slate-500 dark:text-slate-400 mt-0.5;
+  }
+
+  /* ---- Outlined Material text fields ---- */
+  .um-field .input {
+    @apply bg-white dark:bg-slate-900 rounded-xl border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100;
+  }
+  .um-field .input::placeholder { color: #94A3B8; }
+  .dark .um-field .input::placeholder { color: #64748B; }
+  .um-field .input:focus {
+    border-color: #4F46E5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14);
+  }
+  .um-field .label {
+    @apply mb-2;
+    color: #64748B;
+  }
+  .dark .um-field .label { color: #94A3B8; }
+  .um-field-icon {
+    @apply absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none;
+  }
+
+  /* ---- Material segmented control ---- */
+  .um-segmented {
+    @apply inline-flex items-center gap-1 p-1 rounded-xl w-full sm:w-auto;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+  }
+  .dark .um-segmented {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: #334155;
+  }
+  .um-seg-btn {
+    @apply inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all duration-150;
+    color: #64748B;
+  }
+  .um-seg-btn:hover { color: #0F172A; }
+  .dark .um-seg-btn { color: #94A3B8; }
+  .dark .um-seg-btn:hover { color: #F1F5F9; }
+  .um-seg-active,
+  .um-seg-active:hover {
+    background: #4F46E5;
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.45);
+  }
+
+  /* ---- Tonal info chip (invite hint) ---- */
+  .um-info-chip {
+    @apply flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold leading-relaxed animate-fade-in;
+    background: #EEF2FF;
+    color: #4338CA;
+    border: 1px solid #E0E7FF;
+  }
+  .dark .um-info-chip {
+    background: rgba(79, 70, 229, 0.16);
+    color: #A5B4FC;
+    border-color: rgba(99, 102, 241, 0.28);
+  }
+
+  /* ---- Filled Material submit button ---- */
+  .um-submit {
+    @apply w-full py-2.5 rounded-xl text-sm font-bold shadow-primary;
+  }
+
+  /* ---- Material data tables (Users & Audit log) ---- */
+  .um-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #F8FAFC;
+  }
+  .dark .um-table thead { background: #1E293B; }
+  .um-table .table th {
+    @apply px-4 py-3 text-[11px] font-bold uppercase tracking-wider;
+    color: #64748B;
+  }
+  .dark .um-table .table th { color: #94A3B8; border-color: #334155; }
+  .um-table .table td {
+    @apply px-4 py-3;
+    color: #475569;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  }
+  .dark .um-table .table td {
+    color: #CBD5E1;
+    border-bottom-color: rgba(148, 163, 184, 0.12);
+  }
+  .um-table .table tbody tr:nth-child(even) { background: transparent; }
+  .um-table .table tbody tr { transition: background-color 120ms ease; }
+  .um-table .table tbody tr:hover,
+  .um-table .table tbody tr:nth-child(even):hover { background: #EEF2FF; }
+  .dark .um-table .table tbody tr:hover,
+  .dark .um-table .table tbody tr:nth-child(even):hover { background: rgba(79, 70, 229, 0.12); }
+
+  /* ---- Search field (Users & Roles) ---- */
+  .um-search .input {
+    @apply bg-white dark:bg-slate-900 rounded-xl border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100;
+  }
+  .um-search .input::placeholder { color: #94A3B8; }
+  .dark .um-search .input::placeholder { color: #64748B; }
+  .um-search .input:focus {
+    border-color: #4F46E5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14);
+  }
+
+  /* ---- Material role chips ---- */
+  .um-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold;
+    letter-spacing: 0.01em;
+  }
+  .um-chip-admin { background: #EEF2FF; color: #4F46E5; }
+  .dark .um-chip-admin { background: rgba(79, 70, 229, 0.16); color: #A5B4FC; }
+  .um-chip-office { background: #ECFDF5; color: #059669; }
+  .dark .um-chip-office { background: rgba(16, 185, 129, 0.16); color: #6EE7B7; }
+
+  /* ---- "you" pill ---- */
+  .um-you-pill {
+    @apply ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0;
+    background: #EEF2FF;
+    color: #4F46E5;
+  }
+  .dark .um-you-pill {
+    background: rgba(79, 70, 229, 0.18);
+    color: #A5B4FC;
+  }
+
+  /* ---- Material icon action buttons ---- */
+  .um-icon-btn {
+    @apply w-8 h-8 rounded-full inline-flex items-center justify-center transition-colors duration-150;
+    color: #94A3B8;
+  }
+  .um-icon-btn:hover { background: #EEF2FF; color: #4F46E5; }
+  .um-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .um-icon-btn:disabled:hover { background: transparent; color: #94A3B8; }
+  .um-icon-btn-danger:hover { background: #FEF2F2; color: #DC2626; }
+  .dark .um-icon-btn { color: #64748B; }
+  .dark .um-icon-btn:hover { background: rgba(79, 70, 229, 0.14); color: #A5B4FC; }
+  .dark .um-icon-btn:disabled { color: #64748B; }
+  .dark .um-icon-btn:disabled:hover { background: transparent; color: #64748B; }
+  .dark .um-icon-btn-danger:hover { background: rgba(239, 68, 68, 0.14); color: #FCA5A5; }
+
+  /* ---- Audit log: Material action chips (dark-aware) ---- */
+  .admin-audit .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold;
+    letter-spacing: 0.01em;
+    text-transform: none;
+  }
+  .admin-audit .badge-primary { background: #EEF2FF; color: #4F46E5; }
+  .admin-audit .badge-success { background: #ECFDF5; color: #059669; }
+  .admin-audit .badge-info { background: #F0F9FF; color: #0284C7; }
+  .admin-audit .badge-warning { background: #FFFBEB; color: #D97706; }
+  .admin-audit .badge-danger { background: #FEF2F2; color: #DC2626; }
+  .admin-audit .badge-neutral { background: #F1F5F9; color: #64748B; }
+  .dark .admin-audit .badge-primary { background: rgba(79, 70, 229, 0.16); color: #A5B4FC; }
+  .dark .admin-audit .badge-success { background: rgba(16, 185, 129, 0.16); color: #6EE7B7; }
+  .dark .admin-audit .badge-info { background: rgba(14, 165, 233, 0.16); color: #7DD3FC; }
+  .dark .admin-audit .badge-warning { background: rgba(245, 158, 11, 0.16); color: #FCD34D; }
+  .dark .admin-audit .badge-danger { background: rgba(239, 68, 68, 0.16); color: #FCA5A5; }
+  .dark .admin-audit .badge-neutral { background: rgba(148, 163, 184, 0.16); color: #CBD5E1; }
+
+  /* ============================================================
+     ADMIN MODULE — OVERVIEW · MATERIAL DESIGN REFINEMENTS
+     Scoped (admin-section-card / admin-kpi / admin-table /
+     ec-scroll) so the shared design-system classes stay untouched
+     elsewhere. Appended last in the cascade so these win over the
+     base admin overview styles above.
+     ============================================================ */
+
+  /* ---- Overview section cards: layered elevation + hover lift ---- */
+  .admin-section-card {
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  }
+  .admin-section-card:hover {
+    transform: translateY(-1px);
+    border-color: #C7D2FE;
+    box-shadow: var(--shadow-float);
+  }
+  .dark .admin-section-card:hover {
+    border-color: #4F46E5;
+  }
+
+  /* ---- Material data-table: sticky header, micro-labels, no zebra ---- */
+  .admin-table .table thead { background: transparent; }
+  .admin-table .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 0.625rem 1rem;
+    background: #F8FAFC;
+    color: #64748B;
+    border-bottom: 2px solid #E2E8F0;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .dark .admin-table .table thead th {
+    background: #1E293B;
+    color: #94A3B8;
+    border-bottom-color: #334155;
+  }
+  .admin-table .table thead th.ec-sticky-col { z-index: 20; }
+
+  .admin-table .table th,
+  .admin-table .table td { padding: 0.625rem 1rem; }
+
+  .admin-table .table tbody tr { transition: background-color 140ms ease; }
+
+  .admin-table .table tbody tr,
+  .admin-table .table tbody tr:nth-child(even) { background: #FFFFFF; }
+  .dark .admin-table .table tbody tr,
+  .dark .admin-table .table tbody tr:nth-child(even) { background: #0F172A; }
+
+  .admin-table .table tbody tr:hover,
+  .admin-table .table tbody tr:nth-child(even):hover { background: #EEF2FF; }
+  .dark .admin-table .table tbody tr:hover,
+  .dark .admin-table .table tbody tr:nth-child(even):hover { background: rgba(79, 70, 229, 0.14); }
+
+  .admin-table .table tbody tr:nth-child(even) .ec-sticky-col { background: #FFFFFF; }
+  .dark .admin-table .table tbody tr:nth-child(even) .ec-sticky-col { background: #0F172A; }
+  .admin-table .table tbody tr:hover .ec-sticky-col,
+  .admin-table .table tbody tr:nth-child(even):hover .ec-sticky-col { background: #EEF2FF; }
+  .dark .admin-table .table tbody tr:hover .ec-sticky-col,
+  .dark .admin-table .table tbody tr:nth-child(even):hover .ec-sticky-col { background: rgba(79, 70, 229, 0.14); }
+
+  /* ---- Bounded scroll region so the sticky header can pin ---- */
+  .ec-scroll {
+    max-height: 34rem;
+    overflow-y: auto;
+  }
+
+  /* ---- Totals footer (Office stats table) ---- */
+  .admin-table tfoot td {
+    padding: 0.625rem 1rem;
+    background: #F8FAFC;
+    color: #0F172A;
+    border-top: 2px solid #E2E8F0;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .dark .admin-table tfoot td {
+    background: #1E293B;
+    color: #E2E8F0;
+    border-top-color: #334155;
   }
 }

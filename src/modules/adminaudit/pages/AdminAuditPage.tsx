@@ -37,11 +37,12 @@ export function AdminAuditPage() {
     if (!logs) return [];
     return logs.filter((log) => {
       const query = searchQuery.toLowerCase().trim();
+      const actionStr = (log.action || '').toLowerCase();
       const matchesSearch =
         !query ||
         (log.admin_email && log.admin_email.toLowerCase().includes(query)) ||
         (log.target_email && log.target_email.toLowerCase().includes(query)) ||
-        log.action.toLowerCase().includes(query) ||
+        actionStr.includes(query) ||
         (log.details && JSON.stringify(log.details).toLowerCase().includes(query));
 
       const matchesUser =
@@ -95,8 +96,8 @@ export function AdminAuditPage() {
     document.body.removeChild(link);
   };
 
-  const getActionBadgeClass = (action: string) => {
-    const act = action.toLowerCase();
+  const getActionBadgeClass = (action?: string) => {
+    const act = (action || '').toLowerCase();
     if (act.includes('create')) return 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800';
     if (act.includes('delete') || act.includes('remove')) return 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
     if (act.includes('update') || act.includes('role')) return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800';
@@ -193,13 +194,11 @@ export function AdminAuditPage() {
           </div>
 
           <div className="card-body p-0">
-            {error && (
+            {error ? (
               <div className="p-4 alert alert-danger">
                 Failed to load audit logs: {error instanceof Error ? error.message : 'Unknown error'}
               </div>
-            )}
-
-            {isLoading ? (
+            ) : isLoading ? (
               <div className="p-8 text-center text-slate-500">
                 <div className="animate-spin inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mb-2"></div>
                 <p className="text-xs">Loading audit trail records...</p>

@@ -1,9 +1,9 @@
-const CACHE_NAME = 'icdp-cache-v1';
+const CACHE_NAME = 'icdp-cache-v2';
 const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/favicon.ico',
+  '/logo.svg',
 ];
 
 self.addEventListener('install', (e) => {

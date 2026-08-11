@@ -171,9 +171,12 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
   const visibleRoster = useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return roster;
-    return roster.filter(
-      (emp) => emp.name.toLowerCase().includes(q) || emp.pan.toLowerCase().includes(q)
-    );
+    return roster.filter((emp) => {
+      const nameMatch = emp.name ? emp.name.toLowerCase().includes(q) : false;
+      const panMatch = emp.pan ? emp.pan.toLowerCase().includes(q) : false;
+      const hrpnMatch = emp.hprnNo ? emp.hprnNo.toLowerCase().includes(q) : false;
+      return nameMatch || panMatch || hrpnMatch;
+    });
   }, [roster, filter]);
 
   const startEditing = (key: string, id: string, field: 'gross' | 'da' | 'tax') => {
@@ -557,7 +560,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
 
   return (
     <div className="flex flex-col h-full min-h-0 text-sm">
-      {/* Compact unsaved changes banner */}
+      {/* Unsaved changes banner */}
       {hasChanges && (
         <div className="unsaved-banner">
           <span className="flex items-center gap-2">
@@ -565,11 +568,11 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
             <span>{dirtyCells.size} cell{dirtyCells.size !== 1 ? 's' : ''} modified</span>
           </span>
           <div className="flex items-center gap-2">
-            <button onClick={handleCancel} className="text-xs font-bold text-amber-800 hover:text-amber-950 transition-colors">
+            <button onClick={handleCancel} className="text-xs font-bold text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-amber-100 transition-colors">
               Discard
             </button>
-            <span className="text-amber-300">|</span>
-            <button onClick={handleSave} className="text-xs font-bold text-amber-800 hover:text-amber-950 transition-colors">
+            <span className="text-amber-300 dark:text-amber-600">|</span>
+            <button onClick={handleSave} className="text-xs font-bold text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-amber-100 transition-colors">
               Save Now
             </button>
           </div>
@@ -577,27 +580,27 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
       )}
 
       {/* Filter toolbar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 bg-white flex-shrink-0">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
         <div className="relative flex-1 max-w-xs">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter by name or PAN…"
-            className="input pl-8 py-1.5 text-xs"
-            aria-label="Filter employees by name or PAN"
+            placeholder="Filter by Name, PAN, or HRPN…"
+            className="input pl-8 py-1.5 text-xs font-medium"
+            aria-label="Filter employees by Name, PAN, or HRPN"
           />
         </div>
         {filter.trim() && (
-          <span className="text-xs text-slate-500 shrink-0 tabular-nums">
+          <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0 tabular-nums font-medium">
             {visibleRoster.length} of {roster.length} shown
           </span>
         )}
         {filter.trim() && (
           <button
             onClick={() => setFilter('')}
-            className="text-xs font-semibold text-slate-400 hover:text-slate-600 shrink-0 transition-colors"
+            className="text-xs font-semibold text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 shrink-0 transition-colors"
           >
             Clear
           </button>
@@ -610,9 +613,9 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
       >
         {visibleRoster.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
-            <SearchX size={28} className="text-slate-300 mb-2" />
-            <p className="text-sm text-slate-500 font-medium">No employees match &quot;{filter}&quot;.</p>
-            <button onClick={() => setFilter('')} className="text-xs text-blue-600 hover:underline mt-1">
+            <SearchX size={28} className="text-slate-300 dark:text-slate-600 mb-2" />
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">No employees match &quot;{filter}&quot;.</p>
+            <button onClick={() => setFilter('')} className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 font-semibold">
               Clear filter
             </button>
           </div>
@@ -620,19 +623,37 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
         <table className="w-full text-sm salary-grid-table">
           <thead className={`salary-grid-header ${isScrolled ? 'scrolled' : ''}`}>
             <tr>
-              <th className="text-center salary-col-index">#</th>
-              <th className="text-left salary-col-name">Employee</th>
-              <th className="text-left salary-col-pan">PAN No.</th>
-              <th className="text-right">Gross</th>
+              <th className="text-center font-bold text-xs text-slate-700 dark:text-slate-300 salary-col-index">#</th>
+              <th className="text-left font-bold text-xs text-slate-700 dark:text-slate-300 salary-col-name">Employee Name</th>
+              <th className="text-left font-bold text-xs text-slate-700 dark:text-slate-300 salary-col-pan">PAN Number</th>
+              <th className="text-right">
+                <span className="inline-flex items-center justify-end w-full gap-1 font-bold text-xs text-indigo-600 dark:text-indigo-400">
+                  Gross Salary
+                </span>
+              </th>
               {showDA && (
-                <th className="text-right" style={{ color: '#B45309' }}>DA &amp; Other</th>
+                <th className="text-right">
+                  <span className="inline-flex items-center justify-end w-full gap-1 font-bold text-xs text-teal-600 dark:text-teal-400">
+                    DA &amp; Other
+                  </span>
+                </th>
               )}
-              <th className="text-right">Tax</th>
-              <th className="text-right" style={{ color: '#4338CA' }}>Net Payable</th>
+              <th className="text-right">
+                <span className="inline-flex items-center justify-end w-full gap-1 font-bold text-xs text-rose-600 dark:text-rose-400">
+                  TDS (IT)
+                </span>
+              </th>
+              <th className="text-right">
+                <span className="inline-flex items-center justify-end w-full gap-1 font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                  Net Payable
+                </span>
+              </th>
               {showDA && (
-                <th className="text-right" style={{ color: '#15803D' }}>Gross+DA</th>
+                <th className="text-right font-bold text-xs text-slate-700 dark:text-slate-300">
+                  Gross+DA
+                </th>
               )}
-              <th className="text-center" style={{ width: '64px' }} title="Copy from previous month">
+              <th className="text-center font-bold text-xs text-slate-700 dark:text-slate-300" style={{ width: '64px' }} title="Copy from previous month">
                 Prev
               </th>
             </tr>
@@ -647,12 +668,20 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
               const isDirtyDA = dirtyCells.has(cellKey(emp.id, 'da'));
               const isDirtyTax = dirtyCells.has(cellKey(emp.id, 'tax'));
               const isRowActive = activeCell?.id === emp.id;
+              const panDisplay = emp.pan ? emp.pan.toUpperCase() : '—';
 
               return (
                 <tr key={emp.id} className={`salary-row ${isRowActive ? 'salary-row-active' : ''}`}>
-                  <td className="px-3 py-2 text-slate-400 text-center text-sm font-medium salary-col-index">{idx + 1}</td>
-                  <td className="px-3 py-2 font-semibold text-slate-800 whitespace-nowrap truncate text-center text-sm salary-col-name">{emp.name}</td>
-                  <td className="px-3 py-2 font-mono text-sm text-slate-500 tracking-wide whitespace-nowrap text-center salary-col-pan">{emp.pan}</td>
+                  <td className="px-3 py-2 text-slate-400 dark:text-slate-500 text-center text-xs font-medium salary-col-index">{idx + 1}</td>
+                  <td className="px-3 py-2 font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap truncate text-left text-xs salary-col-name">
+                    <span>{emp.name}</span>
+                    {emp.hprnNo && (
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-1.5 font-normal">
+                        (HRPN: {emp.hprnNo})
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 font-semibold text-xs text-slate-600 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap text-left salary-col-pan">{panDisplay}</td>
 
                   <td className="px-3 py-2">
                     <input
@@ -668,7 +697,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
                       ref={(el) => {
                         if (el) cellRefs.current.set(cellKey(emp.id, 'gross'), el);
                       }}
-                      className={`salary-cell ${isDirtyGross ? 'dirty' : ''}`}
+                      className={`salary-cell text-sm font-semibold ${isDirtyGross ? 'dirty' : ''}`}
                       placeholder="0"
                       aria-label={`Gross salary for ${emp.name}`}
                     />
@@ -689,9 +718,9 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
                         ref={(el) => {
                           if (el) cellRefs.current.set(cellKey(emp.id, 'da'), el);
                         }}
-                        className={`salary-cell ${isDirtyDA ? 'dirty' : ''}`}
+                        className={`salary-cell text-sm font-semibold ${isDirtyDA ? 'dirty' : ''}`}
                         placeholder="0"
-                        aria-label={`DA and other for ${emp.name}`}
+                        aria-label={`DA for ${emp.name}`}
                       />
                     </td>
                   )}
@@ -710,35 +739,35 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
                       ref={(el) => {
                         if (el) cellRefs.current.set(cellKey(emp.id, 'tax'), el);
                       }}
-                      className={`salary-cell ${isDirtyTax ? 'dirty' : ''}`}
+                      className={`salary-cell text-sm font-semibold ${isDirtyTax ? 'dirty' : ''}`}
                       placeholder="0"
                       aria-label={`Tax for ${emp.name}`}
                     />
                   </td>
 
-                  <td className="px-3 py-2 text-center font-bold text-indigo-700 text-sm tabular-nums">
+                  <td className="px-3 py-2 text-right font-semibold text-indigo-700 dark:text-indigo-400 text-sm tabular-nums">
                     {formatCurrency(total - entry.tax)}
                   </td>
 
                   {showDA && (
-                    <td className="px-3 py-2 text-center font-bold text-green-700 text-sm tabular-nums">{formatCurrency(total)}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400 text-sm tabular-nums">{formatCurrency(total)}</td>
                   )}
 
                   <td className="px-3 py-2 text-center">
                     {loadingEmployeeId === emp.id ? (
                       <div className="spinner h-4 w-4 mx-auto"></div>
                     ) : hasData ? (
-                      <span className="text-sm text-slate-300">—</span>
+                      <span className="text-sm text-slate-300 dark:text-slate-600">—</span>
                     ) : hasPrevData ? (
                       <button
                         onClick={() => handleCopyPrevMonth(emp.id)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-lg transition-all"
                         title="Copy values from previous month"
                       >
                         <Copy size={13} />
                       </button>
                     ) : (
-                      <span className="text-sm text-red-300" title="No data found for previous month">
+                      <span className="text-sm text-red-300 dark:text-red-800/60" title="No data found for previous month">
                         —
                       </span>
                     )}
@@ -749,26 +778,26 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
           </tbody>
           <tfoot className="salary-totals">
             <tr>
-              <td colSpan={3} className="text-center text-slate-600 font-bold text-xs uppercase tracking-wider salary-col-label">
+              <td colSpan={3} className="text-left px-3 text-slate-600 dark:text-slate-300 font-bold text-xs salary-col-label">
                 Total
               </td>
             {showDA && (
               <>
-                <td className="text-center text-slate-700 tabular-nums">{formatCurrency(totals.gross)}</td>
-                <td className="text-center text-amber-700 tabular-nums">{formatCurrency(totals.da)}</td>
-                <td className="text-center text-red-600 tabular-nums">{formatCurrency(totals.tax)}</td>
-                <td className="text-center text-indigo-700 font-extrabold tabular-nums">
+                <td className="text-right font-bold text-slate-700 dark:text-slate-200 text-sm tabular-nums">{formatCurrency(totals.gross)}</td>
+                <td className="text-right font-bold text-amber-700 dark:text-amber-400 text-sm tabular-nums">{formatCurrency(totals.da)}</td>
+                <td className="text-right font-bold text-rose-600 dark:text-rose-400 text-sm tabular-nums">{formatCurrency(totals.tax)}</td>
+                <td className="text-right font-extrabold text-indigo-700 dark:text-indigo-400 text-sm tabular-nums">
                   {formatCurrency(totals.gross + totals.da - totals.tax)}
                 </td>
-                <td className="text-center text-green-700 font-extrabold tabular-nums">{formatCurrency(totals.gross + totals.da)}</td>
+                <td className="text-right font-extrabold text-emerald-700 dark:text-emerald-400 text-sm tabular-nums">{formatCurrency(totals.gross + totals.da)}</td>
                 <td></td>
               </>
             )}
             {!showDA && (
               <>
-                <td className="text-center text-slate-700 tabular-nums">{formatCurrency(totals.gross)}</td>
-                <td className="text-center text-red-600 tabular-nums">{formatCurrency(totals.tax)}</td>
-                <td className="text-center text-indigo-700 font-extrabold tabular-nums">{formatCurrency(totals.gross - totals.tax)}</td>
+                <td className="text-right font-bold text-slate-700 dark:text-slate-200 text-sm tabular-nums">{formatCurrency(totals.gross)}</td>
+                <td className="text-right font-bold text-rose-600 dark:text-rose-400 text-sm tabular-nums">{formatCurrency(totals.tax)}</td>
+                <td className="text-right font-extrabold text-indigo-700 dark:text-indigo-400 text-sm tabular-nums">{formatCurrency(totals.gross - totals.tax)}</td>
                 <td></td>
               </>
             )}

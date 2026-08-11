@@ -449,6 +449,132 @@ BEGIN
     ), '[]'::json)
     FROM public.offices o
   );
+-- Data entry completion (Monthly completion matrix)
+CREATE OR REPLACE FUNCTION public.admin_entry_completion()
+RETURNS json AS $$
+DECLARE result json;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RETURN '[]'::json;
+  END IF;
+
+  WITH office_fy AS (
+    SELECT o.id, o.name,
+           COALESCE(
+             (SELECT value::integer FROM public.app_config
+              WHERE key = 'currentFY' AND office_id = o.id LIMIT 1),
+             CASE WHEN EXTRACT(MONTH FROM NOW()) >= 4 THEN EXTRACT(YEAR FROM NOW())::integer
+                  ELSE EXTRACT(YEAR FROM NOW())::integer - 1 END
+           ) AS fy
+    FROM public.offices o
+  )
+  SELECT COALESCE(json_agg(
+    json_build_object(
+      'office_id', of.id,
+      'office_name', of.name,
+      'fy', of.fy,
+      'months', (
+        SELECT COALESCE(json_agg(m.month), '[]'::json)
+        FROM (
+          SELECT DISTINCT s.month,
+                 array_position(
+                   ARRAY['April','May','June','July','August','September',
+                         'October','November','December','January','February','March']::text[],
+                   s.month) AS pos
+          FROM public.employee_salaries s
+          WHERE s.office_id = of.id AND s.financial_year = of.fy
+          ORDER BY pos
+        ) m
+      )
+    )
+    ORDER BY of.name
+  ), '[]'::json) INTO result
+  FROM office_fy of;
+
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- Office financial years
+CREATE OR REPLACE FUNCTION public.admin_office_financial_years(target_office_id uuid)
+RETURNS json AS $$
+DECLARE result json;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RETURN '[]'::json;
+  END IF;
+
+  SELECT COALESCE(json_agg(fy ORDER BY fy DESC), '[]'::json) INTO result
+  FROM (
+    SELECT DISTINCT financial_year AS fy
+    FROM public.employee_salaries
+    WHERE office_id = target_office_id
+    UNION
+    SELECT DISTINCT financial_year AS fy
+    FROM public.party_transactions
+    WHERE office_id = target_office_id
+  ) sub
+  WHERE fy IS NOT NULL;
+
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- Admin Audit Logging & Trail
+CREATE TABLE IF NOT EXISTS public.admin_audit_log (
+  id BIGSERIAL PRIMARY KEY,
+  admin_id UUID,
+  admin_email TEXT,
+  action TEXT NOT NULL,
+  target_email TEXT,
+  details JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "audit_admin_select" ON public.admin_audit_log;
+CREATE POLICY "audit_admin_select" ON public.admin_audit_log FOR SELECT USING (public.is_admin());
+GRANT SELECT, INSERT ON TABLE public.admin_audit_log TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_log(
+  action TEXT,
+  target_email TEXT DEFAULT NULL,
+  details JSONB DEFAULT NULL
+)
+RETURNS void AS $$
+BEGIN
+  INSERT INTO public.admin_audit_log (admin_id, admin_email, action, target_email, details)
+  SELECT auth.uid(),
+         (SELECT email FROM auth.users WHERE id = auth.uid()),
+         action, target_email, details;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.admin_audit_list(limit_count integer DEFAULT 100)
+RETURNS json AS $$
+DECLARE result json;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Admin access required';
+  END IF;
+
+  SELECT COALESCE(json_agg(
+    json_build_object(
+      'id', l.id,
+      'admin_email', l.admin_email,
+      'action', l.action,
+      'target_email', l.target_email,
+      'details', l.details,
+      'created_at', l.created_at
+    )
+  ), '[]'::json) INTO result
+  FROM (
+    SELECT * FROM public.admin_audit_log
+    ORDER BY created_at DESC
+    LIMIT GREATEST(1, limit_count)
+  ) l;
+
+  RETURN result;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 

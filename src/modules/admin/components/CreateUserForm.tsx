@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Eye, EyeOff, UserPlus, Mail } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, Mail, Send, KeyRound, ShieldCheck, Building2, CheckCircle2, XCircle, Info, ChevronDown } from 'lucide-react';
 import type { CreateUserInput, UserInviteMethod } from '../types';
 
 interface CreateUserFormProps {
@@ -52,67 +52,64 @@ export function CreateUserForm({ offices, onSubmit, isLoading }: CreateUserFormP
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex gap-2 flex-wrap">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="um-segmented" role="group" aria-label="User invitation method">
         <button
           type="button"
           onClick={() => setMethod('password')}
-          className={
-            'px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors flex items-center gap-1.5 ' +
-            (method === 'password'
-              ? 'bg-blue-50 text-blue-700 border-blue-300'
-              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')
-          }
+          aria-pressed={method === 'password'}
+          className={'um-seg-btn ' + (method === 'password' ? 'um-seg-active' : '')}
         >
-          <UserPlus size={13} /> Set password
+          <UserPlus size={14} /> Set password
         </button>
         <button
           type="button"
           onClick={() => setMethod('invite')}
-          className={
-            'px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors flex items-center gap-1.5 ' +
-            (method === 'invite'
-              ? 'bg-green-50 text-green-700 border-green-300'
-              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')
-          }
+          aria-pressed={method === 'invite'}
+          className={'um-seg-btn ' + (method === 'invite' ? 'um-seg-active' : '')}
         >
-          <Mail size={13} /> Send invite
+          <Mail size={14} /> Send invite
         </button>
       </div>
 
       {method === 'invite' && (
-        <div className="alert alert-info">
-          An email invitation will be sent. The user verifies their email and sets their own password.
+        <div className="um-info-chip">
+          <Info size={15} className="shrink-0 mt-0.5" />
+          <span>An email invitation will be sent. The user verifies their email and sets their own password.</span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-5">
+        <div className="um-field">
           <label htmlFor="cuEmail" className="label">
             Email
           </label>
-          <input
-            id="cuEmail"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="input"
-            placeholder="user@office.com"
-            required
-          />
+          <div className="relative">
+            <Mail size={15} className="um-field-icon" />
+            <input
+              id="cuEmail"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="input pl-9"
+              placeholder="user@office.com"
+              required
+            />
+          </div>
         </div>
 
-        <div>
+        <div className="um-field">
           <label htmlFor="cuPassword" className="label">
-            Password <span className="text-slate-400 font-normal">(min 8)</span>
+            Password <span className="text-slate-400 dark:text-slate-500 font-normal">(min 8)</span>
           </label>
           <div className="relative">
+            <KeyRound size={15} className="um-field-icon" />
             <input
               id="cuPassword"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input pr-10"
+              className="input pl-9 pr-10"
               placeholder="e.g. Office@2026"
               minLength={method === 'password' ? 8 : undefined}
               required={method === 'password'}
@@ -123,7 +120,7 @@ export function CreateUserForm({ offices, onSubmit, isLoading }: CreateUserFormP
               type="button"
               onClick={() => setShowPassword((s) => !s)}
               disabled={method === 'invite'}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400 dark:disabled:hover:text-slate-500 transition-colors"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -131,35 +128,42 @@ export function CreateUserForm({ offices, onSubmit, isLoading }: CreateUserFormP
           </div>
         </div>
 
-        <div>
+        <div className="um-field">
           <label htmlFor="cuRole" className="label">
             Role
           </label>
-          <select
-            id="cuRole"
-            value={role}
-            onChange={(e) => setRole(e.target.value as 'admin' | 'office')}
-            className="input"
-          >
-            <option value="office">Office</option>
-            <option value="admin">Admin</option>
-          </select>
+          <div className="relative">
+            <ShieldCheck size={15} className="um-field-icon" />
+            <select
+              id="cuRole"
+              value={role}
+              onChange={(e) => setRole(e.target.value as 'admin' | 'office')}
+              className="input pl-9 pr-9 appearance-none"
+            >
+              <option value="office">Office</option>
+              <option value="admin">Admin</option>
+            </select>
+            <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+          </div>
         </div>
 
-        <div>
+        <div className="um-field">
           <label htmlFor="cuOffice" className="label">
             Office
           </label>
-          <input
-            id="cuOffice"
-            type="text"
-            value={officeName}
-            onChange={(e) => setOfficeName(e.target.value)}
-            className="input"
-            placeholder="Type office name..."
-            list="cuOfficeList"
-            required
-          />
+          <div className="relative">
+            <Building2 size={15} className="um-field-icon" />
+            <input
+              id="cuOffice"
+              type="text"
+              value={officeName}
+              onChange={(e) => setOfficeName(e.target.value)}
+              className="input pl-9"
+              placeholder="Type office name..."
+              list="cuOfficeList"
+              required
+            />
+          </div>
           <datalist id="cuOfficeList">
             {availableOffices.map((o) => (
               <option key={o.id} value={o.name} />
@@ -170,28 +174,42 @@ export function CreateUserForm({ offices, onSubmit, isLoading }: CreateUserFormP
 
       {status && (
         <div
-          className={`px-4 py-2 rounded-lg border text-sm font-semibold ${
-            status.type === 'success'
-              ? 'bg-green-50 text-green-700 border-green-200'
+          className={
+            'alert ' +
+            (status.type === 'success'
+              ? 'alert-success'
               : status.type === 'error'
-              ? 'bg-red-50 text-red-700 border-red-200'
-              : 'bg-blue-50 text-blue-700 border-blue-200'
-          }`}
+              ? 'alert-danger'
+              : 'alert-info')
+          }
         >
-          {status.message}
+          {status.type === 'success' ? (
+            <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
+          ) : status.type === 'error' ? (
+            <XCircle size={16} className="shrink-0 mt-0.5" />
+          ) : (
+            <Info size={16} className="shrink-0 mt-0.5" />
+          )}
+          <span>{status.message}</span>
         </div>
       )}
 
       <button
         type="submit"
         disabled={isLoading}
-        className="btn btn-primary"
+        className="btn btn-primary um-submit"
       >
-        {isLoading
-          ? 'Working...'
-          : method === 'password'
-          ? 'Create Account'
-          : 'Send Invitation'}
+        {isLoading ? (
+          <>
+            <span className="animate-spin rounded-full border-2 border-white/30 border-t-white h-4 w-4"></span>
+            Working...
+          </>
+        ) : (
+          <>
+            {method === 'password' ? <UserPlus size={16} /> : <Send size={16} />}
+            {method === 'password' ? 'Create Account' : 'Send Invitation'}
+          </>
+        )}
       </button>
     </form>
   );

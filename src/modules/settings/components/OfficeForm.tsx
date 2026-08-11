@@ -76,12 +76,12 @@ export function OfficeForm() {
         </div>
 
         <div>
-          <label htmlFor="subtitle" className="label">Subtitle</label>
+          <label htmlFor="subtitle" className="label">Office Part-2</label>
           <input
             id="subtitle"
             {...register('subtitle')}
             className="input"
-            placeholder="Subtitle for reports"
+            placeholder="Intensive Cattle Development Programme - Surat"
           />
         </div>
 

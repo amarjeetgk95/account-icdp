@@ -1,0 +1,107 @@
+/* Admin Overview scoped styles */
+
+/* KPI strip */
+.admin-overview-kpi {
+  position: relative;
+  padding: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .admin-overview-kpi {
+    padding: 1rem;
+  }
+}
+
+/* EntryCompletion sticky column */
+.ec-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: inherit;
+  min-width: 140px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+thead .ec-sticky-col {
+  z-index: 20;
+  background: #f8fafc;
+}
+
+.dark thead .ec-sticky-col {
+  background: rgb(15 23 42 / 0.4);
+}
+
+td.ec-sticky-col {
+  background: #fff;
+}
+
+.dark td.ec-sticky-col {
+  background: rgb(15 23 42);
+}
+
+tr:hover td.ec-sticky-col {
+  background: rgb(248 250 252);
+}
+
+.dark tr:hover td.ec-sticky-col {
+  background: rgb(30 41 59 / 0.6);
+}
+
+/* EntryCompletion scroll container */
+.ec-scroll {
+  max-height: 480px;
+  overflow: auto;
+}
+
+/* OfficeStatsTable row interaction */
+.ost-row {
+  transition: background-color 150ms ease;
+}
+
+.ost-row:hover {
+  background-color: rgb(238 242 255);
+}
+
+.dark .ost-row:hover {
+  background-color: rgb(99 102 241 / 0.08);
+}
+
+.ost-row:focus-visible {
+  outline: 2px solid rgb(99 102 241);
+  outline-offset: -2px;
+}
+
+.ost-row-active {
+  background-color: rgb(238 242 255);
+  box-shadow: inset 3px 0 0 rgb(79 70 229);
+}
+
+.dark .ost-row-active {
+  background-color: rgb(99 102 241 / 0.12);
+  box-shadow: inset 3px 0 0 rgb(129 140 248);
+}
+
+/* DataEntryReport polish */
+.de-report .de-table {
+  min-width: 900px;
+}
+
+.de-report .data-entry-total {
+  position: sticky;
+  bottom: 0;
+  background: #f8fafc;
+  border-top: 2px solid rgb(226 232 240);
+}
+
+.dark .de-report .data-entry-total {
+  background: rgb(15 23 42 / 0.6);
+  border-top-color: rgb(51 65 85);
+}
+
+/* Overview card entrance */
+.admin-section-card {
+  overflow: hidden;
+}

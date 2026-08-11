@@ -8,6 +8,7 @@ export interface MonthlyRoadmapData {
   status: 'complete' | 'partial' | 'empty' | 'idle';
   isCurrent: boolean;
   future: boolean;
+  pendingNames: string[];
 }
 
 export interface QuarterReadiness {
@@ -59,8 +60,8 @@ export interface DashboardData {
   prevQuarterPending: number;
   zeroTaxEntries: string[];
   missingPANs: string[];
-   newJoinersThisMonth: number;
-   departuresThisMonth: number;
-   vendorCount: number;
-   entryMonthName?: string;
- }
+  newJoinersThisMonth: number;
+  departuresThisMonth: number;
+  vendorCount: number;
+  entryMonthName?: string;
+}

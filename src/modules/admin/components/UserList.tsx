@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
+import { Search, Users, ShieldCheck, Building2, ArrowUp, ArrowDown, Trash2, UserRound } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { SkeletonTable } from '@/shared/components/Skeleton';
 import type { UserInfo } from '../types';
 
 interface UserListProps {
@@ -74,28 +76,39 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-8">
-        <div className="spinner h-8 w-8"></div>
+      <div className="space-y-4">
+        <div className="skeleton h-10 w-full max-w-sm rounded-xl" />
+        <SkeletonTable rows={4} cols={6} />
       </div>
     );
   }
 
   if (users.length === 0) {
-    return <div className="empty-state"><p>No users found.</p></div>;
+    return (
+      <div className="empty-state py-14">
+        <span className="mx-auto mb-4 w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center">
+          <Users size={32} strokeWidth={1.5} className="text-slate-400 dark:text-slate-500" />
+        </span>
+        <p className="empty-state-text">No users found.</p>
+      </div>
+    );
   }
 
   return (
     <>
       <div className="space-y-4">
-        <input
-          type="search"
-          placeholder="Search email / office / role..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input max-w-sm"
-        />
+        <div className="um-search search-input-wrapper max-w-sm">
+          <Search size={16} className="search-icon" />
+          <input
+            type="search"
+            placeholder="Search email / office / role..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input"
+          />
+        </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-auto um-table max-h-[560px]">
           <table className="table table-sm">
             <thead>
               <tr>
@@ -112,51 +125,69 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
                 const isCurrentUser = user.email.toLowerCase() === (currentUserEmail || '').toLowerCase();
                 return (
                   <tr key={user.id}>
-                    <td className="font-medium">
-                      {user.email}
-                      {isCurrentUser && (
-                        <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                          you
+                    <td className="font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-2 min-w-0">
+                        <span className="hidden sm:inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
+                          <UserRound size={13} strokeWidth={2} />
                         </span>
-                      )}
+                        <span className="truncate max-w-[260px]">{user.email}</span>
+                        {isCurrentUser && (
+                          <span className="um-you-pill">
+                            <UserRound size={9} /> you
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td>
                       <span
-                        className={`badge ${
-                          user.role === 'admin' ? 'badge-primary' : 'badge-success'
+                        className={`um-chip ${
+                          user.role === 'admin' ? 'um-chip-admin' : 'um-chip-office'
                         }`}
                       >
+                        {user.role === 'admin' ? <ShieldCheck size={12} /> : <Building2 size={12} />}
                         {user.role}
                       </span>
                     </td>
-                    <td>{user.office_name || '-'}</td>
-                    <td className="text-slate-500">{formatDate(user.created_at)}</td>
-                    <td className="text-slate-500">{formatDate(user.last_sign_in_at)}</td>
+                    <td className="text-slate-600 dark:text-slate-300">{user.office_name || '-'}</td>
+                    <td className="text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums">{formatDate(user.created_at)}</td>
+                    <td className="text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums">{formatDate(user.last_sign_in_at)}</td>
                     <td>
-                      <div className="flex justify-center gap-2">
+                      <div className="flex justify-center gap-1">
                         <button
                           onClick={() =>
                             openRoleDialog(user, user.role === 'admin' ? 'office' : 'admin')
                           }
                           disabled={isCurrentUser}
-                          className="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={user.role === 'admin' ? 'Make office user' : 'Make admin'}
+                          className="um-icon-btn"
+                          title={user.role === 'admin' ? 'Demote to office user' : 'Promote to admin'}
+                          aria-label={user.role === 'admin' ? 'Demote to office user' : 'Promote to admin'}
                         >
-                          {user.role === 'admin' ? '↓ Demote' : '↑ Promote'}
+                          {user.role === 'admin' ? <ArrowDown size={15} /> : <ArrowUp size={15} />}
                         </button>
                         <button
                           onClick={() => setDialog({ type: 'delete', user })}
                           disabled={isCurrentUser}
-                          className="px-2 py-1 text-xs font-semibold rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="um-icon-btn um-icon-btn-danger"
                           title="Delete user and their office"
+                          aria-label={`Delete ${user.email}`}
                         >
-                          Delete
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>
                   </tr>
                 );
               })}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center">
+                    <span className="mx-auto mb-3 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      <Search size={20} className="text-slate-400 dark:text-slate-500" />
+                    </span>
+                    <p className="empty-state-text">No users match your search.</p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

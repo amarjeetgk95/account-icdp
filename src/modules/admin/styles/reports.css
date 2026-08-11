@@ -1,0 +1,42 @@
+/* ============================================================
+   ADMIN MODULE — DATA ENTRY & REPORTS
+   Report controls, sub-tabs, report preview states.
+   Scoped so shared design-system classes stay untouched.
+   ============================================================ */
+
+  /* ---- Report controls field layout ---- */
+  .report-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .report-controls .label {
+    margin: 0;
+  }
+
+  .report-controls .field-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94A3B8;
+    pointer-events: none;
+  }
+
+  .report-controls .input {
+    padding-left: 2.25rem;
+  }
+
+  .dark .report-controls .field-icon {
+    color: #64748B;
+  }
+
+  /* ---- Sub-tabs (payroll-tabs override for report context) ---- */
+  .report-subtabs {
+    margin-top: 0.25rem;
+  }
+
+  .report-subtabs .payroll-tab {
+    font-size: 0.8rem;
+  }

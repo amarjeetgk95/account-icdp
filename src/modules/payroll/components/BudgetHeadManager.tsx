@@ -73,14 +73,14 @@ export function BudgetHeadManager() {
     <div className="card">
       <div className="card-header">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
             <Tag size={16} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-800">
+            <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
               {editingId ? 'Edit Budget Head' : 'Add Budget Head'}
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {editingId
                 ? 'Update the code and name of the budget head'
                 : 'Create a budget head to classify employee salaries'}
@@ -93,10 +93,10 @@ export function BudgetHeadManager() {
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium mb-4 ${
               status.type === 'success'
-                ? 'bg-green-50 text-green-700 border border-green-200'
+                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                 : status.type === 'error'
-                ? 'bg-red-50 text-red-700 border border-red-200'
-                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                : 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
             }`}
           >
             {status.type === 'info' ? <RefreshCw size={14} className="animate-spin" /> : status.message}
@@ -106,7 +106,7 @@ export function BudgetHeadManager() {
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
           <div>
             <label htmlFor="headCode" className="label">
-              Code <span className="text-red-400">*</span>
+              Code <span className="text-rose-500 dark:text-rose-400">*</span>
             </label>
             <input
               id="headCode"
@@ -116,12 +116,12 @@ export function BudgetHeadManager() {
               placeholder="e.g. 2071"
               maxLength={20}
             />
-            <p className="text-slate-400 text-xs mt-1">Short code shown in reports (unique per office)</p>
+            <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Short code shown in reports (unique per office)</p>
           </div>
 
           <div>
             <label htmlFor="headName" className="label">
-              Name <span className="text-red-400">*</span>
+              Name <span className="text-rose-500 dark:text-rose-400">*</span>
             </label>
             <input
               id="headName"
@@ -131,10 +131,11 @@ export function BudgetHeadManager() {
               placeholder="e.g. Salaries — Pension Payments"
               maxLength={100}
             />
+            <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Full budget head classification name</p>
           </div>
 
-          <div className="flex items-center gap-2 pt-[22px]">
-            <button type="submit" disabled={isCreating || isUpdating} className="btn btn-primary">
+          <div className="flex items-center gap-2 md:pt-[22px]">
+            <button type="submit" disabled={isCreating || isUpdating} className="btn btn-primary btn-md">
               {isCreating || isUpdating ? (
                 <>
                   <RefreshCw size={14} className="animate-spin mr-1.5" />
@@ -153,7 +154,7 @@ export function BudgetHeadManager() {
               )}
             </button>
             {editingId && (
-              <button type="button" onClick={resetForm} className="btn btn-secondary">
+              <button type="button" onClick={resetForm} className="btn btn-secondary btn-md">
                 <X size={14} className="mr-1.5" />
                 Cancel
               </button>
@@ -169,23 +170,27 @@ export function BudgetHeadManager() {
           ) : heads.length === 0 ? (
             <div className="empty-state">
               <p>No budget heads defined yet.</p>
-              <p className="text-xs text-slate-400 mt-1">Add a head above, then assign employees to it.</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Add a head above, then assign employees to it.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
               <table className="table text-sm">
                 <thead>
                   <tr>
-                    <th className="text-left" style={{ width: '80px' }}>Code</th>
+                    <th className="text-left" style={{ width: '110px' }}>Code</th>
                     <th className="text-left">Name</th>
-                    <th className="text-center" style={{ width: '150px' }}>Actions</th>
+                    <th className="text-center" style={{ width: '140px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {heads.map((head) => (
                     <tr key={head.id}>
-                      <td className="font-mono font-medium">{head.code}</td>
-                      <td>{head.name}</td>
+                      <td>
+                        <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 inline-block">
+                          {head.code}
+                        </span>
+                      </td>
+                      <td className="font-medium text-slate-800 dark:text-slate-200">{head.name}</td>
                       <td>
                         <div className="flex justify-center gap-1.5">
                           <button
@@ -207,7 +212,7 @@ export function BudgetHeadManager() {
                           </button>
                         </div>
                         {deleteConfirmId === head.id && (
-                          <p className="text-xs text-red-500 mt-1.5 text-center font-medium">
+                          <p className="text-xs text-rose-600 dark:text-rose-400 mt-1.5 text-center font-medium">
                             Delete {`"${head.code} — ${head.name}"`}? Employees stay but become unassigned.
                           </p>
                         )}

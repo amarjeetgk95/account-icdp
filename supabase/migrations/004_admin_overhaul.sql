@@ -250,7 +250,7 @@ BEGIN
            COALESCE(
              (SELECT value::integer FROM public.app_config
               WHERE key = 'currentFY' AND office_id = o.id LIMIT 1),
-             CASE WHEN EXTRACT(MONTH FROM NOW()) >= 3 THEN EXTRACT(YEAR FROM NOW())::integer
+             CASE WHEN EXTRACT(MONTH FROM NOW()) >= 4 THEN EXTRACT(YEAR FROM NOW())::integer
                   ELSE EXTRACT(YEAR FROM NOW())::integer - 1 END
            ) AS fy
     FROM public.offices o
@@ -261,13 +261,17 @@ BEGIN
       'office_name', of.name,
       'fy', of.fy,
       'months', (
-        SELECT COALESCE(json_agg(DISTINCT s.month
-          ORDER BY array_position(
-            ARRAY['April','May','June','July','August','September',
-                  'October','November','December','January','February','March'],
-            s.month)), '[]'::json)
-        FROM public.employee_salaries s
-        WHERE s.office_id = of.id AND s.financial_year = of.fy
+        SELECT COALESCE(json_agg(m.month), '[]'::json)
+        FROM (
+          SELECT DISTINCT s.month,
+                 array_position(
+                   ARRAY['April','May','June','July','August','September',
+                         'October','November','December','January','February','March']::text[],
+                   s.month) AS pos
+          FROM public.employee_salaries s
+          WHERE s.office_id = of.id AND s.financial_year = of.fy
+          ORDER BY pos
+        ) m
       )
     )
     ORDER BY of.name

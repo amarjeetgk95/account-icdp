@@ -7,10 +7,13 @@ interface UIState {
   activeOfficeId: string | null;
   activeFinancialYear: number;
   sidebarCollapsed: boolean;
+  mobileMenuOpen: boolean;
   theme: Theme;
   setActiveOfficeId: (id: string | null) => void;
   setActiveFinancialYear: (year: number) => void;
   toggleSidebar: () => void;
+  setMobileMenuOpen: (open: boolean) => void;
+  toggleMobileMenu: () => void;
   initializeOffice: (officeId: string | null) => void;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
@@ -35,10 +38,13 @@ export const useUIStore = create<UIState>()(
         return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
       })(),
       sidebarCollapsed: false,
+      mobileMenuOpen: false,
       theme: 'light',
       setActiveOfficeId: (id) => set({ activeOfficeId: id }),
       setActiveFinancialYear: (year) => set({ activeFinancialYear: year }),
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+      setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
+      toggleMobileMenu: () => set((state) => ({ mobileMenuOpen: !state.mobileMenuOpen })),
       initializeOffice: (officeId) => {
         set({ activeOfficeId: officeId });
       },

@@ -1,9 +1,22 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
+import {
+  Printer,
+  Download,
+  FileSpreadsheet,
+  Building2,
+  CalendarRange,
+  CalendarDays,
+  FileText,
+  Receipt,
+  Landmark,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useOfficeFinancialYears, useReportOfficeDetails, useAdminQuarterReport, useAdminGSTReport, useAdminIncomeTaxReport } from '../hooks/useAdmin';
 import { QuarterReportView } from '@/modules/payroll/components/QuarterReport';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { formatCurrency, downloadCsv } from '@/shared/utilities';
 import type { Office } from '../types';
+import '../styles/reports.css';
 
 type ReportSub = '24q' | 'gst' | 'it';
 
@@ -14,6 +27,42 @@ interface AdminReportsProps {
   onOfficeIdChange: (officeId: string) => void;
 }
 
+function ReportLoadingState({ label }: { label: string }) {
+  return (
+    <div className="card animate-fade-in" role="status" aria-label={label}>
+      <div className="card-body space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="skeleton h-5 w-5 rounded-full" />
+          <div className="skeleton h-4 w-48" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-6">
+              <div className="skeleton h-3.5 w-10" />
+              <div className="skeleton h-3.5 w-32" />
+              <div className="skeleton h-3.5 flex-1" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportEmptyState({ icon: Icon, message, hint }: { icon: LucideIcon; message: string; hint: string }) {
+  return (
+    <div className="card animate-fade-in">
+      <div className="empty-state card-body">
+        <div className="empty-state-icon dark:text-slate-600 flex items-center justify-center">
+          <Icon size={40} className="mx-auto" />
+        </div>
+        <p className="empty-state-text dark:text-slate-400">{message}</p>
+        <p className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">{hint}</p>
+      </div>
+    </div>
+  );
+}
+
 export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChange }: AdminReportsProps) {
   const [selectedFY, setSelectedFY] = useState<number | null>(null);
   const [selectedQuarter, setSelectedQuarter] = useState('Q1');
@@ -21,7 +70,12 @@ export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChan
 
   const { data: years } = useOfficeFinancialYears(officeId || null);
   const { data: officeDetails } = useReportOfficeDetails(officeId || null);
-  const activeFY = selectedFY ?? (years && years.length > 0 ? years[0] : null);
+
+  const defaultCurrentFY = () => {
+    const now = new Date();
+    return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  };
+  const activeFY = selectedFY ?? (years && years.length > 0 ? years[0] : defaultCurrentFY());
   const { data: quarterReport, isLoading: quarterLoading } = useAdminQuarterReport(activeSub === '24q' ? selectedQuarter : null, activeFY, officeId || null);
   const { data: gstReport, isLoading: gstLoading } = useAdminGSTReport(activeSub === 'gst' ? selectedQuarter : null, activeFY, officeId || null);
   const { data: itReport, isLoading: itLoading } = useAdminIncomeTaxReport(activeSub === 'it' ? selectedQuarter : null, activeFY, officeId || null);
@@ -55,62 +109,120 @@ export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChan
 
   return (
     <div className="space-y-4">
-      <div className="card p-4 no-print">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div>
-            <label className="label">Report Office</label>
-            <select
-              value={officeId}
-              onChange={(e) => {
-                onOfficeIdChange(e.target.value);
-                setSelectedFY(null);
-              }}
-              className="input"
-              disabled={officesLoading}
-            >
-              <option value="">{officesLoading ? 'Loading offices...' : 'Select office'}</option>
-              {offices.map((o) => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
+      <div className="card no-print animate-fade-in animate-fade-in-delay-1">
+        <div className="card-header">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-teal-600 text-white shadow-primary flex items-center justify-center shrink-0">
+              <FileSpreadsheet size={18} strokeWidth={2} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800 dark:text-slate-100">Report Controls</h3>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Configure office, financial year and quarter for the selected report</span>
+            </div>
           </div>
-          <div>
-            <label className="label">Financial Year</label>
-            <select value={activeFY ?? ''} onChange={(e) => setSelectedFY(parseInt(e.target.value, 10))} className="input" disabled={!officeId}>
-              <option value="">Select FY</option>
-              {(years || []).map((y) => (
-                <option key={y} value={y}>{y}-{String(y + 1).slice(-2)}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Quarter</label>
-            <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="input">
-              <option value="Q1">Q1 (Apr-Jun)</option>
-              <option value="Q2">Q2 (Jul-Sep)</option>
-              <option value="Q3">Q3 (Oct-Dec)</option>
-              <option value="Q4">Q4 (Jan-Mar)</option>
-              {activeSub !== '24q' && <option value="Yearly">Yearly</option>}
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => window.print()} className="btn btn-secondary w-full">Print PDF</button>
-            <button onClick={exportCSV} className="btn btn-outline w-full">CSV</button>
+        </div>
+        <div className="card-body">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-end">
+            <div className="report-controls">
+              <label className="label inline-flex items-center gap-1.5 dark:text-slate-400">
+                <Building2 size={13} />
+                Report Office
+              </label>
+              <div className="relative">
+                <Building2 size={15} className="field-icon" />
+                <select
+                  value={officeId}
+                  onChange={(e) => {
+                    onOfficeIdChange(e.target.value);
+                    setSelectedFY(null);
+                  }}
+                  className="input dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100"
+                  disabled={officesLoading}
+                >
+                  <option value="">{officesLoading ? 'Loading offices...' : 'Select office'}</option>
+                  {offices.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="report-controls">
+              <label className="label inline-flex items-center gap-1.5 dark:text-slate-400">
+                <CalendarRange size={13} />
+                Financial Year
+              </label>
+              <div className="relative">
+                <CalendarRange size={15} className="field-icon" />
+                <select
+                  value={activeFY ?? ''}
+                  onChange={(e) => setSelectedFY(parseInt(e.target.value, 10))}
+                  className="input dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 disabled:opacity-50"
+                  disabled={!officeId}
+                >
+                  <option value="">Select FY</option>
+                  {(years || []).map((y) => (
+                    <option key={y} value={y}>{y}-{String(y + 1).slice(-2)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="report-controls">
+              <label className="label inline-flex items-center gap-1.5 dark:text-slate-400">
+                <CalendarDays size={13} />
+                Quarter
+              </label>
+              <div className="relative">
+                <CalendarDays size={15} className="field-icon" />
+                <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="input dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100">
+                  <option value="Q1">Q1 (Apr-Jun)</option>
+                  <option value="Q2">Q2 (Jul-Sep)</option>
+                  <option value="Q3">Q3 (Oct-Dec)</option>
+                  <option value="Q4">Q4 (Jan-Mar)</option>
+                  {activeSub !== '24q' && <option value="Yearly">Yearly</option>}
+                </select>
+              </div>
+            </div>
+            <div className="report-controls">
+              <label className="label inline-flex items-center gap-1.5 dark:text-slate-400">Actions</label>
+              <div className="flex flex-col gap-2">
+                <button onClick={() => window.print()} className="btn btn-primary w-full">
+                  <Printer size={15} />
+                  Print PDF
+                </button>
+                <button onClick={exportCSV} className="btn btn-outline w-full">
+                  <Download size={15} />
+                  Export CSV
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex border-b border-slate-200 no-print">
-        <button onClick={() => { setActiveSub('24q'); setSelectedQuarter((q) => (q === 'Yearly' ? 'Q1' : q)); }} className={"px-4 py-2 text-sm font-medium border-b-2 " + (activeSub === '24q' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500')}>24Q Employee Statement</button>
-        <button onClick={() => setActiveSub('gst')} className={"px-4 py-2 text-sm font-medium border-b-2 " + (activeSub === 'gst' ? 'border-green-600 text-green-600' : 'border-transparent text-slate-500')}>GST Report</button>
-        <button onClick={() => setActiveSub('it')} className={"px-4 py-2 text-sm font-medium border-b-2 " + (activeSub === 'it' ? 'border-amber-600 text-amber-600' : 'border-transparent text-slate-500')}>26Q Income Tax</button>
+      <div className="payroll-tabs report-subtabs no-print animate-fade-in animate-fade-in-delay-2">
+        <button
+          onClick={() => { setActiveSub('24q'); setSelectedQuarter((q) => (q === 'Yearly' ? 'Q1' : q)); }}
+          className={`payroll-tab ${activeSub === '24q' ? 'active' : ''}`}
+        >
+          <FileText size={15} />
+          <span>24Q Employee Statement</span>
+        </button>
+        <button onClick={() => setActiveSub('gst')} className={`payroll-tab ${activeSub === 'gst' ? 'active' : ''}`}>
+          <Receipt size={15} />
+          <span>GST Report</span>
+        </button>
+        <button onClick={() => setActiveSub('it')} className={`payroll-tab ${activeSub === 'it' ? 'active' : ''}`}>
+          <Landmark size={15} />
+          <span>26Q Income Tax</span>
+        </button>
       </div>
 
       {!officeId ? (
-        <div className="empty-state"><p>Select an office to generate reports.</p></div>
+        <ReportEmptyState icon={Building2} message="Select an office to generate reports." hint="Pick an office from Report Controls to begin." />
       ) : activeSub === '24q' ? (
-        quarterLoading ? <div className="spinner h-10 w-10 mx-auto"></div> :
-        quarterReport && quarterReport.rows.length > 0 ? (
+        quarterLoading ? (
+          <ReportLoadingState label="Loading 24Q employee statement..." />
+        ) : quarterReport && quarterReport.rows.length > 0 ? (
           <ReportPrintArea
             office={office}
             leftLabel="Tax Deduction No :-"
@@ -122,11 +234,12 @@ export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChan
             <QuarterReportView report={quarterReport} isLoading={false} showHeader={false} />
           </ReportPrintArea>
         ) : (
-          <div className="empty-state"><p>No salary data for this office / period.</p></div>
+          <ReportEmptyState icon={FileText} message="No salary data for this office / period." hint="Try a different office, financial year or quarter." />
         )
       ) : activeSub === 'gst' ? (
-        gstLoading ? <div className="spinner h-10 w-10 mx-auto"></div> :
-        gstReport && gstReport.rows.length > 0 ? (
+        gstLoading ? (
+          <ReportLoadingState label="Loading GST report..." />
+        ) : gstReport && gstReport.rows.length > 0 ? (
           <ReportPrintArea
             office={office}
             leftLabel="GSTIN NO :-"
@@ -170,49 +283,48 @@ export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChan
             </div>
           </ReportPrintArea>
         ) : (
-          <div className="empty-state"><p>No GST data for this office / period.</p></div>
+          <ReportEmptyState icon={Receipt} message="No GST data for this office / period." hint="Try a different office, financial year or quarter." />
         )
-      ) : (
-        itLoading ? <div className="spinner h-10 w-10 mx-auto"></div> :
-        itReport && itReport.rows.length > 0 ? (
-          <ReportPrintArea
-            office={office}
-            leftLabel="TAN NO :-"
-            leftValue={office.tan || 'SRTDO0979G'}
-            rightMeta={<><span>Financial Year: {fyLabel} | Quarter: {itReport.quarter} | Office: {officeName}</span></>}
-            title="26Q OTHER THAN SALARY STATEMENT"
-            badgeClass="report-badge-it"
-          >
-            <div className="overflow-x-auto">
-              <table className="report-table">
-                <thead>
-                  <tr><th>Sr. No.</th><th style={{ textAlign: 'left' }}>Party Name</th><th>Bill No</th><th>Settlement Date</th><th>Amount</th><th>PAN No.</th><th>Income Tax (TDS)</th></tr>
-                </thead>
-                <tbody>
-                  {itReport.rows.map((row, idx) => (
-                    <tr key={idx}>
-                      <td>{idx + 1}</td>
-                      <td className="font-bold" style={{ textAlign: 'left' }}>{row.partyName}</td>
-                      <td>{row.billNo}</td>
-                      <td>{row.date}</td>
-                      <td style={{ textAlign: 'right' }}>{formatCurrency(row.amount)}</td>
-                      <td className="font-bold">{row.panNo}</td>
-                      <td className="font-bold" style={{ textAlign: 'right' }}>{formatCurrency(row.incomeTax)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="total-row">
-                    <td colSpan={6} style={{ textAlign: 'right' }}>Grand Total</td>
-                    <td style={{ textAlign: 'right' }}>{formatCurrency(itReport.totals.incomeTax)}</td>
+      ) : itLoading ? (
+        <ReportLoadingState label="Loading Income Tax report..." />
+      ) : itReport && itReport.rows.length > 0 ? (
+        <ReportPrintArea
+          office={office}
+          leftLabel="TAN NO :-"
+          leftValue={office.tan || 'SRTDO0979G'}
+          rightMeta={<><span>Financial Year: {fyLabel} | Quarter: {itReport.quarter} | Office: {officeName}</span></>}
+          title="26Q OTHER THAN SALARY STATEMENT"
+          badgeClass="report-badge-it"
+        >
+          <div className="overflow-x-auto">
+            <table className="report-table">
+              <thead>
+                <tr><th>Sr. No.</th><th style={{ textAlign: 'left' }}>Party Name</th><th>Bill No</th><th>Settlement Date</th><th>Amount</th><th>PAN No.</th><th>Income Tax (TDS)</th></tr>
+              </thead>
+              <tbody>
+                {itReport.rows.map((row, idx) => (
+                  <tr key={idx}>
+                    <td>{idx + 1}</td>
+                    <td className="font-bold" style={{ textAlign: 'left' }}>{row.partyName}</td>
+                    <td>{row.billNo}</td>
+                    <td>{row.date}</td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(row.amount)}</td>
+                    <td className="font-bold">{row.panNo}</td>
+                    <td className="font-bold" style={{ textAlign: 'right' }}>{formatCurrency(row.incomeTax)}</td>
                   </tr>
-                </tfoot>
-              </table>
-            </div>
-          </ReportPrintArea>
-        ) : (
-          <div className="empty-state"><p>No Income Tax data for this office / period.</p></div>
-        )
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="total-row">
+                  <td colSpan={6} style={{ textAlign: 'right' }}>Grand Total</td>
+                  <td style={{ textAlign: 'right' }}>{formatCurrency(itReport.totals.incomeTax)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </ReportPrintArea>
+      ) : (
+        <ReportEmptyState icon={Landmark} message="No Income Tax data for this office / period." hint="Try a different office, financial year or quarter." />
       )}
     </div>
   );

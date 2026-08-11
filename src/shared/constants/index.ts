@@ -1,4 +1,4 @@
-export const APP_NAME = 'ICDP Tax System';
+export const APP_NAME = 'Account Branch';
 export const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
 
 export const MONTHS: string[] = [

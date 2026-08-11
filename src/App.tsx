@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { ToastContainer } from '@/shared/components/Toast';
 import { SkeletonTable, SkeletonCard } from '@/shared/components/Skeleton';
 import { useAuthStore } from '@/core/auth/store';
+import { useUIStore } from '@/core/stores/ui-store';
 import { usePermissions } from '@/core/permissions/hooks';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, Suspense } from 'react';
@@ -45,6 +46,10 @@ export default function App() {
         e.preventDefault();
         setShowCommandPalette((open) => !open);
       }
+      if (e.key === '\\' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        useUIStore.getState().toggleSidebar();
+      }
     };
     window.addEventListener('keydown', down);
     return () => window.removeEventListener('keydown', down);
@@ -79,7 +84,7 @@ export default function App() {
             <div className="flex-1 flex flex-col overflow-hidden">
               <Header />
               <main className="flex-1 overflow-hidden">
-                <div className="app-scroll h-full p-6">
+                <div className="app-scroll h-full p-4 pt-3">
                   <Suspense fallback={<LoadingFallback />}>
                     <Routes modules={modules} />
                   </Suspense>

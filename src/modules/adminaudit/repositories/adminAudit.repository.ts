@@ -4,6 +4,9 @@ import type { AuditLogEntry } from '../types';
 
 function asArray<T>(data: Json | null): T[] {
   if (!data) return [];
+  if (typeof data === 'object' && !Array.isArray(data) && data !== null && 'error' in data) {
+    throw new Error(String((data as Record<string, unknown>).error));
+  }
   if (Array.isArray(data)) return data as unknown as T[];
   return [];
 }

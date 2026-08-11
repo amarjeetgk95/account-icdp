@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { NavLink, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { useLocation, Outlet } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import { useAuthStore } from '@/core/auth/store';
 import { isModuleEnabled } from '@/core/feature-flags/store';
@@ -44,23 +44,25 @@ function useAdminTabs(): AdminTab[] {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
-  const navigate = useNavigate();
   const tabs = useAdminTabs();
 
   const currentTab = tabs.find((t) => t.path === location.pathname) || tabs[0];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="page-header">
-        <div className="flex items-center gap-3">
+      <div className="page-header items-center gap-4">
+        <div className="flex items-center gap-4 min-w-0">
           {currentTab && (
             <>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <currentTab.icon size={20} />
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-primary shrink-0 ring-1 ring-white/20 dark:ring-slate-800 transition-transform duration-200 hover:scale-105"
+                style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #0D9488 100%)' }}
+              >
+                <currentTab.icon size={24} strokeWidth={2.2} />
               </div>
-              <div>
-                <h1 className="page-title">Admin Console</h1>
-                <p className="page-subtitle">{currentTab.subtitle}</p>
+              <div className="min-w-0">
+                <h1 className="page-title text-2xl dark:text-white">{currentTab.title}</h1>
+                <p className="page-subtitle dark:text-slate-400">{currentTab.subtitle}</p>
               </div>
             </>
           )}
@@ -69,38 +71,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           onClick={() => {
             useAuthStore.getState().initialize();
           }}
-          className="btn btn-ghost btn-sm text-xs"
+          className="btn btn-outline btn-sm text-xs group/refresh dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           title="Refresh data"
         >
-          <RefreshCw size={14} className="mr-1.5" />
+          <RefreshCw
+            size={14}
+            className="transition-transform duration-500 group-hover/refresh:rotate-180"
+          />
           Refresh
         </button>
       </div>
-
-      {tabs.length > 0 && (
-        <div className="step-nav">
-          {tabs.map((tab) => {
-            const TabIcon = tab.icon;
-            const isActive = location.pathname === tab.path;
-            return (
-              <NavLink
-                key={tab.path}
-                to={tab.path}
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate(tab.path);
-                }}
-                className={`step-link ${isActive ? 'active' : ''}`}
-              >
-                <span className="step-num">
-                  <TabIcon size={12} />
-                </span>
-                {tab.title}
-              </NavLink>
-            );
-          })}
-        </div>
-      )}
 
       <div>{children || <Outlet />}</div>
     </div>

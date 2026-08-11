@@ -109,11 +109,20 @@ export const adminRepository = {
   },
 
   async getFinancialYears(officeId: string): Promise<number[]> {
-    const { data, error } = await supabase.rpc('admin_office_financial_years', {
-      target_office_id: officeId,
-    });
-    if (error) throw error;
-    return (data as unknown as number[]) || [];
+    const now = new Date();
+    const defaultFY = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    if (!officeId || officeId.trim() === '') return [defaultFY];
+
+    try {
+      const { data, error } = await supabase.rpc('admin_office_financial_years', {
+        target_office_id: officeId,
+      });
+      if (error) throw error;
+      const years = (data as unknown as number[]) || [];
+      return years.length > 0 ? years : [defaultFY];
+    } catch {
+      return [defaultFY];
+    }
   },
 
   async listAuditLogs(limit = 100): Promise<AuditLogEntry[]> {

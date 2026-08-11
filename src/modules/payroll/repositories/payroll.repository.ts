@@ -32,7 +32,7 @@ export const payrollRepository = {
 
     const { data: employees } = await supabase
       .from('employees')
-      .select('id, name, pan, join_date, transfer_date')
+      .select('id, name, pan, hprn_no, join_date, transfer_date')
       .eq('office_id', officeId)
       .order('id');
 
@@ -56,7 +56,8 @@ export const payrollRepository = {
         return {
           id: emp.id,
           name: emp.name,
-          pan: emp.pan,
+          pan: emp.pan ? emp.pan.toUpperCase() : '',
+          hprnNo: emp.hprn_no || undefined,
           hasEntry: !!sal,
           gross: sal?.gross || 0,
           da: sal?.da || 0,

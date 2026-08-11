@@ -201,7 +201,7 @@ export function PayrollPage() {
   const y2 = String(fy + 1).slice(-2);
 
   return (
-    <div className="max-w-7xl mx-auto h-full flex flex-col overflow-hidden">
+    <div className="w-full h-full flex flex-col overflow-hidden">
       {saveStatus && (
         <div
           className={
@@ -225,17 +225,22 @@ export function PayrollPage() {
       )}
 
       {/* Tab navigation */}
-      <div className="payroll-tabs flex-shrink-0">
+      <div className="payroll-tabs flex-shrink-0 mb-4 bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-2xl flex border border-slate-200/80 dark:border-slate-700/80 shadow-sm overflow-x-auto">
         {TABS.map((tab) => {
           const TabIcon = tab.icon;
+          const isActive = mode === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setMode(tab.id)}
-              className={`payroll-tab ${mode === tab.id ? 'active' : ''}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                isActive
+                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-md border border-slate-200/60 dark:border-slate-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
+              }`}
               title={tab.description}
             >
-              <TabIcon size={16} />
+              <TabIcon size={16} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} />
               <span>{tab.label}</span>
             </button>
           );
@@ -258,52 +263,48 @@ export function PayrollPage() {
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
           <div className="px-1 pb-4 space-y-4">
             <BudgetHeadManager />
-            <div className="card">
-              <div className="card-body">
-                <BudgetHeadReport fy={fy} />
-              </div>
-            </div>
+            <BudgetHeadReport fy={fy} />
           </div>
         </div>
       )}
 
       {mode === 'entry' && (
-        <div className="flex-shrink-0 mb-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Left: FY badge + Month selector */}
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center gap-1.5">
-                <Calendar size={14} className="text-slate-400" />
-                <span className="fy-badge shrink-0">FY {fyLabel}</span>
+        <div className="w-full flex-shrink-0 mb-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-3.5 shadow-sm">
+          <div className="w-full flex flex-wrap items-center justify-between gap-4">
+            {/* Left Controls: FY badge + Month Select Dropdown */}
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700">
+                <Calendar size={15} className="text-slate-500 dark:text-slate-400" />
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">FY {fyLabel}</span>
               </div>
 
               <div className="relative shrink-0" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-                  title="Select the month for which you are entering salary data"
-                  className="flex items-center gap-2 border border-slate-200 rounded-full px-4 py-1.5 text-sm font-semibold text-slate-800 bg-slate-50 hover:bg-white hover:border-slate-300 hover:shadow-sm transition-all"
+                  title="Select the month for salary entry"
+                  className="flex items-center gap-2.5 border border-slate-200 dark:border-slate-700 rounded-full px-5 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 transition-all shadow-xs cursor-pointer"
                 >
                   <span>{getMonthDisplay(selectedMonth)}</span>
                   <ChevronDown size={14} className={`text-slate-400 transition-transform ${showMonthDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 {showMonthDropdown && (
-                  <div className="absolute z-50 mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="absolute left-0 z-50 mt-1.5 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
                     <div className="max-h-64 overflow-y-auto py-1">
                       {monthOptions.map((m) => (
                         <button
                           key={m.value}
                           onClick={() => handleMonthSelect(m.value)}
                           className={
-                            'w-full px-3.5 py-2 text-left text-sm flex items-center justify-between hover:bg-slate-50 transition-colors ' +
+                            'w-full px-4 py-2.5 text-left text-xs font-bold flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ' +
                             (selectedMonth === m.value
-                              ? 'bg-blue-50 text-blue-700 font-semibold'
-                              : 'text-slate-700')
+                              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
+                              : 'text-slate-700 dark:text-slate-200')
                           }
                         >
                           <span>{m.label}</span>
                           {selectedMonth === m.value && (
-                            <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                            <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                             </svg>
                           )}
@@ -315,10 +316,8 @@ export function PayrollPage() {
               </div>
             </div>
 
-            <div className="w-px h-6 bg-slate-200 shrink-0 hidden sm:block" />
-
-            {/* Center: Toggle switches */}
-            <div className="flex items-center gap-4">
+            {/* Right Action Controls: Toggles + Increased Excel Import button + Roster buttons */}
+            <div className="flex items-center gap-3 shrink-0 flex-wrap">
               <label className="flex items-center gap-2 cursor-pointer select-none shrink-0" title="Show DA & Other column">
                 <span className="toggle-switch">
                   <input
@@ -328,11 +327,12 @@ export function PayrollPage() {
                   />
                   <span className="toggle-slider toggle-amber" />
                 </span>
-                <span className="text-xs font-semibold text-slate-600">DA &amp; Other</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">DA &amp; Other</span>
               </label>
+
               <label
                 className="flex items-center gap-2 cursor-pointer select-none shrink-0"
-                title="When ON, empty salary cells (Gross, DA, Tax) are automatically filled from the previous month's data for the same employee. Cells that already have values are left unchanged."
+                title="When ON, empty salary cells are automatically filled from previous month data"
               >
                 <span className="toggle-switch">
                   <input
@@ -342,34 +342,27 @@ export function PayrollPage() {
                   />
                   <span className="toggle-slider" />
                 </span>
-                <span className="text-xs font-semibold text-slate-600">Auto-fill from Prev Month</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Auto-fill Prev</span>
               </label>
+
+              <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 shrink-0 hidden sm:block" />
+
+              {/* Prominent, Expanded Excel Import Button */}
               <button
                 type="button"
                 onClick={() => setShowExcelImport(true)}
-                className="btn btn-outline btn-sm text-xs shrink-0 text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300"
-                title="Import salary data from an Excel file"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-sm hover:shadow-md transition-all flex items-center gap-2 shrink-0 cursor-pointer"
               >
-                <FileSpreadsheet size={13} className="mr-1" />
-                Excel Import
+                <FileSpreadsheet size={16} />
+                <span>Import Excel Salary Sheet</span>
               </button>
-            </div>
-
-            {/* Right: Actions + record count */}
-            <div className="flex items-center gap-2 ml-auto">
-              {hasExistingData && (
-                <span className="stat-pill shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  {monthDataCheck.count} record{monthDataCheck.count > 1 ? 's' : ''}
-                </span>
-              )}
 
               <button
                 onClick={handleLoadRoster}
                 disabled={rosterLoading}
-                className="btn btn-primary btn-sm text-xs shrink-0"
+                className="btn btn-primary btn-md text-xs shrink-0"
               >
-                <RefreshCw size={13} className={rosterLoading ? 'animate-spin mr-1' : 'mr-1'} />
+                <RefreshCw size={14} className={rosterLoading ? 'animate-spin mr-1.5' : 'mr-1.5'} />
                 {rosterLoading ? 'Loading…' : 'Load Roster'}
               </button>
 
@@ -389,7 +382,7 @@ export function PayrollPage() {
                     }
                   }}
                   disabled={clearMonth.isPending}
-                  className="btn btn-outline btn-sm text-xs shrink-0 text-red-600 border-red-200 hover:bg-red-50"
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors shrink-0"
                   title="Delete all saved salary entries for the selected month"
                 >
                   {clearMonth.isPending ? 'Clearing…' : 'Clear All'}
@@ -401,46 +394,50 @@ export function PayrollPage() {
       )}
 
       {mode === 'report' && (
-        <div className="flex-shrink-0 mb-3 flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+        <div className="flex-shrink-0 mb-3 flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm">
           <div className="flex items-center gap-2">
-            <FileText size={14} className="text-slate-400" />
-            <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 shrink-0">
-              FY {fyLabel}
-            </span>
+            <FileText size={14} className="text-slate-400 dark:text-slate-500" />
+            <span className="fy-badge shrink-0">FY {fyLabel}</span>
           </div>
 
-          <select
-            value={selectedQuarter}
-            onChange={(e) => setSelectedQuarter(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 bg-white shrink-0"
-          >
-            <option value="Q1">Q1 (Apr-Jun)</option>
-            <option value="Q2">Q2 (Jul-Sep)</option>
-            <option value="Q3">Q3 (Oct-Dec)</option>
-            <option value="Q4">Q4 (Jan-Mar)</option>
-          </select>
+          {/* Segmented Quarter Selector Buttons */}
+          <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shrink-0">
+            {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => setSelectedQuarter(q)}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                  selectedQuarter === q
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
 
-          <span className="text-xs text-slate-500 shrink-0">
-            {quarterMonths.map((m, i) => `${m}-${i === quarterMonths.length - 1 && selectedQuarter === 'Q4' ? y2 : y1}`).join(', ')}
+          <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0 font-medium">
+            ({quarterMonths.map((m, i) => `${m}-${i === quarterMonths.length - 1 && selectedQuarter === 'Q4' ? y2 : y1}`).join(', ')})
           </span>
 
           <div className="flex items-center gap-2 shrink-0 ml-auto">
-            <button onClick={() => window.print()} className="btn btn-secondary btn-sm text-xs">
-              <FileText size={14} className="mr-1" /> Print
-            </button>
             <button
               onClick={export24QCSV}
               disabled={!quarterReport || quarterReport.rows.length === 0}
-              className="btn btn-outline btn-sm text-xs"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
             >
-              <Download size={14} className="mr-1" /> CSV
+              <Download size={14} />
+              <span>CSV</span>
             </button>
             <button
               onClick={exportPDF}
               disabled={!quarterReport || quarterReport.rows.length === 0}
-              className="btn btn-outline btn-sm text-xs"
+              className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-xs transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
             >
-              <FileImage size={14} className="mr-1" /> Preview
+              <FileImage size={14} />
+              <span>Preview</span>
             </button>
           </div>
         </div>

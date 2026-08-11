@@ -135,37 +135,41 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {submitStatus && (
         <div
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
             submitStatus.type === 'success'
-              ? 'bg-green-50 text-green-700 border border-green-200'
+              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
               : submitStatus.type === 'error'
-              ? 'bg-red-50 text-red-700 border border-red-200'
-              : 'bg-blue-50 text-blue-700 border border-blue-200'
+              ? 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+              : 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
           }`}
         >
           {submitStatus.message}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+      {/* Grid: 3 balanced columns on lg screens */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
-          <label htmlFor="hprnNo" className="label">
+          <label htmlFor="hprnNo" className="label text-slate-700 dark:text-slate-300">
             HRPN No.
           </label>
           <input
             id="hprnNo"
             {...register('hprnNo')}
-            className="input text-sm"
-            placeholder="Optional"
+            className="input font-mono uppercase text-sm"
+            placeholder="e.g. 100123"
             maxLength={50}
-            onChange={(e) => setValue('hprnNo', e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value.toUpperCase().trim();
+              setValue('hprnNo', val);
+            }}
           />
-          {errors.hprnNo && <p className="text-red-500 text-xs mt-1">{errors.hprnNo.message}</p>}
+          {errors.hprnNo && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.hprnNo.message}</p>}
         </div>
 
         <div className="relative" ref={dropdownRef}>
-          <label htmlFor="name" className="label">
-            Employee Name <span className="text-red-400">*</span>
+          <label htmlFor="name" className="label text-slate-700 dark:text-slate-300">
+            Employee Name <span className="text-red-500 dark:text-red-400">*</span>
           </label>
           <input
             id="name"
@@ -174,20 +178,18 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             placeholder="Type to search existing..."
             autoComplete="off"
           />
-          {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+          {errors.name && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.name.message}</p>}
           {showDropdown && searchResults.length > 0 && (
-            <div
-              className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-            >
+            <div className="absolute z-20 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
               {searchResults.map((emp, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => selectEmployee(emp)}
-                  className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-0 transition-colors"
+                  className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors flex items-center justify-between"
                 >
-                  <span className="font-medium text-sm">{emp.name}</span>
-                  <span className="text-slate-500 text-xs ml-2">{emp.pan}</span>
+                  <span className="font-medium text-sm text-slate-800 dark:text-slate-100">{emp.name}</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-mono text-xs ml-2">{emp.pan}</span>
                 </button>
               ))}
             </div>
@@ -195,13 +197,13 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
         </div>
 
         <div>
-          <label htmlFor="pan" className="label">
-            PAN Number <span className="text-red-400">*</span>
+          <label htmlFor="pan" className="label text-slate-700 dark:text-slate-300">
+            PAN Number <span className="text-red-500 dark:text-red-400">*</span>
           </label>
           <input
             id="pan"
             {...register('pan')}
-            className="input uppercase text-sm"
+            className="input uppercase font-mono font-semibold tracking-wider text-sm"
             placeholder="ABCDE1234F"
             maxLength={10}
             onChange={(e) => {
@@ -209,12 +211,12 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
               setValue('pan', sanitized);
             }}
           />
-          {errors.pan && <p className="text-red-500 text-xs mt-1">{errors.pan.message}</p>}
+          {errors.pan && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.pan.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="joinDate" className="label">
-            Join Date {!editingEmployee && <span className="text-red-400">*</span>}
+          <label htmlFor="joinDate" className="label text-slate-700 dark:text-slate-300">
+            Join Date {!editingEmployee && <span className="text-red-500 dark:text-red-400">*</span>}
           </label>
           <input
             id="joinDate"
@@ -222,16 +224,16 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             {...register('joinDate')}
             className="input text-sm"
           />
-          {errors.joinDate && <p className="text-red-500 text-xs mt-1">{errors.joinDate.message}</p>}
-          <p className="text-slate-400 text-xs mt-1">
+          {errors.joinDate && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.joinDate.message}</p>}
+          <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">
             {editingEmployee
-              ? 'Leave blank to keep the existing record unchanged'
-              : 'Start of service — required for payroll eligibility'}
+              ? 'Leave blank to keep existing date'
+              : 'Start of service — required for salary eligibility'}
           </p>
         </div>
 
         <div>
-          <label htmlFor="transferDate" className="label">
+          <label htmlFor="transferDate" className="label text-slate-700 dark:text-slate-300">
             Transfer Date
           </label>
           <input
@@ -240,43 +242,42 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             {...register('transferDate')}
             className="input text-sm"
           />
-          {errors.transferDate && <p className="text-red-500 text-xs mt-1">{errors.transferDate.message}</p>}
-          <p className="text-slate-400 text-xs mt-1">Leave blank — enter only if the employee is transferred mid-year</p>
+          {errors.transferDate && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.transferDate.message}</p>}
+          <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Enter only if transferred mid-year</p>
         </div>
 
         <div>
-          <label htmlFor="budgetHeadId" className="label">
-            Budget Head
+          <label htmlFor="budgetHeadId" className="label text-slate-700 dark:text-slate-300 flex items-center justify-between">
+            <span>Budget Head Tag</span>
           </label>
           <select id="budgetHeadId" {...register('budgetHeadId')} className="input text-sm">
-            <option value="">— None —</option>
+            <option value="">— Unassigned —</option>
             {heads.map((head) => (
               <option key={head.id} value={head.id}>
                 {head.code} — {head.name}
               </option>
             ))}
           </select>
-          <p className="text-slate-400 text-xs mt-1">Classifies salary for the Budget Head Report</p>
+          <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Designation &amp; Budget Head designation tag</p>
         </div>
       </div>
 
       {(joinDateValue || transferDateValue) && (
-        <div className="rounded-lg px-3 py-2 text-xs bg-blue-50 border border-blue-200 text-blue-800">
+        <div className="rounded-xl px-3.5 py-2.5 text-xs bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 flex items-center gap-2 font-medium">
           {(() => {
             const activeMonths = getActiveEntryMonths(resolvedFY, joinDateValue || null, transferDateValue || null);
             if (activeMonths.length === 0) {
-              return <span>Not active for any entry in FY {fyLabel}.</span>;
+              return <span>Not active for any salary entry in FY {fyLabel}.</span>;
             }
             const first = activeMonths[0];
             const last = activeMonths[activeMonths.length - 1];
             const nextIdx = MONTHS.indexOf(last) + 1;
             return (
               <span>
-                <b>Active for entry:</b> {first} → {last}
+                <b>Active for salary entry:</b> {first} → {last}
                 {transferDateValue && nextIdx < MONTHS.length && (
-                  <span className="text-amber-700">
-                    {' '}
-                    — removed from entry from {MONTHS[nextIdx]} onward
+                  <span className="text-amber-700 dark:text-amber-400 ml-1">
+                    (transferred from {MONTHS[nextIdx]} onward)
                   </span>
                 )}
               </span>
@@ -285,7 +286,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
         </div>
       )}
 
-      <div className="flex items-center gap-2 pt-1">
+      <div className="flex items-center gap-2 pt-2">
         <button type="submit" disabled={isSubmitting} className="btn btn-primary">
           {isSubmitting ? (
             <>
@@ -306,7 +307,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
         </button>
         <button type="button" onClick={handleClear} className="btn btn-secondary">
           <X size={14} className="mr-1.5" />
-          Clear
+          Clear / Cancel
         </button>
       </div>
     </form>

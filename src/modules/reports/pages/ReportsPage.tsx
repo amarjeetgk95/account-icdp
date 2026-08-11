@@ -4,7 +4,7 @@ import type { YearlyReport } from '../types';
 import { formatCurrency, export26QExcel, exportGSTExcel } from '@/shared/utilities';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, Users, Store } from 'lucide-react';
 
 type ReportTab = '24q' | '26q' | 'gst';
 
@@ -13,11 +13,21 @@ export function ReportsPage() {
   const [activeTab, setActiveTab] = useState<ReportTab>('24q');
 
   const { data: years, isLoading: yearsLoading } = useFinancialYears();
-  const { data: report, isLoading: reportLoading } = useYearlyReport(selectedFY);
+  const defaultFY = () => {
+    const now = new Date();
+    return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  };
+  const activeFY = selectedFY ?? (years && years.length > 0 ? years[0] : defaultFY());
+  const { data: report, isLoading: reportLoading } = useYearlyReport(activeFY);
   const { details: officeDetails } = useOfficeDetails();
 
   const office = officeDetails || { officeName: '', subtitle: '', address: '', phone: '', email: '', gst: '', tan: '' };
-  const activeFY = selectedFY ?? (years && years.length > 0 ? years[0] : null);
+
+  const fyOptions = (years && years.length > 0 ? years : [activeFY]).slice();
+  if (activeFY && !fyOptions.includes(activeFY)) {
+    fyOptions.push(activeFY);
+    fyOptions.sort((a, b) => b - a);
+  }
 
   const handleFYChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedFY(parseInt(e.target.value, 10));
@@ -38,7 +48,7 @@ export function ReportsPage() {
           <h1 className="text-2xl font-bold text-slate-800">Annual Yearly Report</h1>
           <div className="flex items-center gap-3">
             <select value={activeFY || ''} onChange={handleFYChange} className="input w-40">
-              {(years || []).map((y) => (
+              {fyOptions.map((y) => (
                 <option key={y} value={y}>{y}-{String(y + 1).slice(-2)}</option>
               ))}
             </select>
@@ -105,13 +115,50 @@ export function ReportsPage() {
       </div>
 
       {report && (
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6 no-print">
-          <div className="card p-4"><div className="text-xs font-bold text-green-600 uppercase">Employees</div><div className="text-xl font-extrabold mt-1">{report.summary.totalEmployees}</div></div>
-          <div className="card p-4"><div className="text-xs font-bold text-blue-600 uppercase">Annual Salary</div><div className="text-xl font-extrabold mt-1">{formatCurrency(report.summary.totalGross)}</div></div>
-          <div className="card p-4"><div className="text-xs font-bold text-red-600 uppercase">Total TDS (24Q)</div><div className="text-xl font-extrabold mt-1">{formatCurrency(report.summary.totalTax)}</div></div>
-          <div className="card p-4"><div className="text-xs font-bold text-amber-600 uppercase">Vendors</div><div className="text-xl font-extrabold mt-1">{report.summary.totalVendors}</div></div>
-          <div className="card p-4"><div className="text-xs font-bold text-red-600 uppercase">IT Deducted (26Q)</div><div className="text-xl font-extrabold mt-1">{formatCurrency(report.summary.totalIncomeTax)}</div></div>
-          <div className="card p-4"><div className="text-xs font-bold text-green-600 uppercase">GST (Annual)</div><div className="text-xl font-extrabold mt-1">{formatCurrency(report.summary.totalGst)}</div></div>
+        <div className="space-y-5 mb-6 no-print">
+          {/* Payroll Overview Group */}
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+              <Users size={14} className="text-indigo-600 dark:text-indigo-400" />
+              Payroll Overview (24Q Employee)
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="card p-4 border-l-4 border-l-emerald-500">
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total Employees</div>
+                <div className="text-2xl font-extrabold mt-1 text-slate-800 dark:text-slate-100">{report.summary.totalEmployees}</div>
+              </div>
+              <div className="card p-4 border-l-4 border-l-indigo-500">
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Annual Gross + DA Salary</div>
+                <div className="text-2xl font-extrabold mt-1 text-indigo-600 dark:text-indigo-400">{formatCurrency(report.summary.totalGross)}</div>
+              </div>
+              <div className="card p-4 border-l-4 border-l-rose-500">
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total TDS (24Q)</div>
+                <div className="text-2xl font-extrabold mt-1 text-rose-600 dark:text-rose-400">{formatCurrency(report.summary.totalTax)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Parties Overview Group */}
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+              <Store size={14} className="text-amber-600 dark:text-amber-400" />
+              Parties Overview (26Q & GST Vendors)
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="card p-4 border-l-4 border-l-amber-500">
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total Vendors / Parties</div>
+                <div className="text-2xl font-extrabold mt-1 text-slate-800 dark:text-slate-100">{report.summary.totalVendors}</div>
+              </div>
+              <div className="card p-4 border-l-4 border-l-red-500">
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Vendor IT Deducted (26Q)</div>
+                <div className="text-2xl font-extrabold mt-1 text-red-600 dark:text-red-400">{formatCurrency(report.summary.totalIncomeTax)}</div>
+              </div>
+              <div className="card p-4 border-l-4 border-l-teal-500">
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total GST (Annual)</div>
+                <div className="text-2xl font-extrabold mt-1 text-teal-600 dark:text-teal-400">{formatCurrency(report.summary.totalGst)}</div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -138,7 +185,29 @@ export function ReportsPage() {
 
 function Employee24QReport({ report, office }: { report: YearlyReport; office: { officeName: string; subtitle: string; address: string; phone: string; email: string; gst: string; tan: string } }) {
   if (report.employees.length === 0) return <div className="empty-state"><p>No employee data.</p></div>;
-  const totals = report.employees.reduce((acc, emp) => ({ q1: acc.q1 + emp.qTax.Q1, q2: acc.q2 + emp.qTax.Q2, q3: acc.q3 + emp.qTax.Q3, q4: acc.q4 + emp.qTax.Q4, gross: acc.gross + emp.gross, da: acc.da + emp.da, tax: acc.tax + emp.tax }), { q1: 0, q2: 0, q3: 0, q4: 0, gross: 0, da: 0, tax: 0 });
+
+  const totals = report.employees.reduce(
+    (acc, emp) => ({
+      q1Gross: acc.q1Gross + emp.qGross.Q1,
+      q1Tax: acc.q1Tax + emp.qTax.Q1,
+      q2Gross: acc.q2Gross + emp.qGross.Q2,
+      q2Tax: acc.q2Tax + emp.qTax.Q2,
+      q3Gross: acc.q3Gross + emp.qGross.Q3,
+      q3Tax: acc.q3Tax + emp.qTax.Q3,
+      q4Gross: acc.q4Gross + emp.qGross.Q4,
+      q4Tax: acc.q4Tax + emp.qTax.Q4,
+      annualGross: acc.annualGross + emp.gross,
+      annualTax: acc.annualTax + emp.tax,
+    }),
+    {
+      q1Gross: 0, q1Tax: 0,
+      q2Gross: 0, q2Tax: 0,
+      q3Gross: 0, q3Tax: 0,
+      q4Gross: 0, q4Tax: 0,
+      annualGross: 0, annualTax: 0,
+    }
+  );
+
   return (
     <ReportPrintArea
       office={office}
@@ -147,22 +216,49 @@ function Employee24QReport({ report, office }: { report: YearlyReport; office: {
       rightMeta={<><span>Financial Year: {report.fyLabel} | Assessment Year: {report.ayLabel}</span></>}
       title="24Q Employee Annual TDS Statement"
       badgeClass="report-badge-emp"
+      pageOrientation="landscape"
     >
       <div className="overflow-x-auto">
         <table className="report-table">
-          <thead><tr><th>Sr.</th><th>Name</th><th>PAN No.</th><th>Q1 TDS</th><th>Q2 TDS</th><th>Q3 TDS</th><th>Q4 TDS</th><th>Gross</th><th>DA</th><th>Total TDS</th></tr></thead>
+          <thead>
+            <tr>
+              <th rowSpan={2}>Sr.</th>
+              <th rowSpan={2} style={{ textAlign: 'left' }}>Name</th>
+              <th rowSpan={2}>PAN No.</th>
+              <th colSpan={2}>Q1</th>
+              <th colSpan={2}>Q2</th>
+              <th colSpan={2}>Q3</th>
+              <th colSpan={2}>Q4</th>
+              <th colSpan={2}>Annual</th>
+            </tr>
+            <tr>
+              <th>Gross+DA &amp; Other</th>
+              <th>TDS</th>
+              <th>Gross+DA &amp; Other</th>
+              <th>TDS</th>
+              <th>Gross+DA &amp; Other</th>
+              <th>TDS</th>
+              <th>Gross+DA &amp; Other</th>
+              <th>TDS</th>
+              <th>Gross+DA &amp; Other</th>
+              <th>TDS</th>
+            </tr>
+          </thead>
           <tbody>
             {report.employees.map((emp, idx) => (
               <tr key={idx}>
                 <td>{idx + 1}</td>
                 <td className="font-bold" style={{ textAlign: 'left' }}>{emp.name}</td>
                 <td>{emp.pan}</td>
+                <td style={{ textAlign: 'right' }}>{formatCurrency(emp.qGross.Q1)}</td>
                 <td style={{ textAlign: 'right' }}>{formatCurrency(emp.qTax.Q1)}</td>
+                <td style={{ textAlign: 'right' }}>{formatCurrency(emp.qGross.Q2)}</td>
                 <td style={{ textAlign: 'right' }}>{formatCurrency(emp.qTax.Q2)}</td>
+                <td style={{ textAlign: 'right' }}>{formatCurrency(emp.qGross.Q3)}</td>
                 <td style={{ textAlign: 'right' }}>{formatCurrency(emp.qTax.Q3)}</td>
+                <td style={{ textAlign: 'right' }}>{formatCurrency(emp.qGross.Q4)}</td>
                 <td style={{ textAlign: 'right' }}>{formatCurrency(emp.qTax.Q4)}</td>
-                <td style={{ textAlign: 'right' }}>{formatCurrency(emp.gross)}</td>
-                <td style={{ textAlign: 'right' }}>{formatCurrency(emp.da)}</td>
+                <td className="font-bold" style={{ textAlign: 'right' }}>{formatCurrency(emp.gross)}</td>
                 <td className="font-bold" style={{ textAlign: 'right' }}>{formatCurrency(emp.tax)}</td>
               </tr>
             ))}
@@ -170,13 +266,16 @@ function Employee24QReport({ report, office }: { report: YearlyReport; office: {
           <tfoot>
             <tr className="total-row">
               <td colSpan={3} style={{ textAlign: 'right' }}>Grand Total</td>
-              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q1)}</td>
-              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q2)}</td>
-              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q3)}</td>
-              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q4)}</td>
-              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.gross)}</td>
-              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.da)}</td>
-              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.tax)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q1Gross)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q1Tax)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q2Gross)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q2Tax)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q3Gross)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q3Tax)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q4Gross)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.q4Tax)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.annualGross)}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(totals.annualTax)}</td>
             </tr>
           </tfoot>
         </table>
@@ -196,6 +295,7 @@ function Vendor26QReport({ report, office }: { report: YearlyReport; office: { o
       rightMeta={<><span>Financial Year: {report.fyLabel} | Assessment Year: {report.ayLabel}</span></>}
       title="26Q OTHER THAN SALARY STATEMENT"
       badgeClass="report-badge-it"
+      pageOrientation="landscape"
     >
       <div className="overflow-x-auto">
         <table className="report-table">
@@ -237,6 +337,7 @@ function GSTReportView({ report, office }: { report: YearlyReport; office: { off
       rightMeta={<><span>Financial Year: {report.fyLabel} | Assessment Year: {report.ayLabel}</span></>}
       title="GST TDS STATEMENT SUMMARY REPORT"
       badgeClass="report-badge-gst"
+      pageOrientation="landscape"
     >
       <div className="overflow-x-auto">
         <table className="report-table">

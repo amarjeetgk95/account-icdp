@@ -1,41 +1,71 @@
-﻿import { useDashboard } from '../hooks/useDashboard';
+import { useDashboard } from '../hooks/useDashboard';
 import { formatCurrency } from '@/shared/utilities';
 import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw,
   AlertCircle,
   AlertTriangle,
-  CheckCircle2,
   Users,
   Banknote,
   Receipt,
   TrendingUp,
-  ChevronRight,
+  Store,
+  FileSpreadsheet,
+  ArrowRight,
+  Building,
+  CircleDot,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { StatCard } from '../components/StatCard';
+import { GaugeChart } from '../components/GaugeChart';
+import { FYRoadmap } from '../components/FYRoadmap';
+import { TaskList } from '../components/TaskList';
+import { QuarterReadiness } from '../components/QuarterReadiness';
+import { RecentTransactions } from '../components/RecentTransactions';
+import type { QuarterReadinessData } from '../types';
+
+const EMPTY_QUARTER_READINESS: QuarterReadinessData = {
+  Q1: { pct: 0, processed: 0, expected: 0 },
+  Q2: { pct: 0, processed: 0, expected: 0 },
+  Q3: { pct: 0, processed: 0, expected: 0 },
+  Q4: { pct: 0, processed: 0, expected: 0 },
+};
 
 export function DashboardPage() {
   const { data, isLoading, isError, error, refetch } = useDashboard();
   const navigate = useNavigate();
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="spinner h-12 w-12"></div>
+      <div className="max-w-7xl mx-auto space-y-6 animate-pulse">
+        <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-3xl" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="h-36 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+          <div className="h-36 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+          <div className="h-36 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+          <div className="h-36 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+        </div>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="card p-10 text-center max-w-md mx-auto">
-        <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-4" />
-        <h3 className="text-lg font-bold text-red-700 mb-2">Could not load dashboard</h3>
-        <p className="text-sm text-slate-500 mb-5">
-          {error instanceof Error ? error.message : 'An unexpected error occurred'}
+      <div className="card p-10 text-center max-w-md mx-auto dark:bg-slate-900 dark:border-slate-800">
+        <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+        <h3 className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mb-2">Could not load dashboard</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+          {error instanceof Error ? error.message : 'An unexpected error occurred while fetching office data.'}
         </p>
-        <button onClick={() => refetch()} className="btn btn-primary">
-          Retry
+        <button onClick={() => refetch()} className="btn btn-primary btn-sm mx-auto">
+          <RefreshCw size={14} className="mr-1.5" />
+          Retry Connection
         </button>
       </div>
     );
@@ -44,206 +74,207 @@ export function DashboardPage() {
   if (!data) return null;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Operations Overview</h1>
-          <p className="page-subtitle">Financial year progress, tasks, and system health</p>
-        </div>
-        <button onClick={() => refetch()} className="btn btn-secondary btn-sm">
-          <RefreshCw size={14} />
-          Refresh
+    <div className="max-w-7xl mx-auto space-y-6 pb-8">
+      {/* Greeting & System Status */}
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+        <span>{getGreeting()}</span>
+        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+          <CircleDot size={10} className="animate-pulse" />
+          System Active
+        </span>
+      </div>
+
+      {/* KPI Cards & Gauge Ring Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <GaugeChart percentage={data.currentQuarterCompletion?.pct ?? 0} label={`${data.currentQuarter} Readiness`} />
+        <StatCard
+          icon={Users}
+          label="Active Employees"
+          value={String(data.activeEmployees ?? 0)}
+          sub={(data.pendingEmployees ?? 0) > 0 ? `${data.pendingEmployees} pending entry` : 'All entries updated'}
+          color="emerald"
+          pct={data.activeEmployees > 0 ? Math.round(((data.activeEmployees - (data.pendingEmployees ?? 0)) / data.activeEmployees) * 100) : 100}
+        />
+        <StatCard
+          icon={Banknote}
+          label="Total Salary Outflow (YTD)"
+          value={formatCurrency(data.ytdSalary ?? 0)}
+          sub="Cumulative Gross + DA"
+          color="indigo"
+        />
+        <StatCard
+          icon={Receipt}
+          label="Total TDS (YTD)"
+          value={formatCurrency(data.ytdTax ?? 0)}
+          sub="Tax Deductions Collected"
+          color="rose"
+        />
+      </div>
+
+      {/* Quick Actions Strip */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <button
+          onClick={() => navigate('/payroll')}
+          className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
+        >
+          <Banknote size={15} />
+          <span>Enter Salary</span>
+        </button>
+        <button
+          onClick={() => navigate('/parties')}
+          className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 font-bold text-xs shadow-sm transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
+        >
+          <Store size={15} className="text-amber-600 dark:text-amber-400" />
+          <span>Add Vendor Bill</span>
+        </button>
+        <button
+          onClick={() => navigate('/reports')}
+          className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 font-bold text-xs shadow-sm transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
+        >
+          <FileSpreadsheet size={15} className="text-teal-600 dark:text-teal-400" />
+          <span>24Q Statement</span>
+        </button>
+        <button
+          onClick={() => refetch()}
+          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all hover:rotate-180 duration-500"
+          title="Refresh Data"
+        >
+          <RefreshCw size={15} />
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <GaugeCard percentage={data.currentQuarterCompletion.pct} label={data.currentQuarter + ' Completion'} />
-        <StatTile icon={Users} label="Active Staff" value={String(data.activeEmployees)} sub={data.pendingEmployees > 0 ? data.pendingEmployees + ' pending' : 'All processed'} color="emerald" />
-        <StatTile icon={Banknote} label="Total Outflow (YTD)" value={formatCurrency(data.ytdSalary)} color="amber" />
-        <StatTile icon={Receipt} label="Total TDS (YTD)" value={formatCurrency(data.ytdTax)} color="red" />
-      </div>
-
-      {data.pendingEmployees > 0 && (
-        <div className="card p-4 bg-indigo-50 border-indigo-200 no-print">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                <Banknote size={20} />
+      {/* Pending Entry Warning Banner */}
+      {(data.pendingEmployees ?? 0) > 0 && (
+        <div className="card p-4 border-l-4 border-l-amber-500 bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 flex flex-wrap items-center justify-between gap-4 no-print">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <div className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
+                {data.pendingEmployees} employees pending salary entry for {data.entryMonthName || 'current month'}
               </div>
-              <div>
-                <div className="font-bold text-indigo-900">
-                  {data.pendingEmployees} employees pending salary entry for {data.entryMonthName || 'current month'}
-                </div>
-                <div className="text-sm text-indigo-700">
-                  Complete entries to maintain quarter readiness
-                </div>
+              <div className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-0.5">
+                Complete monthly entries to maintain 24Q quarterly report readiness.
               </div>
             </div>
-            <button
-              onClick={() => navigate('/payroll')}
-              className="btn btn-primary btn-sm"
-            >
-              Continue Entry →
-            </button>
           </div>
+          <button
+            onClick={() => navigate('/payroll')}
+            className="btn btn-primary btn-sm shrink-0 flex items-center gap-1.5"
+          >
+            <span>Continue Entry</span>
+            <ArrowRight size={14} />
+          </button>
         </div>
       )}
 
-      <div className="card p-5">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
-            <TrendingUp size={16} />
-          </div>
-          <h3 className="text-sm font-bold text-slate-800">Financial Year Roadmap</h3>
-        </div>
-        <div className="flex gap-1.5 overflow-x-auto pb-2">
-          {data.monthlyRoadmap.map((month) => (
-            <div
-              key={month.month}
-              className={'flex-1 min-w-[64px] text-center p-2.5 rounded-lg border transition-colors ' +
-                (month.status === 'complete' ? 'bg-emerald-50 border-emerald-200' :
-                 month.status === 'partial' ? 'bg-amber-50 border-amber-200' :
-                 month.status === 'empty' ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200') +
-                (month.isCurrent ? ' ring-2 ring-indigo-500 ring-offset-1' : '')}
-            >
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{month.month.slice(0, 3)}</div>
-              <div className={'text-base font-extrabold mt-0.5 ' +
-                (month.status === 'complete' ? 'text-emerald-700' :
-                 month.status === 'partial' ? 'text-amber-700' :
-                 month.status === 'empty' ? 'text-red-700' : 'text-slate-400')}>
-                {month.pct}%
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Financial Year 12-Month Roadmap Grid */}
+      <FYRoadmap data={data.monthlyRoadmap ?? []} />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 card">
-          <div className="card-header">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                <AlertCircle size={16} />
-              </div>
-              <h3 className="text-sm font-bold text-slate-800">What&apos;s Due Now</h3>
-            </div>
-          </div>
-          <div className="card-body">
-            {data.tasks.length === 0 ? (
-              <div className="py-8 text-center">
-                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-                <div className="text-emerald-700 font-bold">All clear! Nothing pending.</div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {data.tasks.map((task, idx) => {
-                  const TaskIcon = task.severity === 'danger' ? AlertCircle : task.severity === 'warning' ? AlertTriangle : AlertCircle;
-                  return (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer group"
-                      onClick={() => task.action && navigate(task.action)}
-                    >
-                      <div className={'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ' +
-                        (task.severity === 'danger' ? 'bg-red-100 text-red-600' :
-                         task.severity === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600')}>
-                        <TaskIcon size={16} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-slate-800">{task.title}</div>
-                        <div className="text-xs text-slate-500 mt-0.5">{task.hint}</div>
-                      </div>
-                      {task.action && (
-                        <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-700 transition-colors shrink-0 mt-0.5" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-600 flex items-center justify-center">
-                <TrendingUp size={16} />
-              </div>
-              <h3 className="text-sm font-bold text-slate-800">Quarterly Readiness</h3>
-            </div>
-          </div>
-          <div className="card-body space-y-4">
-            {Object.entries(data.quarterReadiness).map(([q, info]) => (
-              <div key={q} className="cursor-pointer group" onClick={() => navigate('/reports')}>
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-xs font-bold text-slate-600 group-hover:text-indigo-700 transition-colors">{q}</span>
-                  <span className="text-xs font-extrabold text-slate-700 group-hover:text-indigo-800 transition-colors">{info.pct}%</span>
+      {/* Two-Column Detail Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column (2/3): Tasks & Transactions */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Action Tasks Card */}
+          <div className="card p-5 dark:bg-slate-900 dark:border-slate-800/80 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between gap-4 pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                  <AlertCircle size={18} />
                 </div>
-                <div className="progress">
-                  <div
-                    className={'progress-bar transition-all group-hover:opacity-90 ' +
-                      (info.pct >= 100 ? 'bg-emerald-500' : info.pct >= 50 ? 'bg-indigo-500' : 'bg-amber-500')}
-                    style={{ width: Math.min(100, info.pct) + '%' }}
-                  ></div>
-                </div>
-                <div className="text-xs text-slate-500 mt-1">
-                  {info.processed}/{info.expected} months processed
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    What&apos;s Due Now
+                  </h3>
+                  <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                    Action items requiring staff attention
+                  </p>
                 </div>
               </div>
-            ))}
+              <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
+                {data.tasks?.length ?? 0} {data.tasks?.length === 1 ? 'task' : 'tasks'}
+              </span>
+            </div>
+
+            <TaskList tasks={data.tasks ?? []} />
+          </div>
+
+          {/* Recent Transactions Card */}
+          <div className="card p-5 dark:bg-slate-900 dark:border-slate-800/80 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between gap-4 pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <Store size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    Recent Party Transactions
+                  </h3>
+                  <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                    Latest vendor 26Q & GST bill entries
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/parties')}
+                className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-1 transition-colors group"
+              >
+                All Parties
+                <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+
+            <RecentTransactions transactions={data.recentTransactions ?? []} />
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 card">
-          <div className="card-header">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                <Banknote size={16} />
+        {/* Right Column (1/3): Quarterly Readiness & System Health */}
+        <div className="space-y-6">
+          {/* Quarterly Readiness Card */}
+          <div className="card p-5 dark:bg-slate-900 dark:border-slate-800/80 hover:shadow-md transition-all">
+            <div className="flex items-center gap-2.5 pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                <TrendingUp size={18} />
               </div>
-              <h3 className="text-sm font-bold text-slate-800">Recent Transactions</h3>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                  Quarterly Readiness
+                </h3>
+                <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                  24Q filing preparation status
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="card-body">
-            {data.recentTransactions.length === 0 ? (
-              <div className="empty-state"><p className="empty-state-text">No recent transactions.</p></div>
-            ) : (
-              <table className="table">
-                <thead><tr><th>Party</th><th className="text-right">Amount</th><th className="text-right">GST</th><th className="text-right">IT</th></tr></thead>
-                <tbody>
-                  {data.recentTransactions.map((tx, idx) => (
-                    <tr key={idx}>
-                      <td className="font-semibold">{tx.partyName}</td>
-                      <td className="text-right text-money">{formatCurrency(tx.amount)}</td>
-                      <td className="text-right text-emerald-700 text-money">{formatCurrency(tx.gst)}</td>
-                      <td className="text-right text-red-600 text-money">{formatCurrency(tx.tax)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
 
-        <div className="card">
-          <div className="card-header">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
-                <AlertTriangle size={16} />
-              </div>
-              <h3 className="text-sm font-bold text-slate-800">System Alerts</h3>
-            </div>
+            <QuarterReadiness data={data.quarterReadiness ?? EMPTY_QUARTER_READINESS} />
           </div>
-          <div className="card-body space-y-1">
-            <AlertItem label="Prev Qtr Pending" count={data.prevQuarterPending} severity="danger" />
-            <AlertItem label="Zero Tax Entries" count={data.zeroTaxEntries.length} severity="warning" />
-            <AlertItem label="Pending Staff" count={data.pendingEmployees} severity="info" />
-            <AlertItem label="Missing PANs" count={data.missingPANs.length} severity="danger" />
-            <AlertItem label="New Joiners" count={data.newJoinersThisMonth} severity="info" />
-            <AlertItem label="Departures" count={data.departuresThisMonth} severity="info" />
-            <AlertItem label="Vendors" count={data.vendorCount} severity="info" />
+
+          {/* System Health Diagnostics Card */}
+          <div className="card p-5 dark:bg-slate-900 dark:border-slate-800/80 hover:shadow-md transition-all">
+            <div className="flex items-center gap-2.5 pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                <Building size={18} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                  System Diagnostics
+                </h3>
+                <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                  Office parameters & metrics check
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <AlertItem label="Prev Qtr Pending" count={data.prevQuarterPending ?? 0} severity="danger" path="/reports" />
+              <AlertItem label="Zero Tax Entries" count={data.zeroTaxEntries?.length ?? 0} severity="warning" path="/payroll" />
+              <AlertItem label="Pending Staff" count={data.pendingEmployees ?? 0} severity="info" path="/payroll" />
+              <AlertItem label="Missing PANs" count={data.missingPANs?.length ?? 0} severity="danger" path="/payroll" />
+              <AlertItem label="New Joiners" count={data.newJoinersThisMonth ?? 0} severity="info" path="/payroll" />
+              <AlertItem label="Departures" count={data.departuresThisMonth ?? 0} severity="info" path="/payroll" />
+              <AlertItem label="Total Parties" count={data.vendorCount ?? 0} severity="info" path="/parties" />
+            </div>
           </div>
         </div>
       </div>
@@ -251,55 +282,30 @@ export function DashboardPage() {
   );
 }
 
-function StatTile({ icon: Icon, label, value, sub, color }: { icon: LucideIcon; label: string; value: string; sub?: string; color: string }) {
-  const iconColors: Record<string, string> = {
-    emerald: 'bg-emerald-100 text-emerald-600',
-    amber: 'bg-amber-100 text-amber-600',
-    red: 'bg-red-100 text-red-600',
-    indigo: 'bg-indigo-100 text-indigo-600',
-  };
-  return (
-    <div className="stat-tile">
-      <div className={'stat-tile-icon ' + (iconColors[color] || iconColors.indigo)}>
-        <Icon size={18} />
-      </div>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      {sub && <div className="stat-sub">{sub}</div>}
-    </div>
-  );
-}
+function AlertItem({ label, count, severity, path }: { label: string; count: number; severity: string; path?: string }) {
+  const navigate = useNavigate();
 
-function GaugeCard({ percentage, label }: { percentage: number; label: string }) {
-  const radius = 52;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (Math.min(100, Math.max(0, percentage)) / 100) * circumference;
-  return (
-    <div className="stat-tile flex flex-col items-center">
-      <div className="stat-label mb-3">{label}</div>
-      <div className="relative">
-        <svg width="120" height="120" className="-rotate-90">
-          <circle cx="60" cy="60" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="10" />
-          <circle cx="60" cy="60" r={radius} fill="none" stroke="#4f46e5" strokeWidth="10" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-extrabold text-slate-800">{percentage}%</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AlertItem({ label, count, severity }: { label: string; count: number; severity: string }) {
   const styles: Record<string, string> = {
-    danger: 'text-red-700 bg-red-50 border-red-200',
-    warning: 'text-amber-700 bg-amber-50 border-amber-200',
-    info: 'text-slate-600 bg-slate-50 border-slate-200',
+    danger: 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800',
+    warning: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800',
+    info: 'text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700',
   };
+
+  const safeCount = Number.isFinite(count) ? count : 0;
+
   return (
-    <div className="flex justify-between items-center py-2.5 px-3 rounded-lg hover:bg-slate-50 transition-colors">
-      <span className="text-sm text-slate-600">{label}</span>
-      <span className={'px-2.5 py-0.5 rounded-md text-xs font-bold border ' + (styles[severity] || styles.info)}>{count}</span>
-    </div>
+    <button
+      type="button"
+      onClick={() => path && navigate(path)}
+      disabled={!path}
+      className="w-full text-left flex justify-between items-center py-2.5 px-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group disabled:cursor-default"
+    >
+      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+        {label}
+      </span>
+      <span className={`px-2.5 py-0.5 rounded-lg text-[11px] font-extrabold border ${styles[severity] || styles.info}`}>
+        {safeCount}
+      </span>
+    </button>
   );
 }

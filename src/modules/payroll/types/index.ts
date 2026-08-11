@@ -11,6 +11,7 @@ export interface EmployeeRosterItem {
   id: string;
   name: string;
   pan: string;
+  hprnNo?: string;
   hasEntry: boolean;
   gross: number;
   da: number;

@@ -33,6 +33,19 @@ export const reportRepository = {
     const years = new Set<number>();
     (data || []).forEach((row: any) => years.add(row.financial_year));
 
+    const { data: txRows, error: txError } = await (supabase as any)
+      .from('party_transactions')
+      .select('transaction_date')
+      .eq('office_id', officeId);
+
+    if (txError) throw txError;
+
+    (txRows || []).forEach((row: any) => {
+      const d = new Date(row.transaction_date);
+      const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+      years.add(fy);
+    });
+
     if (years.size === 0) {
       const now = new Date();
       const fy = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;

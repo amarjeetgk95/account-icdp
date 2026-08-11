@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="ak-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#0D9488"/>
+    </linearGradient>
+    <linearGradient id="ak-text" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#DBEAFE"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#ak-bg)"/>
+  <g fill="none" stroke="url(#ak-text)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 72 384 L 168 128 L 264 384"/>
+    <path d="M 96 288 L 240 288"/>
+    <path d="M 336 128 L 336 384"/>
+    <path d="M 336 256 L 440 128"/>
+    <path d="M 336 256 L 440 384"/>
+  </g>
+</svg>
