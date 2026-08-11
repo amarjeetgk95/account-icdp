@@ -5,6 +5,7 @@ const moduleDefinition: ModuleDefinition = {
   id: 'reports',
   name: 'Reports',
   navGroup: 'reports',
+  permissions: ['office'],
   routes: reportsRoutes,
   sidebar: true,
   featureFlag: 'reports_module',

@@ -52,6 +52,7 @@ export default function App() {
 
   const isAuthPage =
     location.pathname === '/login' ||
+    location.pathname === '/login/admin' ||
     location.pathname === '/forgot-password' ||
     location.pathname === '/update-password';
 

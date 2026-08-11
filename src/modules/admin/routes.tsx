@@ -1,21 +1,27 @@
 import { lazy } from 'react';
 import type { RouteDefinition } from '@/shared/types/module';
 
-const AdminPage = lazy(() =>
-  import('./pages/AdminPage').then((m) => ({ default: m.AdminPage }))
+const AdminOverviewPage = lazy(() =>
+  import('./pages/AdminOverviewPage').then((m) => ({ default: m.AdminOverviewPage }))
+);
+const AdminUsersPage = lazy(() =>
+  import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage }))
+);
+const AdminReportsPage = lazy(() =>
+  import('./pages/AdminReportsPage').then((m) => ({ default: m.AdminReportsPage }))
 );
 
 export const adminRoutes: RouteDefinition[] = [
   {
     path: '/admin',
-    element: <AdminPage />,
+    element: <AdminOverviewPage />,
   },
   {
     path: '/admin/users',
-    element: <AdminPage />,
+    element: <AdminUsersPage />,
   },
   {
     path: '/admin/reports',
-    element: <AdminPage />,
+    element: <AdminReportsPage />,
   },
 ];

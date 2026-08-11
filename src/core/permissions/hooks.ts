@@ -32,10 +32,21 @@ export function usePermissions() {
   };
 }
 
-export function useRequireRole(requiredRole: 'admin' | 'office') {
+export function useRequireRole(requiredRole?: UserRole | UserRole[]) {
   const { profile, isLoading } = usePermissions();
+
+  if (!requiredRole) {
+    return {
+      hasAccess: true,
+      isLoading,
+    };
+  }
+
+  const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+  const hasAccess = !isLoading && !!profile?.role && roles.includes(profile.role);
+
   return {
-    hasAccess: !isLoading && profile?.role === requiredRole,
+    hasAccess,
     isLoading,
   };
 }

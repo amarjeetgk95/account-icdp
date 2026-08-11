@@ -34,7 +34,7 @@ export const payrollRepository = {
       .from('employees')
       .select('id, name, pan, join_date, transfer_date')
       .eq('office_id', officeId)
-      .order('name');
+      .order('id');
 
     const { data: salaries } = await supabase
       .from('employee_salaries')
@@ -161,7 +161,7 @@ export const payrollRepository = {
       .from('employees')
       .select('id, name, pan')
       .eq('office_id', targetOfficeId)
-      .order('created_at', { ascending: true });
+      .order('id');
 
     const { data: salaries } = await supabase
       .from('employee_salaries')
@@ -236,7 +236,7 @@ export const payrollRepository = {
       .from('employees')
       .select('id, name, pan, budget_head_id')
       .eq('office_id', targetOfficeId)
-      .order('created_at', { ascending: true });
+      .order('id');
 
     const { data: heads } = await supabase
       .from('budget_heads')

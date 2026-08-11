@@ -14,6 +14,7 @@ export interface SidebarChild {
   path: string;
   label: string;
   icon?: string;
+  subtitle?: string;
 }
 
 export interface ModuleDefinition {
@@ -32,6 +33,7 @@ export interface ModuleDefinition {
 export interface FeatureFlagKeys {
   auth_module: boolean;
   admin_module: boolean;
+  adminaudit_module: boolean;
   dashboard_module: boolean;
   settings_module: boolean;
   payroll_module: boolean;

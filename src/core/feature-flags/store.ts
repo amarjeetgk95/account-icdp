@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware';
 export interface FeatureFlags {
   auth_module: boolean;
   admin_module: boolean;
+  adminaudit_module: boolean;
   dashboard_module: boolean;
   settings_module: boolean;
   payroll_module: boolean;
@@ -25,6 +26,7 @@ interface FeatureFlagStore {
 const defaultFlags: FeatureFlags = {
   auth_module: true,
   admin_module: true,
+  adminaudit_module: true,
   dashboard_module: true,
   settings_module: true,
   payroll_module: true,
@@ -35,6 +37,7 @@ const defaultFlags: FeatureFlags = {
 const allEnabledFlags: FeatureFlags = {
   auth_module: true,
   admin_module: true,
+  adminaudit_module: true,
   dashboard_module: true,
   settings_module: true,
   payroll_module: true,

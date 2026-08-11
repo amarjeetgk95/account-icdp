@@ -5,6 +5,7 @@ const moduleDefinition: ModuleDefinition = {
   id: 'dashboard',
   name: 'Dashboard',
   navGroup: 'main',
+  permissions: ['office'],
   routes: dashboardRoutes,
   sidebar: true,
   featureFlag: 'dashboard_module',

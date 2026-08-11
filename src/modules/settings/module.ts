@@ -5,6 +5,7 @@ const moduleDefinition: ModuleDefinition = {
   id: 'settings',
   name: 'Settings',
   navGroup: 'main',
+  permissions: ['office'],
   routes: settingsRoutes,
   sidebar: true,
   featureFlag: 'settings_module',

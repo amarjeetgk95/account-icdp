@@ -10,15 +10,7 @@ export const officeDetailsSchema = z.object({
   tan: z.string().max(20).default(''),
 });
 
-export type OfficeDetailsInput = {
-  officeName: string;
-  subtitle: string;
-  address: string;
-  phone: string;
-  email: string;
-  gst: string;
-  tan: string;
-};
+export type OfficeDetailsInput = z.output<typeof officeDetailsSchema>;
 
 export const financialYearSchema = z.object({
   newYear: z

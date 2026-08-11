@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import type { OfficeDetailsInput } from '../validation/settings.schema';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { officeDetailsSchema, type OfficeDetailsInput } from '../validation/settings.schema';
 import { useOfficeDetails } from '../hooks/useOfficeDetails';
+
+type OfficeFormValues = z.input<typeof officeDetailsSchema>;
 
 export function OfficeForm() {
   const { details, isLoading, saveAsync } = useOfficeDetails();
@@ -12,7 +16,8 @@ export function OfficeForm() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm({
+  } = useForm<OfficeFormValues>({
+    resolver: zodResolver(officeDetailsSchema),
     defaultValues: {
       officeName: '',
       subtitle: '',
@@ -31,14 +36,19 @@ export function OfficeForm() {
     }
   }, [details, reset]);
 
-  const onSubmit = async (data: OfficeDetailsInput) => {
+  const onSubmit = async (data: OfficeFormValues) => {
     try {
       setSubmitStatus({ type: 'info', message: 'Saving...' });
-      await saveAsync(data);
+      await saveAsync(data as OfficeDetailsInput);
       setSubmitStatus({ type: 'success', message: 'Office details saved successfully.' });
       setTimeout(() => setSubmitStatus(null), 3000);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save office details';
+      const message =
+        error instanceof Error
+          ? error.message
+          : error && typeof error === 'object' && 'message' in error
+            ? String((error as { message: unknown }).message)
+            : 'Failed to save office details';
       setSubmitStatus({ type: 'error', message });
     }
   };

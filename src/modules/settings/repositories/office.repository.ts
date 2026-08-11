@@ -47,23 +47,22 @@ export const officeRepository = {
 
   async save(input: OfficeDetailsInput): Promise<void> {
     const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    if (!officeId) throw new Error('No active office selected');
+
+    const payload = {
+      office_id: officeId,
+      office_name: input.officeName ? input.officeName.trim() : null,
+      subtitle: input.subtitle ? input.subtitle.trim() : null,
+      address: input.address ? input.address.trim() : null,
+      phone: input.phone ? input.phone.trim() : null,
+      email: input.email ? input.email.trim() : null,
+      gst: input.gst ? input.gst.trim() : null,
+      tan: input.tan ? input.tan.trim() : null,
+    };
 
     const { error } = await (supabase as any)
       .from('office_details')
-      .upsert(
-        {
-          office_id: officeId,
-          office_name: input.officeName || null,
-          subtitle: input.subtitle || null,
-          address: input.address || null,
-          phone: input.phone || null,
-          email: input.email || null,
-          gst: input.gst || null,
-          tan: input.tan || null,
-        },
-        { onConflict: 'office_id' }
-      );
+      .upsert(payload, { onConflict: 'office_id' });
 
     if (error) throw error;
   },

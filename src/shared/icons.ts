@@ -6,6 +6,7 @@ import {
   FileBarChart,
   Settings,
   Shield,
+  Clock,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -16,12 +17,14 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   reports: FileBarChart,
   settings: Settings,
   admin: Shield,
+  adminaudit: Clock,
 };
 
 export const SECTION_ICONS: Record<string, LucideIcon> = {
   overview: LayoutDashboard,
   users: Users,
   reports: FileBarChart,
+  audit: Clock,
 };
 
 export const FALLBACK_ICON: LucideIcon = LayoutDashboard;

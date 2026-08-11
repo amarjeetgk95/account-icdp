@@ -12,7 +12,7 @@ export function ForgotPasswordPage() {
             </div>
             <h1 className="text-2xl font-bold text-slate-800">Reset Password</h1>
             <p className="text-slate-500 mt-2">
-              Enter your email address and we'll send you a reset link
+              Enter your email address and we&apos;ll send you a reset link
             </p>
           </div>
 

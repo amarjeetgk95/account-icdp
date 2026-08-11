@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isModuleEnabled } from '@/core/feature-flags/store';
+import { usePermissions } from '@/core/permissions/hooks';
 import { useModules } from '@/modules';
 import { useEmployees } from '@/modules/payroll/hooks/useEmployees';
 import { Search, Command, X, User } from 'lucide-react';
@@ -14,6 +16,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const modules = useModules();
+  const { role, isLoading: isPermissionsLoading } = usePermissions();
   const { employees } = useEmployees();
 
   useEffect(() => {
@@ -32,7 +35,17 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     }
   }, [isOpen, onClose]);
 
-  const flattenedRoutes = modules.flatMap((mod) =>
+  const filteredModules = isPermissionsLoading
+    ? []
+    : modules.filter(
+        (mod) =>
+          (!mod.featureFlag || isModuleEnabled(mod.featureFlag)) &&
+          (!mod.permissions ||
+            mod.permissions.length === 0 ||
+            (role !== null && mod.permissions.includes(role))),
+      );
+
+  const flattenedRoutes = filteredModules.flatMap((mod) =>
     mod.routes.map((route) => ({
       label: `${mod.name} → ${route.path === '/' ? 'Main' : route.path}`,
       path: route.path,

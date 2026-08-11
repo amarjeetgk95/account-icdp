@@ -38,9 +38,6 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
   const safePage = Math.min(page, totalPages);
   const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  // Reset to page 1 when search changes
-  useMemo(() => setPage(1), [search]);
-
   const totals = filtered.reduce(
     (acc, tx) => ({
       amount: acc.amount + tx.amount,
@@ -127,7 +124,7 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="input input-sm"
             placeholder="Search party or bill no..."
           />

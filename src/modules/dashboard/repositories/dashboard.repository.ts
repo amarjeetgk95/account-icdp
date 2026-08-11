@@ -2,8 +2,6 @@ import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
 import { MONTHS, QUARTER_MONTHS, getQuarterForMonth } from '@/shared/constants';
-
-const MONTH_ORDER = [...MONTHS];
 import type { DashboardData, MonthlyRoadmapData, Task, RecentTransaction } from '../types';
 
 interface SalaryItem {
@@ -76,7 +74,7 @@ export const dashboardRepository = {
       .from('employees')
       .select('id, name, pan, join_date, transfer_date')
       .eq('office_id', officeId)
-      .order('created_at', { ascending: true });
+      .order('id');
 
     const { data: salaries } = await supabase
       .from('employee_salaries')
@@ -95,7 +93,6 @@ export const dashboardRepository = {
     const entryMonthName = getEntryMonthName() as typeof MONTHS[number];
     const currentQuarter = getCurrentQuarter();
 
-    let totalEmployees = 0;
     let activeEmployees = 0;
     let pendingEmployees = 0;
     let ytdSalary = 0;
@@ -104,7 +101,7 @@ export const dashboardRepository = {
     const zeroTaxEntries: string[] = [];
     let newJoinersThisMonth = 0;
     let departuresThisMonth = 0;
-    let prevQuarterPending = 0;
+    const prevQuarterPending = 0;
     const uniqueVendors = new Set<string>();
 
     const empQuarterlyTDS: Record<string, number> = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
@@ -122,7 +119,6 @@ export const dashboardRepository = {
       const pan = emp.pan?.trim().toUpperCase() || '';
       if (!name) return;
 
-      totalEmployees++;
       const sm = salMap[emp.id] || {};
 
       let hasAnyEntry = false;
@@ -138,7 +134,7 @@ export const dashboardRepository = {
           monthlyData[i].tax += tax;
           if (tax === 0) hasZeroTax = true;
 
-          const quarter = getQuarterForMonth(month as typeof MONTH_ORDER[number]);
+          const quarter = getQuarterForMonth(month as typeof MONTHS[number]);
           empQuarterlySalary[quarter] += gross;
           empQuarterlyTDS[quarter] += tax;
         }

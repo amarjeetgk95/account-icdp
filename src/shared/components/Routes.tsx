@@ -2,6 +2,7 @@ import { Routes as RouterRoutes, Route, Navigate } from 'react-router-dom';
 import type { ModuleDefinition } from '@/shared/types/module';
 import { usePermissions } from '@/core/permissions/hooks';
 import { isModuleEnabled } from '@/core/feature-flags/store';
+import { ProtectedRoute } from './ProtectedRoute';
 
 interface RoutesProps {
   modules: ModuleDefinition[];
@@ -25,25 +26,7 @@ export function Routes({ modules }: RoutesProps) {
   return (
     <RouterRoutes>
       {modules.map((module) => {
-        if (!module.featureFlag || !isModuleEnabled(module.featureFlag)) {
-          return null;
-        }
-
-        if (module.permissions?.includes('admin') && !isAdmin) {
-          return null;
-        }
-
-        if (module.permissions?.includes('admin') && isAdmin) {
-          return module.routes.map((route) => (
-            <Route
-              key={`${module.id}-${route.path}`}
-              path={route.path}
-              element={route.element}
-            />
-          ));
-        }
-
-        if (!module.permissions?.includes('admin') && isAdmin) {
+        if (module.featureFlag && !isModuleEnabled(module.featureFlag)) {
           return null;
         }
 
@@ -51,7 +34,11 @@ export function Routes({ modules }: RoutesProps) {
           <Route
             key={`${module.id}-${route.path}`}
             path={route.path}
-            element={route.element}
+            element={
+              <ProtectedRoute allowedRoles={module.permissions}>
+                {route.element}
+              </ProtectedRoute>
+            }
           />
         ));
       })}
@@ -66,8 +53,8 @@ function NotFound() {
   return (
     <div className="flex items-center justify-center h-64">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-slate-700">404</h2>
-        <p className="text-slate-500 mt-2">Page not found</p>
+        <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">404</h2>
+        <p className="text-slate-500 dark:text-slate-400 mt-2">Page not found</p>
       </div>
     </div>
   );

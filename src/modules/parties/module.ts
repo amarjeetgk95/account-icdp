@@ -5,6 +5,7 @@ const moduleDefinition: ModuleDefinition = {
   id: 'parties',
   name: 'Parties',
   navGroup: 'main',
+  permissions: ['office'],
   routes: partiesRoutes,
   sidebar: true,
   featureFlag: 'parties_module',

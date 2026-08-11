@@ -11,9 +11,24 @@ const moduleDefinition: ModuleDefinition = {
   featureFlag: 'admin_module',
   order: 10,
   children: [
-    { path: '/admin', label: 'Overview', icon: 'overview' },
-    { path: '/admin/users', label: 'User Management', icon: 'users' },
-    { path: '/admin/reports', label: 'Data Entry & Reports', icon: 'reports' },
+    {
+      path: '/admin',
+      label: 'Overview',
+      icon: 'overview',
+      subtitle: 'Key metrics, data-entry completion, and office status',
+    },
+    {
+      path: '/admin/users',
+      label: 'User Management',
+      icon: 'users',
+      subtitle: 'Create users, assign roles, and review admin activity',
+    },
+    {
+      path: '/admin/reports',
+      label: 'Data Entry & Reports',
+      icon: 'reports',
+      subtitle: 'Cross-office data-entry summary and report drill-down',
+    },
   ],
 };
 

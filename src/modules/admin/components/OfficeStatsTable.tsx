@@ -42,7 +42,7 @@ export function OfficeStatsTable({ offices, isLoading, activeOfficeId, onSelectO
         </thead>
         <tbody>
           {offices.map((office, idx) => {
-            const isActive = Number(office.office_id) === Number(activeOfficeId);
+            const isActive = String(office.office_id) === String(activeOfficeId);
             return (
               <tr
                 key={office.office_id}

@@ -21,7 +21,7 @@ export const employeeRepository = {
       .from('employees')
       .select('*')
       .eq('office_id', officeId)
-      .order('created_at');
+      .order('id');
 
     if (error) throw error;
     return data || [];
