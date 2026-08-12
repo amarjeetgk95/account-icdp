@@ -14,7 +14,7 @@ import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
-import { downloadCsv } from '@/shared/utilities';
+import { downloadCsv, export24QExcel } from '@/shared/utilities';
 import {
   ChevronDown,
   Download,
@@ -27,20 +27,23 @@ import {
   Users,
   Calendar,
   Landmark,
+  Search,
 } from 'lucide-react';
 
-type Mode = 'entry' | 'report' | 'employees' | 'budget';
+type Mode = 'entry' | 'report' | 'employees' | 'budget' | 'lookup';
 
 const TABS: { id: Mode; label: string; icon: React.ElementType; description: string }[] = [
   { id: 'entry', label: 'Monthly Entry', icon: Banknote, description: 'Enter salary, DA, and tax for the selected month' },
   { id: 'report', label: 'Quarterly Report', icon: FileText, description: 'Generate 24Q TDS reports for compliance' },
   { id: 'budget', label: 'Budget Head Report', icon: Landmark, description: 'Manage budget heads and view head-wise salary statements' },
+  { id: 'lookup', label: 'Employee Lookup', icon: Search, description: 'View full salary history of an employee by HRPN' },
   { id: 'employees', label: 'Employee Registration', icon: Users, description: 'Add, edit, and manage employee master data' },
 ];
 
 export function PayrollPage() {
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'employees' ? 'employees' : 'entry';
+  const tabParam = searchParams.get('tab');
+  const initialTab: Mode = tabParam === 'employees' || tabParam === 'lookup' ? tabParam : 'entry';
   const initialHrpn = searchParams.get('hrpn') || '';
   const [mode, setMode] = useState<Mode>(initialTab);
   const [selectedMonth, setSelectedMonth] = useState(() => payrollService.getEntryMonth());
@@ -253,9 +256,16 @@ export function PayrollPage() {
           className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1"
         >
           <div className="px-1 pb-4 space-y-4">
+            <EmployeeRegistration scrollRef={scrollRef} fy={fy} />
+          </div>
+        </div>
+      )}
+
+      {mode === 'lookup' && (
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
+          <div className="px-1 pb-4 space-y-4">
             <SalaryLookup fy={fy} initialHrpn={initialHrpn} />
           </div>
-          <EmployeeRegistration scrollRef={scrollRef} fy={fy} />
         </div>
       )}
 
@@ -283,26 +293,26 @@ export function PayrollPage() {
                   type="button"
                   onClick={() => setShowMonthDropdown(!showMonthDropdown)}
                   title="Select the month for salary entry"
-                  className="flex items-center gap-2.5 border border-slate-200 dark:border-slate-700 rounded-full px-5 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 transition-all shadow-xs cursor-pointer"
+                  className="flex items-center justify-between gap-2.5 w-72 max-w-[calc(100vw-2rem)] border border-slate-200 dark:border-slate-700 rounded-full px-5 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 transition-all shadow-xs cursor-pointer"
                 >
-                  <span>{getMonthDisplay(selectedMonth)}</span>
+                  <span className="whitespace-nowrap">{getMonthDisplay(selectedMonth)}</span>
                   <ChevronDown size={14} className={`text-slate-400 transition-transform ${showMonthDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 {showMonthDropdown && (
-                  <div className="absolute left-0 z-50 mt-1.5 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+                  <div className="absolute left-0 z-50 mt-1.5 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
                     <div className="max-h-64 overflow-y-auto py-1">
                       {monthOptions.map((m) => (
                         <button
                           key={m.value}
                           onClick={() => handleMonthSelect(m.value)}
                           className={
-                            'w-full px-4 py-2.5 text-left text-xs font-bold flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ' +
+                            'w-full px-4 py-2.5 text-left text-xs font-bold flex items-center justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ' +
                             (selectedMonth === m.value
                               ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
                               : 'text-slate-700 dark:text-slate-200')
                           }
                         >
-                          <span>{m.label}</span>
+                          <span className="whitespace-nowrap">{m.label}</span>
                           {selectedMonth === m.value && (
                             <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -360,10 +370,10 @@ export function PayrollPage() {
               <button
                 onClick={handleLoadRoster}
                 disabled={rosterLoading}
-                className="btn btn-primary btn-md text-xs shrink-0"
+                title="Reload roster for the selected month"
+                className="btn btn-primary btn-md text-xs shrink-0 px-2.5"
               >
-                <RefreshCw size={14} className={rosterLoading ? 'animate-spin mr-1.5' : 'mr-1.5'} />
-                {rosterLoading ? 'Loading…' : 'Load Roster'}
+                <RefreshCw size={14} className={rosterLoading ? 'animate-spin' : ''} />
               </button>
 
               {hasExistingData && (
@@ -423,6 +433,16 @@ export function PayrollPage() {
           </span>
 
           <div className="flex items-center gap-2 shrink-0 ml-auto">
+            <button
+              onClick={() => {
+                if (quarterReport) export24QExcel(quarterReport, office);
+              }}
+              disabled={!quarterReport || quarterReport.rows.length === 0}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-xs transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+            >
+              <FileSpreadsheet size={14} />
+              <span>Excel</span>
+            </button>
             <button
               onClick={export24QCSV}
               disabled={!quarterReport || quarterReport.rows.length === 0}

@@ -86,12 +86,23 @@ export async function export24QExcel(report: QuarterReport, office?: OfficeHeade
   const tan = office?.tan || 'NOT PROVIDED';
   const address = office?.address || 'Surat, Gujarat';
 
-  const month1 = report.labels[0]?.paid || 'Month 1';
-  const month2 = report.labels[1]?.paid || 'Month 2';
-  const month3 = report.labels[2]?.paid || 'Month 3';
+  const m1 = report.labels[0]?.work || 'Month 1';
+  const m2 = report.labels[1]?.work || 'Month 2';
+  const m3 = report.labels[2]?.work || 'Month 3';
 
   const workbook = new ExcelJS.Workbook();
   const ws = workbook.addWorksheet(`24Q ${report.quarter}`);
+
+  // 24Q-specific palette matching the on-screen report (Income=indigo, Deduction=rose, Total=slate)
+  const incomeFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2FF' } } as ExcelJS.Fill; // indigo-50
+  const incomeFont = { bold: true, color: { argb: 'FF4338CA' } } as ExcelJS.Font; // indigo-700
+  const deductionFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF1F2' } } as ExcelJS.Fill; // rose-50
+  const deductionFont = { bold: true, color: { argb: 'FFBE123C' } } as ExcelJS.Font; // rose-700
+  const groupFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } } as ExcelJS.Fill; // indigo-600
+  const deductionGroupFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE11D48' } } as ExcelJS.Fill; // rose-600
+  const slate200 = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } } as ExcelJS.Fill; // slate-200
+  const slate100 = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } } as ExcelJS.Fill; // slate-100
+  const slate50 = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } } as ExcelJS.Fill; // slate-50
 
   ws.addRow(['FORM 24Q — DEDUCTION OF TAX FROM SALARIES']).font = THEME.titleFont;
   ws.addRow([`Office Name: ${officeName}`]).font = THEME.boldFont;
@@ -99,14 +110,48 @@ export async function export24QExcel(report: QuarterReport, office?: OfficeHeade
   ws.addRow([`Financial Year: ${report.fyLabel} | Assessment Year: ${report.ayLabel} | Quarter: ${report.quarter}`]);
   ws.addRow([]);
 
-  const headerRow = ws.addRow([
-    'S.No', 'Employee Name', 'PAN',
-    `Gross (${month1})`, `Gross (${month2})`, `Gross (${month3})`,
-    'Dearness Allowance (DA)', 'Total Salary Paid',
-    `TDS (${month1})`, `TDS (${month2})`, `TDS (${month3})`,
-    'Total TDS Deducted',
+  // Grouped header matching the on-screen 24Q report layout
+  const header1 = ws.addRow(['S.No', 'Employee Name', 'PAN No.', 'Income', '', '', '', '', 'Deduction', '', '', '']);
+  const header2 = ws.addRow([
+    '', '', '',
+    `Gross (${m1})`, `Gross (${m2})`, `Gross (${m3})`,
+    'DA & Other', 'Total Salary',
+    `TDS (${m1})`, `TDS (${m2})`, `TDS (${m3})`, 'Total TDS',
   ]);
-  applyHeaderStyle(headerRow);
+  const header3 = ws.addRow([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+
+  applyHeaderStyle(header1);
+  applyHeaderStyle(header2);
+  header3.eachCell((cell) => {
+    cell.border = THEME.border;
+    cell.alignment = THEME.alignCenter;
+    cell.fill = slate50;
+  });
+
+  // Color-code the Income / Deduction group bands
+  for (let col = 4; col <= 8; col++) {
+    const c1 = header1.getCell(col);
+    c1.fill = groupFill;
+    const c2 = header2.getCell(col);
+    c2.fill = incomeFill;
+    c2.font = incomeFont;
+  }
+  for (let col = 9; col <= 12; col++) {
+    const c1 = header1.getCell(col);
+    c1.fill = deductionGroupFill;
+    const c2 = header2.getCell(col);
+    c2.fill = deductionFill;
+    c2.font = deductionFont;
+  }
+  // Emphasize the Total Salary / Total TDS header cells like the PDF
+  header2.getCell(8).fill = slate200;
+  header2.getCell(12).fill = slate200;
+
+  ws.mergeCells(`A${header1.number}:A${header3.number}`);
+  ws.mergeCells(`B${header1.number}:B${header3.number}`);
+  ws.mergeCells(`C${header1.number}:C${header3.number}`);
+  ws.mergeCells(`D${header1.number}:H${header1.number}`);
+  ws.mergeCells(`I${header1.number}:L${header1.number}`);
 
   let sumG1 = 0, sumG2 = 0, sumG3 = 0, sumDA = 0, sumTotal = 0;
   let sumT1 = 0, sumT2 = 0, sumT3 = 0, sumTax = 0;
@@ -125,10 +170,41 @@ export async function export24QExcel(report: QuarterReport, office?: OfficeHeade
   });
 
   const totalRow = ws.addRow(['TOTAL', '', '', sumG1, sumG2, sumG3, sumDA, sumTotal, sumT1, sumT2, sumT3, sumTax]);
-  applyTotalStyle(totalRow);
+  totalRow.eachCell((cell) => {
+    cell.fill = slate100;
+    cell.font = THEME.boldFont;
+    cell.border = THEME.border;
+    if (typeof cell.value === 'number') {
+      cell.alignment = THEME.alignRight;
+      cell.numFmt = '#,##0.00';
+    }
+  });
+  totalRow.getCell(8).fill = slate200;
+  totalRow.getCell(12).fill = slate200;
   ws.mergeCells(`A${totalRow.number}:C${totalRow.number}`);
 
-  autoFitColumns(ws);
+  // Explicit column widths (names/amounts render predictably, no auto-fit truncation)
+  const widths = [6, 34, 16, 14, 14, 14, 14, 14, 14, 14, 14, 14];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+
+  // Freeze the header block so it stays visible while scrolling data rows
+  ws.views = [{ state: 'frozen', ySplit: header3.number }];
+
+  // Print setup: landscape A4, fit-to-width, centered, with print area
+  ws.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    horizontalCentered: true,
+    paperSize: 9, // A4
+  };
+  ws.pageSetup.margins = { top: 0.4, bottom: 0.4, left: 0.3, right: 0.3, header: 0.2, footer: 0.2 };
+  ws.pageSetup.printArea = `A1:L${totalRow.number}`;
+  ws.pageSetup.printTitlesRow = `1:${header3.number}`;
+
   await saveWorkbook(workbook, `Form24Q_${report.quarter}_FY${report.fyLabel}.xlsx`);
 }
 

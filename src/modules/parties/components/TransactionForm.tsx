@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Party, TransactionInput } from '../types';
@@ -42,8 +42,7 @@ interface TransactionFormProps {
 export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: TransactionFormProps) {
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
-  const [searchResults, setSearchResults] = useState<Party[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [isDropdownDismissed, setIsDropdownDismissed] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
@@ -51,12 +50,12 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
   const {
     register,
     handleSubmit: handleFormSubmit,
-    watch,
+    control,
     setValue,
     reset,
     formState: { errors },
   } = useForm<TransactionFormData>({
-    resolver: zodResolver(transactionSchema) as any,
+    resolver: zodResolver(transactionSchema),
     defaultValues: {
       partyName: '',
       billNo: '',
@@ -72,31 +71,26 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
     },
   });
 
-  const partyName = watch('partyName');
-  const cgstVal = watch('cgst') || 0;
-  const sgstVal = watch('sgst') || 0;
-  const igstVal = watch('igst') || 0;
+  const partyName = useWatch({ control, name: 'partyName' });
+  const cgstVal = useWatch({ control, name: 'cgst' }) || 0;
+  const sgstVal = useWatch({ control, name: 'sgst' }) || 0;
+  const igstVal = useWatch({ control, name: 'igst' }) || 0;
   const totalGst = cgstVal + sgstVal + igstVal;
 
-  // Party autocomplete search
-  useEffect(() => {
-    if (partyName && partyName.length >= 1) {
-      const matches = parties
-        .filter((p) => p.name.toLowerCase().includes(partyName.toLowerCase()))
-        .slice(0, 8);
-      setSearchResults(matches);
-      setShowDropdown(matches.length > 0);
-    } else {
-      setSearchResults([]);
-      setShowDropdown(false);
-    }
-  }, [partyName, parties]);
+  const searchResults: Party[] =
+    partyName && partyName.length >= 1
+      ? parties
+          .filter((p) => p.name.toLowerCase().includes(partyName.toLowerCase()))
+          .slice(0, 8)
+      : [];
+
+  const showDropdown = searchResults.length > 0 && !isDropdownDismissed;
 
   // Click outside to close dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
+        setIsDropdownDismissed(true);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -115,7 +109,7 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
     setValue('partyName', party.name);
     setValue('gstNo', party.gst_no || '');
     setValue('panNo', party.pan_no || '');
-    setShowDropdown(false);
+    setIsDropdownDismissed(true);
   };
 
   const onFormSubmit = async (data: TransactionFormData) => {

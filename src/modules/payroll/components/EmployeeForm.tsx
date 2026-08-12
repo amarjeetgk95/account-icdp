@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { employeeSchema, type EmployeeInput } from '../validation/employee.schema';
 import { useEmployees } from '../hooks/useEmployees';
@@ -19,8 +19,7 @@ interface EmployeeFormProps {
 export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: EmployeeFormProps) {
   const { createAsync, updateAsync } = useEmployees();
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
-  const [searchResults, setSearchResults] = useState<EmployeeInput[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [isDropdownDismissed, setIsDropdownDismissed] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -28,7 +27,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<EmployeeInput>({
     resolver: zodResolver(employeeSchema),
@@ -44,9 +43,9 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
 
   const { employees } = useEmployees();
   const { heads } = useBudgetHeads();
-  const nameValue = watch('name');
-  const joinDateValue = watch('joinDate');
-  const transferDateValue = watch('transferDate');
+  const nameValue = useWatch({ control, name: 'name' });
+  const joinDateValue = useWatch({ control, name: 'joinDate' });
+  const transferDateValue = useWatch({ control, name: 'transferDate' });
   const storeFY = useUIStore((state) => state.activeFinancialYear);
   const resolvedFY = fy ?? storeFY;
   const fyLabel = `${resolvedFY}-${String(resolvedFY + 1).slice(-2)}`;
@@ -65,32 +64,28 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
     }
   }, [editingEmployee, reset]);
 
-  useEffect(() => {
-    if (nameValue && nameValue.length >= 1) {
-      const matches = employees
-        .filter((emp) => emp.name.toLowerCase().includes(nameValue.toLowerCase()))
-        .slice(0, 8)
-        .map((emp) => ({
-          id: emp.id,
-          hprnNo: emp.hprn_no || '',
-          name: emp.name,
-          pan: emp.pan,
-          joinDate: emp.join_date || '',
-          transferDate: emp.transfer_date || '',
-          budgetHeadId: emp.budget_head_id ? String(emp.budget_head_id) : '',
-        }));
-      setSearchResults(matches);
-      setShowDropdown(matches.length > 0);
-    } else {
-      setSearchResults([]);
-      setShowDropdown(false);
-    }
-  }, [nameValue, employees]);
+  const searchResults: EmployeeInput[] =
+    nameValue && nameValue.length >= 1
+      ? employees
+          .filter((emp) => emp.name.toLowerCase().includes(nameValue.toLowerCase()))
+          .slice(0, 8)
+          .map((emp) => ({
+            id: emp.id,
+            hprnNo: emp.hprn_no || '',
+            name: emp.name,
+            pan: emp.pan,
+            joinDate: emp.join_date || '',
+            transferDate: emp.transfer_date || '',
+            budgetHeadId: emp.budget_head_id ? String(emp.budget_head_id) : '',
+          }))
+      : [];
+
+  const showDropdown = searchResults.length > 0 && !isDropdownDismissed;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
+        setIsDropdownDismissed(true);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -99,7 +94,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
 
   const selectEmployee = (emp: EmployeeInput) => {
     onSelect?.(emp);
-    setShowDropdown(false);
+    setIsDropdownDismissed(true);
     setSubmitStatus({ type: 'info', message: 'Employee found. Update their details below.' });
   };
 
@@ -128,7 +123,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
     reset();
     onCancel();
     setSubmitStatus(null);
-    setShowDropdown(false);
+    setIsDropdownDismissed(true);
   };
 
   return (

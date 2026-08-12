@@ -14,7 +14,7 @@ export const officeRepository = {
     const targetOfficeId = officeId || getOfficeId();
     if (!targetOfficeId) return '';
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('offices')
       .select('name')
       .eq('id', targetOfficeId)
@@ -28,7 +28,7 @@ export const officeRepository = {
     const targetOfficeId = officeId || getOfficeId();
     if (!targetOfficeId) throw new Error('No office selected');
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('office_details')
       .select('office_name, subtitle, address, phone, email, gst, tan')
       .eq('office_id', targetOfficeId)
@@ -74,7 +74,7 @@ export const officeRepository = {
       tan: input.tan ? input.tan.trim() : null,
     };
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('office_details')
       .upsert(payload, { onConflict: 'office_id' });
 

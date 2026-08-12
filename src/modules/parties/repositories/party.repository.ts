@@ -3,6 +3,7 @@ import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
 import { MONTHS } from '@/shared/constants';
 import type { Party, PartyTransaction, TransactionInput, GSTReport, IncomeTaxReport } from '../types';
+import type { Database } from '@/shared/database.types';
 
 
 function getOfficeId(): string | null {
@@ -42,7 +43,20 @@ export const partyRepository = {
 
     if (error) throw error;
 
-    return (data || []).map((tx: any) => ({
+    type PartyTxJoined = {
+      id: string;
+      bill_no: string;
+      transaction_date: string;
+      amount: number;
+      cgst: number;
+      sgst: number;
+      igst: number;
+      total_gst: number;
+      income_tax: number;
+      parties: { id: string; name: string } | null;
+    };
+
+    return ((data || []) as unknown as PartyTxJoined[]).map((tx) => ({
       id: tx.id,
       party_id: tx.parties?.id || '',
       party_name: tx.parties?.name || 'Unknown',
@@ -105,7 +119,7 @@ export const partyRepository = {
       if (!inserted) throw new Error('Failed to create party record');
       party = inserted;
     } else if ((!party.gst_no && gstNo) || (!party.pan_no && panNo)) {
-      const upd: any = {};
+      const upd: { gst_no?: string; pan_no?: string } = {};
       if (!party.gst_no && gstNo) upd.gst_no = gstNo;
       if (!party.pan_no && panNo) upd.pan_no = panNo;
       await supabase.from('parties').update(upd).eq('id', party.id);
@@ -148,8 +162,8 @@ export const partyRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const upd: any = {};
-    if (updates.billNo !== undefined) upd.bill_no = updates.billNo.trim() || null;
+    const upd: Database['public']['Tables']['party_transactions']['Update'] = {};
+    if (updates.billNo !== undefined) upd.bill_no = updates.billNo.trim() || undefined;
     if (updates.date !== undefined) upd.transaction_date = updates.date;
     if (updates.amount !== undefined) upd.amount = money(updates.amount);
     if (updates.cgst !== undefined) upd.cgst = money(updates.cgst || 0);
@@ -212,7 +226,19 @@ export const partyRepository = {
       return { year, month };
     });
 
-    const filtered = (data || []).filter((tx: any) => {
+    type GSTTxJoined = {
+      bill_no: string;
+      cpin_no: string | null;
+      transaction_date: string;
+      amount: number;
+      cgst: number;
+      sgst: number;
+      igst: number;
+      total_gst: number;
+      parties: { name: string; gst_no: string | null } | null;
+    };
+
+    const filtered = ((data || []) as unknown as GSTTxJoined[]).filter((tx) => {
       const date = new Date(tx.transaction_date);
       if (isYearly) {
         const txMonth = date.getMonth();
@@ -224,7 +250,7 @@ export const partyRepository = {
       );
     });
 
-    const rows = filtered.map((tx: any) => ({
+    const rows = filtered.map((tx) => ({
       partyName: tx.parties?.name || 'Unknown',
       gstNo: tx.parties?.gst_no || '-',
       cpinNo: tx.cpin_no || '-',
@@ -242,11 +268,11 @@ export const partyRepository = {
       quarter,
       rows,
       totals: {
-        amount: money(rows.reduce((s: number, r: any) => s + r.amount, 0)),
-        cgst: money(rows.reduce((s: number, r: any) => s + r.cgst, 0)),
-        sgst: money(rows.reduce((s: number, r: any) => s + r.sgst, 0)),
-        igst: money(rows.reduce((s: number, r: any) => s + r.igst, 0)),
-        totalGst: money(rows.reduce((s: number, r: any) => s + r.totalGst, 0)),
+        amount: money(rows.reduce((s, r) => s + r.amount, 0)),
+        cgst: money(rows.reduce((s, r) => s + r.cgst, 0)),
+        sgst: money(rows.reduce((s, r) => s + r.sgst, 0)),
+        igst: money(rows.reduce((s, r) => s + r.igst, 0)),
+        totalGst: money(rows.reduce((s, r) => s + r.totalGst, 0)),
       },
     };
   },
@@ -281,7 +307,15 @@ export const partyRepository = {
       return { year, month };
     });
 
-    const filtered = (data || []).filter((tx: any) => {
+    type ITTxJoined = {
+      bill_no: string;
+      transaction_date: string;
+      amount: number;
+      income_tax: number;
+      parties: { name: string; pan_no: string | null } | null;
+    };
+
+    const filtered = ((data || []) as unknown as ITTxJoined[]).filter((tx) => {
       const date = new Date(tx.transaction_date);
       if (isYearly) {
         const txMonth = date.getMonth();
@@ -293,7 +327,7 @@ export const partyRepository = {
       );
     });
 
-    const rows = filtered.map((tx: any) => ({
+    const rows = filtered.map((tx) => ({
       partyName: tx.parties?.name || 'Unknown',
       panNo: tx.parties?.pan_no || '-',
       billNo: tx.bill_no,
@@ -307,8 +341,8 @@ export const partyRepository = {
       quarter,
       rows,
       totals: {
-        amount: money(rows.reduce((s: number, r: any) => s + r.amount, 0)),
-        incomeTax: money(rows.reduce((s: number, r: any) => s + r.incomeTax, 0)),
+        amount: money(rows.reduce((s, r) => s + r.amount, 0)),
+        incomeTax: money(rows.reduce((s, r) => s + r.incomeTax, 0)),
       },
     };
   },
@@ -328,7 +362,8 @@ export const partyRepository = {
       .select('id, name, gst_no, pan_no')
       .eq('office_id', officeId);
 
-    const partyCache = new Map<string, any>();
+    type CachedParty = { id: string; name: string; gst_no: string | null; pan_no: string | null };
+    const partyCache = new Map<string, CachedParty>();
     for (const p of existingParties || []) {
       partyCache.set(p.name.trim().toUpperCase(), p);
     }

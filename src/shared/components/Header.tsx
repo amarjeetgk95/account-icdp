@@ -1,7 +1,6 @@
 import { useAuthStore } from '@/core/auth/store';
 import { useUIStore } from '@/core/stores/ui-store';
 import { financialYearRepository } from '@/modules/settings/repositories/financialYear.repository';
-import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
 import { useOfficeName } from '@/modules/settings/hooks/useOfficeName';
 import { useState, useRef, useEffect } from 'react';
 import { 
@@ -20,7 +19,6 @@ import { toast } from './Toast';
 
 export function Header() {
   const { user, signOut } = useAuthStore();
-  const { details } = useOfficeDetails();
   const officeName = useOfficeName();
   const activeFinancialYear = useUIStore((s) => s.activeFinancialYear);
   const setActiveFinancialYear = useUIStore((s) => s.setActiveFinancialYear);
@@ -120,11 +118,6 @@ export function Header() {
           <Building2 size={14} className="shrink-0 text-indigo-500 dark:text-indigo-400" />
           <span className="text-balance text-center leading-snug">{officeName || 'ICDP Surat'}</span>
         </div>
-        {details?.subtitle && (
-          <p className="mt-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 leading-tight text-balance text-center">
-            {details.subtitle}
-          </p>
-        )}
       </div>
 
       <div className="app-header-actions justify-self-end">

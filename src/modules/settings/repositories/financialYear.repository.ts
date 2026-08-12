@@ -18,7 +18,7 @@ export const financialYearRepository = {
     const officeId = getOfficeId();
     if (!officeId) return defaultFY();
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('app_config')
       .select('value')
       .eq('key', 'currentFY')
@@ -52,7 +52,7 @@ export const financialYearRepository = {
           office_id: officeId,
           key: 'currentFY',
           value: String(year),
-        } as any,
+        },
         { onConflict: 'office_id,key' }
       );
 

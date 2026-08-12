@@ -79,13 +79,50 @@ export interface BudgetHeadReport {
   totals: BudgetHeadQuarterTotals;
 }
 
-export interface BulkSalarySaveInput {
-  month: string;
-  financialYear: number;
-  entries: Array<{
-    employeeId: string;
-    gross: number;
-    da: number;
-    tax: number;
-  }>;
+export interface EmployeeLookupInfo {
+  id?: string;
+  name: string;
+  pan?: string;
+  hprnNo: string;
+  joinDate?: string | null;
+  transferDate?: string | null;
+  budgetHeadCode?: string | null;
+  budgetHeadName?: string | null;
+  isRegisteredInMaster: boolean;
 }
+
+export interface EmployeeLookupSalaryRow {
+  month: string;
+  gross: number;
+  daAndOther: number;
+  totalGross: number;
+  tax: number;
+  net: number;
+  status: string;
+  createdAt?: string;
+}
+
+export interface EmployeeLookupQuarterTotals {
+  gross: number;
+  daAndOther: number;
+  totalGross: number;
+  tax: number;
+  net: number;
+  monthsWithData: number;
+}
+
+export interface EmployeeLookupSearchResult {
+  id?: string;
+  name: string;
+  hprnNo: string;
+  pan?: string;
+}
+
+export interface EmployeeLookupDetails {
+  matchingEmployees: EmployeeLookupSearchResult[];
+  employeeInfo: EmployeeLookupInfo | null;
+  salaries: EmployeeLookupSalaryRow[];
+  quarters: Record<'Q1' | 'Q2' | 'Q3' | 'Q4', EmployeeLookupQuarterTotals>;
+  totals: EmployeeLookupQuarterTotals;
+}
+

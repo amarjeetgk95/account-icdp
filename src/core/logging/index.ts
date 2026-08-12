@@ -51,9 +51,11 @@ class Logger {
           console.warn(prefix, entry.message, entry.data ?? '');
           break;
         case 'info':
+          // eslint-disable-next-line no-console
           console.info(prefix, entry.message, entry.data ?? '');
           break;
         case 'debug':
+          // eslint-disable-next-line no-console
           console.debug(prefix, entry.message, entry.data ?? '');
           break;
       }

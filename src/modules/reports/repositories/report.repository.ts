@@ -3,10 +3,6 @@ import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
 import { MONTHS } from '@/shared/constants';
 import type { YearlyReport, YearlyEmployeeRecord, YearlyVendorRecord } from '../types';
-import type { Database } from '@/shared/database.types';
-
-type Employee = Database['public']['Tables']['employees']['Row'];
-type Salary = Database['public']['Tables']['employee_salaries']['Row'];
 
 function getOfficeId(): string | null {
   const authOfficeId = useAuthStore.getState().user?.officeId || null;
@@ -23,7 +19,7 @@ export const reportRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('employee_salaries')
       .select('financial_year')
       .eq('office_id', officeId);
@@ -31,16 +27,16 @@ export const reportRepository = {
     if (error) throw error;
 
     const years = new Set<number>();
-    (data || []).forEach((row: any) => years.add(row.financial_year));
+    (data || []).forEach((row) => years.add(row.financial_year));
 
-    const { data: txRows, error: txError } = await (supabase as any)
+    const { data: txRows, error: txError } = await supabase
       .from('party_transactions')
       .select('transaction_date')
       .eq('office_id', officeId);
 
     if (txError) throw txError;
 
-    (txRows || []).forEach((row: any) => {
+    (txRows || []).forEach((row) => {
       const d = new Date(row.transaction_date);
       const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
       years.add(fy);
@@ -59,32 +55,33 @@ export const reportRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data: employees } = await (supabase as any)
+    const { data: employees } = await supabase
       .from('employees')
       .select('id, name, pan')
       .eq('office_id', officeId)
       .order('id');
 
-    const { data: salaries } = await (supabase as any)
+    const { data: salaries } = await supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
       .eq('financial_year', fy)
       .eq('office_id', officeId);
 
-    const { data: transactions } = await (supabase as any)
+    const { data: transactions } = await supabase
       .from('party_transactions')
       .select('transaction_date, amount, cgst, sgst, igst, total_gst, income_tax, parties(id, name, gst_no, pan_no)')
       .eq('office_id', officeId);
 
-    const salMap: Record<string, Record<string, Salary>> = {};
-    (salaries || []).forEach((s: Salary) => {
+    type SalaryRecord = { employee_id: string; month: string; gross: number; da: number; tax: number };
+    const salMap: Record<string, Record<string, SalaryRecord>> = {};
+    ((salaries || []) as SalaryRecord[]).forEach((s) => {
       if (!salMap[s.employee_id]) salMap[s.employee_id] = {};
       salMap[s.employee_id][s.month] = s;
     });
 
     const employeeRecords: YearlyEmployeeRecord[] = (employees || [])
-      .filter((emp: Employee) => emp.name && emp.pan)
-      .map((emp: Employee) => {
+      .filter((emp) => emp.name && emp.pan)
+      .map((emp) => {
         const months = salMap[emp.id] || {};
         const rec: YearlyEmployeeRecord = {
           name: emp.name,
@@ -111,10 +108,21 @@ export const reportRepository = {
 
         return rec;
       })
-      .filter((e: YearlyEmployeeRecord) => e.months > 0);
+      .filter((e) => e.months > 0);
+
+    type ReportTxJoined = {
+      transaction_date: string;
+      amount: number;
+      cgst: number;
+      sgst: number;
+      igst: number;
+      total_gst: number;
+      income_tax: number;
+      parties: { id: string; name: string; gst_no: string | null; pan_no: string | null } | null;
+    };
 
     const vendorMap: Record<string, YearlyVendorRecord> = {};
-    (transactions || []).forEach((tx: any) => {
+    ((transactions || []) as unknown as ReportTxJoined[]).forEach((tx) => {
       const partyName = tx.parties?.name;
       if (!partyName) return;
 
