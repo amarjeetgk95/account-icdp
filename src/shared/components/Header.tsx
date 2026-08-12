@@ -2,6 +2,7 @@ import { useAuthStore } from '@/core/auth/store';
 import { useUIStore } from '@/core/stores/ui-store';
 import { financialYearRepository } from '@/modules/settings/repositories/financialYear.repository';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
+import { useOfficeName } from '@/modules/settings/hooks/useOfficeName';
 import { useState, useRef, useEffect } from 'react';
 import { 
   CalendarDays, 
@@ -20,6 +21,7 @@ import { toast } from './Toast';
 export function Header() {
   const { user, signOut } = useAuthStore();
   const { details } = useOfficeDetails();
+  const officeName = useOfficeName();
   const activeFinancialYear = useUIStore((s) => s.activeFinancialYear);
   const setActiveFinancialYear = useUIStore((s) => s.setActiveFinancialYear);
   const toggleMobileMenu = useUIStore((s) => s.toggleMobileMenu);
@@ -116,11 +118,13 @@ export function Header() {
       <div className="hidden lg:flex flex-col items-center justify-center text-center w-full px-2">
         <div className="flex items-center justify-center gap-1.5 text-[18px] sm:text-[20px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
           <Building2 size={14} className="shrink-0 text-indigo-500 dark:text-indigo-400" />
-          <span className="text-balance text-center leading-snug">{details?.officeName || 'Deputy Director of Animal Husbandry'}</span>
+          <span className="text-balance text-center leading-snug">{officeName || 'ICDP Surat'}</span>
         </div>
-        <p className="mt-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 leading-tight text-balance text-center">
-          {details?.subtitle || 'Intensive Cattle Development Programme-Surat'}
-        </p>
+        {details?.subtitle && (
+          <p className="mt-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 leading-tight text-balance text-center">
+            {details.subtitle}
+          </p>
+        )}
       </div>
 
       <div className="app-header-actions justify-self-end">

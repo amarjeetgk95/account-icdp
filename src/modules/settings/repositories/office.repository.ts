@@ -10,6 +10,20 @@ function getOfficeId(): string | null {
 }
 
 export const officeRepository = {
+  async getName(officeId?: string): Promise<string> {
+    const targetOfficeId = officeId || getOfficeId();
+    if (!targetOfficeId) return '';
+
+    const { data, error } = await (supabase as any)
+      .from('offices')
+      .select('name')
+      .eq('id', targetOfficeId)
+      .maybeSingle();
+
+    if (error) return '';
+    return data?.name || '';
+  },
+
   async get(officeId?: string): Promise<OfficeDetailsInput> {
     const targetOfficeId = officeId || getOfficeId();
     if (!targetOfficeId) throw new Error('No office selected');

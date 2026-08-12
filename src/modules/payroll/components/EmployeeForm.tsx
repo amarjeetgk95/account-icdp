@@ -167,6 +167,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
           {errors.hprnNo && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.hprnNo.message}</p>}
         </div>
 
+
         <div className="relative" ref={dropdownRef}>
           <label htmlFor="name" className="label text-slate-700 dark:text-slate-300">
             Employee Name <span className="text-red-500 dark:text-red-400">*</span>

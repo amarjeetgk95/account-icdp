@@ -803,9 +803,9 @@
     font-family: inherit;
     font-variant-numeric: tabular-nums;
     width: 100%;
-    height: 2.25rem;
-    padding: 6px 10px;
-    font-size: 0.875rem;
+    height: 1.875rem;
+    padding: 3px 8px;
+    font-size: 0.8125rem;
     border-radius: 6px;
     border: 1.5px solid transparent;
     background: transparent;
@@ -880,8 +880,8 @@
   }
 
   .salary-grid-header th {
-    @apply px-3 py-2.5 text-[0.8rem] font-bold tracking-wider;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    @apply px-2.5 py-1.5 text-[0.75rem] font-bold tracking-wider;
+    font-family: inherit;
     color: #475569;
     letter-spacing: 0.05em;
     border-bottom: 2px solid #E2E8F0;
@@ -1036,7 +1036,7 @@
   }
 
   .salary-totals td {
-    @apply px-3 py-2.5 text-sm;
+    @apply px-2.5 py-1.5 text-xs;
     position: sticky;
     bottom: 0;
     background: #EEF2F7;
@@ -1058,7 +1058,7 @@
      SALARY GRID — FOOTER BAR
      ============================================================ */
   .salary-footer {
-    @apply flex-shrink-0 bg-white px-4 py-3 flex items-center justify-between;
+    @apply flex-shrink-0 bg-white px-3 py-1.5 flex items-center justify-between;
     border-top: 1px solid #E2E8F0;
     box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.04), 0 -1px 3px rgba(15, 23, 42, 0.03);
   }

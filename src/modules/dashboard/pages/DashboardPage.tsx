@@ -1,6 +1,7 @@
 import { useDashboard } from '../hooks/useDashboard';
 import { formatCurrency } from '@/shared/utilities';
 import { useNavigate } from 'react-router-dom';
+import { useOfficeName } from '@/modules/settings/hooks/useOfficeName';
 import {
   RefreshCw,
   AlertCircle,
@@ -13,7 +14,7 @@ import {
   FileSpreadsheet,
   ArrowRight,
   Building,
-  CircleDot,
+  UserPlus,
 } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { GaugeChart } from '../components/GaugeChart';
@@ -21,6 +22,7 @@ import { FYRoadmap } from '../components/FYRoadmap';
 import { TaskList } from '../components/TaskList';
 import { QuarterReadiness } from '../components/QuarterReadiness';
 import { RecentTransactions } from '../components/RecentTransactions';
+import { QuarterlyChart } from '../components/QuarterlyChart';
 import type { QuarterReadinessData } from '../types';
 
 const EMPTY_QUARTER_READINESS: QuarterReadinessData = {
@@ -33,6 +35,7 @@ const EMPTY_QUARTER_READINESS: QuarterReadinessData = {
 export function DashboardPage() {
   const { data, isLoading, isError, error, refetch } = useDashboard();
   const navigate = useNavigate();
+  const officeName = useOfficeName();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -73,67 +76,133 @@ export function DashboardPage() {
 
   if (!data) return null;
 
+  const hasPendingEntries = (data.pendingEmployees ?? 0) > 0;
+  const hasNoData = (data.activeEmployees ?? 0) === 0 && (data.tasks?.length ?? 0) === 0;
+
+  const currentQKey = data.currentQuarter as keyof QuarterReadinessData;
+  const currentQR = data.quarterReadiness?.[currentQKey];
+
+  const diagnosticItems = [
+    { label: 'Prev Qtr Pending', count: data.prevQuarterPending ?? 0, severity: 'danger' as const, path: '/reports' },
+    { label: 'Zero Tax Entries', count: data.zeroTaxEntries?.length ?? 0, severity: 'warning' as const, path: '/payroll' },
+    { label: 'Pending Staff', count: data.pendingEmployees ?? 0, severity: 'info' as const, path: '/payroll' },
+    { label: 'Missing PANs', count: data.missingPANs?.length ?? 0, severity: 'danger' as const, path: '/payroll' },
+    { label: 'New Joiners', count: data.newJoinersThisMonth ?? 0, severity: 'info' as const, path: '/payroll' },
+    { label: 'Departures', count: data.departuresThisMonth ?? 0, severity: 'info' as const, path: '/payroll' },
+    { label: 'Total Parties', count: data.vendorCount ?? 0, severity: 'info' as const, path: '/parties' },
+  ].filter((item) => !(item.severity === 'info' && item.count === 0));
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-8">
-      {/* Greeting & System Status */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-        <span>{getGreeting()}</span>
-        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-          <CircleDot size={10} className="animate-pulse" />
-          System Active
-        </span>
+      {/* Greeting Row */}
+      <div className="flex items-center justify-between text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+        <span>{`${getGreeting()} ${officeName}`}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 normal-case tracking-normal">
+            Last updated: {data.lastUpdated}
+          </span>
+          <button
+            onClick={() => refetch()}
+            className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all hover:rotate-180 duration-500"
+            title="Refresh Data"
+          >
+            <RefreshCw size={14} />
+          </button>
+        </div>
       </div>
 
-      {/* KPI Cards & Gauge Ring Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <GaugeChart percentage={data.currentQuarterCompletion?.pct ?? 0} label={`${data.currentQuarter} Readiness`} />
-        <StatCard
-          icon={Users}
-          label="Active Employees"
-          value={String(data.activeEmployees ?? 0)}
-          sub={(data.pendingEmployees ?? 0) > 0 ? `${data.pendingEmployees} pending entry` : 'All entries updated'}
-          color="emerald"
-          pct={data.activeEmployees > 0 ? Math.round(((data.activeEmployees - (data.pendingEmployees ?? 0)) / data.activeEmployees) * 100) : 100}
-        />
-        <StatCard
-          icon={Banknote}
-          label="Total Salary Outflow (YTD)"
-          value={formatCurrency(data.ytdSalary ?? 0)}
-          sub="Cumulative Gross + DA"
-          color="indigo"
-        />
-        <StatCard
-          icon={Receipt}
-          label="Total TDS (YTD)"
-          value={formatCurrency(data.ytdTax ?? 0)}
-          sub="Tax Deductions Collected"
-          color="rose"
-        />
+      {/* Half Page: Chart (left) | Flash Cards (right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <QuarterlyChart salary={data.empQuarterlySalary ?? {}} tds={data.empQuarterlyTDS ?? {}} />
+        </div>
+        <div className="space-y-5">
+          <GaugeChart
+            percentage={data.currentQuarterCompletion?.pct ?? 0}
+            label={`${data.currentQuarter} Readiness`}
+            processed={currentQR?.processed}
+            expected={currentQR?.expected}
+            quarters={data.quarterReadiness}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <StatCard
+              icon={Users}
+              label="Active Employees"
+              value={String(data.activeEmployees ?? 0)}
+              sub={(data.pendingEmployees ?? 0) > 0 ? `${data.pendingEmployees} pending entry` : 'All entries updated'}
+              color="emerald"
+              pct={data.activeEmployees > 0 ? Math.round(((data.activeEmployees - (data.pendingEmployees ?? 0)) / data.activeEmployees) * 100) : 100}
+              trend={data.newJoinersThisMonth > 0 ? `+${data.newJoinersThisMonth} joined` : undefined}
+            />
+            <StatCard
+              icon={Banknote}
+              label="Total Salary Outflow (YTD)"
+              value={formatCurrency(data.ytdSalary ?? 0)}
+              sub="Cumulative Gross + DA"
+              color="indigo"
+            />
+            <StatCard
+              icon={Receipt}
+              label="Total TDS (YTD)"
+              value={formatCurrency(data.ytdTax ?? 0)}
+              sub="Tax Deductions Collected"
+              color="rose"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Quick Actions Strip */}
+      {/* Contextual Quick Actions Strip */}
       <div className="flex flex-wrap items-center gap-2.5">
-        <button
-          onClick={() => navigate('/payroll')}
-          className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
-        >
-          <Banknote size={15} />
-          <span>Enter Salary</span>
-        </button>
-        <button
-          onClick={() => navigate('/parties')}
-          className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 font-bold text-xs shadow-sm transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
-        >
-          <Store size={15} className="text-amber-600 dark:text-amber-400" />
-          <span>Add Vendor Bill</span>
-        </button>
-        <button
-          onClick={() => navigate('/reports')}
-          className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 font-bold text-xs shadow-sm transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
-        >
-          <FileSpreadsheet size={15} className="text-teal-600 dark:text-teal-400" />
-          <span>24Q Statement</span>
-        </button>
+        {hasPendingEntries ? (
+          <>
+            <button
+              onClick={() => navigate('/payroll')}
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
+            >
+              <Banknote size={15} />
+              <span>Enter Salary</span>
+            </button>
+            <button
+              onClick={() => navigate('/parties')}
+              className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 font-bold text-xs shadow-sm transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
+            >
+              <Store size={15} className="text-amber-600 dark:text-amber-400" />
+              <span>Add Vendor Bill</span>
+            </button>
+            <button
+              onClick={() => navigate('/reports')}
+              className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 font-bold text-xs shadow-sm transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
+            >
+              <FileSpreadsheet size={15} className="text-teal-600 dark:text-teal-400" />
+              <span>24Q Statement</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => navigate('/reports')}
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
+            >
+              <FileSpreadsheet size={15} />
+              <span>File 24Q</span>
+            </button>
+            <button
+              onClick={() => navigate('/parties')}
+              className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 font-bold text-xs shadow-sm transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
+            >
+              <Store size={15} className="text-amber-600 dark:text-amber-400" />
+              <span>Add Vendor Bill</span>
+            </button>
+            <button
+              onClick={() => navigate('/payroll')}
+              className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 font-bold text-xs shadow-sm transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-95"
+            >
+              <Banknote size={15} />
+              <span>Enter Salary</span>
+            </button>
+          </>
+        )}
         <button
           onClick={() => refetch()}
           className="p-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all hover:rotate-180 duration-500"
@@ -165,6 +234,27 @@ export function DashboardPage() {
           >
             <span>Continue Entry</span>
             <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Empty / Onboarding State */}
+      {hasNoData && (
+        <div className="card p-8 text-center dark:bg-slate-900 dark:border-slate-800">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-4">
+            <UserPlus size={28} />
+          </div>
+          <h3 className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mb-2">
+            No employees registered yet
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto">
+            Get started by adding your first employee. You can then begin recording salary entries and generating quarterly reports.
+          </p>
+          <button
+            onClick={() => navigate('/settings')}
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all hover:scale-[1.03] active:scale-95"
+          >
+            Add Your First Employee
           </button>
         </div>
       )}
@@ -247,7 +337,7 @@ export function DashboardPage() {
               </div>
             </div>
 
-            <QuarterReadiness data={data.quarterReadiness ?? EMPTY_QUARTER_READINESS} />
+            <QuarterReadiness data={data.quarterReadiness ?? EMPTY_QUARTER_READINESS} currentQuarter={data.currentQuarter} />
           </div>
 
           {/* System Health Diagnostics Card */}
@@ -267,13 +357,9 @@ export function DashboardPage() {
             </div>
 
             <div className="space-y-1">
-              <AlertItem label="Prev Qtr Pending" count={data.prevQuarterPending ?? 0} severity="danger" path="/reports" />
-              <AlertItem label="Zero Tax Entries" count={data.zeroTaxEntries?.length ?? 0} severity="warning" path="/payroll" />
-              <AlertItem label="Pending Staff" count={data.pendingEmployees ?? 0} severity="info" path="/payroll" />
-              <AlertItem label="Missing PANs" count={data.missingPANs?.length ?? 0} severity="danger" path="/payroll" />
-              <AlertItem label="New Joiners" count={data.newJoinersThisMonth ?? 0} severity="info" path="/payroll" />
-              <AlertItem label="Departures" count={data.departuresThisMonth ?? 0} severity="info" path="/payroll" />
-              <AlertItem label="Total Parties" count={data.vendorCount ?? 0} severity="info" path="/parties" />
+              {diagnosticItems.map((item) => (
+                <AlertItem key={item.label} {...item} />
+              ))}
             </div>
           </div>
         </div>

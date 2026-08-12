@@ -44,6 +44,9 @@ export function Routes({ modules }: RoutesProps) {
       })}
 
       <Route path="/" element={<Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />} />
+      <Route path="/dashboard.html" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/admin.html" element={<Navigate to="/admin" replace />} />
+      <Route path="/login.html" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<NotFound />} />
     </RouterRoutes>
   );

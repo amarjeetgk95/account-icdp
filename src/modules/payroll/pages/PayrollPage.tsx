@@ -225,7 +225,7 @@ export function PayrollPage() {
       )}
 
       {/* Tab navigation */}
-      <div className="payroll-tabs flex-shrink-0 mb-4 bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-2xl flex border border-slate-200/80 dark:border-slate-700/80 shadow-sm overflow-x-auto">
+      <div className="payroll-tabs flex-shrink-0 mb-2.5 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl flex border border-slate-200/80 dark:border-slate-700/80 shadow-xs overflow-x-auto">
         {TABS.map((tab) => {
           const TabIcon = tab.icon;
           const isActive = mode === tab.id;
@@ -233,14 +233,14 @@ export function PayrollPage() {
             <button
               key={tab.id}
               onClick={() => setMode(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                 isActive
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-md border border-slate-200/60 dark:border-slate-700'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/60 dark:border-slate-700'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
               }`}
               title={tab.description}
             >
-              <TabIcon size={16} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} />
+              <TabIcon size={14} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} />
               <span>{tab.label}</span>
             </button>
           );
@@ -269,7 +269,7 @@ export function PayrollPage() {
       )}
 
       {mode === 'entry' && (
-        <div className="w-full flex-shrink-0 mb-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-3.5 shadow-sm">
+        <div className="w-full flex-shrink-0 mb-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 shadow-xs">
           <div className="w-full flex flex-wrap items-center justify-between gap-4">
             {/* Left Controls: FY badge + Month Select Dropdown */}
             <div className="flex items-center gap-3 shrink-0">

@@ -2,6 +2,10 @@ import { officeRepository } from '../repositories/office.repository';
 import type { OfficeDetailsInput } from '../validation/settings.schema';
 
 export class OfficeService {
+  async getName(officeId?: string): Promise<string> {
+    return officeRepository.getName(officeId);
+  }
+
   async getDetails(officeId?: string): Promise<OfficeDetailsInput> {
     return officeRepository.get(officeId);
   }

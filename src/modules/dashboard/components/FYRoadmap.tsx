@@ -61,7 +61,7 @@ export function FYRoadmap({ data }: FYRoadmapProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2 pb-2">
+      <div className="flex overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-6 lg:grid-cols-12 gap-2 pb-2">
         {months.map((month, i) => {
           if (!month) return null;
           const monthName = month.month ?? '';
@@ -74,7 +74,7 @@ export function FYRoadmap({ data }: FYRoadmapProps) {
               type="button"
               aria-pressed={isSelected}
               onClick={() => setSelected(isSelected ? null : monthName)}
-              className={`group relative w-full text-center p-2.5 rounded-xl border transition-all cursor-pointer hover:scale-105 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+              className={`group relative shrink-0 w-20 sm:w-auto text-center p-2.5 rounded-xl border transition-all cursor-pointer hover:scale-105 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 snap-start ${
                 statusStyles[month.status] || statusStyles.idle
               } ${month.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 font-bold' : ''} ${
                 isSelected ? 'shadow-md border-indigo-400 dark:border-indigo-500' : ''
