@@ -3,8 +3,10 @@ import { useFinancialYears, useYearlyReport } from '../hooks/useReports';
 import type { YearlyReport } from '../types';
 import { formatCurrency, export26QExcel, exportGSTExcel } from '@/shared/utilities';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
+import { EmptyState } from '@/shared/components/EmptyState';
+import { SkeletonTable } from '@/shared/components/Skeleton';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
-import { FileSpreadsheet, Users, Store } from 'lucide-react';
+import { FileSpreadsheet, Users, Store, CalendarDays, Receipt } from 'lucide-react';
 
 type ReportTab = '24q' | '26q' | 'gst';
 
@@ -35,8 +37,8 @@ export function ReportsPage() {
 
   if (yearsLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="spinner h-12 w-12"></div>
+      <div className="max-w-7xl mx-auto">
+        <SkeletonTable rows={4} cols={5} />
       </div>
     );
   }
@@ -63,8 +65,8 @@ export function ReportsPage() {
                       rows: report.vendors.map((v) => ({
                         partyName: v.name,
                         panNo: v.panNo || '-',
-                        billNo: `${v.billCount} bills`,
-                        date: 'FY Summary',
+                        billNo: '-',
+                        date: '',
                         amount: v.totalAmount,
                         incomeTax: v.totalIncomeTax,
                       })),
@@ -84,8 +86,8 @@ export function ReportsPage() {
                         partyName: v.name,
                         gstNo: v.gstNo || '-',
                         cpinNo: '-',
-                        billNo: `${v.billCount} bills`,
-                        date: 'FY Summary',
+                        billNo: '-',
+                        date: '',
                         amount: v.totalAmount,
                         cgst: v.totalCgst,
                         sgst: v.totalSgst,
@@ -104,7 +106,9 @@ export function ReportsPage() {
                   );
                 }
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+              disabled={activeTab === '24q'}
+              title={activeTab === '24q' ? 'Export 24Q from the Payroll module (per quarter)' : 'Download formatted Excel'}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <FileSpreadsheet className="w-4 h-4" />
               Export Formatted Excel
@@ -138,15 +142,15 @@ export function ReportsPage() {
             </div>
           </div>
 
-          {/* Parties Overview Group */}
+          {/* Vendor Overview Group */}
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
               <Store size={14} className="text-amber-600 dark:text-amber-400" />
-              Parties Overview (26Q & GST Vendors)
+              Vendor Overview (26Q & GST)
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="card p-4 border-l-4 border-l-amber-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total Vendors / Parties</div>
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total Vendors</div>
                 <div className="text-2xl font-extrabold mt-1 text-slate-800 dark:text-slate-100">{report.summary.totalVendors}</div>
               </div>
               <div className="card p-4 border-l-4 border-l-red-500">
@@ -169,7 +173,7 @@ export function ReportsPage() {
       </div>
 
       {reportLoading ? (
-        <div className="flex items-center justify-center h-64"><div className="spinner h-12 w-12"></div></div>
+        <SkeletonTable rows={6} cols={6} />
       ) : report ? (
         <>
           {activeTab === '24q' && <Employee24QReport report={report} office={office} />}
@@ -177,14 +181,26 @@ export function ReportsPage() {
           {activeTab === 'gst' && <GSTReportView report={report} office={office} />}
         </>
       ) : (
-        <div className="empty-state"><p>Select a financial year.</p></div>
+        <EmptyState
+          icon={CalendarDays}
+          title="Select a financial year."
+          hint="Pick a financial year above to load the report."
+        />
       )}
     </div>
   );
 }
 
 function Employee24QReport({ report, office }: { report: YearlyReport; office: { officeName: string; subtitle: string; address: string; phone: string; email: string; gst: string; tan: string } }) {
-  if (report.employees.length === 0) return <div className="empty-state"><p>No employee data.</p></div>;
+  if (report.employees.length === 0) {
+    return (
+      <EmptyState
+        icon={Users}
+        title="No employee data."
+        hint="No salary entries were found for this financial year."
+      />
+    );
+  }
 
   const totals = report.employees.reduce(
     (acc, emp) => ({
@@ -212,7 +228,7 @@ function Employee24QReport({ report, office }: { report: YearlyReport; office: {
     <ReportPrintArea
       office={office}
       leftLabel="Tax Deduction No :-"
-      leftValue={office.tan || 'SRTDO0979G'}
+      leftValue={office.tan || 'NOT SET'}
       rightMeta={<><span>Financial Year: {report.fyLabel} | Assessment Year: {report.ayLabel}</span></>}
       title="24Q Employee Annual TDS Statement"
       badgeClass="report-badge-emp"
@@ -285,13 +301,13 @@ function Employee24QReport({ report, office }: { report: YearlyReport; office: {
 }
 
 function Vendor26QReport({ report, office }: { report: YearlyReport; office: { officeName: string; subtitle: string; address: string; phone: string; email: string; gst: string; tan: string } }) {
-  if (report.vendors.length === 0) return <div className="empty-state"><p>No vendor data.</p></div>;
+  if (report.vendors.length === 0) return <EmptyState icon={Store} title="No vendor data." hint="No party transactions were found for this financial year." />;
   const totals = report.vendors.reduce((acc, v) => ({ amount: acc.amount + v.totalAmount, it: acc.it + v.totalIncomeTax }), { amount: 0, it: 0 });
   return (
     <ReportPrintArea
       office={office}
       leftLabel="TAN NO :-"
-      leftValue={office.tan || 'SRTDO0979G'}
+      leftValue={office.tan || 'NOT SET'}
       rightMeta={<><span>Financial Year: {report.fyLabel} | Assessment Year: {report.ayLabel}</span></>}
       title="26Q OTHER THAN SALARY STATEMENT"
       badgeClass="report-badge-it"
@@ -327,13 +343,13 @@ function Vendor26QReport({ report, office }: { report: YearlyReport; office: { o
 }
 
 function GSTReportView({ report, office }: { report: YearlyReport; office: { officeName: string; subtitle: string; address: string; phone: string; email: string; gst: string; tan: string } }) {
-  if (report.vendors.length === 0) return <div className="empty-state"><p>No GST data.</p></div>;
+  if (report.vendors.length === 0) return <EmptyState icon={Receipt} title="No GST data." hint="No party transactions were found for this financial year." />;
   const totals = report.vendors.reduce((acc, v) => ({ amount: acc.amount + v.totalAmount, cgst: acc.cgst + v.totalCgst, sgst: acc.sgst + v.totalSgst, igst: acc.igst + v.totalIgst, total: acc.total + v.totalGst }), { amount: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
   return (
     <ReportPrintArea
       office={office}
       leftLabel="GSTIN NO :-"
-      leftValue={office.gst || '24SRTD00979G1DD'}
+      leftValue={office.gst || 'NOT SET'}
       rightMeta={<><span>Financial Year: {report.fyLabel} | Assessment Year: {report.ayLabel}</span></>}
       title="GST TDS STATEMENT SUMMARY REPORT"
       badgeClass="report-badge-gst"

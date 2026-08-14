@@ -1,10 +1,10 @@
-﻿import type { ModuleDefinition } from '@/shared/types/module';
+import type { ModuleDefinition } from '@/shared/types/module';
 import { partiesRoutes } from './routes';
 
 const moduleDefinition: ModuleDefinition = {
   id: 'parties',
-  name: 'Parties',
-  navGroup: 'main',
+  name: 'Vendor',
+  navGroup: 'tds',
   permissions: ['office'],
   routes: partiesRoutes,
   sidebar: true,

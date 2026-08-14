@@ -18,7 +18,3 @@ modules.sort((a, b) => (a.order || 0) - (b.order || 0));
 export function useModules(): ModuleDefinition[] {
   return modules;
 }
-
-export function getModuleById(id: string): ModuleDefinition | undefined {
-  return modules.find((m) => m.id === id);
-}

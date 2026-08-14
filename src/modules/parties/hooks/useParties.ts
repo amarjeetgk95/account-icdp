@@ -43,6 +43,8 @@ export function useSaveTransaction() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parties-list'] });
       queryClient.invalidateQueries({ queryKey: ['parties-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['parties-gst-report'] });
+      queryClient.invalidateQueries({ queryKey: ['parties-it-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -56,6 +58,8 @@ export function useSaveBulkTransactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parties-list'] });
       queryClient.invalidateQueries({ queryKey: ['parties-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['parties-gst-report'] });
+      queryClient.invalidateQueries({ queryKey: ['parties-it-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -68,7 +72,10 @@ export function useUpdateTransaction() {
     mutationFn: ({ id, updates }: { id: string; updates: Partial<TransactionInput> }) =>
       partyService.updateTransaction(id, updates),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parties-list'] });
       queryClient.invalidateQueries({ queryKey: ['parties-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['parties-gst-report'] });
+      queryClient.invalidateQueries({ queryKey: ['parties-it-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -80,7 +87,10 @@ export function useDeleteTransaction() {
   return useMutation({
     mutationFn: (id: string) => partyService.deleteTransaction(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parties-list'] });
       queryClient.invalidateQueries({ queryKey: ['parties-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['parties-gst-report'] });
+      queryClient.invalidateQueries({ queryKey: ['parties-it-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });

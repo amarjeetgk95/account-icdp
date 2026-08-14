@@ -15,7 +15,6 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   const isAuthPage =
     location.pathname === '/login' ||
-    location.pathname === '/login/admin' ||
     location.pathname === '/forgot-password' ||
     location.pathname === '/update-password';
 

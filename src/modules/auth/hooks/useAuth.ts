@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { supabase } from '@/core/supabase/client';
 import { useAuthStore } from '@/core/auth/store';
 import { logger } from '@/core/logging';
 
@@ -21,11 +22,9 @@ export function useLogin() {
 export function useForgotPassword() {
   return useMutation({
     mutationFn: async (email: string) => {
-      const { error } = await import('@/core/supabase/client').then(({ supabase }) =>
-        supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/update-password`,
-        })
-      );
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
       if (error) throw error;
     },
   });
@@ -34,20 +33,11 @@ export function useForgotPassword() {
 export function useUpdatePassword() {
   return useMutation({
     mutationFn: async (newPassword: string) => {
-      const { error } = await import('@/core/supabase/client').then(({ supabase }) =>
-        supabase.auth.updateUser({ password: newPassword })
-      );
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
       if (error) throw error;
     },
   });
 }
 
-export function useSignOut() {
-  const { signOut } = useAuthStore();
-
-  return useMutation({
-    mutationFn: async () => {
-      await signOut();
-    },
-  });
-}

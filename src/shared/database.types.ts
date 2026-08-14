@@ -5,9 +5,9 @@ export type Database = {
     Views: Record<string, never>,
     Tables: {
       profiles: {
-        Row: { id: string; email: string; role: 'admin' | 'office'; office_id: string | null; created_at: string; updated_at: string }
-        Insert: { id: string; email: string; role?: 'admin' | 'office'; office_id?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; email?: string; role?: 'admin' | 'office'; office_id?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; email: string; role: 'admin' | 'office'; office_id: string | null; suspended?: boolean; created_at: string; updated_at: string }
+        Insert: { id: string; email: string; role?: 'admin' | 'office'; office_id?: string | null; suspended?: boolean; created_at?: string; updated_at?: string }
+        Update: { id?: string; email?: string; role?: 'admin' | 'office'; office_id?: string | null; suspended?: boolean; created_at?: string; updated_at?: string }
         Relationships: []
       }
       offices: {
@@ -74,6 +74,12 @@ export type Database = {
           }
         ]
       }
+      admin_audit_log: {
+        Row: { id: number; admin_id: string | null; admin_email: string | null; action: string; target_email: string | null; details: Json | null; created_at: string }
+        Insert: { id?: number; admin_id?: string | null; admin_email?: string | null; action: string; target_email?: string | null; details?: Json | null; created_at?: string }
+        Update: { id?: number; admin_id?: string | null; admin_email?: string | null; action?: string; target_email?: string | null; details?: Json | null; created_at?: string }
+        Relationships: []
+      }
       app_config: {
         Row: { id: string; office_id: string; key: string; value: string; created_at: string; updated_at: string }
         Insert: { id?: string; office_id: string; key: string; value: string; created_at?: string; updated_at?: string }
@@ -84,15 +90,17 @@ export type Database = {
     Functions: {
       admin_list_users: { Args: Record<string, never>; Returns: Json }
       admin_set_role: { Args: { user_id: string; new_role: string; new_office_id: string | null }; Returns: Json }
+      admin_set_user_status: { Args: { user_id: string; suspended: boolean }; Returns: Json }
       admin_delete_user: { Args: { user_id: string }; Returns: Json }
-      admin_deleteUser: { Args: { user_id: string }; Returns: Json }
       admin_list_offices: { Args: Record<string, never>; Returns: Json }
       admin_create_office: { Args: { office_name: string; office_district: string }; Returns: Json }
+      admin_update_office: { Args: { office_id: string; office_name: string; office_district: string }; Returns: Json }
       admin_create_user: { Args: { user_email: string; user_password: string; user_role: string; user_office_id: string }; Returns: Json }
       admin_invite_user: { Args: { user_email: string; user_role: string; user_office_id: string }; Returns: Json }
       admin_entry_completion: { Args: Record<string, never>; Returns: Json }
       admin_office_financial_years: { Args: { target_office_id: string }; Returns: Json }
-      admin_audit_list: { Args: { limit_count?: number }; Returns: Json }
+      admin_audit_list: { Args: { limit_count?: number; offset_count?: number }; Returns: Json }
+      admin_log: { Args: { action: string; target_email?: string | null; details?: Json | null }; Returns: void }
       get_system_stats: { Args: Record<string, never>; Returns: Json }
       admin_office_stats: { Args: Record<string, never>; Returns: Json }
       admin_data_entry_report: { Args: Record<string, never>; Returns: Json }

@@ -7,12 +7,15 @@ import { CommandPalette } from '@/shared/components/CommandPalette';
 import { AuthGate } from '@/shared/components/AuthGate';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { ToastContainer } from '@/shared/components/Toast';
+import { Toaster } from '@/components/ui/toaster';
 import { SkeletonTable, SkeletonCard } from '@/shared/components/Skeleton';
 import { useAuthStore } from '@/core/auth/store';
 import { useUIStore } from '@/core/stores/ui-store';
 import { usePermissions } from '@/core/permissions/hooks';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, Suspense } from 'react';
+
+const AUTH_PATHS = new Set(['/login', '/forgot-password', '/update-password']);
 
 function LoadingFallback() {
   return (
@@ -55,24 +58,18 @@ export default function App() {
     return () => window.removeEventListener('keydown', down);
   }, []);
 
-  const isAuthPage =
-    location.pathname === '/login' ||
-    location.pathname === '/login/admin' ||
-    location.pathname === '/forgot-password' ||
-    location.pathname === '/update-password';
-
+  const isAuthPage = AUTH_PATHS.has(location.pathname);
+  const isUpdatePasswordPage = location.pathname === '/update-password';
   const postLoginRedirect = isRoleLoaded ? (isAdmin ? '/admin' : '/dashboard') : null;
 
   return (
     <ErrorBoundary>
       <AuthGate>
-        {!user && !isAuthPage && <Navigate to="/login" replace />}
-        {user && isAuthPage && !isRoleLoaded && <LoadingFallback />}
-        {user && isAuthPage && isRoleLoaded && postLoginRedirect && (
+        {!user && !isAuthPage ? (
+          <Navigate to="/login" replace />
+        ) : user && isAuthPage && !isUpdatePasswordPage && isRoleLoaded && postLoginRedirect ? (
           <Navigate to={postLoginRedirect} replace />
-        )}
-
-        {isAuthPage ? (
+        ) : isAuthPage ? (
           <main className="flex-1">
             <Suspense fallback={<LoadingFallback />}>
               <Routes modules={modules} />
@@ -95,6 +92,7 @@ export default function App() {
           </Layout>
         )}
         <ToastContainer />
+        <Toaster />
       </AuthGate>
     </ErrorBoundary>
   );

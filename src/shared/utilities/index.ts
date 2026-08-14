@@ -1,14 +1,17 @@
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: unknown): string {
+  const n = typeof amount === 'number' && !Number.isNaN(amount) ? amount : Number(amount) || 0;
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(n);
 }
 
-export function formatDate(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+export function formatDate(date: unknown): string {
+  if (!date) return '-';
+  const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : (date as Date);
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -16,8 +19,16 @@ export function formatDate(date: string | Date): string {
   });
 }
 
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat('en-IN').format(value);
+export function formatDateTime(date: unknown): string {
+  if (!date) return '-';
+  const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : (date as Date);
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString('en-IN');
+}
+
+export function formatNumber(value: unknown): string {
+  const n = typeof value === 'number' && !Number.isNaN(value) ? value : Number(value) || 0;
+  return new Intl.NumberFormat('en-IN').format(n);
 }
 
 export function parseDateLocal(dateStr: string): Date | null {
@@ -84,4 +95,5 @@ export function downloadCsv(filename: string, headers: string[], rows: Array<Arr
 }
 
 export * from './excelExport';
+export * from './rpc';
 

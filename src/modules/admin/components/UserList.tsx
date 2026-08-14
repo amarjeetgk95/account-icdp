@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Search, Users, ShieldCheck, Building2, ArrowUp, ArrowDown, Trash2, UserRound } from 'lucide-react';
+import { Search, Users, ShieldCheck, Building2, ArrowUp, ArrowDown, Trash2, UserRound, UserCheck, UserX } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { SkeletonTable } from '@/shared/components/Skeleton';
+import { formatDateTime } from '@/shared/utilities';
 import type { UserInfo } from '../types';
 
 interface UserListProps {
@@ -10,6 +11,7 @@ interface UserListProps {
   isLoading: boolean;
   isBusy?: boolean;
   onSetRole: (userId: string, role: 'admin' | 'office', officeId: string | null) => Promise<void>;
+  onSetStatus: (userId: string, suspended: boolean) => Promise<void>;
   onDelete: (userId: string) => Promise<void>;
   currentUserEmail?: string;
 }
@@ -17,9 +19,19 @@ interface UserListProps {
 type Dialog =
   | { type: 'delete'; user: UserInfo }
   | { type: 'role'; user: UserInfo; newRole: 'admin' | 'office' }
+  | { type: 'suspend'; user: UserInfo; toSuspended: boolean }
   | null;
 
-export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelete, currentUserEmail }: UserListProps) {
+export function UserList({
+  users,
+  offices,
+  isLoading,
+  isBusy,
+  onSetRole,
+  onSetStatus,
+  onDelete,
+  currentUserEmail,
+}: UserListProps) {
   const [search, setSearch] = useState('');
   const [dialog, setDialog] = useState<Dialog>(null);
   const [roleOfficeId, setRoleOfficeId] = useState('');
@@ -30,7 +42,8 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
     return (
       u.email.toLowerCase().includes(q) ||
       (u.office_name || '').toLowerCase().includes(q) ||
-      u.role.toLowerCase().includes(q)
+      u.role.toLowerCase().includes(q) ||
+      (u.suspended ? 'suspended' : 'active').toLowerCase().includes(q)
     );
   });
 
@@ -42,15 +55,13 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
     [offices, dialog]
   );
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? '-' : d.toLocaleString('en-IN');
-  };
-
   const openRoleDialog = (user: UserInfo, newRole: 'admin' | 'office') => {
     setDialog({ type: 'role', user, newRole });
     setRoleOfficeId(user.office_id || availableOffices[0]?.id || '');
+  };
+
+    const openSuspendDialog = (user: UserInfo, toSuspended: boolean) => {
+    setDialog({ type: 'suspend', user, toSuspended });
   };
 
   const confirmRole = async () => {
@@ -58,6 +69,17 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
     const target = dialog;
     try {
       await onSetRole(target.user.id, target.newRole, target.newRole === 'office' ? roleOfficeId || null : null);
+      setDialog(null);
+    } catch {
+      setDialog(null);
+    }
+  };
+
+    const confirmSuspend = async () => {
+    if (!dialog || dialog.type !== 'suspend') return;
+    const target = dialog;
+    try {
+      await onSetStatus(target.user.id, target.toSuspended);
       setDialog(null);
     } catch {
       setDialog(null);
@@ -111,8 +133,9 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
         <div className="overflow-auto um-table max-h-[560px]">
           <table className="table table-sm">
             <thead>
-              <tr>
+                            <tr>
                 <th>Email</th>
+                <th>Status</th>
                 <th>Role</th>
                 <th>Office</th>
                 <th>Created</th>
@@ -123,6 +146,7 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
             <tbody>
               {filteredUsers.map((user) => {
                 const isCurrentUser = user.email.toLowerCase() === (currentUserEmail || '').toLowerCase();
+                const canToggle = !isCurrentUser;
                 return (
                   <tr key={user.id}>
                     <td className="font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">
@@ -137,6 +161,17 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
                           </span>
                         )}
                       </span>
+                                        </td>
+                    <td className="whitespace-nowrap">
+                      {user.suspended ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300 border border-red-200/60 dark:border-red-900">
+                          <UserX size={11} /> Suspended
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900">
+                          <UserCheck size={11} /> Active
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span
@@ -149,10 +184,19 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
                       </span>
                     </td>
                     <td className="text-slate-600 dark:text-slate-300">{user.office_name || '-'}</td>
-                    <td className="text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums">{formatDate(user.created_at)}</td>
-                    <td className="text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums">{formatDate(user.last_sign_in_at)}</td>
+                    <td className="text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums">{user.created_at ? formatDateTime(user.created_at) : '-'}</td>
+                    <td className="text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums">{user.last_sign_in_at ? formatDateTime(user.last_sign_in_at) : '-'}</td>
                     <td>
                       <div className="flex justify-center gap-1">
+                        <button
+                          onClick={() => openSuspendDialog(user, !user.suspended)}
+                          disabled={!canToggle}
+                          className="um-icon-btn"
+                          title={user.suspended ? 'Reactivate user' : 'Suspend user'}
+                          aria-label={user.suspended ? `Reactivate ${user.email}` : `Suspend ${user.email}`}
+                        >
+                          {user.suspended ? <UserCheck size={15} /> : <UserX size={15} />}
+                        </button>
                         <button
                           onClick={() =>
                             openRoleDialog(user, user.role === 'admin' ? 'office' : 'admin')
@@ -180,7 +224,7 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
               })}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center">
+                  <td colSpan={7} className="py-10 text-center">
                     <span className="mx-auto mb-3 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                       <Search size={20} className="text-slate-400 dark:text-slate-500" />
                     </span>
@@ -192,6 +236,26 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={dialog?.type === 'suspend'}
+        title={dialog?.type === 'suspend' && dialog.toSuspended ? 'Suspend User' : 'Reactivate User'}
+        message={
+          dialog?.type === 'suspend' ? (
+            <p>
+              {dialog.toSuspended
+                ? `Suspending "${dialog.user.email}" prevents them from signing in and accessing any office data.`
+                : `Reactivating "${dialog.user.email}" restores their access.`}
+            </p>
+          ) : undefined
+        }
+        danger={dialog?.type === 'suspend' && dialog.toSuspended}
+        requireText={dialog?.type === 'suspend' && dialog.toSuspended ? 'SUSPEND' : undefined}
+        busy={isBusy}
+        confirmLabel={dialog?.type === 'suspend' && dialog.toSuspended ? 'Suspend' : 'Reactivate'}
+        onConfirm={confirmSuspend}
+        onCancel={() => setDialog(null)}
+      />
 
       <ConfirmDialog
         open={dialog?.type === 'role'}
@@ -255,3 +319,4 @@ export function UserList({ users, offices, isLoading, isBusy, onSetRole, onDelet
     </>
   );
 }
+

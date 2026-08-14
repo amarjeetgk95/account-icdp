@@ -34,6 +34,7 @@ export function useSaveSalary() {
         queryKey: ['payroll-month-check', variables.month, variables.fy],
       });
       queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-quarter-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -53,6 +54,7 @@ export function useClearMonth() {
         queryKey: ['payroll-month-check', variables.month, variables.fy],
       });
       queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-quarter-report'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });

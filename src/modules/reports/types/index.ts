@@ -42,8 +42,3 @@ export interface YearlyReport {
     totalGst: number;
   };
 }
-
-export interface FinancialYear {
-  year: number;
-  label: string;
-}

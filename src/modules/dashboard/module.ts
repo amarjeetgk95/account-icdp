@@ -7,7 +7,7 @@ const moduleDefinition: ModuleDefinition = {
   navGroup: 'main',
   permissions: ['office'],
   routes: dashboardRoutes,
-  sidebar: true,
+  sidebar: false,
   featureFlag: 'dashboard_module',
   order: 1,
 };

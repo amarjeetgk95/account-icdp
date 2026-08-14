@@ -15,6 +15,15 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom', 'zustand', '@tanstack/react-query'],
+          supabase: ['@supabase/supabase-js'],
+          spreadsheet: ['exceljs', 'xlsx'],
+        },
+      },
+    },
   },
 });

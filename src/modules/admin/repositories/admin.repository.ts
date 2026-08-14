@@ -1,53 +1,63 @@
 import { supabase } from '@/core/supabase/client';
+import { rpcArray } from '@/shared/utilities';
 import type { Json } from '@/shared/json.types';
-import type {
-  SystemStats,
-  UserInfo,
-  OfficeStats,
-  Office,
-  DataEntryReportRow,
-  OfficeCompletion,
-  AuditLogEntry,
-} from '../types';
+import type { UserInfo, Office, SystemStats, OfficeStats, OfficeCompletion, DataEntryReportRow, UpdateOfficeInput } from '../types';
 
 function messageOf(data: Json | null, fallback: string): string {
   if (data && typeof data === 'object' && !Array.isArray(data)) {
     const obj = data as Record<string, unknown>;
+    if (typeof obj.error === 'string') throw new Error(obj.error);
     if (typeof obj.message === 'string') return obj.message;
-    if (typeof obj.error === 'string') return obj.error;
   }
   return fallback;
 }
 
-function asArray<T>(data: Json | null): T[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data as unknown as T[];
-  return [];
-}
-
 export const adminRepository = {
   async getSystemStats(): Promise<SystemStats> {
-    const { data, error } = await supabase.rpc('get_system_stats').single();
+    const { data, error } = await supabase.rpc('get_system_stats');
     if (error) throw error;
-    return data as unknown as SystemStats;
+    return (data as unknown as SystemStats) || {
+      users: 0,
+      admins: 0,
+      suspended: 0,
+      offices: 0,
+      fy: new Date().getFullYear(),
+      employees: 0,
+      salaries: 0,
+      parties: 0,
+      transactions: 0,
+      officeName: null,
+    };
   },
 
   async getOfficeStats(): Promise<OfficeStats[]> {
     const { data, error } = await supabase.rpc('admin_office_stats');
     if (error) throw error;
-    return asArray<OfficeStats>(data);
+    return rpcArray<OfficeStats>(data);
+  },
+
+  async getEntryCompletion(): Promise<OfficeCompletion[]> {
+    const { data, error } = await supabase.rpc('admin_entry_completion');
+    if (error) throw error;
+    return rpcArray<OfficeCompletion>(data);
+  },
+
+  async getDataEntryReport(): Promise<DataEntryReportRow[]> {
+    const { data, error } = await supabase.rpc('admin_data_entry_report');
+    if (error) throw error;
+    return rpcArray<DataEntryReportRow>(data);
   },
 
   async listUsers(): Promise<UserInfo[]> {
     const { data, error } = await supabase.rpc('admin_list_users');
     if (error) throw error;
-    return asArray<UserInfo>(data);
+    return rpcArray<UserInfo>(data);
   },
 
   async listOffices(): Promise<Office[]> {
     const { data, error } = await supabase.rpc('admin_list_offices');
     if (error) throw error;
-    return asArray<Office>(data);
+    return rpcArray<Office>(data);
   },
 
   async setUserRole(userId: string, role: 'admin' | 'office', officeId: string | null): Promise<string> {
@@ -60,8 +70,17 @@ export const adminRepository = {
     return messageOf(data, 'Role updated');
   },
 
+  async setUserStatus(userId: string, suspended: boolean): Promise<string> {
+    const { data, error } = await supabase.rpc('admin_set_user_status', {
+      user_id: userId,
+      suspended,
+    });
+    if (error) throw error;
+    return messageOf(data, suspended ? 'User suspended' : 'User activated');
+  },
+
   async deleteUser(userId: string): Promise<string> {
-    const { data, error } = await supabase.rpc('admin_deleteUser', { user_id: userId });
+    const { data, error } = await supabase.rpc('admin_delete_user', { user_id: userId });
     if (error) throw error;
     return messageOf(data, 'User deleted');
   },
@@ -72,7 +91,21 @@ export const adminRepository = {
       office_district: district,
     });
     if (error) throw error;
-    return data as unknown as Office;
+    const office = data as unknown as Office;
+    if (!office || typeof office.id !== 'string') {
+      throw new Error(messageOf(data, 'Failed to create office'));
+    }
+    return office;
+  },
+
+  async updateOffice(input: UpdateOfficeInput): Promise<string> {
+    const { data, error } = await supabase.rpc('admin_update_office', {
+      office_id: input.officeId,
+      office_name: input.name,
+      office_district: input.district ?? '',
+    });
+    if (error) throw error;
+    return messageOf(data, 'Office updated');
   },
 
   async createUser(email: string, password: string, role: string, officeId: string): Promise<string> {
@@ -96,18 +129,6 @@ export const adminRepository = {
     return messageOf(data, 'Invitation created');
   },
 
-  async getDataEntryReport(): Promise<DataEntryReportRow[]> {
-    const { data, error } = await supabase.rpc('admin_data_entry_report');
-    if (error) throw error;
-    return asArray<DataEntryReportRow>(data);
-  },
-
-  async getEntryCompletion(): Promise<OfficeCompletion[]> {
-    const { data, error } = await supabase.rpc('admin_entry_completion');
-    if (error) throw error;
-    return asArray<OfficeCompletion>(data);
-  },
-
   async getFinancialYears(officeId: string): Promise<number[]> {
     const now = new Date();
     const defaultFY = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
@@ -124,10 +145,5 @@ export const adminRepository = {
       return [defaultFY];
     }
   },
-
-  async listAuditLogs(limit = 100): Promise<AuditLogEntry[]> {
-    const { data, error } = await supabase.rpc('admin_audit_list', { limit_count: limit });
-    if (error) throw error;
-    return asArray<AuditLogEntry>(data);
-  },
 };
+

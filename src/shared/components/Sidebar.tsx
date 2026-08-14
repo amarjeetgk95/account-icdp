@@ -29,30 +29,20 @@ export function Sidebar({ modules }: SidebarProps) {
   });
 
   const mainModules = visibleModules.filter((m) => m.navGroup === 'main');
-  const reportModules = visibleModules.filter((m) => m.navGroup === 'reports');
+  const tdsModules = visibleModules.filter((m) => m.navGroup === 'tds');
+  const billsModules = visibleModules.filter((m) => m.navGroup === 'bills');
+  const systemModules = visibleModules.filter((m) => m.navGroup === 'system');
   const adminModules = visibleModules.filter((m) => m.navGroup === 'admin');
 
   const closeMobile = () => setMobileMenuOpen(false);
 
-  const renderOfficeSidebar = () => (
-    <>
-      {mainModules.length > 0 && (
-        <div className="sidebar-group">
-          {!sidebarCollapsed && <p className="sidebar-group-label">Workspace</p>}
-          {mainModules.map((module) => (
-            <NavItem key={module.id} module={module} collapsed={sidebarCollapsed} onNavClick={closeMobile} />
-          ))}
-        </div>
-      )}
-      {reportModules.length > 0 && (
-        <div className="sidebar-group">
-          {!sidebarCollapsed && <p className="sidebar-group-label">Reports</p>}
-          {reportModules.map((module) => (
-            <NavItem key={module.id} module={module} collapsed={sidebarCollapsed} onNavClick={closeMobile} />
-          ))}
-        </div>
-      )}
-    </>
+  const renderGroup = (label: string, items: ModuleDefinition[]) => (
+    <div className="sidebar-group">
+      {!sidebarCollapsed && <p className="sidebar-group-label">{label}</p>}
+      {items.map((module) => (
+        <NavItem key={module.id} module={module} collapsed={sidebarCollapsed} onNavClick={closeMobile} />
+      ))}
+    </div>
   );
 
   const renderAdminSidebar = () => {
@@ -130,7 +120,25 @@ export function Sidebar({ modules }: SidebarProps) {
         </div>
 
         <nav className="sidebar-nav">
-          {isAdmin ? renderAdminSidebar() : renderOfficeSidebar()}
+          {isAdmin ? (
+            renderAdminSidebar()
+          ) : (
+            <>
+              <div className="sidebar-groups">
+                {mainModules.length > 0 && renderGroup('Overview', mainModules)}
+                {tdsModules.length > 0 && renderGroup('TDS', tdsModules)}
+                {billsModules.length > 0 && renderGroup('Bill Creation', billsModules)}
+              </div>
+              {systemModules.length > 0 && (
+                <div className={`sidebar-group sidebar-system-group ${sidebarCollapsed ? 'sidebar-system-collapsed' : ''}`}>
+                  {!sidebarCollapsed && <p className="sidebar-group-label">System</p>}
+                  {systemModules.map((module) => (
+                    <NavItem key={module.id} module={module} collapsed={sidebarCollapsed} onNavClick={closeMobile} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </nav>
       </aside>
     </>

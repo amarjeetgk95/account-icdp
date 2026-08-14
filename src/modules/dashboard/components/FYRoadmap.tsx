@@ -29,36 +29,51 @@ export function FYRoadmap({ data }: FYRoadmapProps) {
   const selectedMonth = months.find((m) => m?.month === selected) ?? null;
   const selectedPendingNames = selectedMonth ? pendingNamesOf(selectedMonth) : [];
 
-  const statusStyles = {
-    complete: 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300',
-    partial: 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300',
-    empty: 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300',
-    idle: 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500',
+  const getMonthClasses = (status: string, isCurrent: boolean, isSelected: boolean) => {
+    if (isSelected) {
+      return 'border-indigo-500 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-900 dark:text-indigo-100 shadow-[0_2px_8px_-2px_rgba(79,70,229,0.25)]';
+    }
+    
+    let base = '';
+    switch(status) {
+      case 'complete':
+      case 'partial':
+        base = 'bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300';
+        break;
+      case 'empty':
+        base = 'bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400';
+        break;
+      default: // idle
+        base = 'bg-slate-50/50 dark:bg-slate-800/30 text-slate-400 dark:text-slate-500 opacity-50';
+    }
+
+    if (isCurrent) {
+      return `${base} border-indigo-500 dark:border-indigo-400`;
+    }
+    
+    if (status === 'idle') {
+      return `${base} border-slate-100 dark:border-slate-800`;
+    }
+    
+    return `${base} border-slate-200 dark:border-slate-700`;
   };
 
   return (
-    <div className="card p-5 dark:bg-slate-900 dark:border-slate-800/80 hover:shadow-md transition-all">
-      <div className="flex items-center justify-between gap-4 pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-            <Calendar size={18} />
+    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.12)] p-5 transition-all">
+      <div className="flex items-center gap-4 pb-4 mb-4 border-b border-slate-100/80 dark:border-slate-800/80">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-100 dark:ring-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+            <Calendar size={15} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-              Financial Year Roadmap
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 tracking-tight">
+              Financial Year 12-Month Roadmap
             </h3>
-            <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-              12-month salary processing status (Mar to Feb). Click a month to see remaining entries.
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+              12-month salary processing status (April to March). Click any month to inspect pending entries.
             </p>
           </div>
         </div>
-        <button
-          onClick={() => navigate('/payroll')}
-          className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-1 transition-colors group"
-        >
-          Payroll Module
-          <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-        </button>
       </div>
 
       <div className="flex overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-6 lg:grid-cols-12 gap-2 pb-2">
@@ -68,35 +83,28 @@ export function FYRoadmap({ data }: FYRoadmapProps) {
           const isSelected = monthName === selected;
           const pct = safePct(month.pct);
           const pendingCount = pendingNamesOf(month).length;
+          
           return (
             <button
               key={monthName || `month-${i}`}
               type="button"
               aria-pressed={isSelected}
-              onClick={() => setSelected(isSelected ? null : monthName)}
-              className={`group relative shrink-0 w-20 sm:w-auto text-center p-2.5 rounded-xl border transition-all cursor-pointer hover:scale-105 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 snap-start ${
-                statusStyles[month.status] || statusStyles.idle
-              } ${month.isCurrent ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 font-bold' : ''} ${
-                isSelected ? 'shadow-md border-indigo-400 dark:border-indigo-500' : ''
-              }`}
-              title={`${monthName}: ${safeCount(month.processed)}/${safeCount(month.active)} processed (${pct}%) · ${pendingCount} remaining`}
+              onClick={() => {
+                setSelected(isSelected ? null : monthName);
+              }}
+              className={`group relative shrink-0 w-20 sm:w-auto text-center p-2.5 rounded-xl border transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 snap-start cursor-pointer ${getMonthClasses(month.status, !!month.isCurrent, isSelected)}`}
+              title={`${monthName}: ${safeCount(month.processed)}/${safeCount(month.active)} processed (${pct}%) · ${pendingCount} remaining · Status: ${month.status}`}
             >
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {monthName.slice(0, 3)}
               </div>
-              <div className="text-xs font-black mt-1">
+              <div className="text-xs font-semibold mt-0.5 tabular-nums">
                 {pct}%
               </div>
-              {month.isCurrent && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-600 animate-ping" />
-              )}
               {!month.future && pendingCount > 0 && (
-                <span
-                  className="absolute -bottom-1 -left-1 flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[8px] font-black"
-                  title={`${pendingCount} remaining entries`}
-                >
-                  {pendingCount}
-                </span>
+                <div className="text-[10px] text-slate-400 mt-0.5">
+                  {pendingCount} left
+                </div>
               )}
             </button>
           );
@@ -104,24 +112,24 @@ export function FYRoadmap({ data }: FYRoadmapProps) {
       </div>
 
       {selectedMonth && (
-        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <div className="mt-4 pt-3 border-t border-slate-100/80 dark:border-slate-800/80">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Users size={14} className="text-indigo-600 dark:text-indigo-400" />
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
                 {selectedMonth.month ?? ''} — Remaining Entries ({selectedPendingNames.length})
               </span>
             </div>
             <button
-              onClick={() => navigate('/payroll')}
-              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-1 transition-colors group"
+              onClick={() => navigate(`/payroll?month=${selectedMonth.month}`)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
             >
-              Go to Payroll
-              <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+              <span>Fill {selectedMonth.month} Roster</span>
+              <ChevronRight size={13} />
             </button>
           </div>
           {selectedMonth.future ? (
-            <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
               {selectedMonth.month ?? ''} salary is paid next month — entries open once it becomes the current month.
             </p>
           ) : selectedPendingNames.length > 0 ? (
@@ -129,38 +137,19 @@ export function FYRoadmap({ data }: FYRoadmapProps) {
               {selectedPendingNames.map((name) => (
                 <span
                   key={name}
-                  className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-[11px] font-semibold text-rose-700 dark:text-rose-300"
+                  className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300"
                 >
                   {name}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="mt-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
               All salary entries complete for {selectedMonth.month ?? ''}.
             </p>
           )}
         </div>
       )}
-
-      <div className="flex flex-wrap gap-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400 pt-2">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Complete (100%)
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Partial Data
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Empty / Pending
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 ring-2 ring-indigo-300 dark:ring-indigo-800" /> Active Month
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 text-white text-[9px] flex items-center justify-center font-black">n</span> Remaining
-          Entries
-        </span>
-      </div>
     </div>
   );
 }

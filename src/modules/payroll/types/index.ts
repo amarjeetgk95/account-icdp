@@ -1,12 +1,3 @@
-export interface SalaryEntry {
-  employeeId: string;
-  employeeName: string;
-  pan: string;
-  gross: number;
-  da: number;
-  tax: number;
-}
-
 export interface EmployeeRosterItem {
   id: string;
   name: string;
@@ -23,16 +14,6 @@ export interface MonthOption {
   label: string;
 }
 
-export interface QuarterReportRow {
-  name: string;
-  pan: string;
-  g: [number, number, number];
-  d: number;
-  total: number;
-  t: [number, number, number];
-  tax: number;
-}
-
 export interface QuarterReport {
   fy: number;
   fyLabel: string;
@@ -42,12 +23,14 @@ export interface QuarterReport {
   rows: QuarterReportRow[];
 }
 
-export interface BudgetHead {
-  id: string;
-  officeId: string;
-  code: string;
+export interface QuarterReportRow {
   name: string;
-  sortOrder: number;
+  pan: string;
+  g: [number, number, number];
+  d: number;
+  total: number;
+  t: [number, number, number];
+  tax: number;
 }
 
 export interface BudgetHeadInput {
@@ -77,15 +60,4 @@ export interface BudgetHeadReport {
   monthLabels: string[];
   groups: BudgetHeadReportGroup[];
   totals: BudgetHeadQuarterTotals;
-}
-
-export interface BulkSalarySaveInput {
-  month: string;
-  financialYear: number;
-  entries: Array<{
-    employeeId: string;
-    gross: number;
-    da: number;
-    tax: number;
-  }>;
 }

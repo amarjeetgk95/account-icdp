@@ -18,12 +18,17 @@ describe('adminAuditService', () => {
   describe('listAuditLogs', () => {
     it('calls the repository with the default limit of 100', async () => {
       await adminAuditService.listAuditLogs();
-      expect(mockRepo.listAuditLogs).toHaveBeenCalledWith(100);
+      expect(mockRepo.listAuditLogs).toHaveBeenCalledWith(100, 0);
     });
 
     it('calls the repository with an explicit limit', async () => {
       await adminAuditService.listAuditLogs(50);
-      expect(mockRepo.listAuditLogs).toHaveBeenCalledWith(50);
+      expect(mockRepo.listAuditLogs).toHaveBeenCalledWith(50, 0);
+    });
+
+    it('calls the repository with explicit limit and offset', async () => {
+      await adminAuditService.listAuditLogs(50, 20);
+      expect(mockRepo.listAuditLogs).toHaveBeenCalledWith(50, 20);
     });
 
     it('returns the repository result', async () => {

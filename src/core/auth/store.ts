@@ -22,11 +22,17 @@ interface AuthState {
 
 async function loadProfileIntoStores(userId: string): Promise<void> {
   try {
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select('role, office_id')
       .eq('id', userId)
       .single();
+
+    if (error) {
+      logger.warn('Could not load profile', 'auth', error);
+      useAuthStore.setState({ isRoleLoaded: true });
+      return;
+    }
 
     if (profile) {
       const current = useAuthStore.getState().user;
@@ -61,7 +67,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const {
         data: { session },
+        error,
       } = await supabase.auth.getSession();
+
+      if (error) {
+        logger.error('Session retrieval error', 'auth', error);
+      }
 
       if (session?.user) {
         set({
@@ -70,17 +81,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
         await loadProfileIntoStores(session.user.id);
       } else {
-        set({ isRoleLoaded: true });
+        set({
+          user: null,
+          isRoleLoaded: true,
+        });
+        useUIStore.getState().initializeOffice(null);
       }
       set({ isLoading: false, isInitialized: true });
 
       if (!authListenerRegistered) {
         authListenerRegistered = true;
-        supabase.auth.onAuthStateChange(async (_event, newSession) => {
+        supabase.auth.onAuthStateChange(async (event, newSession) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            if (window.location.pathname !== '/update-password') {
+              window.location.pathname = '/update-password';
+            }
+            return;
+          }
+
           if (newSession?.user) {
             const currentUser = get().user;
 
-            if (currentUser?.id === newSession.user.id) {
+            if (currentUser?.id === newSession.user.id && currentUser?.role && get().isRoleLoaded) {
               return;
             }
 
@@ -94,43 +116,65 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               isRoleLoaded: false,
             });
             await loadProfileIntoStores(newSession.user.id);
-          } else {
-            set({ user: null, isRoleLoaded: true });
+          } else if (event === 'SIGNED_OUT' || !newSession) {
+            set({
+              user: null,
+              isRoleLoaded: true,
+            });
+            useUIStore.getState().initializeOffice(null);
           }
         });
       }
     } catch (error) {
       logger.error('Auth initialization failed', 'auth', error);
-      set({ user: null, isLoading: false, isInitialized: true, isRoleLoaded: true });
+      set({
+        user: null,
+        isLoading: false,
+        isInitialized: true,
+        isRoleLoaded: true,
+      });
+      useUIStore.getState().initializeOffice(null);
     }
   },
 
   signIn: async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      logger.error('Sign in failed', 'auth', error);
-      throw error;
-    }
-
-    if (data?.user) {
-      set({
-        user: { id: data.user.id, email: data.user.email || '' },
-        isRoleLoaded: false,
+    set({ isLoading: true });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      await loadProfileIntoStores(data.user.id);
-      set({ isLoading: false, isInitialized: true });
+
+      if (error) {
+        set({ isLoading: false });
+        throw error;
+      }
+
+      if (data?.user) {
+        set({
+          user: { id: data.user.id, email: data.user.email || '' },
+          isRoleLoaded: false,
+        });
+        await loadProfileIntoStores(data.user.id);
+        set({ isLoading: false, isInitialized: true });
+      }
+    } catch (err) {
+      set({ isLoading: false });
+      throw err;
     }
   },
 
   signOut: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      logger.error('Sign out failed', 'auth', error);
+    set({ isLoading: true });
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        logger.error('Sign out failed', 'auth', error);
+      }
+    } finally {
+      set({ user: null, isRoleLoaded: true, isLoading: false });
+      useUIStore.getState().initializeOffice(null);
     }
-    set({ user: null });
   },
 }));
+

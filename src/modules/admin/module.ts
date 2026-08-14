@@ -1,4 +1,4 @@
-﻿import type { ModuleDefinition } from '@/shared/types/module';
+import type { ModuleDefinition } from '@/shared/types/module';
 import { adminRoutes } from './routes';
 
 const moduleDefinition: ModuleDefinition = {
@@ -12,16 +12,22 @@ const moduleDefinition: ModuleDefinition = {
   order: 10,
   children: [
     {
-      path: '/admin',
+      path: '/admin/overview',
       label: 'Overview',
       icon: 'overview',
-      subtitle: 'Key metrics, data-entry completion, and office status',
+      subtitle: 'System metrics, monthly completion, and office summaries',
     },
     {
       path: '/admin/users',
       label: 'User Management',
       icon: 'users',
       subtitle: 'Create users, assign roles, and review admin activity',
+    },
+    {
+      path: '/admin/offices',
+      label: 'Office Management',
+      icon: 'offices',
+      subtitle: 'Register offices and edit office details',
     },
     {
       path: '/admin/reports',

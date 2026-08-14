@@ -47,7 +47,7 @@ export class PayrollService {
     month: string,
     fy: number
   ): Promise<Array<{ employeeId: string; gross: number; da: number; tax: number }>> {
-    const monthIdx = MONTHS.indexOf(month as any);
+    const monthIdx = MONTHS.indexOf(month);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
     return payrollRepository.getPreviousMonthSalaries(prevMonth, fy);
@@ -58,7 +58,7 @@ export class PayrollService {
   }
 
   async getEmployeePreviousMonthData(employeeId: string, month: string, fy: number): Promise<{ gross: number; da: number; tax: number } | null> {
-    const monthIdx = MONTHS.indexOf(month as any);
+    const monthIdx = MONTHS.indexOf(month);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
     return payrollRepository.getEmployeeSalaryForMonth(employeeId, prevMonth, fy);

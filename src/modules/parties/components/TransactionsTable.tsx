@@ -3,6 +3,7 @@ import type { PartyTransaction, TransactionInput } from '../types';
 import { formatCurrency, formatDate } from '@/shared/utilities';
 import { useUpdateTransaction, useDeleteTransaction } from '../hooks/useParties';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { SkeletonTable } from '@/shared/components/Skeleton';
 import { Edit, Trash2, Check, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TransactionsTableProps {
@@ -51,11 +52,7 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
   );
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <SkeletonTable rows={5} cols={5} />;
   }
 
   if (transactions.length === 0) {
@@ -136,7 +133,7 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="tx-table">
+        <table className="tx-table tabular-nums">
           <thead>
             <tr>
               <th className="text-left">Party</th>

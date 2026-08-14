@@ -3,10 +3,12 @@ import {
   LayoutDashboard,
   Wallet,
   Users,
+  Building2,
   FileBarChart,
   Settings,
   Shield,
   Clock,
+  Receipt,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -18,11 +20,13 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   settings: Settings,
   admin: Shield,
   adminaudit: Clock,
+  gtr44: Receipt,
 };
 
 export const SECTION_ICONS: Record<string, LucideIcon> = {
   overview: LayoutDashboard,
   users: Users,
+  offices: Building2,
   reports: FileBarChart,
   audit: Clock,
 };

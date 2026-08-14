@@ -37,6 +37,7 @@ const MONTHS: Record<string, { name: string; num: number }> = {
   april: { name: 'April', num: 4 },
   june: { name: 'June', num: 6 },
   july: { name: 'July', num: 7 },
+  august: { name: 'August', num: 8 },
   september: { name: 'September', num: 9 },
   october: { name: 'October', num: 10 },
   november: { name: 'November', num: 11 },
@@ -109,21 +110,6 @@ const NAME_KEYWORD_RE = /\bname\b/i;
 function isEmptyCell(value: string): boolean {
   const t = (value || '').trim().toLowerCase();
   return t === '' || t === '-' || t === '–' || t === '—' || t === 'na' || t === 'n/a' || t === 'nil' || t === 'none' || t === 'null';
-}
-
-const MONTH_NAME_LOOKUP: Record<string, string> = {};
-for (const info of Object.values(MONTHS)) {
-  MONTH_NAME_LOOKUP[info.name.toLowerCase()] = info.name;
-}
-for (const [abbr, info] of Object.entries(MONTHS)) {
-  if (abbr.length <= 3) MONTH_NAME_LOOKUP[abbr] = info.name;
-}
-
-export function normalizeMonth(input: string): string | null {
-  if (!input) return null;
-  const stripped = input.replace(/^([A-Za-z]{3,9})[-/.\s].*/, '$1');
-  const key = stripped.toLowerCase();
-  return MONTH_NAME_LOOKUP[key] ?? null;
 }
 
 function cellContainsHrpnKeyword(header: string): boolean {

@@ -1,31 +1,26 @@
-import { Download, Building2, Inbox } from 'lucide-react';
+import { Download, Building2 } from 'lucide-react';
+import { EmptyState } from '@/shared/components/EmptyState';
 import type { DataEntryReportRow } from '../types';
-import { formatCurrency, formatNumber, downloadCsv } from '@/shared/utilities';
-import '../styles/overview.css';
+import { formatCurrency, formatNumber, formatDate, downloadCsv } from '@/shared/utilities';
 
 interface DataEntryReportProps {
   data: DataEntryReportRow[];
   isLoading: boolean;
 }
 
-export function DataEntryReport({ data, isLoading }: DataEntryReportProps) {
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-IN');
-  };
+export function DataEntryReport({ data = [], isLoading }: DataEntryReportProps) {
 
-  const totals = data.reduce(
+  const totals = (data || []).reduce(
     (acc, row) => ({
-      employees: acc.employees + row.employees,
-      salaryRecords: acc.salaryRecords + row.salary_records,
-      gross: acc.gross + row.total_gross,
-      tax: acc.tax + row.total_tax,
-      vendors: acc.vendors + row.vendors,
-      transactions: acc.transactions + row.transactions,
-      amount: acc.amount + row.total_amount,
-      gst: acc.gst + row.total_gst,
-      incomeTax: acc.incomeTax + row.total_income_tax,
+      employees: acc.employees + (Number(row?.employees) || 0),
+      salaryRecords: acc.salaryRecords + (Number(row?.salary_records) || 0),
+      gross: acc.gross + (Number(row?.total_gross) || 0),
+      tax: acc.tax + (Number(row?.total_tax) || 0),
+      vendors: acc.vendors + (Number(row?.vendors) || 0),
+      transactions: acc.transactions + (Number(row?.transactions) || 0),
+      amount: acc.amount + (Number(row?.total_amount) || 0),
+      gst: acc.gst + (Number(row?.total_gst) || 0),
+      incomeTax: acc.incomeTax + (Number(row?.total_income_tax) || 0),
     }),
     {
       employees: 0,
@@ -58,19 +53,19 @@ export function DataEntryReport({ data, isLoading }: DataEntryReportProps) {
         'Income Tax',
         'Last Entry',
       ],
-      data.map((row) => [
+      (data || []).map((row) => [
         row.office_name || `Office ${row.office_id}`,
         row.user_email || '',
         row.current_fy ?? '',
-        row.employees,
-        row.salary_records,
-        row.total_gross,
-        row.total_tax,
-        row.vendors,
-        row.transactions,
-        row.total_amount,
-        row.total_gst,
-        row.total_income_tax,
+        row.employees ?? 0,
+        row.salary_records ?? 0,
+        row.total_gross ?? 0,
+        row.total_tax ?? 0,
+        row.vendors ?? 0,
+        row.transactions ?? 0,
+        row.total_amount ?? 0,
+        row.total_gst ?? 0,
+        row.total_income_tax ?? 0,
         row.last_activity || '',
       ])
     );
@@ -101,15 +96,13 @@ export function DataEntryReport({ data, isLoading }: DataEntryReportProps) {
     );
   }
 
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     return (
-      <div className="empty-state px-6">
-        <div className="empty-state-icon dark:text-slate-600">
-          <Inbox size={44} className="mx-auto" />
-        </div>
-        <p className="empty-state-text dark:text-slate-400">No offices found.</p>
-        <p className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">Offices will appear here once salary entry begins.</p>
-      </div>
+      <EmptyState
+        className="px-6"
+        title="No offices found."
+        hint="Offices will appear here once salary entry begins."
+      />
     );
   }
 
@@ -160,7 +153,7 @@ export function DataEntryReport({ data, isLoading }: DataEntryReportProps) {
                 <td className="text-right text-money">{formatCurrency(row.total_amount)}</td>
                 <td className="text-right text-money text-green-700 dark:text-green-400">{formatCurrency(row.total_gst)}</td>
                 <td className="text-right text-money text-red-600 dark:text-red-400">{formatCurrency(row.total_income_tax)}</td>
-                <td className="text-right text-slate-400 dark:text-slate-500">{formatDate(row.last_activity)}</td>
+                <td className="text-right text-slate-400 dark:text-slate-500">{row.last_activity ? formatDate(row.last_activity) : '-'}</td>
               </tr>
             ))}
           </tbody>

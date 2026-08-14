@@ -247,17 +247,19 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
         const e = entries[emp.id] || { gross: 0, da: 0, tax: 0 };
         const gross = e.gross || 0;
         const da = showDA ? e.da || 0 : 0;
+        const totalSalary = gross + da;
         const tax = e.tax || 0;
-        const net = gross + da - tax;
+        const net = totalSalary - tax;
 
         return {
           gross: acc.gross + gross,
           da: acc.da + da,
+          totalSalary: acc.totalSalary + totalSalary,
           tax: acc.tax + tax,
           net: acc.net + net,
         };
       },
-      { gross: 0, da: 0, tax: 0, net: 0 }
+      { gross: 0, da: 0, totalSalary: 0, tax: 0, net: 0 }
     );
   }, [visibleRoster, entries, showDA]);
 
@@ -832,7 +834,7 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
           <table className="w-full text-sm salary-grid-table border-collapse">
             <thead className={`salary-grid-header ${isScrolled ? 'scrolled' : ''}`}>
               <tr>
-                <th className="text-center font-bold text-xs text-slate-700 dark:text-slate-300 salary-col-index">#</th>
+                <th className="text-center font-bold text-xs text-slate-700 dark:text-slate-300 salary-col-index">Sr.No.</th>
                 <th className="text-left font-bold text-xs text-slate-700 dark:text-slate-300 salary-col-name">Employee Name</th>
                 <th className="text-left font-bold text-xs text-slate-700 dark:text-slate-300 salary-col-pan">PAN Number</th>
                 <th className="text-right">
@@ -843,13 +845,20 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
                 {showDA && (
                   <th className="text-right">
                     <span className="inline-flex items-center justify-end w-full gap-1 font-bold text-xs text-teal-600 dark:text-teal-400">
-                      DA Allowance (₹)
+                      DA&amp;Other (₹)
+                    </span>
+                  </th>
+                )}
+                {showDA && (
+                  <th className="text-right">
+                    <span className="inline-flex items-center justify-end w-full gap-1 font-bold text-xs text-blue-600 dark:text-blue-400">
+                      Total Salary (₹)
                     </span>
                   </th>
                 )}
                 <th className="text-right">
                   <span className="inline-flex items-center justify-end w-full gap-1 font-bold text-xs text-rose-600 dark:text-rose-400">
-                    Income Tax / TDS (₹)
+                    IT TDS (₹)
                   </span>
                 </th>
                 <th className="text-right">
@@ -872,8 +881,9 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
 
                 const grossVal = entry.gross || 0;
                 const daVal = showDA ? entry.da || 0 : 0;
+                const totalSalary = grossVal + daVal;
                 const taxVal = entry.tax || 0;
-                const netPayable = grossVal + daVal - taxVal;
+                const netPayable = totalSalary - taxVal;
 
                 const hasData = grossVal > 0;
                 const isRowActive = activeCell?.id === emp.id;
@@ -929,6 +939,12 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
                           placeholder="0"
                           aria-label={`DA for ${emp.name}`}
                         />
+                      </td>
+                    )}
+
+                    {showDA && (
+                      <td className="px-2.5 py-1 text-right font-extrabold text-blue-700 dark:text-blue-400 text-xs tabular-nums">
+                        {formatCurrency(totalSalary)}
                       </td>
                     )}
 
@@ -1002,6 +1018,11 @@ export const SalaryEntryGrid = forwardRef<SalaryEntryGridHandle, SalaryEntryGrid
                 {showDA && (
                   <td className="text-right font-extrabold text-teal-700 dark:text-teal-300 tabular-nums">
                     {formatCurrency(totals.da)}
+                  </td>
+                )}
+                {showDA && (
+                  <td className="text-right font-extrabold text-blue-700 dark:text-blue-300 tabular-nums">
+                    {formatCurrency(totals.totalSalary)}
                   </td>
                 )}
                 <td className="text-right font-extrabold text-rose-700 dark:text-rose-300 tabular-nums">

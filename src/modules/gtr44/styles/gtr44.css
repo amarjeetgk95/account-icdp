@@ -1,0 +1,350 @@
+/* ============================================================
+   GTR-44 DC BILL MODULE — Dedicated Styling
+   ============================================================ */
+
+/* Wizard step navigation (pill-style top bar) */
+.gtr44-wizard-tabs {
+  display: flex;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 6px;
+  margin-bottom: 24px;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.gtr44-wizard-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.gtr44-wizard-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.gtr44-wizard-tab:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.gtr44-wizard-tab.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.gtr44-wizard-tab.done {
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+.gtr44-wizard-tab .step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.gtr44-wizard-tab.active .step-num {
+  background: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.gtr44-wizard-tab.done .step-num {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+/* Wizard page container */
+.gtr44-wizard-page {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 24px;
+}
+
+/* Expenditure items grid - compact, spreadsheet-like */
+.gtr44-exp-grid {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 120px;
+  gap: 2px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.gtr44-exp-header {
+  background: #f1f5f9;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #475569;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.gtr44-exp-row {
+  display: contents;
+}
+
+.gtr44-exp-row > div {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.gtr44-exp-row > div:last-child {
+  border-bottom: none;
+}
+
+.gtr44-exp-row:hover {
+  background: #f8fafc;
+}
+
+.gtr44-exp-sr {
+  padding: 6px 8px;
+  text-align: center;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.gtr44-exp-code {
+  padding: 6px 8px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+.gtr44-exp-name {
+  padding: 6px 8px;
+  min-width: 0;
+}
+
+.gtr44-exp-amount {
+  padding: 4px 8px;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Deductions mini-grid */
+.gtr44-deduction-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.gtr44-deduction-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.gtr44-deduction-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.gtr44-deduction-input {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  text-align: right;
+}
+
+/* Summary calculation bar (sticky footer in wizard) */
+.gtr44-summary-bar {
+  position: sticky;
+  bottom: 0;
+  background: #ffffff;
+  border-top: 3px solid #2563eb;
+  border-radius: 12px 0 0 0;
+  padding: 16px 24px;
+  margin-top: 24px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: flex-end;
+}
+
+.gtr44-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.gtr44-summary-label {
+  font-weight: 600;
+  color: #64748b;
+}
+
+.gtr44-summary-value {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.gtr44-summary-gross {
+  background: #f0f9ff;
+  color: #1d4ed8;
+}
+
+.gtr44-summary-deduct {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.gtr44-summary-net {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+/* Form validation error styles */
+.gtr44-error {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+}
+
+.gtr44-error-message {
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Progress indicator at the top of form */
+.gtr44-progress {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.gtr44-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+  transition: width 300ms ease;
+}
+
+/* Quick-action chip buttons for EDP codes */
+.gtr44-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.gtr44-chip:hover {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.gtr44-chip.selected {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.gtr44-chip .gu-text {
+  font-family: 'Noto Serif Gujarati', serif;
+  font-size: 10px;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
+/* Dark mode support for GTR-44 module */
+.dark .gtr44-wizard-tabs {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.dark .gtr44-wizard-tab {
+  color: #94a3b8;
+}
+
+.dark .gtr44-wizard-tab:hover {
+  color: #f8fafc;
+  background: #1e293b;
+}
+
+.dark .gtr44-wizard-tab.done {
+  color: #4ade80;
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.dark .gtr44-exp-header,
+.dark .gtr44-exp-row > div {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark .gtr44-deduction-item {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark .gtr44-wizard-page {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.dark .gtr44-summary-bar {
+  background: #0f172a;
+  border-top-color: #3b82f6;
+}
+
+.dark .gtr44-chip {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+.dark .gtr44-chip:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border-color: #475569;
+}
+
+.dark .gdp44-chip.selected {
+  background: #3b82f6;
+  color: #ffffff;
+}

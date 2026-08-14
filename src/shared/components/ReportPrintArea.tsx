@@ -29,10 +29,10 @@ export const DEFAULT_OFFICE: OfficeDetails = {
   officeName: 'Deputy Director of Animal Husbandry',
   subtitle: 'Intensive Cattle Development Programme - Surat',
   address: 'Patel Nagar, A.K. Road, Surat - 395008',
-  phone: 'Phone: (0261) 2464658/59',
-  email: 'Email: icdpsurat@yahoo.com',
-  gst: '24SRTD00979G1DD',
-  tan: 'SRTDO0979G',
+  phone: '(0261) 2464658/59',
+  email: 'icdpsurat@yahoo.com',
+  gst: '',
+  tan: '',
 };
 
 export function ReportPrintArea({
@@ -91,6 +91,25 @@ export function ReportPrintArea({
             <br />
             Intensive Cattle Development Programme - Surat
             {footerExtra}
+          </div>
+        </div>
+      )}
+      {showSignature && (
+        <div className="govt-stamp-row">
+          <div className="govt-stamp-block">
+            <div className="govt-stamp-line" />
+            <div>Prepared by</div>
+            <div className="govt-stamp-sub">Accounts Clerk</div>
+          </div>
+          <div className="govt-stamp-block">
+            <div className="govt-stamp-line" />
+            <div>Checked by</div>
+            <div className="govt-stamp-sub">AA cum A.O.</div>
+          </div>
+          <div className="govt-stamp-block">
+            <div className="govt-stamp-line" />
+            <div>Approved by</div>
+            <div className="govt-stamp-sub">Deputy Director</div>
           </div>
         </div>
       )}

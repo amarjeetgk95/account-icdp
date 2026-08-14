@@ -65,9 +65,10 @@ export function GSTReportSection({ report, isLoading }: GSTReportSectionProps) {
         </tbody>
         <tfoot>
           <tr className="total-row">
-            <td colSpan={7} style={{ textAlign: 'right' }}>
+            <td colSpan={6} style={{ textAlign: 'right' }}>
               Grand Total
             </td>
+            <td style={{ textAlign: 'right' }}>{formatCurrency(report.totals.amount)}</td>
             <td style={{ textAlign: 'right' }}>{formatCurrency(report.totals.sgst)}</td>
             <td style={{ textAlign: 'right' }}>{formatCurrency(report.totals.cgst)}</td>
             <td style={{ textAlign: 'right' }}>{formatCurrency(report.totals.igst)}</td>
