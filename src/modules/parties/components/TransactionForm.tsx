@@ -129,7 +129,19 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
         panNo: data.panNo?.trim(),
       });
       setStatus({ type: 'success', message: '✓ Transaction saved successfully' });
-      reset({ ...transactionSchema.parse({ partyName: '', billNo: '', date: today, amount: 0, cgst: 0, sgst: 0, igst: 0, incomeTax: 0, cpinNo: '', gstNo: '', panNo: '' }) });
+      reset({
+        partyName: '',
+        billNo: '',
+        date: today,
+        amount: 0,
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        incomeTax: 0,
+        cpinNo: '',
+        gstNo: '',
+        panNo: '',
+      });
     } catch (error) {
       setStatus({
         type: 'error',
@@ -476,13 +488,13 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
         <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-slate-300 rounded-xl p-4 cursor-pointer hover:bg-slate-50 hover:border-blue-300 transition-all duration-200">
           <input
             type="file"
-            accept=".csv,.xlsx,.xls"
+            accept=".csv"
             onChange={handleCsvImport}
             className="hidden"
           />
           <Upload size={24} className="text-slate-400 mb-1" />
           <span className="text-sm text-slate-600">
-            Click to upload CSV or paste from Excel
+            Click to upload CSV
           </span>
           <span className="text-xs text-slate-400 mt-1">
             Columns: Party Name, Bill No, Date, Amount, CGST, SGST, IGST, Income Tax

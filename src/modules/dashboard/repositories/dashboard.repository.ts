@@ -1,9 +1,9 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
-import { useAuthStore } from '@/core/auth/store';
-import { MONTHS, QUARTER_MONTHS, getQuarterForMonth, type Quarter } from '@/shared/constants';
+import { getOfficeId } from '@/shared/utilities/office';
+import { MONTHS, QUARTER_MONTHS, type Quarter } from '@/shared/constants';
 import { isActiveInEntryMonth } from '@/modules/payroll/utils/employeeDates';
-import type { DashboardData, MonthlyRoadmapData, Task, RecentTransaction } from '../types';
+import type { DashboardData, MonthlyRoadmapData, Task } from '../types';
 
 interface EmployeeRow {
   id: string;
@@ -21,15 +21,6 @@ interface SalaryItem {
   tax: number;
 }
 
-interface TransactionWithParty {
-  id: string;
-  transaction_date: string;
-  amount: number;
-  total_gst: number;
-  income_tax: number;
-  parties: { id: string; name: string } | null;
-}
-
 interface SalaryMap {
   [employeeId: string]: {
     [month: string]: SalaryItem;
@@ -37,12 +28,6 @@ interface SalaryMap {
 }
 
 const PREV_QUARTER: Record<Quarter, Quarter> = { Q1: 'Q4', Q2: 'Q1', Q3: 'Q2', Q4: 'Q3' };
-
-function getOfficeId(): string | null {
-  const authOfficeId = useAuthStore.getState().user?.officeId || null;
-  if (authOfficeId) return authOfficeId;
-  return useUIStore.getState().activeOfficeId || null;
-}
 
 function buildSalaryMap(salaries: SalaryItem[]): SalaryMap {
   const map: SalaryMap = {};
@@ -57,18 +42,6 @@ function buildSalaryMap(salaries: SalaryItem[]): SalaryMap {
 function money(value: number | undefined | null): number {
   const n = Number(value);
   return isFinite(n) ? Math.round(n * 100) / 100 : 0;
-}
-
-// Mirrors the payroll parseDate: YYYY-MM-DD is split and built as a LOCAL
-// date so first/last-day-of-month boundary comparisons are timezone-safe, and
-// anything that would become an Invalid Date is dropped instead of polluting
-// date comparisons.
-function parseDateOnly(dateStr: string | null | undefined): Date | null {
-  if (!dateStr) return null;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  if (!y || !m || !d) return null;
-  const date = new Date(y, m - 1, d);
-  return isNaN(date.getTime()) ? null : date;
 }
 
 function getFinancialYear(): number {
@@ -109,29 +82,24 @@ export const dashboardRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
     const fy = getFinancialYear();
-    const now = new Date();
 
-    const { data: employees } = await supabase
+    const { data: employees, error: empError } = await supabase
       .from('employees')
       .select('id, name, pan, join_date, transfer_date')
       .eq('office_id', officeId)
       .order('id');
 
-    const { data: salaries } = await supabase
+    if (empError) throw empError;
+
+    const { data: salaries, error: salError } = await supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
       .eq('financial_year', fy)
       .eq('office_id', officeId);
 
-    const { data: transactions } = await supabase
-      .from('party_transactions')
-      .select('id, transaction_date, amount, total_gst, income_tax, parties(id, name)')
-      .eq('office_id', officeId)
-      .order('id', { ascending: false })
-      .limit(10);
+    if (salError) throw salError;
 
     const empList = (employees || []) as EmployeeRow[];
-    const txList = (transactions || []) as TransactionWithParty[];
     const salMap = buildSalaryMap(salaries || []);
     const workMonths = getWorkMonths();
     const entryMonthName = getCurrentWorkMonthName();
@@ -148,13 +116,8 @@ export const dashboardRepository = {
     let ytdTax = 0;
     const missingPANs: string[] = [];
     const zeroTaxEntries: string[] = [];
-    let newJoinersThisMonth = 0;
-    let departuresThisMonth = 0;
     let prevQuarterPending = 0;
-    const uniqueVendors = new Set<string>();
 
-    const empQuarterlyTDS: Record<string, number> = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
-    const empQuarterlySalary: Record<string, number> = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     const monthlyData = MONTHS.map((month) => ({
       month,
       active: 0,
@@ -163,9 +126,6 @@ export const dashboardRepository = {
       tax: 0,
       pendingNames: [] as string[],
     }));
-
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     empList.forEach((emp) => {
       const name = emp.name?.trim() || '';
@@ -186,10 +146,6 @@ export const dashboardRepository = {
           monthlyData[i].salary += gross;
           monthlyData[i].tax += tax;
           if (tax === 0) hasZeroTax = true;
-
-          const quarter = getQuarterForMonth(month);
-          empQuarterlySalary[quarter] += gross;
-          empQuarterlyTDS[quarter] += tax;
         }
       });
 
@@ -233,20 +189,6 @@ export const dashboardRepository = {
           }
         });
       }
-
-      const joinDate = parseDateOnly(emp.join_date);
-      const transferDate = parseDateOnly(emp.transfer_date);
-      if (joinDate && joinDate >= currentMonthStart && joinDate <= currentMonthEnd) {
-        newJoinersThisMonth++;
-      }
-      if (transferDate && transferDate >= currentMonthStart && transferDate <= currentMonthEnd) {
-        departuresThisMonth++;
-      }
-    });
-
-    txList.forEach((tx) => {
-      const partyName = tx.parties?.name;
-      if (partyName) uniqueVendors.add(partyName);
     });
 
     const monthlyRoadmap: MonthlyRoadmapData[] = workMonths.map((workMonth, i) => {
@@ -292,49 +234,33 @@ export const dashboardRepository = {
     if (pendingEmployees > 0) {
       tasks.push({
         severity: 'danger',
-        icon: 'calendar-x',
         title: `${pendingEmployees} employees pending for ${entryMonthName}`,
         hint: 'Complete salary entries for the current month',
         action: '/payroll',
-        actionLabel: 'Go to Payroll',
       });
     }
     if (missingPANs.length > 0) {
       tasks.push({
         severity: 'warning',
-        icon: 'exclamation-triangle',
         title: `${missingPANs.length} employees missing PAN`,
-        hint: 'Add PAN numbers in Settings > Employee Registration',
-        action: '/settings',
-        actionLabel: 'Open Settings',
+        hint: 'Add PAN numbers in Payroll > Employee Registration',
+        action: '/payroll?tab=employees',
       });
     }
     if (prevQuarterPending > 0) {
       tasks.push({
         severity: 'danger',
-        icon: 'clipboard-x',
         title: `${prevQuarterPending} employees pending for previous quarter`,
         hint: 'Complete quarter-end verification',
         action: '/reports',
-        actionLabel: 'View Reports',
       });
     }
-
-    const recentTransactions: RecentTransaction[] = txList
-      .slice(0, 5)
-      .map((tx) => ({
-        partyName: tx.parties?.name || 'Unknown',
-        amount: money(tx.amount),
-        gst: money(tx.total_gst),
-        tax: money(tx.income_tax),
-        date: tx.transaction_date || '',
-      }));
 
     const currentQuarterCompletion = quarterReadiness[currentQuarter as keyof typeof quarterReadiness];
 
     return {
       fy,
-      lastUpdated: now.toLocaleString('en-IN'),
+      lastUpdated: new Date().toLocaleString('en-IN'),
       activeEmployees,
       pendingEmployees,
       ytdSalary,
@@ -344,16 +270,9 @@ export const dashboardRepository = {
       monthlyRoadmap: monthlyRoadmap,
       tasks,
       quarterReadiness,
-      empQuarterlyTDS,
-      empQuarterlySalary,
-      vendorQuarterly: { Q1: { it: 0, gst: 0 }, Q2: { it: 0, gst: 0 }, Q3: { it: 0, gst: 0 }, Q4: { it: 0, gst: 0 } },
-      recentTransactions,
       prevQuarterPending,
       zeroTaxEntries,
       missingPANs,
-      newJoinersThisMonth,
-      departuresThisMonth,
-      vendorCount: uniqueVendors.size,
       entryMonthName: entryMonthName,
     };
   },

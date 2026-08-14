@@ -1,13 +1,14 @@
 export interface SystemStats {
   users: number;
   admins: number;
+  suspended?: number;
   offices: number;
   fy: number;
   employees: number;
   salaries: number;
   parties: number;
   transactions: number;
-  officeName: string;
+  officeName?: string | null;
 }
 
 export interface UserInfo {
@@ -16,6 +17,7 @@ export interface UserInfo {
   role: 'admin' | 'office';
   office_id: string | null;
   office_name: string | null;
+  suspended?: boolean;
   created_at: string | null;
   last_sign_in_at: string | null;
 }
@@ -36,6 +38,7 @@ export interface Office {
   district: string | null;
   current_fy?: number;
   users: number;
+  suspended_users?: number;
 }
 
 export interface OfficeCompletion {
@@ -70,13 +73,11 @@ export interface CreateUserInput {
   officeName: string;
 }
 
+export interface UpdateOfficeInput {
+  officeId: string;
+  name: string;
+  district: string | null;
+}
+
 export type UserInviteMethod = 'password' | 'invite';
 
-export interface AuditLogEntry {
-  id: number;
-  admin_email: string | null;
-  action: string;
-  target_email: string | null;
-  details: Record<string, unknown> | null;
-  created_at: string;
-}

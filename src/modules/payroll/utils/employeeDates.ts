@@ -57,14 +57,3 @@ export function getActiveEntryMonths(
 ): string[] {
   return MONTHS.filter((m) => isActiveInEntryMonth(joinDate, transferDate, fy, m));
 }
-
-/** The entry slot whose work month contains the given date, or null if outside the FY. */
-export function getEntrySlotForDate(fy: number, dateStr: string): string | null {
-  const date = parseDate(dateStr);
-  if (!date) return null;
-  const calIdx = date.getMonth();
-  const slotIdx = (calIdx - 2 + 12) % 12;
-  const year = calIdx < 2 ? fy + 1 : fy;
-  if (date.getFullYear() !== year) return null;
-  return MONTHS[slotIdx];
-}

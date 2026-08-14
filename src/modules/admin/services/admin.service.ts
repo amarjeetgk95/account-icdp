@@ -1,19 +1,5 @@
 import { adminRepository } from '../repositories/admin.repository';
-import { officeService } from '@/modules/settings/services/office.service';
-import { payrollService } from '@/modules/payroll/services/payroll.service';
-import { partyService } from '@/modules/parties/services/party.service';
-import type { QuarterReport } from '@/modules/payroll/types';
-import type { GSTReport, IncomeTaxReport } from '@/modules/parties/types';
-import type {
-  SystemStats,
-  UserInfo,
-  OfficeStats,
-  Office,
-  DataEntryReportRow,
-  CreateUserInput,
-  OfficeCompletion,
-  AuditLogEntry,
-} from '../types';
+import type { UserInfo, Office, CreateUserInput, SystemStats, OfficeStats, OfficeCompletion, DataEntryReportRow, UpdateOfficeInput } from '../types';
 
 export class AdminService {
   async getSystemStats(): Promise<SystemStats> {
@@ -22,6 +8,14 @@ export class AdminService {
 
   async getOfficeStats(): Promise<OfficeStats[]> {
     return adminRepository.getOfficeStats();
+  }
+
+  async getEntryCompletion(): Promise<OfficeCompletion[]> {
+    return adminRepository.getEntryCompletion();
+  }
+
+  async getDataEntryReport(): Promise<DataEntryReportRow[]> {
+    return adminRepository.getDataEntryReport();
   }
 
   async listUsers(): Promise<UserInfo[]> {
@@ -37,16 +31,33 @@ export class AdminService {
     return adminRepository.setUserRole(userId, role, officeId);
   }
 
+  async setUserStatus(userId: string, suspended: boolean): Promise<string> {
+    if (!userId) throw new Error('User ID is required');
+    return adminRepository.setUserStatus(userId, suspended);
+  }
+
   async deleteUser(userId: string): Promise<string> {
     if (!userId) throw new Error('User ID is required');
     return adminRepository.deleteUser(userId);
   }
 
-  async createOffice(name: string): Promise<Office> {
+  async createOffice(name: string, district = ''): Promise<Office> {
     if (!name || name.trim().length < 2) {
       throw new Error('Office name must be at least 2 characters');
     }
-    return adminRepository.createOffice(name.trim(), '');
+    return adminRepository.createOffice(name.trim(), district);
+  }
+
+  async updateOffice(input: UpdateOfficeInput): Promise<string> {
+    if (!input.officeId) throw new Error('Office ID is required');
+    if (!input.name || input.name.trim().length < 2) {
+      throw new Error('Office name must be at least 2 characters');
+    }
+    return adminRepository.updateOffice({
+      officeId: input.officeId,
+      name: input.name.trim(),
+      district: input.district,
+    });
   }
 
   async createUser(input: CreateUserInput): Promise<string> {
@@ -69,47 +80,22 @@ export class AdminService {
       officeId = existingOffice.id;
     } else {
       const newOffice = await this.createOffice(input.officeName);
-      officeId = newOffice.id;
+      officeId = newOffice?.id ?? null;
+    }
+
+    if (!officeId) {
+      throw new Error('Failed to create or resolve the office for this user');
     }
 
     if (input.password) {
-      return adminRepository.createUser(input.email, input.password, input.role, officeId!);
+      return adminRepository.createUser(input.email, input.password, input.role, officeId);
     }
-    return adminRepository.inviteUser(input.email, input.role, officeId!);
-  }
-
-  async getDataEntryReport(): Promise<DataEntryReportRow[]> {
-    return adminRepository.getDataEntryReport();
-  }
-
-  async getEntryCompletion(): Promise<OfficeCompletion[]> {
-    return adminRepository.getEntryCompletion();
-  }
-
-  async listAuditLogs(limit = 100): Promise<AuditLogEntry[]> {
-    return adminRepository.listAuditLogs(limit);
+    return adminRepository.inviteUser(input.email, input.role, officeId);
   }
 
   async getFinancialYears(officeId: string): Promise<number[]> {
     if (!officeId) throw new Error('No office selected');
     return adminRepository.getFinancialYears(officeId);
-  }
-
-  async getOfficeDetails(officeId: string) {
-    if (!officeId) throw new Error('No office selected');
-    return officeService.getDetails(officeId);
-  }
-
-  async getQuarterReport(quarter: string, fy: number, officeId: string): Promise<QuarterReport> {
-    return payrollService.getQuarterReport(quarter, fy, officeId);
-  }
-
-  async getGSTReport(fy: number, quarter: string, officeId: string): Promise<GSTReport> {
-    return partyService.getGSTReport(fy, quarter, officeId);
-  }
-
-  async getIncomeTaxReport(fy: number, quarter: string, officeId: string): Promise<IncomeTaxReport> {
-    return partyService.getIncomeTaxReport(fy, quarter, officeId);
   }
 
   private validateUserInput(input: CreateUserInput): void {

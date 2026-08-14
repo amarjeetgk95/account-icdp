@@ -102,7 +102,7 @@ export class SalaryService {
 
   async importSalary(file: File): Promise<SalaryImportSummary> {
     const rows = await this.readExcelRows(file);
-    const { classified } = await this.classifyRows(rows);
+    const { classified, summary } = await this.classifyRows(rows);
 
     const financialYear = this.deriveFinancialYear(classified);
     const matchedCount = classified.filter((c) => c.status === 'matched').length;
@@ -146,7 +146,7 @@ export class SalaryService {
       total: classified.length,
       matched: matchedCount,
       unmatched: classified.filter((c) => c.status === 'unmatched').length,
-      duplicate: 0,
+      duplicate: summary.duplicateRecords,
       notDetected: 0,
       appliedToGrid,
     };

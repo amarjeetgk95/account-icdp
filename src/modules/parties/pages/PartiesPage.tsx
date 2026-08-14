@@ -229,7 +229,7 @@ export function PartiesPage() {
                 <ReportPrintArea
                   office={office}
                   leftLabel="GSTIN NO :-"
-                  leftValue={office.gst || '24SRTD00979G1DD'}
+                  leftValue={office.gst || 'NOT SET'}
                   rightMeta={
                     <>
                       <span>
@@ -247,7 +247,7 @@ export function PartiesPage() {
                 <ReportPrintArea
                   office={office}
                   leftLabel="TAN NO :-"
-                  leftValue={office.tan || 'SRTDO0979G'}
+                  leftValue={office.tan || 'NOT SET'}
                   rightMeta={
                     <>
                       <span>
@@ -276,7 +276,7 @@ export function PartiesPage() {
           <ReportPrintArea
             office={office}
             leftLabel="GSTIN NO :-"
-            leftValue={office.gst || '24SRTD00979G1DD'}
+            leftValue={office.gst || 'NOT SET'}
             rightMeta={
               <>
                 <span>
@@ -294,7 +294,7 @@ export function PartiesPage() {
           <ReportPrintArea
             office={office}
             leftLabel="TAN NO :-"
-            leftValue={office.tan || 'SRTDO0979G'}
+            leftValue={office.tan || 'NOT SET'}
             rightMeta={
               <>
                 <span>

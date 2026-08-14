@@ -5,21 +5,8 @@ interface SkeletonProps {
 export function Skeleton({ className = '' }: SkeletonProps) {
   return (
     <div
-      className={`animate-pulse bg-slate-200 dark:bg-slate-700/60 rounded-md ${className}`}
+      className={`skeleton-shimmer ${className}`}
     />
-  );
-}
-
-export function SkeletonText({ lines = 3, className = '' }: { lines?: number; className?: string }) {
-  return (
-    <div className={`space-y-2.5 ${className}`}>
-      {Array.from({ length: lines }).map((_, i) => (
-        <Skeleton
-          key={i}
-          className={`h-4 ${i === lines - 1 ? 'w-2/3' : 'w-full'}`}
-        />
-      ))}
-    </div>
   );
 }
 

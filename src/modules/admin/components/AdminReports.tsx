@@ -10,11 +10,18 @@ import {
   Receipt,
   Landmark,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { useOfficeFinancialYears, useReportOfficeDetails, useAdminQuarterReport, useAdminGSTReport, useAdminIncomeTaxReport } from '../hooks/useAdmin';
-import { QuarterReportView } from '@/modules/payroll/components/QuarterReport';
-import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
-import { formatCurrency, downloadCsv } from '@/shared/utilities';
+import { useOfficeFinancialYears } from '../hooks/useAdmin';
+import {
+  useReportOfficeDetails,
+  useQuarterReport,
+  useGSTReport,
+  useIncomeTaxReport,
+} from '../hooks/useAdminReports';
+import { QuarterReportSection } from './reports/QuarterReportSection';
+import { GSTReportSection } from './reports/GSTReportSection';
+import { IncomeTaxReportSection } from './reports/IncomeTaxReportSection';
+import { EmptyState } from '@/shared/components/EmptyState';
+import { downloadCsv } from '@/shared/utilities';
 import type { Office } from '../types';
 import '../styles/reports.css';
 
@@ -27,42 +34,6 @@ interface AdminReportsProps {
   onOfficeIdChange: (officeId: string) => void;
 }
 
-function ReportLoadingState({ label }: { label: string }) {
-  return (
-    <div className="card animate-fade-in" role="status" aria-label={label}>
-      <div className="card-body space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="skeleton h-5 w-5 rounded-full" />
-          <div className="skeleton h-4 w-48" />
-        </div>
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-6">
-              <div className="skeleton h-3.5 w-10" />
-              <div className="skeleton h-3.5 w-32" />
-              <div className="skeleton h-3.5 flex-1" />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReportEmptyState({ icon: Icon, message, hint }: { icon: LucideIcon; message: string; hint: string }) {
-  return (
-    <div className="card animate-fade-in">
-      <div className="empty-state card-body">
-        <div className="empty-state-icon dark:text-slate-600 flex items-center justify-center">
-          <Icon size={40} className="mx-auto" />
-        </div>
-        <p className="empty-state-text dark:text-slate-400">{message}</p>
-        <p className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">{hint}</p>
-      </div>
-    </div>
-  );
-}
-
 export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChange }: AdminReportsProps) {
   const [selectedFY, setSelectedFY] = useState<number | null>(null);
   const [selectedQuarter, setSelectedQuarter] = useState('Q1');
@@ -70,18 +41,27 @@ export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChan
 
   const { data: years } = useOfficeFinancialYears(officeId || null);
   const { data: officeDetails } = useReportOfficeDetails(officeId || null);
+  const activeFY = selectedFY ?? (years && years.length > 0 ? years[0] : null);
 
-  const defaultCurrentFY = () => {
-    const now = new Date();
-    return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-  };
-  const activeFY = selectedFY ?? (years && years.length > 0 ? years[0] : defaultCurrentFY());
-  const { data: quarterReport, isLoading: quarterLoading } = useAdminQuarterReport(activeSub === '24q' ? selectedQuarter : null, activeFY, officeId || null);
-  const { data: gstReport, isLoading: gstLoading } = useAdminGSTReport(activeSub === 'gst' ? selectedQuarter : null, activeFY, officeId || null);
-  const { data: itReport, isLoading: itLoading } = useAdminIncomeTaxReport(activeSub === 'it' ? selectedQuarter : null, activeFY, officeId || null);
+  const { data: quarterReport, isLoading: quarterLoading } = useQuarterReport(
+    officeId || null,
+    activeSub === '24q' ? selectedQuarter : null,
+    activeFY
+  );
+  const { data: gstReport, isLoading: gstLoading } = useGSTReport(
+    officeId || null,
+    activeSub === 'gst' ? selectedQuarter : null,
+    activeFY
+  );
+  const { data: itReport, isLoading: itLoading } = useIncomeTaxReport(
+    officeId || null,
+    activeSub === 'it' ? selectedQuarter : null,
+    activeFY
+  );
 
   const office = officeDetails || { officeName: '', subtitle: '', address: '', phone: '', email: '', gst: '', tan: '' };
   const fyLabel = activeFY != null ? `${activeFY}-${String(activeFY + 1).slice(-2)}` : '-';
+  const officeName = offices.find((o) => o.id === officeId)?.name || '';
 
   const exportCSV = () => {
     if (activeSub === '24q' && quarterReport) {
@@ -104,8 +84,6 @@ export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChan
       );
     }
   };
-
-  const officeName = offices.find((o) => o.id === officeId)?.name || '';
 
   return (
     <div className="space-y-4">
@@ -155,7 +133,7 @@ export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChan
                 <CalendarRange size={15} className="field-icon" />
                 <select
                   value={activeFY ?? ''}
-                  onChange={(e) => setSelectedFY(parseInt(e.target.value, 10))}
+                  onChange={(e) => setSelectedFY(e.target.value === '' ? null : parseInt(e.target.value, 10))}
                   className="input dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 disabled:opacity-50"
                   disabled={!officeId}
                 >
@@ -218,113 +196,13 @@ export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChan
       </div>
 
       {!officeId ? (
-        <ReportEmptyState icon={Building2} message="Select an office to generate reports." hint="Pick an office from Report Controls to begin." />
+        <div className="card animate-fade-in"><EmptyState className="card-body" icon={Building2} title="Select an office to generate reports." hint="Pick an office from Report Controls to begin." /></div>
       ) : activeSub === '24q' ? (
-        quarterLoading ? (
-          <ReportLoadingState label="Loading 24Q employee statement..." />
-        ) : quarterReport && quarterReport.rows.length > 0 ? (
-          <ReportPrintArea
-            office={office}
-            leftLabel="Tax Deduction No :-"
-            leftValue={office.tan || 'SRTDO0979G'}
-            rightMeta={<><span>Financial Year: {quarterReport.fyLabel} | Assessment Year: {quarterReport.ayLabel} | Period: {quarterReport.quarter} Ending</span></>}
-            title="24Q Employee Salary & Tax Deduction Statement"
-            badgeClass="report-badge-emp"
-          >
-            <QuarterReportView report={quarterReport} isLoading={false} showHeader={false} />
-          </ReportPrintArea>
-        ) : (
-          <ReportEmptyState icon={FileText} message="No salary data for this office / period." hint="Try a different office, financial year or quarter." />
-        )
+        <QuarterReportSection office={office} report={quarterReport} isLoading={quarterLoading} />
       ) : activeSub === 'gst' ? (
-        gstLoading ? (
-          <ReportLoadingState label="Loading GST report..." />
-        ) : gstReport && gstReport.rows.length > 0 ? (
-          <ReportPrintArea
-            office={office}
-            leftLabel="GSTIN NO :-"
-            leftValue={office.gst || '24SRTD00979G1DD'}
-            rightMeta={<><span>Financial Year: {fyLabel} | Quarter: {gstReport.quarter} | Office: {officeName}</span></>}
-            title="GST TDS STATEMENT SUMMARY REPORT"
-            badgeClass="report-badge-gst"
-          >
-            <div className="overflow-x-auto">
-              <table className="report-table">
-                <thead>
-                  <tr><th>Sr. No.</th><th>GST No.</th><th>CPIN No</th><th style={{ textAlign: 'left' }}>Party Name</th><th>Bill No</th><th>Date</th><th>Amount</th><th>SGST</th><th>CGST</th><th>IGST</th><th>Total GST</th></tr>
-                </thead>
-                <tbody>
-                  {gstReport.rows.map((row, idx) => (
-                    <tr key={idx}>
-                      <td>{idx + 1}</td>
-                      <td>{row.gstNo}</td>
-                      <td className="font-bold">{row.cpinNo}</td>
-                      <td className="font-bold" style={{ textAlign: 'left' }}>{row.partyName}</td>
-                      <td>{row.billNo}</td>
-                      <td>{row.date}</td>
-                      <td style={{ textAlign: 'right' }}>{formatCurrency(row.amount)}</td>
-                      <td style={{ textAlign: 'right' }}>{formatCurrency(row.sgst)}</td>
-                      <td style={{ textAlign: 'right' }}>{formatCurrency(row.cgst)}</td>
-                      <td style={{ textAlign: 'right' }}>{formatCurrency(row.igst)}</td>
-                      <td className="font-bold" style={{ textAlign: 'right' }}>{formatCurrency(row.totalGst)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="total-row">
-                    <td colSpan={7} style={{ textAlign: 'right' }}>Grand Total</td>
-                    <td style={{ textAlign: 'right' }}>{formatCurrency(gstReport.totals.sgst)}</td>
-                    <td style={{ textAlign: 'right' }}>{formatCurrency(gstReport.totals.cgst)}</td>
-                    <td style={{ textAlign: 'right' }}>{formatCurrency(gstReport.totals.igst)}</td>
-                    <td style={{ textAlign: 'right' }}>{formatCurrency(gstReport.totals.totalGst)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </ReportPrintArea>
-        ) : (
-          <ReportEmptyState icon={Receipt} message="No GST data for this office / period." hint="Try a different office, financial year or quarter." />
-        )
-      ) : itLoading ? (
-        <ReportLoadingState label="Loading Income Tax report..." />
-      ) : itReport && itReport.rows.length > 0 ? (
-        <ReportPrintArea
-          office={office}
-          leftLabel="TAN NO :-"
-          leftValue={office.tan || 'SRTDO0979G'}
-          rightMeta={<><span>Financial Year: {fyLabel} | Quarter: {itReport.quarter} | Office: {officeName}</span></>}
-          title="26Q OTHER THAN SALARY STATEMENT"
-          badgeClass="report-badge-it"
-        >
-          <div className="overflow-x-auto">
-            <table className="report-table">
-              <thead>
-                <tr><th>Sr. No.</th><th style={{ textAlign: 'left' }}>Party Name</th><th>Bill No</th><th>Settlement Date</th><th>Amount</th><th>PAN No.</th><th>Income Tax (TDS)</th></tr>
-              </thead>
-              <tbody>
-                {itReport.rows.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{idx + 1}</td>
-                    <td className="font-bold" style={{ textAlign: 'left' }}>{row.partyName}</td>
-                    <td>{row.billNo}</td>
-                    <td>{row.date}</td>
-                    <td style={{ textAlign: 'right' }}>{formatCurrency(row.amount)}</td>
-                    <td className="font-bold">{row.panNo}</td>
-                    <td className="font-bold" style={{ textAlign: 'right' }}>{formatCurrency(row.incomeTax)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="total-row">
-                  <td colSpan={6} style={{ textAlign: 'right' }}>Grand Total</td>
-                  <td style={{ textAlign: 'right' }}>{formatCurrency(itReport.totals.incomeTax)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </ReportPrintArea>
+        <GSTReportSection office={office} report={gstReport} isLoading={gstLoading} officeName={officeName} fyLabel={fyLabel} />
       ) : (
-        <ReportEmptyState icon={Landmark} message="No Income Tax data for this office / period." hint="Try a different office, financial year or quarter." />
+        <IncomeTaxReportSection office={office} report={itReport} isLoading={itLoading} officeName={officeName} fyLabel={fyLabel} />
       )}
     </div>
   );

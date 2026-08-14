@@ -13,6 +13,8 @@ import { BudgetHeadReport } from '../components/BudgetHeadReport';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
+import { EmptyState } from '@/shared/components/EmptyState';
+import { SkeletonTable } from '@/shared/components/Skeleton';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
 import { downloadCsv, export24QExcel } from '@/shared/utilities';
 import {
@@ -45,8 +47,18 @@ export function PayrollPage() {
   const tabParam = searchParams.get('tab');
   const initialTab: Mode = tabParam === 'employees' || tabParam === 'lookup' ? tabParam : 'entry';
   const initialHrpn = searchParams.get('hrpn') || '';
+  const monthParam = searchParams.get('month') || '';
   const [mode, setMode] = useState<Mode>(initialTab);
-  const [selectedMonth, setSelectedMonth] = useState(() => payrollService.getEntryMonth());
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const requested = monthParam;
+    if (requested) {
+      const valid = payrollService.getMonthOptions(useUIStore.getState().activeFinancialYear).some(
+        (o) => o.value === requested
+      );
+      if (valid) return requested;
+    }
+    return payrollService.getEntryMonth();
+  });
   const [selectedQuarter, setSelectedQuarter] = useState('Q1');
   const [showDA, setShowDA] = useState(false);
   const [autoFill, setAutoFill] = useState(false);
@@ -264,7 +276,7 @@ export function PayrollPage() {
       {mode === 'lookup' && (
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
           <div className="px-1 pb-4 space-y-4">
-            <SalaryLookup fy={fy} initialHrpn={initialHrpn} />
+            <SalaryLookup key={initialHrpn || 'default'} fy={fy} initialHrpn={initialHrpn} />
           </div>
         </div>
       )}
@@ -495,14 +507,12 @@ export function PayrollPage() {
             </div>
             <div className="card-body overflow-y-auto flex-1 p-4">
               {reportLoading ? (
-                <div className="flex justify-center py-12">
-                  <div className="spinner h-10 w-10"></div>
-                </div>
+                <SkeletonTable rows={5} cols={5} />
               ) : quarterReport && quarterReport.rows.length > 0 ? (
                 <ReportPrintArea
                   office={office}
                   leftLabel="Tax Deduction No.:-"
-                  leftValue={office.tan || 'SRTDO0979G'}
+                  leftValue={office.tan || 'NOT SET'}
                   rightMeta={
                     <>
                       <span>
@@ -517,12 +527,12 @@ export function PayrollPage() {
                   <QuarterReportView report={quarterReport} isLoading={false} showHeader={false} />
                 </ReportPrintArea>
               ) : (
-                <div className="empty-state">
-                  <p>No salary data for this period.</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Switch to Monthly Entry to add salary data first.
-                  </p>
-                </div>
+                <EmptyState
+                  icon={FileText}
+                  title="No salary data for this period."
+                  hint="Switch to Monthly Entry to add salary data first."
+                  compact
+                />
               )}
             </div>
           </div>
@@ -535,14 +545,12 @@ export function PayrollPage() {
         title="24Q Report Preview"
       >
         {reportLoading ? (
-          <div className="flex justify-center py-12">
-            <div className="spinner h-10 w-10"></div>
-          </div>
+          <SkeletonTable rows={5} cols={5} />
         ) : quarterReport && quarterReport.rows.length > 0 ? (
           <ReportPrintArea
             office={office}
             leftLabel="Tax Deduction No.:-"
-            leftValue={office.tan || 'SRTDO0979G'}
+            leftValue={office.tan || 'NOT SET'}
             rightMeta={
               <>
                 <span>

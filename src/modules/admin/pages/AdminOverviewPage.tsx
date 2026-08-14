@@ -13,41 +13,27 @@ import {
   BarChart3,
   CircleAlert,
   FileBarChart,
+  UserX,
 } from 'lucide-react';
-import { Skeleton } from '@/shared/components/Skeleton';
-import {
-  useSystemStats,
-  useOfficeStats,
-  useEntryCompletion,
-  useDataEntryReport,
-} from '../hooks/useAdmin';
-import { EntryCompletion } from '../components/EntryCompletion';
+import { useSystemStats, useOfficeStats, useEntryCompletion, useDataEntryReport } from '../hooks/useAdmin';
+import { EntryCompletion, computeCompletionSummary } from '../components/EntryCompletion';
 import { OfficeStatsTable } from '../components/OfficeStatsTable';
 import { DataEntryReport } from '../components/DataEntryReport';
 import { AdminLayout } from '../components/AdminLayout';
+import { StatCard } from '@/shared/components/StatCard';
 import { useUIStore } from '@/core/stores/ui-store';
+import { getSectionIcon } from '@/shared/icons';
 import type { LucideIcon } from 'lucide-react';
 import '../styles/overview.css';
 
-interface StatCard {
+interface StatCardDef {
   label: string;
   value: number | string | undefined;
   icon: LucideIcon;
   gradient: string;
   hint: string;
-  deltaIcon: LucideIcon;
+  deltaIcon?: LucideIcon;
 }
-
-const STAT_TINTS: Record<string, string> = {
-  'Total Users': 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400',
-  Admins: 'bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400',
-  Offices: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400',
-  Employees: 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400',
-  'Salary Records': 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400',
-  Vendors: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-400',
-  Transactions: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400',
-  'Current FY': 'bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400',
-};
 
 export function AdminOverviewPage() {
   const navigate = useNavigate();
@@ -64,14 +50,10 @@ export function AdminOverviewPage() {
 
   const avgCompletion = useMemo(() => {
     if (!completion || completion.length === 0) return undefined;
-    const total = completion.reduce((sum, office) => {
-      const filled = new Set(office.months || []).size;
-      return sum + Math.round((filled / 12) * 100);
-    }, 0);
-    return Math.round(total / completion.length);
+    return computeCompletionSummary(completion).avgPct;
   }, [completion]);
 
-  const statCards: StatCard[] = [
+  const statCards: StatCardDef[] = [
     {
       label: 'Total Users',
       value: stats?.users,
@@ -87,6 +69,14 @@ export function AdminOverviewPage() {
       gradient: 'linear-gradient(135deg, #8B5CF6, #6366F1)',
       hint: 'privileged system roles',
       deltaIcon: Shield,
+    },
+    {
+      label: 'Suspended',
+      value: stats?.suspended,
+      icon: UserX,
+      gradient: 'linear-gradient(135deg, #64748B, #94A3B8)',
+      hint: 'accounts locked for security',
+      deltaIcon: UserX,
     },
     {
       label: 'Offices',
@@ -139,7 +129,11 @@ export function AdminOverviewPage() {
   ];
 
   return (
-    <AdminLayout>
+    <AdminLayout
+      title="Overview"
+      subtitle="Key metrics, data-entry completion, and office status"
+      icon={getSectionIcon('overview')}
+    >
       <div className="space-y-6">
         {statsError && (
           <div className="alert alert-danger rounded-xl animate-fade-in">
@@ -151,43 +145,36 @@ export function AdminOverviewPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
-          {statCards.map((card, index) => {
-            const Icon = card.icon;
-            const DeltaIcon = card.deltaIcon;
-            return (
-              <div
-                key={card.label}
-                className={`stat-tile admin-overview-kpi group animate-fade-in animate-fade-in-delay-${Math.min(index, 3)} rounded-2xl dark:bg-slate-900 dark:border-slate-800`}
-              >
-                <span
-                  className="absolute top-0 inset-x-0 h-1 opacity-80"
-                  style={{ background: card.gradient }}
-                />
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="stat-label text-[0.65rem] dark:text-slate-400">{card.label}</p>
-                    <h3 className="stat-value mt-1 text-lg dark:text-white">
-                      {card.value !== undefined ? (
-                        card.value
-                      ) : (
-                        <Skeleton className="h-6 w-12" />
-                      )}
-                    </h3>
-                    <p className="stat-delta text-[0.65rem] text-slate-400 dark:text-slate-500 hidden sm:flex">
-                      <DeltaIcon size={10} className="text-emerald-500 dark:text-emerald-400" />
-                      {card.hint}
-                    </p>
-                  </div>
-                  <span
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform duration-300 ${STAT_TINTS[card.label]}`}
-                  >
-                    <Icon size={16} strokeWidth={2.2} />
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            System overview, data-entry health across all offices, and aggregate figures.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/admin/audit')}
+              className="btn btn-outline btn-sm text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              Audit Trail
+            </button>
+            <button
+              onClick={() => navigate('/admin/reports')}
+              className="btn btn-outline btn-sm text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              Reports Drill-down
+            </button>
+            <button
+              onClick={() => navigate('/admin/users')}
+              className="btn btn-primary btn-sm text-xs"
+            >
+              Manage Users
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          {statCards.map((card) => (
+            <StatCard key={card.label} {...card} />
+          ))}
         </div>
 
         <div className="space-y-6">

@@ -1,14 +1,7 @@
 import { supabase } from '@/core/supabase/client';
-import { useUIStore } from '@/core/stores/ui-store';
-import { useAuthStore } from '@/core/auth/store';
+import { getOfficeId } from '@/shared/utilities/office';
 import { MONTHS } from '@/shared/constants';
 import type { YearlyReport, YearlyEmployeeRecord, YearlyVendorRecord } from '../types';
-
-function getOfficeId(): string | null {
-  const authOfficeId = useAuthStore.getState().user?.officeId || null;
-  if (authOfficeId) return authOfficeId;
-  return useUIStore.getState().activeOfficeId || null;
-}
 
 function money(value: number): number {
   return Math.round(value * 100) / 100;
@@ -55,22 +48,25 @@ export const reportRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
 
-    const { data: employees } = await supabase
+    const { data: employees, error: empError } = await supabase
       .from('employees')
       .select('id, name, pan')
       .eq('office_id', officeId)
       .order('id');
+    if (empError) throw empError;
 
-    const { data: salaries } = await supabase
+    const { data: salaries, error: salError } = await supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
       .eq('financial_year', fy)
       .eq('office_id', officeId);
+    if (salError) throw salError;
 
-    const { data: transactions } = await supabase
+    const { data: transactions, error: txError } = await supabase
       .from('party_transactions')
       .select('transaction_date, amount, cgst, sgst, igst, total_gst, income_tax, parties(id, name, gst_no, pan_no)')
       .eq('office_id', officeId);
+    if (txError) throw txError;
 
     type SalaryRecord = { employee_id: string; month: string; gross: number; da: number; tax: number };
     const salMap: Record<string, Record<string, SalaryRecord>> = {};

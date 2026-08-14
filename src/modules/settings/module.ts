@@ -1,10 +1,10 @@
-﻿import type { ModuleDefinition } from '@/shared/types/module';
+import type { ModuleDefinition } from '@/shared/types/module';
 import { settingsRoutes } from './routes';
 
 const moduleDefinition: ModuleDefinition = {
   id: 'settings',
   name: 'Settings',
-  navGroup: 'main',
+  navGroup: 'system',
   permissions: ['office'],
   routes: settingsRoutes,
   sidebar: true,

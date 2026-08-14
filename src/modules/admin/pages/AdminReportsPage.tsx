@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useOffices } from '../hooks/useAdmin';
 import { AdminReports } from '../components/AdminReports';
 import { AdminLayout } from '../components/AdminLayout';
-import '../styles/reports.css';
+import { getSectionIcon } from '@/shared/icons';
 
 export function AdminReportsPage() {
   const [searchParams] = useSearchParams();
@@ -31,7 +31,11 @@ export function AdminReportsPage() {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout
+      title="Data Entry & Reports"
+      subtitle="Cross-office data-entry summary and report drill-down"
+      icon={getSectionIcon('reports')}
+    >
       <AdminReports
         offices={offices ?? []}
         officesLoading={!offices}

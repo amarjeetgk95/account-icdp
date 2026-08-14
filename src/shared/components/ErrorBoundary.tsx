@@ -40,8 +40,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return this.props.children;
     }
 
-    const isDev = import.meta.env.DEV;
-
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50 p-6">
         <div className="max-w-lg w-full text-center">
@@ -88,13 +86,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </button>
           </div>
 
-          {/* Dev-only error details */}
-          {isDev && this.state.error && (
-            <details className="text-left bg-slate-100 rounded-lg p-4 border border-slate-200">
-              <summary className="cursor-pointer text-xs font-semibold text-slate-600 select-none">
-                Error Details (Development Only)
+          {/* Error details */}
+          {this.state.error && (
+            <details className="text-left bg-slate-100 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+              <summary className="cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-300 select-none">
+                Error Details
               </summary>
-              <pre className="mt-3 text-xs text-red-700 whitespace-pre-wrap break-words overflow-auto max-h-64">
+              <pre className="mt-3 text-xs text-red-700 dark:text-red-400 whitespace-pre-wrap break-words overflow-auto max-h-64 font-mono">
                 {this.state.error.toString()}
                 {this.state.errorInfo?.componentStack}
               </pre>

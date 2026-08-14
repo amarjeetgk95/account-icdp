@@ -1,60 +1,58 @@
-import { useState, useMemo } from 'react';
-import { Search, Download, Filter, FileText, RefreshCw, Eye, X } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, Download, Filter, FileText, RefreshCw, Eye } from 'lucide-react';
 import { useAdminAudit } from '../hooks/useAdminAudit';
+import { filterAuditLogs, uniqueAuditUsers, uniqueAuditActions } from '../utils/filters';
 import { AdminLayout } from '@/modules/admin/components/AdminLayout';
+import { AdminModal } from '@/modules/admin/components/AdminModal';
+import { EmptyState } from '@/shared/components/EmptyState';
+import { SkeletonTable } from '@/shared/components/Skeleton';
+import { downloadCsv, formatDateTime } from '@/shared/utilities';
+import { getSectionIcon } from '@/shared/icons';
 import type { AuditLogEntry } from '../types';
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error);
+}
+
 export function AdminAuditPage() {
-  const { data: logs, isLoading, error, refetch, isFetching } = useAdminAudit(150);
+    const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const { data: logs, isLoading, error, refetch, isFetching } = useAdminAudit(
+    PAGE_SIZE,
+    offset
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<string>('ALL');
   const [selectedAction, setSelectedAction] = useState<string>('ALL');
   const [activeDetailLog, setActiveDetailLog] = useState<AuditLogEntry | null>(null);
 
-  // Extract unique users and actions for filters
-  const uniqueUsers = useMemo(() => {
-    if (!logs) return [];
-    const set = new Set<string>();
-    logs.forEach((log) => {
-      if (log.admin_email) set.add(log.admin_email);
-      if (log.target_email) set.add(log.target_email);
-    });
-    return Array.from(set).sort();
-  }, [logs]);
+  // Reset to the first page whenever a filter changes so the newest matching
+  // entries surface first.
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedUser, selectedAction]);
 
-  const uniqueActions = useMemo(() => {
-    if (!logs) return [];
-    const set = new Set<string>();
-    logs.forEach((log) => {
-      if (log.action) set.add(log.action);
-    });
-    return Array.from(set).sort();
-  }, [logs]);
+  const uniqueUsers = useMemo(() => uniqueAuditUsers(logs), [logs]);
+  const uniqueActions = useMemo(() => uniqueAuditActions(logs), [logs]);
+  const filteredLogs = useMemo(
+    () =>
+      filterAuditLogs(logs, {
+        searchQuery,
+        userFilter: selectedUser,
+        actionFilter: selectedAction,
+      }),
+    [logs, searchQuery, selectedUser, selectedAction]
+  );
 
-  // Filter logs based on search query, user filter, and action filter
-  const filteredLogs = useMemo(() => {
-    if (!logs) return [];
-    return logs.filter((log) => {
-      const query = searchQuery.toLowerCase().trim();
-      const actionStr = (log.action || '').toLowerCase();
-      const matchesSearch =
-        !query ||
-        (log.admin_email && log.admin_email.toLowerCase().includes(query)) ||
-        (log.target_email && log.target_email.toLowerCase().includes(query)) ||
-        actionStr.includes(query) ||
-        (log.details && JSON.stringify(log.details).toLowerCase().includes(query));
-
-      const matchesUser =
-        selectedUser === 'ALL' ||
-        log.admin_email === selectedUser ||
-        log.target_email === selectedUser;
-
-      const matchesAction = selectedAction === 'ALL' || log.action === selectedAction;
-
-      return matchesSearch && matchesUser && matchesAction;
-    });
-  }, [logs, searchQuery, selectedUser, selectedAction]);
+  const hasNextPage = !!logs && logs.length === PAGE_SIZE;
+  const hasPrevPage = page > 1;
 
   const handleExportCSV = () => {
     if (!filteredLogs.length) return;
@@ -62,38 +60,28 @@ export function AdminAuditPage() {
     const headers = ['ID', 'Date', 'Admin Email', 'Action', 'Target Email', 'Details'];
     const rows = filteredLogs.map((l) => [
       l.id,
-      new Date(l.created_at).toLocaleString(),
+      formatDateTime(l.created_at),
       l.admin_email || 'System',
       l.action,
       l.target_email || '',
-      l.details ? JSON.stringify(l.details).replace(/"/g, '""') : '',
+      l.details ? JSON.stringify(l.details) : '',
     ]);
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [headers.join(','), ...rows.map((r) => r.map((c) => `"${c}"`).join(','))].join('\n');
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `audit_logs_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(`audit_logs_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
   };
 
   const handleExportJSON = () => {
     if (!filteredLogs.length) return;
 
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-      JSON.stringify(filteredLogs, null, 2)
-    )}`;
+    const blob = new Blob([JSON.stringify(filteredLogs, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', jsonString);
+    link.setAttribute('href', url);
     link.setAttribute('download', `audit_logs_${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
   };
 
   const getActionBadgeClass = (action?: string) => {
@@ -104,19 +92,25 @@ export function AdminAuditPage() {
     return 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
   };
 
-  return (
-    <AdminLayout>
-      <div className="space-y-6">
-        <div className="card">
-          <div className="card-header flex-wrap gap-4">
-            <div>
-              <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <FileText size={18} className="text-blue-600 dark:text-blue-400" />
-                Audit Logs Dashboard
-              </h3>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Track security operations, user role assignments, and administrative actions
+return (
+    <AdminLayout
+      title="Audit Trail"
+      subtitle="System-wide activity logs, user operations, and security audit trail"
+      icon={getSectionIcon('audit')}
+    >
+      <div className="space-y-5">
+        <div className="card rounded-2xl overflow-hidden">
+          <div className="card-header flex-wrap gap-4 bg-slate-50/60 dark:bg-slate-800/40">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <FileText size={18} strokeWidth={2.2} />
               </span>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-slate-800 dark:text-slate-100">Audit Logs</h3>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Security operations, user role assignments, and administrative actions
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -148,24 +142,24 @@ export function AdminAuditPage() {
             </div>
           </div>
 
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="px-4 py-3 bg-slate-50/70 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search audit trail..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input pl-9 text-xs w-full"
+                className="input pl-9 text-xs w-full rounded-xl"
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <Filter size={16} className="text-slate-400 shrink-0" />
+              <Filter size={14} className="text-slate-400 shrink-0" />
               <select
                 value={selectedUser}
                 onChange={(e) => setSelectedUser(e.target.value)}
-                className="input text-xs w-full"
+                className="input text-xs w-full rounded-xl"
               >
                 <option value="ALL">All Users / Admin Email</option>
                 {uniqueUsers.map((email) => (
@@ -177,11 +171,11 @@ export function AdminAuditPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Filter size={16} className="text-slate-400 shrink-0" />
+              <Filter size={14} className="text-slate-400 shrink-0" />
               <select
                 value={selectedAction}
                 onChange={(e) => setSelectedAction(e.target.value)}
-                className="input text-xs w-full"
+                className="input text-xs w-full rounded-xl"
               >
                 <option value="ALL">All Actions</option>
                 {uniqueActions.map((action) => (
@@ -195,20 +189,17 @@ export function AdminAuditPage() {
 
           <div className="card-body p-0">
             {error ? (
-              <div className="p-4 alert alert-danger">
-                Failed to load audit logs: {error instanceof Error ? error.message : 'Unknown error'}
-              </div>
+              <div className="p-4 alert alert-danger rounded-none">Failed to load audit logs: {getErrorMessage(error)}</div>
             ) : isLoading ? (
-              <div className="p-8 text-center text-slate-500">
-                <div className="animate-spin inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mb-2"></div>
-                <p className="text-xs">Loading audit trail records...</p>
+              <div className="p-5">
+                <SkeletonTable rows={5} cols={6} />
               </div>
             ) : filteredLogs.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">
-                <FileText size={32} className="mx-auto mb-2 opacity-40" />
-                <p className="text-sm font-medium">No matching audit records found</p>
-                <p className="text-xs text-slate-400 mt-1">Try adjusting search parameters or filters</p>
-              </div>
+              <EmptyState
+                icon={FileText}
+                title={searchQuery || selectedUser !== 'ALL' || selectedAction !== 'ALL' ? 'No matching audit records found' : 'No audit records yet'}
+                hint="Try adjusting search parameters or filters."
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
@@ -225,9 +216,9 @@ export function AdminAuditPage() {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-700/60">
                     {filteredLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3 px-4 text-slate-400 font-mono">#{log.id}</td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap">
-                          {new Date(log.created_at).toLocaleString()}
+                        <td className="py-3 px-4 text-slate-400 font-mono tabular-nums">#{log.id}</td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap tabular-nums">
+                          {formatDateTime(log.created_at)}
                         </td>
                         <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                           {log.admin_email || <span className="text-slate-400 italic">System</span>}
@@ -248,6 +239,7 @@ export function AdminAuditPage() {
                           <button
                             onClick={() => setActiveDetailLog(log)}
                             className="btn btn-ghost btn-sm text-xs py-1 px-2.5"
+                            aria-label={`View payload for audit entry ${log.id}`}
                           >
                             <Eye size={13} className="mr-1" />
                             View Payload
@@ -256,69 +248,75 @@ export function AdminAuditPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                                </table>
               </div>
             )}
+
+            {/* Pagination controls */}
+            <div className="px-4 py-3 flex items-center justify-between border-t border-slate-200 dark:border-slate-700">
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                Page {page} · {logs?.length ?? 0} records shown{hasNextPage ? ' · more available' : ''}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={!hasPrevPage || isFetching}
+                  className="btn btn-ghost btn-sm text-xs py-1 px-2.5"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                  {page}
+                </span>
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={!hasNextPage || isFetching}
+                  className="btn btn-ghost btn-sm text-xs py-1 px-2.5"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Payload Modal */}
-      {activeDetailLog && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+      <AdminModal open={activeDetailLog !== null} onClose={() => setActiveDetailLog(null)} title={`Audit Entry Details #${activeDetailLog?.id ?? ''}`}>
+        {activeDetailLog && (
+          <div className="space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
               <div>
-                <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
-                  Audit Entry Details #{activeDetailLog.id}
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {new Date(activeDetailLog.created_at).toLocaleString()}
-                </p>
+                <span className="text-slate-400 font-medium block">Action:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {activeDetailLog.action}
+                </span>
               </div>
-              <button
-                onClick={() => setActiveDetailLog(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X size={18} />
-              </button>
+              <div>
+                <span className="text-slate-400 font-medium block">Admin / Actor:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {activeDetailLog.admin_email || 'System'}
+                </span>
+              </div>
             </div>
-            <div className="p-4 space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
-                <div>
-                  <span className="text-slate-400 font-medium block">Action:</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {activeDetailLog.action}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium block">Admin / Actor:</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {activeDetailLog.admin_email || 'System'}
-                  </span>
-                </div>
-              </div>
 
-              <div>
-                <span className="text-slate-400 font-medium block mb-1">Details Payload:</span>
-                <pre className="bg-slate-900 text-emerald-400 p-3 rounded-xl overflow-x-auto text-[11px] font-mono border border-slate-800">
-                  {activeDetailLog.details
-                    ? JSON.stringify(activeDetailLog.details, null, 2)
-                    : 'No additional details payload.'}
-                </pre>
-              </div>
+            <div>
+              <span className="text-slate-400 font-medium block mb-1">Details Payload:</span>
+              <pre className="bg-slate-900 text-emerald-400 p-3 rounded-xl overflow-x-auto text-[11px] font-mono border border-slate-800">
+                {activeDetailLog.details
+                  ? JSON.stringify(activeDetailLog.details, null, 2)
+                  : 'No additional details payload.'}
+              </pre>
             </div>
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-              <button
-                onClick={() => setActiveDetailLog(null)}
-                className="btn btn-secondary btn-sm text-xs"
-              >
+            <div className="flex justify-end">
+              <button onClick={() => setActiveDetailLog(null)} className="btn btn-secondary btn-sm text-xs">
                 Close
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </AdminModal>
     </AdminLayout>
   );
 }
+

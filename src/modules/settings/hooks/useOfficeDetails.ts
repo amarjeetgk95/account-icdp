@@ -17,6 +17,7 @@ export function useOfficeDetails() {
     mutationFn: (input: OfficeDetailsInput) => officeService.saveDetails(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['office-details'] });
+      queryClient.invalidateQueries({ queryKey: ['office-name'] });
     },
   });
 

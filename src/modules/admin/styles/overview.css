@@ -1,17 +1,5 @@
 /* Admin Overview scoped styles */
 
-/* KPI strip */
-.admin-overview-kpi {
-  position: relative;
-  padding: 0.75rem;
-}
-
-@media (min-width: 640px) {
-  .admin-overview-kpi {
-    padding: 1rem;
-  }
-}
-
 /* EntryCompletion sticky column */
 .ec-sticky-col {
   position: sticky;

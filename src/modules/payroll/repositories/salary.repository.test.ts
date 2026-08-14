@@ -98,7 +98,7 @@ describe('salaryRepository.getEmployeeLookupDetails', () => {
       return {};
     });
 
-    vi.mocked(supabase.from).mockImplementation(mockFrom as any);
+    vi.mocked(supabase.from).mockImplementation(mockFrom);
 
     const result = await salaryRepository.getEmployeeLookupDetails('H1001', 2025);
 

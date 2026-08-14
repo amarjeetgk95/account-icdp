@@ -449,6 +449,9 @@ BEGIN
     ), '[]'::json)
     FROM public.offices o
   );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 -- Data entry completion (Monthly completion matrix)
 CREATE OR REPLACE FUNCTION public.admin_entry_completion()
 RETURNS json AS $$

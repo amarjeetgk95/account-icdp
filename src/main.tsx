@@ -6,6 +6,10 @@ import { queryClient } from '@/core/query-client';
 import App from './App';
 import './index.css';
 
+if (typeof document !== 'undefined') {
+  document.documentElement.classList.remove('dark');
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>

@@ -1,6 +1,6 @@
 import { supabase } from '@/core/supabase/client';
-import { useUIStore } from '@/core/stores/ui-store';
 import { useAuthStore } from '@/core/auth/store';
+import { getOfficeId } from '@/shared/utilities/office';
 import type { Database } from '@/shared/database.types';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 
@@ -8,12 +8,6 @@ type SalaryImport = Database['public']['Tables']['salary_imports']['Row'];
 type SalaryImportInsert = Database['public']['Tables']['salary_imports']['Insert'];
 type EmployeeSalary = Database['public']['Tables']['employee_salary']['Row'];
 type EmployeeSalaryInsert = Database['public']['Tables']['employee_salary']['Insert'];
-
-function getOfficeId(): string | null {
-  const authOfficeId = useAuthStore.getState().user?.officeId || null;
-  if (authOfficeId) return authOfficeId;
-  return useUIStore.getState().activeOfficeId || null;
-}
 
 function getUserId(): string | undefined {
   return useAuthStore.getState().user?.id;
@@ -56,7 +50,9 @@ export const salaryRepository = {
     const officeId = getOfficeId();
     if (!officeId) throw new Error('No office selected');
     const payload: EmployeeSalaryInsert[] = rows.map((r) => ({ ...r, office_id: officeId }));
-    const { error } = await supabase.from('employee_salary').insert(payload);
+    const { error } = await supabase
+      .from('employee_salary')
+      .upsert(payload, { onConflict: 'salary_import_id,hprn_no,month' });
     if (error) throw error;
   },
 
@@ -136,19 +132,21 @@ export const salaryRepository = {
     }
 
     // 1. Fetch matching employees from master table (by Name, HRPN, or PAN)
-    const { data: masterList } = await supabase
+    const { data: masterList, error: masterError } = await supabase
       .from('employees')
       .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id')
       .eq('office_id', officeId)
       .or(`name.ilike.%${cleanQuery}%,hprn_no.ilike.%${cleanQuery}%,pan.ilike.%${cleanQuery}%`);
+    if (masterError) throw masterError;
 
     // 2. Fetch matching imported salary records (by Name or HRPN)
-    const { data: importedList } = await supabase
+    const { data: importedList, error: importedError } = await supabase
       .from('employee_salary')
       .select('*')
       .eq('office_id', officeId)
       .eq('financial_year', financialYear)
       .or(`name.ilike.%${cleanQuery}%,hprn_no.ilike.%${cleanQuery}%`);
+    if (importedError) throw importedError;
 
     // Build deduplicated matching employees list
     const matchingMap = new Map<string, { id?: string; name: string; hprnNo: string; pan?: string }>();
@@ -198,12 +196,13 @@ export const salaryRepository = {
     ) || null;
 
     if (!emp) {
-      const { data: empFetch } = await supabase
+      const { data: empFetch, error: empFetchError } = await supabase
         .from('employees')
         .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id')
         .eq('office_id', officeId)
         .ilike('hprn_no', targetHrpn)
         .maybeSingle();
+      if (empFetchError) throw empFetchError;
       if (empFetch) emp = empFetch;
     }
 
@@ -211,11 +210,12 @@ export const salaryRepository = {
     let budgetHeadName: string | null = null;
 
     if (emp?.budget_head_id) {
-      const { data: bh } = await supabase
+      const { data: bh, error: bhError } = await supabase
         .from('budget_heads')
         .select('code, name')
         .eq('id', emp.budget_head_id)
         .maybeSingle();
+      if (bhError) throw bhError;
       if (bh) {
         budgetHeadCode = bh.code;
         budgetHeadName = bh.name;
@@ -225,23 +225,25 @@ export const salaryRepository = {
     // Manual salaries
     let manualSalaries: Array<{ month: string; gross: number; da: number; tax: number }> = [];
     if (emp?.id) {
-      const { data: ms } = await supabase
+      const { data: ms, error: msError } = await supabase
         .from('employee_salaries')
         .select('month, gross, da, tax')
         .eq('office_id', officeId)
         .eq('employee_id', emp.id)
         .eq('financial_year', financialYear);
+      if (msError) throw msError;
       manualSalaries = ms || [];
     }
 
     // Imported salaries for target employee
-    const { data: targetImportedSalaries } = await supabase
+    const { data: targetImportedSalaries, error: targetImportedError } = await supabase
       .from('employee_salary')
       .select('*')
       .eq('office_id', officeId)
       .ilike('hprn_no', targetHrpn)
       .eq('financial_year', financialYear)
       .order('created_at', { ascending: false });
+    if (targetImportedError) throw targetImportedError;
 
     // Build lookup maps
     const manualMap = new Map<string, { gross: number; da: number; tax: number }>();

@@ -3,7 +3,8 @@ import { useBudgetHeadReport } from '../hooks/usePayroll';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
 import { ReportPrintArea, DEFAULT_OFFICE, type OfficeDetails } from '@/shared/components/ReportPrintArea';
 import { downloadCsv, formatCurrency, exportBudgetHeadExcel } from '@/shared/utilities';
-import { Download, FileText, FileSpreadsheet, Layers, Landmark, Wallet, Percent, Search } from 'lucide-react';
+import { EmptyState } from '@/shared/components/EmptyState';
+import { Download, FileText, FileSpreadsheet, Layers, Landmark, Wallet, Percent, Search, BarChart3 } from 'lucide-react';
 import type { BudgetHeadReport as BudgetHeadReportType, BudgetHeadQuarterTotals } from '../types';
 
 interface BudgetHeadReportProps {
@@ -88,12 +89,11 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
 
   if (!hasData) {
     return (
-      <div className="empty-state">
-        <p>No salary data for FY {fyLabel}.</p>
-        <p className="text-xs text-slate-400 mt-1">
-          Enter salary data in Monthly Entry and assign employees to a budget head to populate this report.
-        </p>
-      </div>
+      <EmptyState
+        icon={BarChart3}
+        title={`No salary data for FY ${fyLabel}.`}
+        hint="Enter salary data in Monthly Entry and assign employees to a budget head to populate this report."
+      />
     );
   }
 

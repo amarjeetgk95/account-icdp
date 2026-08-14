@@ -3,7 +3,6 @@ import {
   getWorkMonthForEntrySlot,
   isActiveInEntryMonth,
   getActiveEntryMonths,
-  getEntrySlotForDate,
 } from '../utils/employeeDates';
 
 const FY = 2026;
@@ -64,14 +63,5 @@ describe('getActiveEntryMonths', () => {
       'June',
       'July',
     ]);
-  });
-});
-
-describe('getEntrySlotForDate', () => {
-  it('maps a calendar date to its entry slot', () => {
-    expect(getEntrySlotForDate(FY, '2026-06-22')).toBe('July');
-    expect(getEntrySlotForDate(FY, '2026-03-15')).toBe('April');
-    expect(getEntrySlotForDate(FY, '2027-02-10')).toBe('March');
-    expect(getEntrySlotForDate(FY, '2025-12-01')).toBeNull();
   });
 });

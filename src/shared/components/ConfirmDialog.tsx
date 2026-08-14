@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import type { LucideIcon } from 'lucide-react';
 import { X, AlertTriangle } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -12,6 +13,7 @@ interface ConfirmDialogProps {
   requireText?: string;
   busy?: boolean;
   children?: ReactNode;
+  icon?: LucideIcon;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -26,6 +28,7 @@ export function ConfirmDialog({
   requireText,
   busy,
   children,
+  icon: IconProp,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -53,16 +56,20 @@ export function ConfirmDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4 animate-fade-in"
       onMouseDown={onCancel}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden"
+        className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-scale-in"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            {danger && <AlertTriangle size={18} className="text-red-600 shrink-0" />}
+            {(IconProp || danger) && (
+              IconProp
+                ? <IconProp size={18} className={danger ? 'text-red-600 shrink-0' : 'text-slate-500 shrink-0'} />
+                : <AlertTriangle size={18} className="text-red-600 shrink-0" />
+            )}
             <h3 className="text-base font-bold text-slate-800">{title}</h3>
           </div>
           <button

@@ -1,15 +1,8 @@
 import { supabase } from '@/core/supabase/client';
-import { useUIStore } from '@/core/stores/ui-store';
-import { useAuthStore } from '@/core/auth/store';
+import { getOfficeId } from '@/shared/utilities/office';
 import { isActiveInEntryMonth } from '../utils/employeeDates';
 import type { EmployeeRosterItem, QuarterReport, BudgetHeadReport, BudgetHeadReportGroup } from '../types';
 
-
-function getOfficeId(): string | null {
-  const authOfficeId = useAuthStore.getState().user?.officeId || null;
-  if (authOfficeId) return authOfficeId;
-  return useUIStore.getState().activeOfficeId || null;
-}
 
 export const payrollRepository = {
   async checkMonthData(month: string, fy: number, officeId?: string): Promise<{ count: number }> {
@@ -298,7 +291,7 @@ export const payrollRepository = {
         cell.gross = round(cell.gross + gross);
         cell.da = round(cell.da + da);
         cell.tax = round(cell.tax + tax);
-        cell.net = round(gross + da - tax);
+        cell.net = round(cell.gross + cell.da - cell.tax);
       });
     });
 

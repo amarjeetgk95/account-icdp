@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useBudgetHeads } from '../hooks/useBudgetHeads';
-import { Pencil, Trash2, Plus, RefreshCw, Save, X, Tag } from 'lucide-react';
+import { EmptyState } from '@/shared/components/EmptyState';
+import { Pencil, Trash2, Plus, RefreshCw, Save, X, Tag, FolderOpen } from 'lucide-react';
 import type { BudgetHeadInput } from '../types';
 
 export function BudgetHeadManager() {
@@ -168,10 +169,12 @@ export function BudgetHeadManager() {
               <div className="spinner h-8 w-8"></div>
             </div>
           ) : heads.length === 0 ? (
-            <div className="empty-state">
-              <p>No budget heads defined yet.</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Add a head above, then assign employees to it.</p>
-            </div>
+            <EmptyState
+              icon={FolderOpen}
+              title="No budget heads defined yet."
+              hint="Add a head above, then assign employees to it."
+              compact
+            />
           ) : (
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
               <table className="table text-sm">

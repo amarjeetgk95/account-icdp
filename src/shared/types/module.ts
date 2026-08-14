@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export type UserRole = 'admin' | 'office';
 
-export type NavGroup = 'main' | 'admin' | 'reports';
+export type NavGroup = 'main' | 'tds' | 'bills' | 'system' | 'admin';
 
 export interface RouteDefinition {
   path: string;
@@ -39,4 +39,5 @@ export interface FeatureFlagKeys {
   payroll_module: boolean;
   parties_module: boolean;
   reports_module: boolean;
+  gtr44_module: boolean;
 }

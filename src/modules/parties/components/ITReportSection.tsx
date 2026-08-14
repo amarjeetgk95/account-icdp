@@ -57,9 +57,11 @@ export function ITReportSection({ report, isLoading }: ITReportSectionProps) {
         </tbody>
         <tfoot>
           <tr className="total-row">
-            <td colSpan={6} style={{ textAlign: 'right' }}>
+            <td colSpan={4} style={{ textAlign: 'right' }}>
               Grand Total
             </td>
+            <td style={{ textAlign: 'right' }}>{formatCurrency(report.totals.amount)}</td>
+            <td></td>
             <td style={{ textAlign: 'right' }}>{formatCurrency(report.totals.incomeTax)}</td>
           </tr>
         </tfoot>

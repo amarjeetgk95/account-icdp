@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import type { QuarterReport, BudgetHeadReport } from '@/modules/payroll/types';
 import type { IncomeTaxReport, GSTReport } from '@/modules/parties/types';
@@ -32,6 +32,11 @@ const THEME = {
 async function saveWorkbook(workbook: ExcelJS.Workbook, fileName: string) {
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), fileName);
+}
+
+async function createWorkbook(): Promise<ExcelJS.Workbook> {
+  const { default: ExcelJS } = await import('exceljs');
+  return new ExcelJS.Workbook();
 }
 
 function applyHeaderStyle(row: ExcelJS.Row) {
@@ -90,7 +95,7 @@ export async function export24QExcel(report: QuarterReport, office?: OfficeHeade
   const m2 = report.labels[1]?.work || 'Month 2';
   const m3 = report.labels[2]?.work || 'Month 3';
 
-  const workbook = new ExcelJS.Workbook();
+  const workbook = await createWorkbook();
   const ws = workbook.addWorksheet(`24Q ${report.quarter}`);
 
   // 24Q-specific palette matching the on-screen report (Income=indigo, Deduction=rose, Total=slate)
@@ -216,13 +221,13 @@ export async function export26QExcel(report: IncomeTaxReport, office?: OfficeHea
   const tan = office?.tan || 'NOT PROVIDED';
   const address = office?.address || 'Surat, Gujarat';
 
-  const workbook = new ExcelJS.Workbook();
+  const workbook = await createWorkbook();
   const ws = workbook.addWorksheet(`26Q ${report.quarter}`);
 
   ws.addRow(['FORM 26Q — DEDUCTION OF TAX AT SOURCE (NON-SALARY PAYMENTS)']).font = THEME.titleFont;
   ws.addRow([`Office Name: ${officeName}`]).font = THEME.boldFont;
   ws.addRow([`TAN: ${tan} | Address: ${address}`]);
-  ws.addRow([`Financial Year: ${report.fy}-${(report.fy + 1) % 100} | Quarter: ${report.quarter}`]);
+  ws.addRow([`Financial Year: ${report.fy}-${String(report.fy + 1).slice(-2)} | Quarter: ${report.quarter}`]);
   ws.addRow([]);
 
   const headerRow = ws.addRow([
@@ -254,13 +259,13 @@ export async function exportGSTExcel(report: GSTReport, office?: OfficeHeaderDet
   const officeName = office?.officeName || 'GOVERNMENT OF GUJARAT — ICDP SURAT';
   const gst = office?.gst || 'NOT PROVIDED';
 
-  const workbook = new ExcelJS.Workbook();
+  const workbook = await createWorkbook();
   const ws = workbook.addWorksheet(`GST ${report.quarter}`);
 
   ws.addRow(['GST PURCHASE & TAX DEDUCTION STATEMENT']).font = THEME.titleFont;
   ws.addRow([`Office Name: ${officeName}`]).font = THEME.boldFont;
   ws.addRow([`GSTIN: ${gst}`]);
-  ws.addRow([`Financial Year: ${report.fy}-${(report.fy + 1) % 100} | Quarter: ${report.quarter}`]);
+  ws.addRow([`Financial Year: ${report.fy}-${String(report.fy + 1).slice(-2)} | Quarter: ${report.quarter}`]);
   ws.addRow([]);
 
   const headerRow = ws.addRow([
@@ -296,7 +301,7 @@ export async function exportBudgetHeadExcel(report: BudgetHeadReport, office?: O
   const address = office?.address || 'Surat, Gujarat';
   const fyLabel = `${report.fy}-${String(report.fy + 1).slice(-2)}`;
 
-  const workbook = new ExcelJS.Workbook();
+  const workbook = await createWorkbook();
 
   // ==========================================
   // Sheet 1: Quarter-wise Summary (Table 1)

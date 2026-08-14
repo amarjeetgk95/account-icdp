@@ -1,12 +1,3 @@
-export interface SalaryEntry {
-  employeeId: string;
-  employeeName: string;
-  pan: string;
-  gross: number;
-  da: number;
-  tax: number;
-}
-
 export interface EmployeeRosterItem {
   id: string;
   name: string;
@@ -23,16 +14,6 @@ export interface MonthOption {
   label: string;
 }
 
-export interface QuarterReportRow {
-  name: string;
-  pan: string;
-  g: [number, number, number];
-  d: number;
-  total: number;
-  t: [number, number, number];
-  tax: number;
-}
-
 export interface QuarterReport {
   fy: number;
   fyLabel: string;
@@ -42,12 +23,14 @@ export interface QuarterReport {
   rows: QuarterReportRow[];
 }
 
-export interface BudgetHead {
-  id: string;
-  officeId: string;
-  code: string;
+export interface QuarterReportRow {
   name: string;
-  sortOrder: number;
+  pan: string;
+  g: [number, number, number];
+  d: number;
+  total: number;
+  t: [number, number, number];
+  tax: number;
 }
 
 export interface BudgetHeadInput {
@@ -78,51 +61,3 @@ export interface BudgetHeadReport {
   groups: BudgetHeadReportGroup[];
   totals: BudgetHeadQuarterTotals;
 }
-
-export interface EmployeeLookupInfo {
-  id?: string;
-  name: string;
-  pan?: string;
-  hprnNo: string;
-  joinDate?: string | null;
-  transferDate?: string | null;
-  budgetHeadCode?: string | null;
-  budgetHeadName?: string | null;
-  isRegisteredInMaster: boolean;
-}
-
-export interface EmployeeLookupSalaryRow {
-  month: string;
-  gross: number;
-  daAndOther: number;
-  totalGross: number;
-  tax: number;
-  net: number;
-  status: string;
-  createdAt?: string;
-}
-
-export interface EmployeeLookupQuarterTotals {
-  gross: number;
-  daAndOther: number;
-  totalGross: number;
-  tax: number;
-  net: number;
-  monthsWithData: number;
-}
-
-export interface EmployeeLookupSearchResult {
-  id?: string;
-  name: string;
-  hprnNo: string;
-  pan?: string;
-}
-
-export interface EmployeeLookupDetails {
-  matchingEmployees: EmployeeLookupSearchResult[];
-  employeeInfo: EmployeeLookupInfo | null;
-  salaries: EmployeeLookupSalaryRow[];
-  quarters: Record<'Q1' | 'Q2' | 'Q3' | 'Q4', EmployeeLookupQuarterTotals>;
-  totals: EmployeeLookupQuarterTotals;
-}
-

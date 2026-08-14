@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { officeDetailsSchema, type OfficeDetailsInput } from '../validation/settings.schema';
 import { useOfficeDetails } from '../hooks/useOfficeDetails';
+import { SkeletonCard } from '@/shared/components/Skeleton';
 
 type OfficeFormValues = z.input<typeof officeDetailsSchema>;
 
@@ -54,11 +55,7 @@ export function OfficeForm() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-8">
-        <div className="spinner h-8 w-8"></div>
-      </div>
-    );
+    return <SkeletonCard />;
   }
 
   return (
@@ -152,7 +149,23 @@ export function OfficeForm() {
         <button type="submit" disabled={isSubmitting} className="btn btn-primary">
           {isSubmitting ? 'Saving...' : 'Save Office Details'}
         </button>
-        <button type="reset" className="btn btn-secondary">
+        <button
+          type="button"
+          onClick={() =>
+            reset(
+              details || {
+                officeName: '',
+                subtitle: '',
+                address: '',
+                phone: '',
+                email: '',
+                gst: '',
+                tan: '',
+              }
+            )
+          }
+          className="btn btn-secondary"
+        >
           Reset
         </button>
       </div>

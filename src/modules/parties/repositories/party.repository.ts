@@ -169,6 +169,12 @@ export const partyRepository = {
     if (updates.cgst !== undefined) upd.cgst = money(updates.cgst || 0);
     if (updates.sgst !== undefined) upd.sgst = money(updates.sgst || 0);
     if (updates.igst !== undefined) upd.igst = money(updates.igst || 0);
+    if (updates.cgst !== undefined || updates.sgst !== undefined || updates.igst !== undefined) {
+      const cgst = updates.cgst !== undefined ? money(updates.cgst || 0) : 0;
+      const sgst = updates.sgst !== undefined ? money(updates.sgst || 0) : 0;
+      const igst = updates.igst !== undefined ? money(updates.igst || 0) : 0;
+      upd.total_gst = cgst + sgst + igst;
+    }
     if (updates.incomeTax !== undefined) upd.income_tax = money(updates.incomeTax || 0);
     if (updates.cpinNo !== undefined) upd.cpin_no = updates.cpinNo.trim() || null;
 

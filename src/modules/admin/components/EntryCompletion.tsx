@@ -1,28 +1,22 @@
 import { Inbox } from 'lucide-react';
 import { MONTHS } from '@/shared/constants';
 import { SkeletonTable } from '@/shared/components/Skeleton';
+import { EmptyState } from '@/shared/components/EmptyState';
+import {
+  shortMonth,
+  completionPercentage,
+  computeCompletionSummary,
+  completionBadgeClass,
+  completionBarClass,
+} from '../utils/completion';
 import type { OfficeCompletion } from '../types';
-import '../styles/overview.css';
 
 interface EntryCompletionProps {
   data: OfficeCompletion[];
   isLoading: boolean;
 }
 
-const MONTH_SHORT: Record<string, string> = {
-  April: 'Apr',
-  May: 'May',
-  June: 'Jun',
-  July: 'Jul',
-  August: 'Aug',
-  September: 'Sep',
-  October: 'Oct',
-  November: 'Nov',
-  December: 'Dec',
-  January: 'Jan',
-  February: 'Feb',
-  March: 'Mar',
-};
+export { computeCompletionSummary };
 
 export function EntryCompletion({ data, isLoading }: EntryCompletionProps) {
   if (isLoading) {
@@ -35,30 +29,16 @@ export function EntryCompletion({ data, isLoading }: EntryCompletionProps) {
 
   if (data.length === 0) {
     return (
-      <div className="empty-state py-16">
-        <Inbox
-          size={40}
-          strokeWidth={1.5}
-          className="mx-auto mb-3 text-slate-300 dark:text-slate-600"
-        />
-        <p className="empty-state-text">No completion data yet.</p>
-        <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
-          Monthly status will appear here once offices begin data entry.
-        </p>
-      </div>
+      <EmptyState
+        className="py-16"
+        icon={Inbox}
+        title="No completion data yet."
+        hint="Monthly status will appear here once offices begin data entry."
+      />
     );
   }
 
-  const completeCount = data.filter(
-    (office) => new Set(office.months || []).size >= MONTHS.length
-  ).length;
-  const avgPct = Math.round(
-    data.reduce(
-      (sum, office) =>
-        sum + Math.round((new Set(office.months || []).size / MONTHS.length) * 100),
-      0
-    ) / data.length
-  );
+  const { completeCount, avgPct } = computeCompletionSummary(data);
 
   return (
     <div className="overflow-x-auto admin-table ec-scroll">
@@ -79,7 +59,7 @@ export function EntryCompletion({ data, isLoading }: EntryCompletionProps) {
             <th className="text-center">FY</th>
             {MONTHS.map((m) => (
               <th key={m} className="text-center" title={m}>
-                {MONTH_SHORT[m] || m.slice(0, 3)}
+                {shortMonth(m)}
               </th>
             ))}
             <th className="text-center">Completion</th>
@@ -88,18 +68,8 @@ export function EntryCompletion({ data, isLoading }: EntryCompletionProps) {
         <tbody>
           {data.map((office) => {
             const filled = new Set(office.months || []);
-            const pct = Math.round((filled.size / MONTHS.length) * 100);
-            const complete = filled.size >= MONTHS.length;
-            const badge = complete
-              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
-              : pct >= 50
-                ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
-                : 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-400';
-            const bar = complete
-              ? 'bg-emerald-500'
-              : pct >= 50
-                ? 'bg-amber-500'
-                : 'bg-red-500';
+            const pct = completionPercentage(office);
+            const bar = completionBarClass(office);
             return (
               <tr key={office.office_id}>
                 <td className="ec-sticky-col font-bold text-slate-900 dark:text-slate-100" title={office.office_name}>
@@ -124,7 +94,7 @@ export function EntryCompletion({ data, isLoading }: EntryCompletionProps) {
                 <td className="text-center">
                   <div className="inline-flex flex-col items-center gap-1.5 w-24">
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold leading-none ${badge}`}
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold leading-none ${completionBadgeClass(office)}`}
                     >
                       {pct}%
                     </span>
@@ -154,3 +124,4 @@ export function EntryCompletion({ data, isLoading }: EntryCompletionProps) {
     </div>
   );
 }
+

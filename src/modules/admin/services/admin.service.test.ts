@@ -28,6 +28,8 @@ vi.mock('../repositories/admin.repository', () => ({
   adminRepository: {
     getSystemStats: vi.fn(),
     getOfficeStats: vi.fn(),
+    getEntryCompletion: vi.fn(),
+    getDataEntryReport: vi.fn(),
     listUsers: vi.fn(),
     listOffices: vi.fn(),
     setUserRole: vi.fn(),
@@ -35,10 +37,7 @@ vi.mock('../repositories/admin.repository', () => ({
     createOffice: vi.fn(),
     createUser: vi.fn(),
     inviteUser: vi.fn(),
-    getDataEntryReport: vi.fn(),
-    getEntryCompletion: vi.fn(),
     getFinancialYears: vi.fn(),
-    listAuditLogs: vi.fn(),
   },
 }));
 
@@ -170,22 +169,47 @@ describe('AdminService', () => {
     });
   });
 
+  describe('overview and reporting', () => {
+    it('delegates getSystemStats to repository', async () => {
+      const mockStats = {
+        users: 10,
+        admins: 2,
+        offices: 5,
+        fy: 2026,
+        employees: 50,
+        salaries: 200,
+        parties: 15,
+        transactions: 80,
+      };
+      mockRepo.getSystemStats.mockResolvedValue(mockStats);
+      const res = await service.getSystemStats();
+      expect(mockRepo.getSystemStats).toHaveBeenCalled();
+      expect(res).toEqual(mockStats);
+    });
+
+    it('delegates getOfficeStats to repository', async () => {
+      mockRepo.getOfficeStats.mockResolvedValue([]);
+      const res = await service.getOfficeStats();
+      expect(mockRepo.getOfficeStats).toHaveBeenCalled();
+      expect(res).toEqual([]);
+    });
+
+    it('delegates getEntryCompletion to repository', async () => {
+      mockRepo.getEntryCompletion.mockResolvedValue([]);
+      const res = await service.getEntryCompletion();
+      expect(mockRepo.getEntryCompletion).toHaveBeenCalled();
+      expect(res).toEqual([]);
+    });
+
+    it('delegates getDataEntryReport to repository', async () => {
+      mockRepo.getDataEntryReport.mockResolvedValue([]);
+      const res = await service.getDataEntryReport();
+      expect(mockRepo.getDataEntryReport).toHaveBeenCalled();
+      expect(res).toEqual([]);
+    });
+  });
+
   describe('reports', () => {
-    it('passes through entry completion', async () => {
-      mockRepo.getEntryCompletion.mockResolvedValue([
-        { office_id: '1', office_name: 'X', fy: 2025, months: ['April'] },
-      ]);
-      await expect(service.getEntryCompletion()).resolves.toEqual([
-        { office_id: '1', office_name: 'X', fy: 2025, months: ['April'] },
-      ]);
-    });
-
-    it('passes through audit logs with a limit', async () => {
-      mockRepo.listAuditLogs.mockResolvedValue([]);
-      await service.listAuditLogs(50);
-      expect(mockRepo.listAuditLogs).toHaveBeenCalledWith(50);
-    });
-
     it('requires an office id for financial years', async () => {
       await expect(service.getFinancialYears('')).rejects.toThrow('No office selected');
     });

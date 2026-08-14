@@ -91,7 +91,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xl flex items-start justify-center pt-20 px-4 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xl flex items-start justify-center pt-20 px-4">
       <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden backdrop-blur-2xl">
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           <Search size={18} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
