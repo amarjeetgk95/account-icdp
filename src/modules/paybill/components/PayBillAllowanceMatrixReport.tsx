@@ -11,6 +11,7 @@ import { paybillReportService, PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMN
 import { paybillExcelService } from '../services/paybillExcel.service';
 import { paybillPdfService } from '../services/paybillPdf.service';
 import { paybillRepository } from '../repositories/paybill.repository';
+import { orderItems } from '../utils/columnOrder';
 import { PbButton, PbPanel } from './ui';
 import type { PayBillMonthlyEmployeeMatrixReport, PayBillMonthlyMatrixColumn } from '../types';
 
@@ -45,6 +46,8 @@ export function PayBillAllowanceMatrixReport({
   const [isLoading, setIsLoading] = useState(true);
   const [manualAllowances, setManualAllowances] = useState<string[]>([]);
   const [manualDeductions, setManualDeductions] = useState<string[]>([]);
+  const [earningColumnOrder, setEarningColumnOrder] = useState<string[]>([]);
+  const [deductionColumnOrder, setDeductionColumnOrder] = useState<string[]>([]);
   const [manualValues, setManualValues] = useState<
     Record<string, Record<string, Record<string, number>>>
   >({});
@@ -57,6 +60,8 @@ export function PayBillAllowanceMatrixReport({
         if (cancelled) return;
         setManualAllowances(settings.manualAllowances || []);
         setManualDeductions(settings.manualDeductions || []);
+        setEarningColumnOrder(settings.earningColumnOrder || []);
+        setDeductionColumnOrder(settings.deductionColumnOrder || []);
         setManualValues(manualVals);
       })
       .catch((err) => {
@@ -67,29 +72,71 @@ export function PayBillAllowanceMatrixReport({
     };
   }, [refreshTrigger]);
 
-  const earningCols = useMemo<PayBillMonthlyMatrixColumn[]>(
-    () => [
-      ...PAYBILL_EARNING_COLUMNS,
-      ...manualAllowances.map((l) => ({ key: `manual::${l}`, label: l, group: 'EARNING' as const })),
-    ],
-    [manualAllowances]
-  );
+  // Manual allowance columns come before Gross Amt so they count into the earning total;
+  // manual deduction columns come before Total Deductions / Net Pay so they count into deductions.
+  const earningCols = useMemo<PayBillMonthlyMatrixColumn[]>(() => {
+    const regular = PAYBILL_EARNING_COLUMNS.filter((c) => c.key !== 'grossAmount');
+    const manual = manualAllowances.map((l) => ({
+      key: `manual::${l}`,
+      label: l,
+      group: 'EARNING' as const,
+    }));
+    const grossCol = PAYBILL_EARNING_COLUMNS.find((c) => c.key === 'grossAmount') as PayBillMonthlyMatrixColumn;
+    return orderItems([...regular, ...manual], earningColumnOrder, ['grossAmount']).concat(grossCol);
+  }, [manualAllowances, earningColumnOrder]);
 
-  const deductionCols = useMemo<PayBillMonthlyMatrixColumn[]>(
-    () => [
-      ...PAYBILL_DEDUCTION_COLUMNS,
-      ...manualDeductions.map((l) => ({ key: `manual::${l}`, label: l, group: 'DEDUCTION' as const })),
-    ],
-    [manualDeductions]
-  );
+  const deductionCols = useMemo<PayBillMonthlyMatrixColumn[]>(() => {
+    const regular = PAYBILL_DEDUCTION_COLUMNS.filter(
+      (c) => c.key !== 'totalDeductions' && c.key !== 'netPay'
+    );
+    const manual = manualDeductions.map((l) => ({
+      key: `manual::${l}`,
+      label: l,
+      group: 'DEDUCTION' as const,
+    }));
+    const totalCol = PAYBILL_DEDUCTION_COLUMNS.find((c) => c.key === 'totalDeductions') as PayBillMonthlyMatrixColumn;
+    const netCol = PAYBILL_DEDUCTION_COLUMNS.find((c) => c.key === 'netPay') as PayBillMonthlyMatrixColumn;
+    return orderItems([...regular, ...manual], deductionColumnOrder, ['totalDeductions', 'netPay']).concat(
+      totalCol,
+      netCol
+    );
+  }, [manualDeductions, deductionColumnOrder]);
 
   const allCols = useMemo(() => [...earningCols, ...deductionCols], [earningCols, deductionCols]);
 
   const manualValueFor = (hrpn: string, label: string): number =>
     Number(manualValues[hrpn]?.[label]?.[selectedMonth] ?? 0);
 
+  const manualSumFor = (hrpn: string, labels: string[]): number =>
+    labels.reduce((s, l) => s + manualValueFor(hrpn, l), 0);
+
+  const manualAllowanceSumFor = (hrpn: string): number => manualSumFor(hrpn, manualAllowances);
+  const manualDeductionSumFor = (hrpn: string): number => manualSumFor(hrpn, manualDeductions);
+
   const manualColTotal = (label: string): number =>
     (report?.rows ?? []).reduce((sum, row) => sum + manualValueFor(row.hrpn, label), 0);
+
+  const cellValueFor = (row: PayBillMonthlyEmployeeMatrixReport['rows'][number], col: PayBillMonthlyMatrixColumn): number => {
+    if (col.key.startsWith('manual::')) return manualValueFor(row.hrpn, col.label);
+    if (col.key === 'grossAmount') return row.values.grossAmount + manualAllowanceSumFor(row.hrpn);
+    if (col.key === 'totalDeductions') return row.values.totalDeductions + manualDeductionSumFor(row.hrpn);
+    if (col.key === 'netPay')
+      return row.values.netPay + manualAllowanceSumFor(row.hrpn) - manualDeductionSumFor(row.hrpn);
+    return row.values[col.key] ?? 0;
+  };
+
+  const manualColSum = (labels: string[]): number =>
+    (report?.rows ?? []).reduce((sum, row) => sum + manualSumFor(row.hrpn, labels), 0);
+
+  const totalValueFor = (col: PayBillMonthlyMatrixColumn): number => {
+    if (col.key.startsWith('manual::')) return manualColTotal(col.label);
+    if (col.key === 'grossAmount') return (report?.totals.grossAmount ?? 0) + manualColSum(manualAllowances);
+    if (col.key === 'totalDeductions')
+      return (report?.totals.totalDeductions ?? 0) + manualColSum(manualDeductions);
+    if (col.key === 'netPay')
+      return (report?.totals.netPay ?? 0) + manualColSum(manualAllowances) - manualColSum(manualDeductions);
+    return report?.totals[col.key] ?? 0;
+  };
 
   const loadReport = async () => {
     try {
@@ -346,11 +393,7 @@ export function PayBillAllowanceMatrixReport({
                                 : ''
                         }`}
                       >
-                        {formatInr(
-                          col.key.startsWith('manual::')
-                            ? manualValueFor(row.hrpn, col.label)
-                            : row.values[col.key]
-                        )}
+                        {formatInr(cellValueFor(row, col))}
                       </td>
                     ))}
                   </tr>
@@ -375,11 +418,7 @@ export function PayBillAllowanceMatrixReport({
                                 : 'text-slate-900 dark:text-slate-100'
                         }`}
                       >
-                        {formatInr(
-                          col.key.startsWith('manual::')
-                            ? manualColTotal(col.label)
-                            : report?.totals[col.key]
-                        )}
+                        {formatInr(totalValueFor(col))}
                       </td>
                     ))}
                   </tr>

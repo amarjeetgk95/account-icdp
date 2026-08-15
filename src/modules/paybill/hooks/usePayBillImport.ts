@@ -28,6 +28,7 @@ import type {
   PayBillBatchMatrix,
   PayBillBatchMatrixMonth,
   PayBillMonthlyEmployeeMatrixRow,
+  DetectedComponentInfo,
 } from '../types';
 
 const CALENDAR_MONTHS = [
@@ -188,6 +189,27 @@ export function usePayBillImport() {
   const [importResult, setImportResult] = useState<PayBillImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Components detected in the PDF header that did not match the master.
+  // Surfaced to the user so they can add them to the Component Master.
+  const [unknownComponents, setUnknownComponents] = useState<DetectedComponentInfo[]>([]);
+
+  const captureUnknownComponents = useCallback((parsed: {
+    detectedComponents?: DetectedComponentInfo[];
+  }) => {
+    const unknowns = (parsed.detectedComponents || []).filter(
+      (c) => c.matchMethod === 'UNKNOWN'
+    );
+    setUnknownComponents(unknowns);
+  }, []);
+
+  const dismissUnknownComponent = useCallback((componentCode: string) => {
+    setUnknownComponents((prev) =>
+      prev.filter((c) => c.componentCode !== componentCode)
+    );
+  }, []);
+
+  const resetUnknownComponents = useCallback(() => setUnknownComponents([]), []);
+
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -278,6 +300,7 @@ export function usePayBillImport() {
       updateStage('READING', 'Reading PDF', 30, 'Parsing PDF text layer & document layout...');
       const parsedResult = await pdfParserService.parsePdf(uploadedFile);
       setSheetType(parsedResult.sheetType);
+      captureUnknownComponents(parsedResult);
       await delay(120);
 
       // Stage 3: Detecting Table
@@ -381,7 +404,7 @@ export function usePayBillImport() {
         error: msg,
       });
     }
-  }, [checkDuplicateBill]);
+  }, [checkDuplicateBill, captureUnknownComponents]);
 
   /**
    * Quick-load sample PDF dataset (July-2026, 4 employees, Gross ₹892,314)
@@ -399,6 +422,7 @@ export function usePayBillImport() {
 
       updateStage('READING', 'Reading PDF', 30, 'Reading PDF structure...');
       const parsedResult = loadSamplePayBillData();
+      captureUnknownComponents(parsedResult);
       await delay(100);
 
       updateStage('DETECTING_TABLE', 'Detecting Table', 50, 'Detected 14 table columns & Bill Srt0299002201');
@@ -431,7 +455,7 @@ export function usePayBillImport() {
       const msg = err instanceof Error ? err.message : 'Failed to load sample bill.';
       setError(msg);
     }
-  }, [checkDuplicateBill]);
+  }, [checkDuplicateBill, captureUnknownComponents]);
 
   /**
    * Quick-load sample Deduction PDF dataset (April-2026, 8 employees, Ded ₹85,388, Net ₹447,496)
@@ -449,6 +473,7 @@ export function usePayBillImport() {
 
       updateStage('READING', 'Reading PDF', 30, 'Reading Deduction Side PDF structure...');
       const parsedResult = loadSamplePayBillDeductionData();
+      captureUnknownComponents(parsedResult);
       await delay(100);
 
       updateStage('DETECTING_TABLE', 'Detecting Table', 50, 'Detected 14 deduction columns & Bill Srt0299002202');
@@ -498,7 +523,7 @@ export function usePayBillImport() {
       const msg = err instanceof Error ? err.message : 'Failed to load sample deduction bill.';
       setError(msg);
     }
-  }, [checkDuplicateBill]);
+  }, [checkDuplicateBill, captureUnknownComponents]);
 
   /**
    * Process raw text / OCR fallback dump
@@ -517,6 +542,7 @@ export function usePayBillImport() {
     try {
       updateStage('READING', 'Reading Text', 30, 'Parsing raw text format...');
       const parsedResult = pdfParserService.parseExtractedText(rawText);
+      captureUnknownComponents(parsedResult);
 
       updateStage('EXTRACTING_HRPN', 'Extracting HRPN', 65, `Extracted ${parsedResult.rows.length} rows`);
       const masterEmployees = await paybillStorageService.getMasterEmployees();
@@ -539,7 +565,7 @@ export function usePayBillImport() {
       const msg = err instanceof Error ? err.message : 'Failed to parse text.';
       setError(msg);
     }
-  }, [checkDuplicateBill]);
+  }, [checkDuplicateBill, captureUnknownComponents]);
 
   /**
    * Update a record inline in the review table (re-validates + re-audits)
@@ -1086,7 +1112,8 @@ export function usePayBillImport() {
     setIsImporting(false);
     setImportResult(null);
     setError(null);
-  }, []);
+    resetUnknownComponents();
+  }, [resetUnknownComponents]);
 
   return {
     file,
@@ -1112,6 +1139,9 @@ export function usePayBillImport() {
     isImporting,
     importResult,
     error,
+    unknownComponents,
+    dismissUnknownComponent,
+    resetUnknownComponents,
     filterStatus,
     setFilterStatus,
     searchQuery,

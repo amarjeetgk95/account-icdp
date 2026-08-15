@@ -2,6 +2,7 @@ import { supabase } from '@/core/supabase/client';
 import { useAuthStore } from '@/core/auth/store';
 import { getOfficeId } from '@/shared/utilities/office';
 import { employeeService } from '@/modules/payroll/services/employee.service';
+import { componentMasterService } from './componentMaster.service';
 import type {
   PayBillMetadata,
   PayBillExtractedRecord,
@@ -14,6 +15,7 @@ import type {
   PayBillValidationFlags,
   PayBillEmployeeRow,
   PayBillDeductionRow,
+  PayBillEmployeeComponent,
 } from '../types';
 
 export class PayBillStorageService {
@@ -292,6 +294,18 @@ export class PayBillStorageService {
           }
         }
 
+        // 2b. Persist dynamic component values (earnings side)
+        await this.persistEmployeeComponents(
+          officeId,
+          importId,
+          'EARNING',
+          records.map((rec) => ({
+            employeeId: rec.matchedEmployee?.id || null,
+            hrpn: rec.row.hrpn,
+            components: rec.row.components,
+          }))
+        );
+
         // 3. Create a record in salary_imports for backward compatibility
         const { data: importRecord, error: _importError } = await supabase
           .from('salary_imports')
@@ -375,6 +389,69 @@ export class PayBillStorageService {
       appliedToPayrollGrid,
       createdAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Persist dynamic per-employee component values extracted by the parser.
+   * component_name is stored as a snapshot so future master renames never
+   * change historical data; component_id is linked when it exists in the master.
+   */
+  private async persistEmployeeComponents(
+    officeId: string,
+    importId: string,
+    sheetType: 'EARNING' | 'DEDUCTION',
+    items: Array<{ employeeId: string | null; hrpn: string; components?: PayBillEmployeeComponent[] }>
+  ): Promise<void> {
+    if (!officeId || items.length === 0) return;
+
+    const master = componentMasterService.getCachedComponents();
+    const resolveComponentId = (code: string | null, name: string): string | null => {
+      const comp = master.find(
+        (c) => c.componentName === name && (!code || c.componentCode === code || !c.componentCode)
+      );
+      return comp?.id || null;
+    };
+
+    const payload: Array<{
+      import_id: string;
+      office_id: string;
+      paybill_employee_id: string | null;
+      hrpn: string | null;
+      sheet_type: string;
+      component_id: string | null;
+      component_code: string | null;
+      component_name: string;
+      amount: number;
+      source: string;
+    }> = [];
+
+    for (const item of items) {
+      for (const comp of item.components || []) {
+        if (typeof comp.amount !== 'number' || isNaN(comp.amount)) continue;
+        payload.push({
+          import_id: importId,
+          office_id: officeId,
+          paybill_employee_id: item.employeeId || null,
+          hrpn: item.hrpn,
+          sheet_type: sheetType,
+          component_id: resolveComponentId(comp.componentCode, comp.componentName),
+          component_code: comp.componentCode,
+          component_name: comp.componentName,
+          amount: Math.round(comp.amount * 100) / 100,
+          source: 'PDF',
+        });
+      }
+    }
+
+    if (payload.length === 0) return;
+    try {
+      const { error } = await supabase.from('paybill_employee_components').insert(payload);
+      if (error) {
+        console.warn('[PayBillStorage] Could not persist employee components:', error.message);
+      }
+    } catch (err) {
+      console.warn('[PayBillStorage] Employee component persistence failed:', err);
+    }
   }
 
   /**
@@ -524,6 +601,18 @@ export class PayBillStorageService {
             await supabase.from('paybill_employee_deductions').upsert(dedPayload);
           }
         }
+
+        // Persist dynamic component values (deductions side)
+        await this.persistEmployeeComponents(
+          officeId,
+          importId,
+          'DEDUCTION',
+          records.map((rec) => ({
+            employeeId: rec.matchedEmployee?.id || null,
+            hrpn: rec.row.hrpn,
+            components: rec.row.components,
+          }))
+        );
       }
     } catch (err) {
       console.warn('[PayBillStorage] Deduction database sync fallback to local cache:', err);

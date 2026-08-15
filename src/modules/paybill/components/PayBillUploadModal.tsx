@@ -9,9 +9,11 @@ import { ExtractionPreviewTable } from './ExtractionPreviewTable';
 import { DeductionPreviewTable } from './DeductionPreviewTable';
 import { ImportConfirmationDialog } from './ImportConfirmationDialog';
 import { OcrFallbackModal } from './OcrFallbackModal';
+import { ComponentFormModal } from './ComponentFormModal';
 import { BatchImportQueue } from './BatchImportQueue';
 import { BatchMatrixPreview } from './BatchMatrixPreview';
 import { PbButton } from './ui';
+import type { DetectedComponentInfo } from '../types';
 import {
   Upload,
   X,
@@ -59,6 +61,8 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
     existingBill,
     isImporting,
     error,
+    unknownComponents,
+    dismissUnknownComponent,
     processFile,
     processSampleData,
     processSampleDeductionData,
@@ -79,6 +83,12 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showOcrModal, setShowOcrModal] = useState(false);
+  const [showComponentForm, setShowComponentForm] = useState(false);
+  const [componentPreset, setComponentPreset] = useState<{
+    componentCode: string | null;
+    componentName: string;
+    type: 'EARNING' | 'DEDUCTION';
+  } | null>(null);
 
   if (!isOpen) return null;
 
@@ -118,6 +128,10 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
   };
 
   const activeCount = isDeduction ? deductionRecords.length : records.length;
+  const addableUnknownComponents = unknownComponents.filter(
+    (c): c is DetectedComponentInfo & { type: 'EARNING' | 'DEDUCTION' } =>
+      c.type === 'EARNING' || c.type === 'DEDUCTION'
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
@@ -222,6 +236,62 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
               <div className="space-y-1">
                 <p className="font-bold">Error during PDF processing</p>
                 <p className="text-red-700 dark:text-red-400">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Unknown Component Detection Banner */}
+          {addableUnknownComponents.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-4 rounded-xl text-xs">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-2 flex-1">
+                  <p className="font-bold text-amber-900 dark:text-amber-200">
+                    Unmatched payroll components detected
+                  </p>
+                  <p className="text-amber-800 dark:text-amber-300">
+                    {addableUnknownComponents.length} column(s) in this bill
+                    did not match the Component Master. Add them to the master so future imports resolve automatically.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {addableUnknownComponents.map((c) => (
+                        <div
+                          key={`${c.order}-${c.detectedText}`}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700"
+                        >
+                          <span className="font-mono text-amber-900 dark:text-amber-200">
+                            {c.detectedText}
+                            {c.componentCode ? ` (${c.componentCode})` : ''}
+                          </span>
+                          <span className="text-[0.65rem] uppercase tracking-wide text-slate-500">
+                            {c.type}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setComponentPreset({
+                                componentCode: c.componentCode,
+                                componentName: c.componentName,
+                                type: c.type,
+                              });
+                              setShowComponentForm(true);
+                            }}
+                            className="px-2 py-0.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
+                          >
+                            Add to Master
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => dismissUnknownComponent(c.componentCode || c.detectedText)}
+                            className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            aria-label="Dismiss"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -406,6 +476,21 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
           isOpen={showOcrModal}
           onClose={() => setShowOcrModal(false)}
           onSubmitText={processRawText}
+        />
+
+        {/* Add unknown component to Component Master */}
+        <ComponentFormModal
+          open={showComponentForm}
+          onClose={() => setShowComponentForm(false)}
+          component={null}
+          preset={componentPreset}
+          onSaved={() => {
+            if (componentPreset) {
+              dismissUnknownComponent(componentPreset.componentCode || componentPreset.componentName);
+            }
+            setShowComponentForm(false);
+            setComponentPreset(null);
+          }}
         />
       </div>
     </div>

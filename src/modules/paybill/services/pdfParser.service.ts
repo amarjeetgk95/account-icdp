@@ -1,4 +1,5 @@
 import { extractText, getDocumentProxy } from 'unpdf';
+import { componentMasterService } from './componentMaster.service';
 import type {
   PayBillMetadata,
   PayBillEmployeeRow,
@@ -7,6 +8,9 @@ import type {
   PayBillDeductionRow,
   PayBillDeductionTotalRow,
   PayBillSheetType,
+  PayBillEmployeeComponent,
+  DetectedComponentInfo,
+  ComponentMatchResult,
 } from '../types';
 
 interface RawTextItem {
@@ -23,6 +27,8 @@ interface DetectedColumns {
   hasWashing: boolean;
   hasNpp: boolean;
   columnCount: number;
+  /** Component columns detected in the PDF header, in PDF (left-to-right) order. */
+  components?: DetectedComponentInfo[];
 }
 
 export class PdfParserService {
@@ -111,6 +117,7 @@ export class PdfParserService {
           confidence,
           issues: [...warnings],
         },
+        detectedComponents: componentMasterService.detectHeaderComponents(rawText, 'DEDUCTION'),
       };
     }
 
@@ -163,6 +170,7 @@ export class PdfParserService {
         confidence,
         issues: [...warnings],
       },
+      detectedComponents: detectedCols.components || [],
     };
   }
 
@@ -277,6 +285,7 @@ export class PdfParserService {
       hasWashing,
       hasNpp,
       columnCount,
+      components: componentMasterService.detectHeaderComponents(text, 'EARNING'),
     };
   }
 
@@ -441,6 +450,9 @@ export class PdfParserService {
       let phHeaderItem: RawTextItem | undefined;
       let sloHeaderItem: RawTextItem | undefined;
       let basicHeaderItem: RawTextItem | undefined;
+      const componentHeaderItems: Array<{ match: ComponentMatchResult; item: RawTextItem }> = [];
+
+      const matcher = componentMasterService.getMatcher();
 
       for (const item of pageItems) {
         const s = item.str.trim();
@@ -458,8 +470,11 @@ export class PdfParserService {
           phHeaderItem = item;
         } else if (/^SLO$/i.test(s)) {
           sloHeaderItem = item;
-        } else if (/Basic\s+Pay/i.test(s) || s === '(0101)/(0102)') {
-          basicHeaderItem = item;
+        } else {
+          const match = matcher.findComponent(s);
+          if (match.component && match.matchMethod !== 'UNKNOWN') {
+            componentHeaderItems.push({ match, item });
+          }
         }
       }
 
@@ -474,6 +489,17 @@ export class PdfParserService {
           tableHeaderY = 600; // sensible A4 landscape default
         }
       }
+
+      // Basic Pay is the leftmost detected component column (code 0101 / Basic Pay),
+      // restricted to the table header band (excludes footer "Total" and DDO metadata lines).
+      const basicCandidate = componentHeaderItems.find(
+        ({ match, item }) =>
+          (match.component?.componentName === 'Basic Pay' ||
+            match.component?.componentCode === '0101' ||
+            /Basic/i.test(item.str)) &&
+          Math.abs(item.y - tableHeaderY) < 100
+      );
+      basicHeaderItem = basicCandidate?.item;
 
       // 2. Locate Table Total / Footer Y position
       let totalY = 0;
@@ -512,14 +538,16 @@ export class PdfParserService {
       const payScaleX = payScaleHeaderItem?.x || desigX + 90;
       const phX = phHeaderItem?.x || payScaleX + 80;
       const sloX = sloHeaderItem?.x || phX + 25;
-      const basicX = basicHeaderItem?.x || sloX + 25;
+
+      const minBasicX = Math.max(payScaleX + 60, phX + 40, sloX + 20);
+      const basicX = Math.max(basicHeaderItem?.x || minBasicX, minBasicX);
 
       const colBoundHrpnMax = (hrpnX + nameX) / 2;
       const colBoundNameMax = (nameX + desigX) / 2;
       const colBoundDesigMax = (desigX + payScaleX) / 2;
       const colBoundPayScaleMax = (payScaleX + phX) / 2;
       const colBoundPhMax = (phX + sloX) / 2;
-      const colBoundSloMax = (sloX + basicX) / 2;
+      const colBoundSloMax = Math.max(basicX - 35, (sloX + basicX) / 2);
 
       // 5. Extract each Employee Row
       for (let r = 0; r < hrpnColumnItems.length; r++) {
@@ -567,9 +595,13 @@ export class PdfParserService {
           .replace(/^(Designation|Desig)\s+/i, '')
           .trim();
 
-        // Extract Pay Scale (items strictly between Designation and PH columns)
+        // Extract Pay Scale (items strictly between Designation and PH columns, or containing pay scale patterns)
         const payScaleItems = rowItems
-          .filter((i) => i.x >= colBoundDesigMax && i.x < colBoundPayScaleMax)
+          .filter(
+            (i) =>
+              (i.x >= colBoundDesigMax && i.x < colBoundPayScaleMax) ||
+              /PB-?\d|Level|\/\d{3,5}|\(\s*\d{3,5}\s*-\s*\d{3,5}\s*\)/i.test(i.str.trim())
+          )
           .sort((a, b) => b.y - a.y || a.x - b.x);
 
         let payScale = payScaleItems
@@ -591,14 +623,39 @@ export class PdfParserService {
         const sloItems = rowItems.filter((i) => i.x >= colBoundPhMax && i.x < colBoundSloMax);
         const slo = sloItems.map((i) => i.str.trim()).filter((s) => /^[PTN]$/i.test(s))[0] || 'P';
 
-        // Extract Monetary Amounts (all decimal items in allowance columns to right of SLO column)
+        // Extract Monetary Amounts:
+        // In Gujarat paybills, all salary numbers in table columns are strictly formatted with 2 decimal places (e.g. 105600.00, 270.00, 0.00).
+        // Pay scales (e.g. "PB-3 (15600-", "39100)/6600") and PH/SLO codes MUST NEVER be included in amounts.
         const amountItems = rowItems
-          .filter((i) => i.x >= colBoundSloMax && /\b\d+(?:\.\d{2})?\b/.test(i.str.trim()))
+          .filter((i) => {
+            const s = i.str.trim();
+            // Reject any item containing pay scale patterns or non-numeric characters
+            if (/PB|Level|Fixed|\/|\(|\)|[a-zA-Z]/i.test(s)) return false;
+            // Reject if item is to the left of the allowances area
+            if (i.x < colBoundSloMax) return false;
+            // Must strictly match decimal currency format (e.g. "105600.00", "0.00")
+            return /^\d[\d,]*\.\d{2}$/.test(s) || /^\d+\.\d{2}$/.test(s);
+          })
           .sort((a, b) => a.x - b.x);
 
-        const amounts = amountItems
+        let amounts = amountItems
           .map((i) => parseNum(i.str.trim()))
           .filter((v) => !isNaN(v));
+
+        // Fallback for non-decimal formats if strict match found insufficient columns
+        if (amounts.length < 7) {
+          const fallbackItems = rowItems
+            .filter((i) => {
+              const s = i.str.trim();
+              if (/PB|Level|Fixed|\/|\(|\)|[a-zA-Z]/.test(s)) return false;
+              if (i.x < colBoundSloMax) return false;
+              return /^\d{2,}(?:\.\d{2})?$/.test(s);
+            })
+            .sort((a, b) => a.x - b.x);
+          if (fallbackItems.length >= 7) {
+            amounts = fallbackItems.map((i) => parseNum(i.str.trim())).filter((v) => !isNaN(v));
+          }
+        }
 
         let basicPay = 0;
         let da = 0;
@@ -660,6 +717,7 @@ export class PdfParserService {
           nonPrivatePracticeAllowance,
           otherAllowance,
           grossAmount,
+          components: this.buildEarningComponents(amounts, detectedCols),
         });
       }
     }
@@ -983,6 +1041,10 @@ export class PdfParserService {
         nonPrivatePracticeAllowance,
         otherAllowance,
         grossAmount,
+        components: this.buildEarningComponents(
+          (numberMatches || []).map(parseNum),
+          detectedCols
+        ),
       });
     }
 
@@ -1106,16 +1168,9 @@ export class PdfParserService {
       let hrpnHeaderItem: RawTextItem | undefined;
       let nameHeaderItem: RawTextItem | undefined;
       let desigHeaderItem: RawTextItem | undefined;
-      let itHeaderItem: RawTextItem | undefined;
-      let ptHeaderItem: RawTextItem | undefined;
-      let hbaHeaderItem: RawTextItem | undefined;
-      let gpfHeaderItem: RawTextItem | undefined;
-      let gpf4HeaderItem: RawTextItem | undefined;
-      let npsHeaderItem: RawTextItem | undefined;
-      let gisFundHeaderItem: RawTextItem | undefined;
-      let gisSaveHeaderItem: RawTextItem | undefined;
-      let totDedHeaderItem: RawTextItem | undefined;
-      let netPayHeaderItem: RawTextItem | undefined;
+      const componentHeaderItems: Array<{ match: ComponentMatchResult; item: RawTextItem }> = [];
+
+      const matcher = componentMasterService.getMatcher();
 
       for (const item of pageItems) {
         const s = item.str.trim();
@@ -1127,26 +1182,11 @@ export class PdfParserService {
           if (!tableHeaderY) tableHeaderY = item.y;
         } else if (/Designation/i.test(s)) {
           desigHeaderItem = item;
-        } else if (/Income\s+Tax|\(9510\)/i.test(s)) {
-          if (!itHeaderItem) itHeaderItem = item;
-        } else if (/Prof\s+Tax|\(9570\)/i.test(s)) {
-          if (!ptHeaderItem) ptHeaderItem = item;
-        } else if (/HBA\s+Interest|\(9591\)/i.test(s)) {
-          if (!hbaHeaderItem) hbaHeaderItem = item;
-        } else if (/GPF\s+Reg\s+Class\s+4|\(9531\)/i.test(s)) {
-          if (!gpf4HeaderItem) gpf4HeaderItem = item;
-        } else if (/GPF\s+Reg|\(9670\)/i.test(s)) {
-          if (!gpfHeaderItem) gpfHeaderItem = item;
-        } else if (/NPS\s+Reg|\(9534\)/i.test(s)) {
-          if (!npsHeaderItem) npsHeaderItem = item;
-        } else if (/Govt\s+Fund|\(9581\)/i.test(s)) {
-          if (!gisFundHeaderItem) gisFundHeaderItem = item;
-        } else if (/Govt\s+Saving|\(9582\)/i.test(s)) {
-          if (!gisSaveHeaderItem) gisSaveHeaderItem = item;
-        } else if (/Total\s+Ded/i.test(s)) {
-          if (!totDedHeaderItem) totDedHeaderItem = item;
-        } else if (/Net\s+Pay/i.test(s)) {
-          if (!netPayHeaderItem) netPayHeaderItem = item;
+        } else {
+          const match = matcher.findComponent(s);
+          if (match.component && match.matchMethod !== 'UNKNOWN') {
+            componentHeaderItems.push({ match, item });
+          }
         }
       }
 
@@ -1156,6 +1196,11 @@ export class PdfParserService {
         );
         tableHeaderY = anyHeaderItem ? anyHeaderItem.y - 25 : 600;
       }
+
+      // Restrict component headers to the table header band (excludes footer "Total")
+      const headerBandItems = componentHeaderItems.filter(
+        ({ item }) => Math.abs(item.y - tableHeaderY) < 100
+      );
 
       // 2. Locate Total / Footer Y position
       let totalY = 0;
@@ -1187,16 +1232,16 @@ export class PdfParserService {
       // 4. Calculate Column Intervals
       const nameX = nameHeaderItem?.x || hrpnX + 55;
       const desigX = desigHeaderItem?.x || nameX + 110;
-      const itX = itHeaderItem?.x || desigX + 90;
-      const ptX = ptHeaderItem?.x || itX + 55;
-      const hbaX = hbaHeaderItem?.x || ptX + 45;
-      const gpfX = gpfHeaderItem?.x || hbaX + 55;
-      const gpf4X = gpf4HeaderItem?.x || gpfX + 60;
-      const npsX = npsHeaderItem?.x || gpf4X + 60;
-      const gisFundX = gisFundHeaderItem?.x || npsX + 55;
-      const gisSaveX = gisSaveHeaderItem?.x || gisFundX + 50;
-      const totDedX = totDedHeaderItem?.x || gisSaveX + 50;
-      const netPayX = netPayHeaderItem?.x || totDedX + 55;
+      const itX = this.findComponentHeaderX(headerBandItems, '9510') || desigX + 90;
+      const ptX = this.findComponentHeaderX(headerBandItems, '9570') || itX + 55;
+      const hbaX = this.findComponentHeaderX(headerBandItems, '9591') || ptX + 45;
+      const gpfX = this.findComponentHeaderX(headerBandItems, '9670') || hbaX + 55;
+      const gpf4X = this.findComponentHeaderX(headerBandItems, '9531') || gpfX + 60;
+      const npsX = this.findComponentHeaderX(headerBandItems, '9534') || gpf4X + 60;
+      const gisFundX = this.findComponentHeaderX(headerBandItems, '9581') || npsX + 55;
+      const gisSaveX = this.findComponentHeaderX(headerBandItems, '9582') || gisFundX + 50;
+      const totDedX = this.findComponentHeaderX(headerBandItems, 'TOTDED') || gisSaveX + 50;
+      const netPayX = this.findComponentHeaderX(headerBandItems, 'NETPAY') || totDedX + 55;
 
       const colBoundHrpnMax = (hrpnX + nameX) / 2;
       const colBoundNameMax = (nameX + desigX) / 2;
@@ -1306,6 +1351,20 @@ export class PdfParserService {
           gisGovtSaving,
           totalDeductions: totalDeductions || (incomeTax + profTax + hbaInterest + gpfRegular + gpfClass4 + npsRegular + gisGovtFund + gisGovtSaving),
           netPay,
+          components: this.buildDeductionComponents({
+            incomeTax,
+            profTax,
+            hbaInterest,
+            gpfRegular,
+            gpfClass4,
+            npsRegular,
+            gisGovtFund,
+            gisGovtSaving,
+            totalDeductions:
+              totalDeductions ||
+              (incomeTax + profTax + hbaInterest + gpfRegular + gpfClass4 + npsRegular + gisGovtFund + gisGovtSaving),
+            netPay,
+          }),
         });
       }
     }
@@ -1380,6 +1439,18 @@ export class PdfParserService {
           gisGovtSaving: amounts[7] || 0,
           totalDeductions,
           netPay: amounts[len - 1] || 0,
+          components: this.buildDeductionComponents({
+            incomeTax: amounts[0] || 0,
+            profTax: amounts[1] || 0,
+            hbaInterest: amounts[2] || 0,
+            gpfRegular: amounts[3] || 0,
+            gpfClass4: amounts[4] || 0,
+            npsRegular: amounts[5] || 0,
+            gisGovtFund: amounts[6] || 0,
+            gisGovtSaving: amounts[7] || 0,
+            totalDeductions,
+            netPay: amounts[len - 1] || 0,
+          }),
         });
       }
     }
@@ -1429,6 +1500,125 @@ export class PdfParserService {
     }
 
     return null;
+  }
+
+  /**
+   * Build the dynamic earning components array for a row.
+   *
+   * Amounts are positional (0..5 = the six standard IFMS columns, last = gross),
+   * matching the existing coordinate/text extractors. When the PDF header was
+   * detected, the intermediate columns (between index 6 and len - 2) are mapped
+   * to their detected components in PDF order; otherwise they are surfaced with
+   * placeholder names so data is never dropped.
+   */
+  private buildEarningComponents(
+    amounts: number[],
+    detectedCols?: DetectedColumns
+  ): PayBillEmployeeComponent[] {
+    if (!amounts || amounts.length === 0) return [];
+
+    const detected = detectedCols?.components || [];
+    const regular = detected.filter((c) => c.kind === 'COMPONENT');
+    const gross = detected.find((c) => c.kind === 'TOTAL' || c.kind === 'NET_PAY');
+
+    const components: PayBillEmployeeComponent[] = [];
+    const len = amounts.length;
+
+    const standardCount = Math.min(6, regular.length, len);
+    for (let i = 0; i < standardCount; i++) {
+      const comp = regular[i];
+      components.push({
+        componentCode: comp.componentCode,
+        componentName: comp.componentName,
+        type: comp.type,
+        amount: amounts[i],
+        isTotalField: false,
+      });
+    }
+
+    // Intermediates (between the 6 standard columns and the gross total)
+    const intermediateComps = regular.slice(6);
+    let idx = standardCount;
+    for (const comp of intermediateComps) {
+      if (idx >= len - 1) break;
+      components.push({
+        componentCode: comp.componentCode,
+        componentName: comp.componentName,
+        type: comp.type,
+        amount: amounts[idx],
+        isTotalField: false,
+      });
+      idx++;
+    }
+    // Amounts that were present but not represented by a detected component
+    while (idx < len - 1) {
+      components.push({
+        componentCode: null,
+        componentName: `Component ${idx + 1}`,
+        amount: amounts[idx],
+        isTotalField: false,
+      });
+      idx++;
+    }
+
+    components.push({
+      componentCode: gross?.componentCode || 'GROSS',
+      componentName: gross?.componentName || 'Gross Amount',
+      type: 'TOTAL',
+      amount: amounts[len - 1],
+      isTotalField: true,
+    });
+
+    return components;
+  }
+
+  /**
+   * Build the dynamic deduction components array for a row from the legacy
+   * field values (fixed 8 deduction columns + totals).
+   */
+  private buildDeductionComponents(values: {
+    incomeTax: number;
+    profTax: number;
+    hbaInterest: number;
+    gpfRegular: number;
+    gpfClass4: number;
+    npsRegular: number;
+    gisGovtFund: number;
+    gisGovtSaving: number;
+    totalDeductions: number;
+    netPay: number;
+  }): PayBillEmployeeComponent[] {
+    return [
+      { componentCode: '9510', componentName: 'Income Tax', type: 'DEDUCTION', amount: values.incomeTax },
+      { componentCode: '9570', componentName: 'Professional Tax', type: 'DEDUCTION', amount: values.profTax },
+      { componentCode: '9591', componentName: 'HBA Interest', type: 'DEDUCTION', amount: values.hbaInterest },
+      { componentCode: '9670', componentName: 'GPF Regular', type: 'DEDUCTION', amount: values.gpfRegular },
+      { componentCode: '9531', componentName: 'GPF Regular Class 4', type: 'DEDUCTION', amount: values.gpfClass4 },
+      { componentCode: '9534', componentName: 'NPS Regular', type: 'DEDUCTION', amount: values.npsRegular },
+      { componentCode: '9581', componentName: 'Govt Fund', type: 'DEDUCTION', amount: values.gisGovtFund },
+      { componentCode: '9582', componentName: 'Govt Saving', type: 'DEDUCTION', amount: values.gisGovtSaving },
+      { componentCode: 'TOTDED', componentName: 'Total Deductions', type: 'TOTAL', amount: values.totalDeductions, isTotalField: true },
+      { componentCode: 'NETPAY', componentName: 'Net Pay', type: 'NET_PAY', amount: values.netPay, isTotalField: true },
+    ];
+  }
+
+  /**
+   * Find the X coordinate of a component column header by component code.
+   * Returns 0 when the column was not present in the (header-band) items so the
+   * caller can fall back to the standard column layout.
+   */
+  private findComponentHeaderX(
+    headerBandItems: Array<{ match: ComponentMatchResult; item: RawTextItem }>,
+    code: string
+  ): number {
+    const hits = headerBandItems.filter(({ match }) => {
+      const comp = match.component;
+      if (!comp) return false;
+      return comp.componentCode === code || comp.pdfCodeAliases.includes(code);
+    });
+    if (hits.length === 0) return 0;
+    hits.sort((a, b) => a.item.x - b.item.x);
+    return hits[0].item.x;
   }
 }
 

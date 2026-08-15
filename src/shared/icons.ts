@@ -10,6 +10,15 @@ import {
   Clock,
   Receipt,
   FileSpreadsheet,
+  Upload,
+  Layers,
+  FilePlus,
+  BarChart3,
+  UserCheck,
+  Calculator,
+  Sliders,
+  FileText,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -23,6 +32,7 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   adminaudit: Clock,
   gtr44: Receipt,
   paybill: FileSpreadsheet,
+  'it-employee': FileSpreadsheet,
 };
 
 export const SECTION_ICONS: Record<string, LucideIcon> = {
@@ -31,6 +41,18 @@ export const SECTION_ICONS: Record<string, LucideIcon> = {
   offices: Building2,
   reports: FileBarChart,
   audit: Clock,
+  upload: Upload,
+  layers: Layers,
+  'file-plus': FilePlus,
+  receipt: Receipt,
+  settings: Settings,
+  sliders: Sliders,
+  calculator: Calculator,
+  'file-spreadsheet': FileSpreadsheet,
+  'bar-chart': BarChart3,
+  user: UserCheck,
+  'file-text': FileText,
+  'credit-card': CreditCard,
 };
 
 export const FALLBACK_ICON: LucideIcon = LayoutDashboard;

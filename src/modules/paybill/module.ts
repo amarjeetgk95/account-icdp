@@ -2,14 +2,20 @@ import type { ModuleDefinition } from '@/shared/types/module';
 import { paybillRoutes } from './routes';
 
 const moduleDefinition: ModuleDefinition = {
-  id: 'paybill',
-  name: 'Pay Bill PDF Import',
-  navGroup: 'bills',
+  id: 'it-employee',
+  name: 'Employee IT',
+  icon: 'file-spreadsheet',
+  navGroup: 'it-employee',
   permissions: ['office'],
   routes: paybillRoutes,
   sidebar: true,
   featureFlag: 'paybill_module',
-  order: 2,
+  order: 1,
+  children: [
+    { path: '/paybill-import?tab=matrix', label: '12-Month Matrix', icon: 'bar-chart' },
+    { path: '/paybill-import?tab=employee', label: 'Employee Ledger', icon: 'user' },
+    { path: '/paybill-import?tab=components', label: 'Component Master', icon: 'layers' },
+  ],
 };
 
 export default moduleDefinition;

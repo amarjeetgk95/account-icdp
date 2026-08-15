@@ -45,6 +45,23 @@ export function ExtractionPreviewTable({
     [records, hasSpecialPay, hasWashing]
   );
 
+  const customComponentNames = useMemo(() => {
+    const standardNames = new Set([
+      'Basic Pay', 'DA', 'HRA', 'CLA', 'Medical Allowance', 'Transport Allowance',
+      'Special Additional Pay', 'Washing Allowance', 'Non Private Practice Allowance',
+      'Gross Amount', 'Total Deductions', 'Net Pay',
+    ]);
+    const names = new Set<string>();
+    for (const r of records) {
+      for (const c of r.row.components || []) {
+        if (!c.isTotalField && !standardNames.has(c.componentName) && (c.amount || 0) > 0) {
+          names.add(c.componentName);
+        }
+      }
+    }
+    return Array.from(names);
+  }, [records]);
+
   const filteredRecords = useMemo(() => {
     return records.filter((rec) => {
       // Filter tab
@@ -170,6 +187,11 @@ export function ExtractionPreviewTable({
               {hasSpecialPay && <th className="py-2.5 px-3 font-semibold text-right">Spl. Pay</th>}
               {hasWashing && <th className="py-2.5 px-3 font-semibold text-right">Washing</th>}
               {hasNpp && <th className="py-2.5 px-3 font-semibold text-right">NPP</th>}
+              {customComponentNames.map((name) => (
+                <th key={name} className="py-2.5 px-3 font-semibold text-right text-blue-700 dark:text-blue-300">
+                  {name}
+                </th>
+              ))}
               <th className="py-2.5 px-3 font-semibold text-right bg-blue-50/50 dark:bg-blue-950/30">
                 Gross Amount
               </th>
@@ -429,6 +451,16 @@ export function ExtractionPreviewTable({
                         )}
                       </td>
                     )}
+
+                    {/* Dynamic Custom Components (e.g. Building Rent, Uniform) */}
+                    {customComponentNames.map((name) => {
+                      const comp = rec.row.components?.find((c) => c.componentName === name);
+                      return (
+                        <td key={name} className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                          {formatInr(comp?.amount || 0)}
+                        </td>
+                      );
+                    })}
 
                     {/* Gross Amount */}
                     <td className="py-2.5 px-3 text-right font-mono font-extrabold text-slate-900 dark:text-slate-100 bg-blue-50/30 dark:bg-blue-950/20">

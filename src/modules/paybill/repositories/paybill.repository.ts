@@ -29,6 +29,8 @@ const DEFAULT_SETTINGS: PayBillSettings = {
   basicPayChangeTolerance: 10,
   manualAllowances: [],
   manualDeductions: [],
+  earningColumnOrder: [],
+  deductionColumnOrder: [],
 };
 
 // Fallback in-memory cache for standalone/offline runs
@@ -885,6 +887,8 @@ export const paybillRepository = {
       basicPayChangeTolerance: next.basicPayChangeTolerance,
       manualAllowances: next.manualAllowances,
       manualDeductions: next.manualDeductions,
+      earningColumnOrder: next.earningColumnOrder,
+      deductionColumnOrder: next.deductionColumnOrder,
     };
 
     try {

@@ -73,7 +73,7 @@ describe('PayBillImportPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders 2 module tabs and upload button in header', () => {
+  it('renders 3 module tabs and upload button in header', () => {
     render(
       <MemoryRouter>
         <PayBillImportPage />
@@ -84,6 +84,7 @@ describe('PayBillImportPage', () => {
     expect(screen.getByRole('button', { name: /Upload Pay Bill PDF/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /12-Month Matrix/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Employee Ledger/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Component Master/i })).toBeInTheDocument();
   });
 
   it('opens upload popup modal on button click and extracts sample data', async () => {

@@ -1,3 +1,7 @@
+import type { PayBillEmployeeComponent, DetectedComponentInfo } from './componentMaster';
+
+export * from './componentMaster';
+
 export type PayBillSheetType = 'EARNING' | 'DEDUCTION' | 'COMBINED';
 
 export interface PayBillParameterMatrixRow {
@@ -110,6 +114,8 @@ export interface PayBillEmployeeRow {
   nonPrivatePracticeAllowance: number;
   otherAllowance?: number;
   grossAmount: number;
+  /** Dynamic per-component values in PDF column order (future-proof storage). */
+  components?: PayBillEmployeeComponent[];
 }
 
 export interface PayBillTotalRow {
@@ -217,6 +223,8 @@ export interface PayBillParsedResult {
   pageCount: number;
   parsingWarnings: string[];
   detection?: PayBillDetectionInfo;
+  /** Component columns detected in the PDF header, in PDF (left-to-right) order. */
+  detectedComponents?: DetectedComponentInfo[];
 }
 
 export interface PayBillImportResult {
@@ -346,6 +354,8 @@ export interface PayBillDeductionRow {
   otherDeductions?: number;
   totalDeductions: number;
   netPay: number;
+  /** Dynamic per-component values in PDF column order (future-proof storage). */
+  components?: PayBillEmployeeComponent[];
 }
 
 export interface PayBillDeductionTotalRow {
@@ -481,6 +491,8 @@ export interface PayBillSettings {
   basicPayChangeTolerance: number; // % basic-pay delta vs previous month that raises a WARNING (default 10)
   manualAllowances?: string[]; // custom allowance parameters entered manually in the employee ledger
   manualDeductions?: string[]; // custom deduction parameters entered manually in the employee ledger
+  earningColumnOrder?: string[]; // display order of EARNING parameter keys (standard + `manual::label`); empty = default
+  deductionColumnOrder?: string[]; // display order of DEDUCTION parameter keys (standard + `manual::label`); empty = default
 }
 
 export interface PayBillLedgerVoucher {

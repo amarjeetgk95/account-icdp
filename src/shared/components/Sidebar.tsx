@@ -1,4 +1,4 @@
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { usePermissions } from '@/core/permissions/hooks';
 import { useUIStore } from '@/core/stores/ui-store';
 import type { ModuleDefinition } from '@/shared/types/module';
@@ -28,9 +28,10 @@ export function Sidebar({ modules }: SidebarProps) {
     return true;
   });
 
-  const mainModules = visibleModules.filter((m) => m.navGroup === 'main');
-  const tdsModules = visibleModules.filter((m) => m.navGroup === 'tds');
+  const overviewModules = visibleModules.filter((m) => m.navGroup === 'overview' || m.navGroup === 'main');
   const billsModules = visibleModules.filter((m) => m.navGroup === 'bills');
+  const tdsModules = visibleModules.filter((m) => m.navGroup === 'tds');
+  const employeeItModules = visibleModules.filter((m) => m.navGroup === 'it-employee');
   const systemModules = visibleModules.filter((m) => m.navGroup === 'system');
   const adminModules = visibleModules.filter((m) => m.navGroup === 'admin');
 
@@ -125,9 +126,10 @@ export function Sidebar({ modules }: SidebarProps) {
           ) : (
             <>
               <div className="sidebar-groups">
-                {mainModules.length > 0 && renderGroup('Overview', mainModules)}
-                {tdsModules.length > 0 && renderGroup('TDS', tdsModules)}
-                {billsModules.length > 0 && renderGroup('Bill Creation', billsModules)}
+                {overviewModules.length > 0 && renderGroup('Overview', overviewModules)}
+                {billsModules.length > 0 && renderGroup('1. Bill Creation', billsModules)}
+                {tdsModules.length > 0 && renderGroup('2. TDS', tdsModules)}
+                {employeeItModules.length > 0 && renderGroup('3. Employee IT', employeeItModules)}
               </div>
               {systemModules.length > 0 && (
                 <div className={`sidebar-group sidebar-system-group ${sidebarCollapsed ? 'sidebar-system-collapsed' : ''}`}>
@@ -154,6 +156,7 @@ function NavItem({
   collapsed: boolean;
   onNavClick: () => void;
 }) {
+  const location = useLocation();
   const route = module.routes[0];
   if (!route) return null;
 
@@ -161,25 +164,36 @@ function NavItem({
 
   if (children && children.length > 0) {
     return (
-      <div className="space-y-1">
-        {children.map((child) => (
-          <NavLink
-            key={child.path}
-            to={child.path}
-            onClick={onNavClick}
-            title={collapsed ? child.label : undefined}
-            className={({ isActive }) =>
-              `sidebar-link ${collapsed ? 'justify-center px-0' : 'sidebar-child-link'} ${
-                isActive ? 'sidebar-link-active' : ''
-              }`
-            }
-          >
-            <span className="sidebar-link-icon">
-              <SectionIcon id={child.icon ?? ''} size={18} />
-            </span>
-            {!collapsed && <span>{child.label}</span>}
-          </NavLink>
-        ))}
+      <div className="space-y-1 my-1">
+        {!collapsed && (
+          <div className="px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+            <ModuleIcon id={module.icon || module.id} size={13} />
+            <span>{module.name}</span>
+          </div>
+        )}
+        {children.map((child) => {
+          const isChildActive = child.path.includes('?')
+            ? location.pathname + location.search === child.path ||
+              (location.pathname === child.path.split('?')[0] && !location.search && child.path.includes('tab=matrix'))
+            : location.pathname === child.path;
+
+          return (
+            <NavLink
+              key={child.path}
+              to={child.path}
+              onClick={onNavClick}
+              title={collapsed ? `${module.name} - ${child.label}` : undefined}
+              className={`sidebar-link ${collapsed ? 'justify-center px-0' : 'sidebar-child-link'} ${
+                isChildActive ? 'sidebar-link-active' : ''
+              }`}
+            >
+              <span className="sidebar-link-icon">
+                <SectionIcon id={child.icon ?? ''} size={17} />
+              </span>
+              {!collapsed && <span>{child.label}</span>}
+            </NavLink>
+          );
+        })}
       </div>
     );
   }

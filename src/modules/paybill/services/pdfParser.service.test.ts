@@ -452,4 +452,63 @@ Total 78200.00 46920.00 12512.00 440.00 2000.00 7200.00 55.00 200.00 147527.00
     expect(emp.hra).toBe(6016);
     expect(emp.grossAmount).toBe(71046);
   });
+
+  it('should correctly parse 4 gazetted officers with PB-3 / PB-2 pay scales and NPP using 2D coordinates', () => {
+    const mockGazettedItems = [
+      // Table Header Row (Y = 600)
+      { str: 'Sr No', x: 25, y: 600, w: 20, h: 10, page: 1 },
+      { str: 'HRPN', x: 60, y: 600, w: 30, h: 10, page: 1 },
+      { str: 'Employee Name', x: 120, y: 600, w: 60, h: 10, page: 1 },
+      { str: 'Designation', x: 220, y: 600, w: 50, h: 10, page: 1 },
+      { str: 'Pay Scale', x: 310, y: 600, w: 50, h: 10, page: 1 },
+      { str: 'PH', x: 380, y: 600, w: 15, h: 10, page: 1 },
+      { str: 'SLO', x: 405, y: 600, w: 15, h: 10, page: 1 },
+      { str: 'Basic Pay', x: 440, y: 600, w: 40, h: 10, page: 1 },
+      { str: '(0101)/(0102)', x: 440, y: 590, w: 40, h: 10, page: 1 },
+      { str: 'DA (0103)', x: 480, y: 600, w: 30, h: 10, page: 1 },
+      { str: 'HRA (0110)', x: 520, y: 600, w: 30, h: 10, page: 1 },
+      { str: 'CLA (0111)', x: 560, y: 600, w: 20, h: 10, page: 1 },
+      { str: 'Med Allow (0107)', x: 600, y: 600, w: 30, h: 10, page: 1 },
+      { str: 'Trans Allow (0113)', x: 640, y: 600, w: 30, h: 10, page: 1 },
+      { str: 'Non Private Practice Allow (0128)', x: 690, y: 600, w: 50, h: 10, page: 1 },
+      { str: 'Gross Amt', x: 760, y: 600, w: 35, h: 10, page: 1 },
+
+      // Employee 1 (Dr. Dineshbhai)
+      { str: '1', x: 25, y: 530, w: 10, h: 10, page: 1 },
+      { str: '20013826', x: 60, y: 530, w: 35, h: 10, page: 1 },
+      { str: 'Shri.Dr Dineshbhai Chamabhai Chaudhari', x: 120, y: 530, w: 80, h: 10, page: 1 },
+      { str: 'Deputy Director', x: 220, y: 530, w: 50, h: 10, page: 1 },
+      { str: 'PB-3 (15600-', x: 310, y: 535, w: 40, h: 10, page: 1 },
+      { str: '39100)/6600', x: 310, y: 525, w: 40, h: 10, page: 1 },
+      { str: 'No', x: 380, y: 530, w: 15, h: 10, page: 1 },
+      { str: 'P', x: 405, y: 530, w: 10, h: 10, page: 1 },
+      { str: '105600.00', x: 440, y: 530, w: 35, h: 10, page: 1 },
+      { str: '76032.00', x: 480, y: 530, w: 30, h: 10, page: 1 },
+      { str: '16896.00', x: 520, y: 530, w: 30, h: 10, page: 1 },
+      { str: '270.00', x: 560, y: 530, w: 20, h: 10, page: 1 },
+      { str: '1000.00', x: 600, y: 530, w: 25, h: 10, page: 1 },
+      { str: '7200.00', x: 640, y: 530, w: 25, h: 10, page: 1 },
+      { str: '21120.00', x: 690, y: 530, w: 30, h: 10, page: 1 },
+      { str: '228118.00', x: 760, y: 530, w: 35, h: 10, page: 1 },
+
+      // Table Footer
+      { str: 'Total', x: 200, y: 400, w: 30, h: 10, page: 1 },
+      { str: '228118.00', x: 760, y: 400, w: 35, h: 10, page: 1 },
+    ];
+
+    const result = pdfParserService.parseExtractedText(SAMPLE_PAYBILL_TEXT_GAZETTED, 1, mockGazettedItems);
+
+    expect(result.rows).toHaveLength(1);
+    const emp = result.rows[0];
+    expect(emp.hrpn).toBe('20013826');
+    expect(emp.payScale).toBe('PB-3 (15600-39100)/6600');
+    expect(emp.basicPay).toBe(105600);
+    expect(emp.da).toBe(76032);
+    expect(emp.hra).toBe(16896);
+    expect(emp.cla).toBe(270);
+    expect(emp.medicalAllowance).toBe(1000);
+    expect(emp.transportAllowance).toBe(7200);
+    expect(emp.nonPrivatePracticeAllowance).toBe(21120);
+    expect(emp.grossAmount).toBe(228118);
+  });
 });

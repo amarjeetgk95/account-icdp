@@ -3,13 +3,14 @@ import { payrollRoutes } from './routes';
 
 const moduleDefinition: ModuleDefinition = {
   id: 'payroll',
-  name: 'Payroll',
+  name: 'Salary TDS (24Q)',
+  icon: 'payroll',
   navGroup: 'tds',
   permissions: ['office'],
   routes: payrollRoutes,
   sidebar: true,
   featureFlag: 'payroll_module',
-  order: 2,
+  order: 1,
 };
 
 export default moduleDefinition;

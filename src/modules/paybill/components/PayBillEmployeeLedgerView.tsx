@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { paybillRepository } from '../repositories/paybill.repository';
 import { paybillReportService, PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/paybillReport.service';
 import { paybillExcelService } from '../services/paybillExcel.service';
+import { orderItems } from '../utils/columnOrder';
 import {
   User,
   Search,
@@ -50,6 +51,8 @@ export function PayBillEmployeeLedgerView({
   const [matrixReport, setMatrixReport] = useState<PayBillAllowanceMatrixReport | null>(null);
   const [manualAllowances, setManualAllowances] = useState<string[]>([]);
   const [manualDeductions, setManualDeductions] = useState<string[]>([]);
+  const [earningColumnOrder, setEarningColumnOrder] = useState<string[]>([]);
+  const [deductionColumnOrder, setDeductionColumnOrder] = useState<string[]>([]);
   const [manualValues, setManualValues] = useState<ManualValuesMap>({});
 
   // Load manual parameter config & manually entered values (async callbacks only)
@@ -60,6 +63,8 @@ export function PayBillEmployeeLedgerView({
         if (cancelled) return;
         setManualAllowances(settings.manualAllowances || []);
         setManualDeductions(settings.manualDeductions || []);
+        setEarningColumnOrder(settings.earningColumnOrder || []);
+        setDeductionColumnOrder(settings.deductionColumnOrder || []);
         setManualValues(manualVals);
       })
       .catch((err) => {
@@ -194,6 +199,24 @@ export function PayBillEmployeeLedgerView({
     return allDeductions.filter((d) => d.hrpn === selectedHrpn);
   }, [allDeductions, selectedHrpn]);
 
+  const empManualValues = useMemo(() => manualValues[selectedHrpn] || {}, [manualValues, selectedHrpn]);
+
+  // Per-month sums of manual allowance / deduction entries for the selected employee
+  const manualMonthlySums = useMemo(() => {
+    const allowance = MONTH_ORDER.map((m) =>
+      manualAllowances.reduce((s, label) => s + (Number(empManualValues[label]?.[m]) || 0), 0)
+    );
+    const deduction = MONTH_ORDER.map((m) =>
+      manualDeductions.reduce((s, label) => s + (Number(empManualValues[label]?.[m]) || 0), 0)
+    );
+    return {
+      allowance,
+      deduction,
+      allowanceTotal: allowance.reduce((a, b) => a + b, 0),
+      deductionTotal: deduction.reduce((a, b) => a + b, 0),
+    };
+  }, [empManualValues, manualAllowances, manualDeductions]);
+
   // 12-Month matrix: allowance parameters as rows, months as columns
   interface LedgerMatrixRow {
     key: string;
@@ -232,10 +255,31 @@ export function PayBillEmployeeLedgerView({
       return { key: col.key, label: col.label, group: col.group, values, total };
     });
 
-    const empManual = manualValues[selectedHrpn] || {};
+    // Fold manual allowances into Gross Amt and manual deductions into Total Deductions,
+    // so added allowances count as earnings and added deductions count as deductions.
+    const grossRow = standard.find((r) => r.key === 'grossAmount');
+    if (grossRow) {
+      grossRow.values = grossRow.values.map((v, i) => v + manualMonthlySums.allowance[i]);
+      grossRow.total += manualMonthlySums.allowanceTotal;
+    }
+
+    const totalDedRow = standard.find((r) => r.key === 'totalDeductions');
+    if (totalDedRow) {
+      totalDedRow.values = totalDedRow.values.map((v, i) => v + manualMonthlySums.deduction[i]);
+      totalDedRow.total += manualMonthlySums.deductionTotal;
+    }
+
+    // Net Pay reflects manual entries: stored net pay adjusted by the manual allowance/deduction delta
+    const netPayRow = standard.find((r) => r.key === 'netPay');
+    if (netPayRow) {
+      netPayRow.values = netPayRow.values.map(
+        (v, i) => v + manualMonthlySums.allowance[i] - manualMonthlySums.deduction[i]
+      );
+      netPayRow.total = netPayRow.values.reduce((a, b) => a + b, 0);
+    }
 
     const manualRow = (label: string, group: 'EARNING' | 'DEDUCTION'): LedgerMatrixRow => {
-      const param = empManual[label] || {};
+      const param = empManualValues[label] || {};
       const values = MONTH_ORDER.map((m) => Number(param[m] ?? 0));
       return {
         key: `manual::${label}`,
@@ -247,12 +291,42 @@ export function PayBillEmployeeLedgerView({
       };
     };
 
-    return [
-      ...standard,
-      ...manualAllowances.map((label) => manualRow(label, 'EARNING')),
-      ...manualDeductions.map((label) => manualRow(label, 'DEDUCTION')),
-    ];
-  }, [employeeEarnings, employeeDeductions, manualValues, manualAllowances, manualDeductions, selectedHrpn]);
+    // EARNING rows: standard earnings + manual allowances.
+    // DEDUCTION rows: individual standard deductions + manual deductions + Total Deductions + Net Pay.
+    const earningStandard = PAYBILL_EARNING_COLUMNS.filter((c) => c.key !== 'grossAmount').map(
+      (c) => standard.find((r) => r.key === c.key) as LedgerMatrixRow
+    );
+    const deductionStandard = PAYBILL_DEDUCTION_COLUMNS.filter(
+      (c) => c.key !== 'totalDeductions' && c.key !== 'netPay'
+    ).map((c) => standard.find((r) => r.key === c.key) as LedgerMatrixRow);
+
+    const manualEarningRows = manualAllowances.map((label) => manualRow(label, 'EARNING'));
+    const manualDeductionRows = manualDeductions.map((label) => manualRow(label, 'DEDUCTION'));
+
+    // Apply the persisted display order; totals (Gross Amt / Total Deductions / Net Pay) stay pinned last.
+    const orderedEarnings = orderItems(
+      [...earningStandard, ...manualEarningRows],
+      earningColumnOrder,
+      ['grossAmount']
+    ).concat(grossRow as LedgerMatrixRow);
+
+    const orderedDeductions = orderItems(
+      [...deductionStandard, ...manualDeductionRows],
+      deductionColumnOrder,
+      ['totalDeductions', 'netPay']
+    ).concat(totalDedRow as LedgerMatrixRow, netPayRow as LedgerMatrixRow);
+
+    return [...orderedEarnings, ...orderedDeductions];
+  }, [
+    employeeEarnings,
+    employeeDeductions,
+    manualAllowances,
+    manualDeductions,
+    manualMonthlySums,
+    empManualValues,
+    earningColumnOrder,
+    deductionColumnOrder,
+  ]);
 
   // Annual Totals for this employee
   const annualEarningsTotals = useMemo(() => {
@@ -320,8 +394,12 @@ export function PayBillEmployeeLedgerView({
 
   const fyLabel = `${financialYear}-${String(financialYear + 1).slice(-2)}`;
 
+  const adjustedGross = annualEarningsTotals.gross + manualMonthlySums.allowanceTotal;
+  const adjustedTotalDeductions = annualDeductionTotals.totalDeductions + manualMonthlySums.deductionTotal;
   const netPayTotal =
-    annualDeductionTotals.netPay || (annualEarningsTotals.gross - annualDeductionTotals.totalDeductions);
+    annualDeductionTotals.netPay > 0
+      ? annualDeductionTotals.netPay + manualMonthlySums.allowanceTotal - manualMonthlySums.deductionTotal
+      : adjustedGross - adjustedTotalDeductions;
 
   const handleExportExcel = async () => {
     if (matrixReport && currentEmployeeInfo) {
@@ -542,7 +620,7 @@ export function PayBillEmployeeLedgerView({
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard
               label="Annual Gross"
-              value={formatInr(annualEarningsTotals.gross)}
+              value={formatInr(adjustedGross)}
               tone="indigo"
               icon={Wallet}
               sub="Total earnings credited"
@@ -556,7 +634,7 @@ export function PayBillEmployeeLedgerView({
             />
             <StatCard
               label="Total Deductions"
-              value={formatInr(annualDeductionTotals.totalDeductions)}
+              value={formatInr(adjustedTotalDeductions)}
               tone="rose"
               icon={ArrowDownCircle}
               sub="All recoveries combined"

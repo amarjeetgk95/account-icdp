@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { X, Save, Plus, Percent, Landmark, Wallet, ArrowDownCircle, Settings2 } from 'lucide-react';
+import { X, Save, Plus, Percent, Landmark, Wallet, ArrowDownCircle, Settings2, ChevronUp, ChevronDown, RotateCcw, Lock } from 'lucide-react';
 import { PbButton } from './ui';
+import { orderedKeyList } from '../utils/columnOrder';
 import { paybillRepository } from '../repositories/paybill.repository';
 import { PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/paybillReport.service';
 import type { PayBillSettings } from '../types';
@@ -23,6 +24,8 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
   const [daRatesText, setDaRatesText] = useState('50, 53, 46, 42, 38');
   const [manualAllowances, setManualAllowances] = useState<string[]>([]);
   const [manualDeductions, setManualDeductions] = useState<string[]>([]);
+  const [earningOrder, setEarningOrder] = useState<string[]>([]);
+  const [deductionOrder, setDeductionOrder] = useState<string[]>([]);
   const [newAllowanceName, setNewAllowanceName] = useState('');
   const [newDeductionName, setNewDeductionName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -37,6 +40,8 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
         setDaRatesText(s.daRates.length > 0 ? s.daRates.join(', ') : '50, 53, 46, 42, 38');
         setManualAllowances(s.manualAllowances || []);
         setManualDeductions(s.manualDeductions || []);
+        setEarningOrder(s.earningColumnOrder || []);
+        setDeductionOrder(s.deductionColumnOrder || []);
         setNewAllowanceName('');
         setNewDeductionName('');
         setError(null);
@@ -52,19 +57,49 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
+  const earningBaseKeys = PAYBILL_EARNING_COLUMNS.filter((c) => c.key !== 'grossAmount').map((c) => c.key);
+  const deductionBaseKeys = PAYBILL_DEDUCTION_COLUMNS.filter(
+    (c) => c.key !== 'totalDeductions' && c.key !== 'netPay'
+  ).map((c) => c.key);
+
+  const earningOrderedKeys = orderedKeyList(earningBaseKeys, manualAllowances, earningOrder);
+  const deductionOrderedKeys = orderedKeyList(deductionBaseKeys, manualDeductions, deductionOrder);
+
   const addParameter = (
     list: string[],
     setList: (v: string[]) => void,
+    setOrder: React.Dispatch<React.SetStateAction<string[]>>,
     name: string
   ) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (list.some((p) => p.toLowerCase() === trimmed.toLowerCase())) return;
     setList([...list, trimmed]);
+    setOrder((prev) => (prev.length > 0 ? [...prev, `manual::${trimmed}`] : prev));
   };
 
-  const removeParameter = (list: string[], setList: (v: string[]) => void, name: string) => {
+  const removeParameter = (
+    list: string[],
+    setList: (v: string[]) => void,
+    setOrder: React.Dispatch<React.SetStateAction<string[]>>,
+    name: string
+  ) => {
     setList(list.filter((p) => p !== name));
+    setOrder((prev) => prev.filter((k) => k !== `manual::${name}`));
+  };
+
+  const moveKey = (
+    order: string[],
+    setOrder: (v: string[]) => void,
+    keys: string[],
+    idx: number,
+    dir: -1 | 1
+  ) => {
+    const next = order.length > 0 ? [...order] : [...keys];
+    const j = idx + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setOrder(next);
   };
 
   const handleSave = async () => {
@@ -88,6 +123,8 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
         basicPayChangeTolerance: Number(form.basicPayChangeTolerance) || 10,
         manualAllowances,
         manualDeductions,
+        earningColumnOrder: earningOrder,
+        deductionColumnOrder: deductionOrder,
       });
       onSaved?.(saved);
       onClose();
@@ -319,37 +356,95 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
               </h4>
             </div>
             <div className="p-4">
-            <div className="flex flex-wrap items-center gap-1.5 mb-2">
-              {PAYBILL_EARNING_COLUMNS.map((c) => (
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <p className="text-[0.65rem] text-slate-400">
+                Use the arrows to set the display order in the Matrix &amp; Employee Ledger.
+              </p>
+              <button
+                type="button"
+                onClick={() => setEarningOrder([])}
+                className="inline-flex items-center gap-1 text-[0.68rem] font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition shrink-0"
+              >
+                <RotateCcw className="w-3 h-3" /> Reset Order
+              </button>
+            </div>
+
+            <ol className="space-y-1 mb-2">
+              {earningOrderedKeys.map((key, idx) => {
+                const isManual = key.startsWith('manual::');
+                const manualLabel = isManual ? key.slice('manual::'.length) : null;
+                const col = isManual
+                  ? null
+                  : PAYBILL_EARNING_COLUMNS.find((c) => c.key === key);
+                const display = col?.label || manualLabel || key;
+                return (
+                  <li key={key} className="flex items-center gap-2">
+                    <span className="w-5 text-right text-[0.68rem] text-slate-400 font-mono shrink-0">
+                      {idx + 1}.
+                    </span>
+                    {isManual ? (
+                      <span
+                        className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 text-blue-800 dark:text-blue-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                        title="Manual parameter (editable in Employee Ledger)"
+                      >
+                        {manualLabel}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeParameter(manualAllowances, setManualAllowances, setEarningOrder, manualLabel || '')
+                          }
+                          className="text-blue-400 hover:text-rose-500 transition"
+                          aria-label={`Remove ${manualLabel}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                        title="Standard parameter (extracted from PDF)"
+                      >
+                        {display}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-0.5 ml-auto">
+                      <button
+                        type="button"
+                        onClick={() => moveKey(earningOrder, setEarningOrder, earningOrderedKeys, idx, -1)}
+                        disabled={idx === 0}
+                        aria-label={`Move ${display} up`}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveKey(earningOrder, setEarningOrder, earningOrderedKeys, idx, 1)}
+                        disabled={idx === earningOrderedKeys.length - 1}
+                        aria-label={`Move ${display} down`}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              <span className="text-[0.68rem] text-slate-400 font-medium">Always last:</span>
+              {PAYBILL_EARNING_COLUMNS.filter((c) => c.key === 'grossAmount').map((c) => (
                 <span
                   key={c.key}
-                  title="Standard parameter (extracted from PDF)"
-                  className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                  className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
                 >
+                  <Lock className="w-3 h-3" />
                   {c.label}
                 </span>
               ))}
-              {manualAllowances.map((p) => (
-                <span
-                  key={`manual-${p}`}
-                  className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 text-blue-800 dark:text-blue-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
-                  title="Manual parameter (editable in Employee Ledger)"
-                >
-                  {p}
-                  <button
-                    type="button"
-                    onClick={() => removeParameter(manualAllowances, setManualAllowances, p)}
-                    className="text-blue-400 hover:text-rose-500 transition"
-                    aria-label={`Remove ${p}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-              {manualAllowances.length === 0 && (
-                <span className="text-[0.7rem] text-slate-400 italic">No manual allowance parameters defined.</span>
-              )}
             </div>
+
             <div className="flex gap-2">
               <input
                 type="text"
@@ -357,7 +452,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 onChange={(e) => setNewAllowanceName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    addParameter(manualAllowances, setManualAllowances, newAllowanceName);
+                    addParameter(manualAllowances, setManualAllowances, setEarningOrder, newAllowanceName);
                     setNewAllowanceName('');
                   }
                 }}
@@ -367,7 +462,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  addParameter(manualAllowances, setManualAllowances, newAllowanceName);
+                  addParameter(manualAllowances, setManualAllowances, setEarningOrder, newAllowanceName);
                   setNewAllowanceName('');
                 }}
                 className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition whitespace-nowrap"
@@ -388,37 +483,97 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
               </h4>
             </div>
             <div className="p-4">
-            <div className="flex flex-wrap items-center gap-1.5 mb-2">
-              {PAYBILL_DEDUCTION_COLUMNS.map((c) => (
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <p className="text-[0.65rem] text-slate-400">
+                Use the arrows to set the display order in the Matrix &amp; Employee Ledger.
+              </p>
+              <button
+                type="button"
+                onClick={() => setDeductionOrder([])}
+                className="inline-flex items-center gap-1 text-[0.68rem] font-semibold text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition shrink-0"
+              >
+                <RotateCcw className="w-3 h-3" /> Reset Order
+              </button>
+            </div>
+
+            <ol className="space-y-1 mb-2">
+              {deductionOrderedKeys.map((key, idx) => {
+                const isManual = key.startsWith('manual::');
+                const manualLabel = isManual ? key.slice('manual::'.length) : null;
+                const col = isManual
+                  ? null
+                  : PAYBILL_DEDUCTION_COLUMNS.find((c) => c.key === key);
+                const display = col?.label || manualLabel || key;
+                return (
+                  <li key={key} className="flex items-center gap-2">
+                    <span className="w-5 text-right text-[0.68rem] text-slate-400 font-mono shrink-0">
+                      {idx + 1}.
+                    </span>
+                    {isManual ? (
+                      <span
+                        className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                        title="Manual parameter (editable in Employee Ledger)"
+                      >
+                        {manualLabel}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeParameter(manualDeductions, setManualDeductions, setDeductionOrder, manualLabel || '')
+                          }
+                          className="text-rose-400 hover:text-rose-600 transition"
+                          aria-label={`Remove ${manualLabel}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                        title="Standard parameter (extracted from PDF)"
+                      >
+                        {display}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-0.5 ml-auto">
+                      <button
+                        type="button"
+                        onClick={() => moveKey(deductionOrder, setDeductionOrder, deductionOrderedKeys, idx, -1)}
+                        disabled={idx === 0}
+                        aria-label={`Move ${display} up`}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveKey(deductionOrder, setDeductionOrder, deductionOrderedKeys, idx, 1)}
+                        disabled={idx === deductionOrderedKeys.length - 1}
+                        aria-label={`Move ${display} down`}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              <span className="text-[0.68rem] text-slate-400 font-medium">Always last:</span>
+              {PAYBILL_DEDUCTION_COLUMNS.filter(
+                (c) => c.key === 'totalDeductions' || c.key === 'netPay'
+              ).map((c) => (
                 <span
                   key={c.key}
-                  title="Standard parameter (extracted from PDF)"
-                  className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                  className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
                 >
+                  <Lock className="w-3 h-3" />
                   {c.label}
                 </span>
               ))}
-              {manualDeductions.map((p) => (
-                <span
-                  key={`manual-${p}`}
-                  className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
-                  title="Manual parameter (editable in Employee Ledger)"
-                >
-                  {p}
-                  <button
-                    type="button"
-                    onClick={() => removeParameter(manualDeductions, setManualDeductions, p)}
-                    className="text-rose-400 hover:text-rose-600 transition"
-                    aria-label={`Remove ${p}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-              {manualDeductions.length === 0 && (
-                <span className="text-[0.7rem] text-slate-400 italic">No manual deduction parameters defined.</span>
-              )}
             </div>
+
             <div className="flex gap-2">
               <input
                 type="text"
@@ -426,7 +581,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 onChange={(e) => setNewDeductionName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    addParameter(manualDeductions, setManualDeductions, newDeductionName);
+                    addParameter(manualDeductions, setManualDeductions, setDeductionOrder, newDeductionName);
                     setNewDeductionName('');
                   }
                 }}
@@ -436,7 +591,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  addParameter(manualDeductions, setManualDeductions, newDeductionName);
+                  addParameter(manualDeductions, setManualDeductions, setDeductionOrder, newDeductionName);
                   setNewDeductionName('');
                 }}
                 className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition whitespace-nowrap"

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useUIStore } from '@/core/stores/ui-store';
 import { PayBillUploadModal } from '../components/PayBillUploadModal';
 import { PayBillAllowanceMatrixReport } from '../components/PayBillAllowanceMatrixReport';
 import { PayBillEmployeeLedgerView } from '../components/PayBillEmployeeLedgerView';
 import { PayBillSettingsModal } from '../components/PayBillSettingsModal';
+import { PayrollComponentMasterPage } from './PayrollComponentMasterPage';
 import {
   FileSpreadsheet,
   Upload,
@@ -12,12 +14,32 @@ import {
   User,
   Settings,
   Sparkles,
+  Layers,
 } from 'lucide-react';
 
-type ModuleTab = 'matrix' | 'employee';
+type ModuleTab = 'matrix' | 'employee' | 'components';
 
 export function PayBillImportPage() {
-  const [activeTab, setActiveTab] = useState<ModuleTab>('matrix');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<ModuleTab>(() => {
+    if (tabFromUrl === 'components' || tabFromUrl === 'employee' || tabFromUrl === 'matrix') {
+      return tabFromUrl;
+    }
+    return 'matrix';
+  });
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'components' || tab === 'employee' || tab === 'matrix') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: ModuleTab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -90,7 +112,7 @@ export function PayBillImportPage() {
 
       {/* Module Navigation Tabs */}
       <div className="bg-slate-100/90 dark:bg-slate-800/90 p-1.5 rounded-xl flex border border-slate-200/80 dark:border-slate-700/80 shadow-xs overflow-x-auto gap-1">
-        <button onClick={() => setActiveTab('matrix')} className={tabClass(activeTab === 'matrix')}>
+        <button onClick={() => handleTabChange('matrix')} className={tabClass(activeTab === 'matrix')}>
           <BarChart3 size={15} className={tabIconClass(activeTab === 'matrix')} />
           <span>12-Month Matrix</span>
           <span className="hidden md:inline text-[0.62rem] font-medium text-slate-400 ml-0.5">
@@ -98,11 +120,19 @@ export function PayBillImportPage() {
           </span>
         </button>
 
-        <button onClick={() => setActiveTab('employee')} className={tabClass(activeTab === 'employee')}>
+        <button onClick={() => handleTabChange('employee')} className={tabClass(activeTab === 'employee')}>
           <User size={15} className={tabIconClass(activeTab === 'employee')} />
           <span>Employee Ledger</span>
           <span className="hidden md:inline text-[0.62rem] font-medium text-slate-400 ml-0.5">
             (HRPN Search)
+          </span>
+        </button>
+
+        <button onClick={() => handleTabChange('components')} className={tabClass(activeTab === 'components')}>
+          <Layers size={15} className={tabIconClass(activeTab === 'components')} />
+          <span>Component Master</span>
+          <span className="hidden md:inline text-[0.62rem] font-medium text-slate-400 ml-0.5">
+            (Earnings / Deductions)
           </span>
         </button>
 
@@ -125,6 +155,9 @@ export function PayBillImportPage() {
       {activeTab === 'employee' && (
         <PayBillEmployeeLedgerView financialYear={fy} refreshTrigger={refreshTrigger} />
       )}
+
+      {/* TAB 3: Payroll Component Master (configure PDF header / code aliases) */}
+      {activeTab === 'components' && <PayrollComponentMasterPage />}
 
       {/* Pop-up PDF Upload & Extraction Modal */}
       <PayBillUploadModal
