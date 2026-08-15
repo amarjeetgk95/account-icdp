@@ -8,6 +8,8 @@ import {
   Search,
   Check,
   X,
+  UserPlus,
+  RefreshCw,
 } from 'lucide-react';
 import { MappingStatusBadge } from './MappingStatusBadge';
 import type { PayBillExtractedRecord, PayBillEmployeeRow } from '../types';
@@ -16,12 +18,16 @@ interface ExtractionPreviewTableProps {
   records: PayBillExtractedRecord[];
   onUpdateRecord: (id: string, updatedFields: Partial<PayBillEmployeeRow>) => void;
   onDeleteRecord: (id: string) => void;
+  onQuickAddEmployee?: (row: PayBillEmployeeRow) => Promise<void> | void;
+  onSyncMasterPayScale?: (empId: string, updates: { designation?: string; payScale?: string }) => Promise<void> | void;
 }
 
 export function ExtractionPreviewTable({
   records,
   onUpdateRecord,
   onDeleteRecord,
+  onQuickAddEmployee,
+  onSyncMasterPayScale,
 }: ExtractionPreviewTableProps) {
   const [filter, setFilter] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
@@ -493,6 +499,29 @@ export function ExtractionPreviewTable({
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-1">
+                          {rec.mappingStatus === 'NOT_FOUND' && onQuickAddEmployee && (
+                            <button
+                              onClick={() => onQuickAddEmployee(rec.row)}
+                              className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded transition-colors"
+                              title="Quick-Add to Master Employees"
+                            >
+                              <UserPlus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {rec.matchedEmployee && (rec.nameMismatch || rec.row.designation !== rec.matchedEmployee.designation) && onSyncMasterPayScale && (
+                            <button
+                              onClick={() =>
+                                onSyncMasterPayScale(rec.matchedEmployee!.id, {
+                                  designation: rec.row.designation,
+                                  payScale: rec.row.payScale,
+                                })
+                              }
+                              className="p-1 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded transition-colors"
+                              title="Sync latest Pay Scale / Designation to Master"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleStartEdit(rec)}
                             className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 rounded transition-colors"

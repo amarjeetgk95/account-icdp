@@ -4,6 +4,9 @@ import type {
   PayBillEmployeeRow,
   PayBillTotalRow,
   PayBillParsedResult,
+  PayBillDeductionRow,
+  PayBillDeductionTotalRow,
+  PayBillSheetType,
 } from '../types';
 
 interface RawTextItem {
@@ -48,7 +51,11 @@ export class PdfParserService {
   ): PayBillParsedResult {
     const warnings: string[] = [];
 
-    // 1. Extract Bill Metadata from header area
+    // 1. Detect Sheet Type: Earning vs. Deduction Side
+    const isDeduction = /Deduction\s+Side|Income\s+Tax\s*\(9510\)|Total\s+Ded/i.test(rawText);
+    const sheetType: PayBillSheetType = isDeduction ? 'DEDUCTION' : 'EARNING';
+
+    // 2. Extract Bill Metadata from header area
     const metadata = this.extractMetadata(rawText);
 
     if (!metadata.month) {
@@ -58,11 +65,60 @@ export class PdfParserService {
       warnings.push('Bill number could not be detected from header.');
     }
 
-    // 2. Detect column structure from table header
+    if (sheetType === 'DEDUCTION') {
+      // 3. Extract Deduction Rows
+      let deductionRows: PayBillDeductionRow[] = [];
+      if (items && items.length > 0) {
+        try {
+          deductionRows = this.extractDeductionRowsFromItems(items, warnings);
+        } catch (err) {
+          console.warn('[PdfParserService] Coordinate deduction extraction fallback:', err);
+        }
+      }
+
+      if (deductionRows.length === 0) {
+        deductionRows = this.extractDeductionRows(rawText, warnings);
+      }
+
+      if (deductionRows.length === 0) {
+        warnings.push('No deduction records could be detected from PDF.');
+      }
+
+      const pdfDeductionTotals = this.extractDeductionTotals(rawText, deductionRows);
+
+      // Detection confidence for deduction side
+      const withDedValues = deductionRows.filter((r) => (r.totalDeductions || 0) > 0 || (r.netPay || 0) > 0).length;
+      const coverage = deductionRows.length > 0 ? withDedValues / deductionRows.length : 0;
+      const confidence = deductionRows.length === 0 ? 0 : Math.round(coverage * 100);
+      if (deductionRows.length > 0 && coverage < 0.8) {
+        warnings.push(
+          `Deduction column detection confidence is low (${Math.round(coverage * 100)}% of rows have values). ` +
+            'Ensure the table header with codes (Income Tax (9510) ... Net Pay) is visible, or paste the text via OCR fallback.'
+        );
+      }
+
+      return {
+        sheetType,
+        metadata,
+        rows: [],
+        pdfTotals: null,
+        deductionRows,
+        pdfDeductionTotals,
+        rawText,
+        pageCount,
+        parsingWarnings: warnings,
+        detection: {
+          confidence,
+          issues: [...warnings],
+        },
+      };
+    }
+
+    // EARNING SIDE
+    // 3. Detect column structure from table header
     const detectedCols = this.detectAllowanceColumns(rawText);
 
-    // 3. Extract Employee Rows:
-    // Try 2D Coordinate Grid extraction first if PDF canvas items exist
+    // 4. Extract Employee Rows:
     let rows: PayBillEmployeeRow[] = [];
     if (items && items.length > 0) {
       try {
@@ -81,16 +137,32 @@ export class PdfParserService {
       warnings.push('No employee records could be detected. Please verify PDF format or use OCR tool.');
     }
 
-    // 4. Extract Totals
+    // 5. Extract Totals
     const pdfTotals = this.extractTotals(rawText, detectedCols, rows);
 
+    // Detection confidence for earning side: share of rows where amounts were captured
+    const withAmounts = rows.filter((r) => (r.grossAmount || 0) > 0).length;
+    const coverage = rows.length > 0 ? withAmounts / rows.length : 0;
+    const confidence = rows.length === 0 ? 0 : Math.round(coverage * 100);
+    if (rows.length > 0 && coverage < 0.8) {
+      warnings.push(
+        `Column detection confidence is low (${Math.round(coverage * 100)}% of rows have amounts). ` +
+          'Consider pasting the bill text via OCR fallback for more reliable extraction.'
+      );
+    }
+
     return {
+      sheetType,
       metadata,
       rows,
       pdfTotals,
       rawText,
       pageCount,
       parsingWarnings: warnings,
+      detection: {
+        confidence,
+        issues: [...warnings],
+      },
     };
   }
 
@@ -664,7 +736,7 @@ export class PdfParserService {
       // Extract monetary numbers in this block:
       // Monetary amounts in Gujarat paybills are strictly formatted with decimals (.00)
       // E.g. "37600.00 22560.00 6016.00 270.00 1000.00 3600.00 0.00 0.00 71046.00"
-      let numberMatches = blockText.match(/\b\d+\.\d{2}\b/g);
+      let numberMatches = blockText.match(/\b\d[\d,]*\.\d{2}\b/g);
 
       // If no decimal numbers found, fallback to parsing numbers after PH/SLO landmark
       if (!numberMatches || numberMatches.length < 3) {
@@ -757,7 +829,7 @@ export class PdfParserService {
         .trim();
 
       // 2. Remove all monetary decimal amounts (e.g. 37600.00, 22560.00)
-      text = text.replace(/\b\d+\.\d{2}\b/g, ' ').trim();
+      text = text.replace(/\b\d[\d,]*\.\d{2}\b/g, ' ').trim();
 
       // 3. Extract PH (No / Yes) and SLO (P / T / N / etc.)
       let ph = 'No';
@@ -936,7 +1008,7 @@ export class PdfParserService {
     };
 
     if (totalLineMatch && totalLineMatch[1]) {
-      const numbers = totalLineMatch[1].match(/\b\d+\.\d{2}\b/g) || totalLineMatch[1].match(/\b\d+(?:\.\d+)?\b/g);
+      const numbers = totalLineMatch[1].match(/\b\d[\d,]*\.\d{2}\b/g) || totalLineMatch[1].match(/\b\d[\d,]*(?:\.\d+)?\b/g);
       if (numbers && numbers.length >= 7) {
         const amounts = numbers.map(parseNum);
         const len = amounts.length;
@@ -997,6 +1069,363 @@ export class PdfParserService {
         otherAllowance: 0,
         grossAmount: gross,
       };
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract Deduction rows using exact 2D canvas coordinates
+   */
+  private extractDeductionRowsFromItems(
+    items: RawTextItem[],
+    _warnings?: string[]
+  ): PayBillDeductionRow[] {
+    if (!items || items.length === 0) return [];
+
+    const allRows: PayBillDeductionRow[] = [];
+
+    // Group items by page
+    const pageMap = new Map<number, RawTextItem[]>();
+    for (const item of items) {
+      const pageList = pageMap.get(item.page) || [];
+      pageList.push(item);
+      pageMap.set(item.page, pageList);
+    }
+
+    const parseNum = (val: string | undefined): number => {
+      if (!val) return 0;
+      const clean = val.replace(/,/g, '').replace(/[^\d.-]/g, '');
+      const num = parseFloat(clean);
+      return isNaN(num) ? 0 : num;
+    };
+
+    for (const [_pageNum, pageItems] of pageMap) {
+      // 1. Locate Table Header Y position
+      let tableHeaderY = 0;
+      let hrpnHeaderItem: RawTextItem | undefined;
+      let nameHeaderItem: RawTextItem | undefined;
+      let desigHeaderItem: RawTextItem | undefined;
+      let itHeaderItem: RawTextItem | undefined;
+      let ptHeaderItem: RawTextItem | undefined;
+      let hbaHeaderItem: RawTextItem | undefined;
+      let gpfHeaderItem: RawTextItem | undefined;
+      let gpf4HeaderItem: RawTextItem | undefined;
+      let npsHeaderItem: RawTextItem | undefined;
+      let gisFundHeaderItem: RawTextItem | undefined;
+      let gisSaveHeaderItem: RawTextItem | undefined;
+      let totDedHeaderItem: RawTextItem | undefined;
+      let netPayHeaderItem: RawTextItem | undefined;
+
+      for (const item of pageItems) {
+        const s = item.str.trim();
+        if (/^HRPN$/i.test(s)) {
+          hrpnHeaderItem = item;
+          tableHeaderY = item.y;
+        } else if (/Employee\s+Name/i.test(s) || s === 'Name') {
+          nameHeaderItem = item;
+          if (!tableHeaderY) tableHeaderY = item.y;
+        } else if (/Designation/i.test(s)) {
+          desigHeaderItem = item;
+        } else if (/Income\s+Tax|\(9510\)/i.test(s)) {
+          if (!itHeaderItem) itHeaderItem = item;
+        } else if (/Prof\s+Tax|\(9570\)/i.test(s)) {
+          if (!ptHeaderItem) ptHeaderItem = item;
+        } else if (/HBA\s+Interest|\(9591\)/i.test(s)) {
+          if (!hbaHeaderItem) hbaHeaderItem = item;
+        } else if (/GPF\s+Reg\s+Class\s+4|\(9531\)/i.test(s)) {
+          if (!gpf4HeaderItem) gpf4HeaderItem = item;
+        } else if (/GPF\s+Reg|\(9670\)/i.test(s)) {
+          if (!gpfHeaderItem) gpfHeaderItem = item;
+        } else if (/NPS\s+Reg|\(9534\)/i.test(s)) {
+          if (!npsHeaderItem) npsHeaderItem = item;
+        } else if (/Govt\s+Fund|\(9581\)/i.test(s)) {
+          if (!gisFundHeaderItem) gisFundHeaderItem = item;
+        } else if (/Govt\s+Saving|\(9582\)/i.test(s)) {
+          if (!gisSaveHeaderItem) gisSaveHeaderItem = item;
+        } else if (/Total\s+Ded/i.test(s)) {
+          if (!totDedHeaderItem) totDedHeaderItem = item;
+        } else if (/Net\s+Pay/i.test(s)) {
+          if (!netPayHeaderItem) netPayHeaderItem = item;
+        }
+      }
+
+      if (!tableHeaderY) {
+        const anyHeaderItem = pageItems.find((i) =>
+          /PAYBILL\s+INNER\s+SHEET|D\.D\.O|Major\s+Head|TAN\s+No/i.test(i.str)
+        );
+        tableHeaderY = anyHeaderItem ? anyHeaderItem.y - 25 : 600;
+      }
+
+      // 2. Locate Total / Footer Y position
+      let totalY = 0;
+      const totalItem = pageItems.find((i) => /^Total\b/i.test(i.str.trim()) && i.y < tableHeaderY);
+      if (totalItem) {
+        totalY = totalItem.y;
+      } else {
+        const certItem = pageItems.find((i) => /I\s+hereby\s+certify|Rupees\s*:/i.test(i.str));
+        if (certItem) totalY = certItem.y + 15;
+      }
+
+      // 3. Find Employee HRPN items strictly within table body
+      const tableBodyItems = pageItems.filter(
+        (i) => i.y < tableHeaderY - 10 && (totalY === 0 || i.y > totalY + 2)
+      );
+
+      const hrpnX = hrpnHeaderItem?.x || 60;
+      const hrpnColumnItems = tableBodyItems
+        .filter((i) => {
+          const str = i.str.trim();
+          const isDigitHrpn = /^\d{7,10}$/.test(str) && !/2403|0299/.test(str);
+          const isNearHrpnCol = Math.abs(i.x - hrpnX) < 40;
+          return isDigitHrpn && isNearHrpnCol;
+        })
+        .sort((a, b) => b.y - a.y);
+
+      if (hrpnColumnItems.length === 0) continue;
+
+      // 4. Calculate Column Intervals
+      const nameX = nameHeaderItem?.x || hrpnX + 55;
+      const desigX = desigHeaderItem?.x || nameX + 110;
+      const itX = itHeaderItem?.x || desigX + 90;
+      const ptX = ptHeaderItem?.x || itX + 55;
+      const hbaX = hbaHeaderItem?.x || ptX + 45;
+      const gpfX = gpfHeaderItem?.x || hbaX + 55;
+      const gpf4X = gpf4HeaderItem?.x || gpfX + 60;
+      const npsX = npsHeaderItem?.x || gpf4X + 60;
+      const gisFundX = gisFundHeaderItem?.x || npsX + 55;
+      const gisSaveX = gisSaveHeaderItem?.x || gisFundX + 50;
+      const totDedX = totDedHeaderItem?.x || gisSaveX + 50;
+      const netPayX = netPayHeaderItem?.x || totDedX + 55;
+
+      const colBoundHrpnMax = (hrpnX + nameX) / 2;
+      const colBoundNameMax = (nameX + desigX) / 2;
+      const colBoundDesigMax = (desigX + itX) / 2;
+
+      // 5. Extract Each Deduction Row
+      for (let r = 0; r < hrpnColumnItems.length; r++) {
+        const currentHrpn = hrpnColumnItems[r];
+        const nextHrpn = r < hrpnColumnItems.length - 1 ? hrpnColumnItems[r + 1] : null;
+
+        const rowTopY = r === 0 ? tableHeaderY - 10 : (hrpnColumnItems[r - 1].y + currentHrpn.y) / 2;
+        const rowBottomY = nextHrpn ? (currentHrpn.y + nextHrpn.y) / 2 : (totalY ? totalY + 2 : currentHrpn.y - 35);
+
+        const rowItems = tableBodyItems.filter((i) => i.y <= rowTopY && i.y > rowBottomY);
+
+        // Sr No
+        const srNoItems = rowItems
+          .filter((i) => i.x < hrpnX - 5 && /^\d{1,4}$/.test(i.str.trim()))
+          .sort((a, b) => b.y - a.y);
+        const srNo = srNoItems.length > 0 ? parseInt(srNoItems[0].str.trim(), 10) : r + 1;
+
+        // Employee Name
+        const nameItems = rowItems
+          .filter((i) => i.x >= colBoundHrpnMax && i.x < colBoundNameMax)
+          .sort((a, b) => b.y - a.y || a.x - b.x);
+
+        let employeeName = nameItems
+          .map((i) => i.str.trim())
+          .filter(Boolean)
+          .join(' ')
+          .replace(/[0-9/()\\-]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        // Designation
+        const desigItems = rowItems
+          .filter((i) => i.x >= colBoundNameMax && i.x < colBoundDesigMax)
+          .sort((a, b) => b.y - a.y || a.x - b.x);
+
+        let designation = desigItems
+          .map((i) => i.str.trim())
+          .filter(Boolean)
+          .join(' ')
+          .replace(/^(Designation|Desig)\s+/i, '')
+          .trim();
+
+        // Deduction numeric items (all items to the right of designation boundary)
+        const numericItems = rowItems
+          .filter((i) => i.x >= colBoundDesigMax)
+          .map((i) => ({ str: i.str.trim(), x: i.x, y: i.y }))
+          .filter((i) => /\b\d+(?:\.\d{2})?\b/.test(i.str))
+          .sort((a, b) => a.x - b.x);
+
+        // Helper to find closest numeric value to a column target X.
+        // Two-pass tolerance: try tight window first, widen on a miss so that
+        // slightly shifted columns are still captured instead of silently zeroed.
+        // Each numeric item can only be claimed once to prevent column bleeding.
+        const claimed = new Set<number>();
+        const findValNearX = (targetX: number, maxDist = 30): number => {
+          const find = (dist: number): { str: string; dist: number; idx: number } | null => {
+            let best: { str: string; dist: number; idx: number } | null = null;
+            for (let i = 0; i < numericItems.length; i++) {
+              if (claimed.has(i)) continue;
+              const d = Math.abs(numericItems[i].x - targetX);
+              if (d <= dist && (!best || d < best.dist)) {
+                best = { str: numericItems[i].str, dist: d, idx: i };
+              }
+            }
+            return best;
+          };
+          const tight = find(maxDist);
+          if (tight !== null) {
+            claimed.add(tight.idx);
+            return parseNum(tight.str);
+          }
+          const wide = find(Math.max(maxDist, 80));
+          if (wide !== null) {
+            claimed.add(wide.idx);
+            return parseNum(wide.str);
+          }
+          return 0;
+        };
+
+        const incomeTax = findValNearX(itX);
+        const profTax = findValNearX(ptX);
+        const hbaInterest = findValNearX(hbaX);
+        const gpfRegular = findValNearX(gpfX);
+        const gpfClass4 = findValNearX(gpf4X);
+        const npsRegular = findValNearX(npsX);
+        const gisGovtFund = findValNearX(gisFundX);
+        const gisGovtSaving = findValNearX(gisSaveX);
+        const totalDeductions = findValNearX(totDedX);
+        const netPay = findValNearX(netPayX);
+
+        allRows.push({
+          srNo,
+          hrpn: currentHrpn.str.trim(),
+          employeeName: employeeName || `Employee ${currentHrpn.str.trim()}`,
+          designation: designation || 'Staff',
+          incomeTax,
+          profTax,
+          hbaInterest,
+          gpfRegular,
+          gpfClass4,
+          npsRegular,
+          gisGovtFund,
+          gisGovtSaving,
+          totalDeductions: totalDeductions || (incomeTax + profTax + hbaInterest + gpfRegular + gpfClass4 + npsRegular + gisGovtFund + gisGovtSaving),
+          netPay,
+        });
+      }
+    }
+
+    return allRows;
+  }
+
+  /**
+   * Structured text / OCR fallback extraction for Deduction rows
+   */
+  private extractDeductionRows(text: string, _warnings?: string[]): PayBillDeductionRow[] {
+    const rows: PayBillDeductionRow[] = [];
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+    const parseNum = (val: string | undefined): number => {
+      if (!val) return 0;
+      const clean = val.replace(/,/g, '').replace(/[^\d.-]/g, '');
+      const num = parseFloat(clean);
+      return isNaN(num) ? 0 : num;
+    };
+
+    let inTable = false;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (/^Sr\b|^HRPN\b|Employee\s+Name|Income\s+Tax/i.test(line)) {
+        inTable = true;
+        continue;
+      }
+      if (/^Total\b|Rupees\s*:|I\s+hereby\s+certify/i.test(line)) {
+        break;
+      }
+      if (!inTable) continue;
+
+      // Look for HRPN pattern
+      const hrpnMatch = line.match(/\b(20\d{6})\b/);
+      if (!hrpnMatch) continue;
+
+      const hrpn = hrpnMatch[1];
+      const numbers = line.match(/\b\d[\d,]*\.\d{2}\b/g) || line.match(/\b\d[\d,]*(?:\.\d+)?\b/g);
+
+      if (numbers && numbers.length >= 8) {
+        const amounts = numbers.map(parseNum);
+        const len = amounts.length;
+
+        // Clean name and designation
+        const textBeforeNums = line.substring(0, line.indexOf(numbers[0])).replace(hrpn, '').trim();
+        const parts = textBeforeNums.split(/\s{2,}|\t/);
+        const employeeName = (parts[0] || 'Employee').replace(/^\d+\s+/, '').trim();
+        const designation = parts[1] || 'Staff';
+
+        // If the printed Total Deductions column is blank, derive it from the sum of the 8
+        // deduction fields (row then has 9 numbers: 8 fields + net pay)
+        const totalDeductions =
+          len >= 10
+            ? amounts[len - 2]
+            : len === 9
+              ? amounts.slice(0, 8).reduce((s, v) => s + v, 0)
+              : amounts.slice(0, len - 2).reduce((s, v) => s + v, 0);
+
+        rows.push({
+          hrpn,
+          employeeName,
+          designation,
+          incomeTax: amounts[0] || 0,
+          profTax: amounts[1] || 0,
+          hbaInterest: amounts[2] || 0,
+          gpfRegular: amounts[3] || 0,
+          gpfClass4: amounts[4] || 0,
+          npsRegular: amounts[5] || 0,
+          gisGovtFund: amounts[6] || 0,
+          gisGovtSaving: amounts[7] || 0,
+          totalDeductions,
+          netPay: amounts[len - 1] || 0,
+        });
+      }
+    }
+
+    return rows;
+  }
+
+  /**
+   * Extract Deduction Totals from footer
+   */
+  private extractDeductionTotals(
+    text: string,
+    _rows?: PayBillDeductionRow[]
+  ): PayBillDeductionTotalRow | null {
+    const clean = text.replace(/\r\n/g, '\n');
+    const totalLineMatch = clean.match(/Total\s+([0-9.,\s]+)/i);
+
+    const parseNum = (val: string | undefined): number => {
+      if (!val) return 0;
+      const c = val.replace(/,/g, '').replace(/[^\d.-]/g, '');
+      const n = parseFloat(c);
+      return isNaN(n) ? 0 : n;
+    };
+
+    if (totalLineMatch && totalLineMatch[1]) {
+      const numbers =
+        totalLineMatch[1].match(/\b\d[\d,]*\.\d{2}\b/g) ||
+        totalLineMatch[1].match(/\b\d[\d,]*(?:\.\d+)?\b/g);
+
+      if (numbers && numbers.length >= 8) {
+        const amounts = numbers.map(parseNum);
+        const len = amounts.length;
+
+        return {
+          incomeTax: amounts[0],
+          profTax: amounts[1],
+          hbaInterest: amounts[2],
+          gpfRegular: amounts[3],
+          gpfClass4: amounts[4],
+          npsRegular: amounts[5],
+          gisGovtFund: amounts[6],
+          gisGovtSaving: amounts[7],
+          totalDeductions: amounts[len - 2],
+          netPay: amounts[len - 1],
+        };
+      }
     }
 
     return null;

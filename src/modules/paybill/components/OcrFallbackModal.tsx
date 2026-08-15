@@ -77,6 +77,33 @@ export function OcrFallbackModal({
           />
         </div>
 
+        {/* Parser Guidance */}
+        <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl p-3.5 space-y-2">
+          <p className="text-[0.7rem] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+            For best extraction, make sure the pasted text includes:
+          </p>
+          <ul className="text-[0.72rem] text-slate-600 dark:text-slate-300 space-y-1.5 list-disc list-inside">
+            <li>
+              The header line: <b className="font-mono">PAYBILL INNER SHEET - Earning/Deduction Side for the Month of : July-2026</b>
+            </li>
+            <li>
+              DDO block: <b className="font-mono">D.D.O HRPN : 20105451</b>, <b className="font-mono">Bill No. : Srt0299002201</b>, Major Head &amp; TAN No.
+            </li>
+            <li>
+              Table rows where each employee line starts with <b className="font-mono">Sr No + HRPN</b> followed by amounts (Basic Pay, DA, HRA ... Gross Amt).
+            </li>
+            <li>
+              The footer <b className="font-mono">Total ...</b> row with the same column order — it is used to reconcile the whole bill.
+            </li>
+            <li>
+              For the Deduction side also include the code labels <b className="font-mono">(9510)</b> ... <b className="font-mono">Net Pay</b> from the column header.
+            </li>
+          </ul>
+          <p className="text-[0.7rem] text-slate-500 dark:text-slate-400 leading-relaxed">
+            If the raw text is garbled, the parser will still extract what it can and flag low-confidence columns in the warnings list — prefer pasting from a selectable PDF over OCR.
+          </p>
+        </div>
+
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
           <button
             type="button"

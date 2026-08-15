@@ -5,13 +5,73 @@ import { employeeService } from '@/modules/payroll/services/employee.service';
 import type {
   PayBillMetadata,
   PayBillExtractedRecord,
+  PayBillDeductionExtractedRecord,
   PayBillImportResult,
   MasterEmployeeInfo,
   PayBillStoredImport,
   PayBillStoredEarning,
+  PayBillStoredDeduction,
+  PayBillValidationFlags,
+  PayBillEmployeeRow,
+  PayBillDeductionRow,
 } from '../types';
 
 export class PayBillStorageService {
+  /**
+   * Best-effort per-record confidence flags for the validation layer
+   */
+  private computeValidationFlags(
+    rec: PayBillExtractedRecord | PayBillDeductionExtractedRecord,
+    kind: 'EARNING' | 'DEDUCTION'
+  ): PayBillValidationFlags {
+    const row = rec.row as PayBillEmployeeRow & PayBillDeductionRow;
+    const master = rec.matchedEmployee;
+
+    let designationMatch = true;
+    if (master?.designation && row.designation) {
+      const clean = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
+      const md = clean(master.designation);
+      const rd = clean(row.designation);
+      designationMatch = !md || !rd || md.includes(rd) || rd.includes(md);
+    }
+
+    let grossValidation = true;
+    if (kind === 'EARNING') {
+      const computed =
+        (row.basicPay || 0) +
+        (row.da || 0) +
+        (row.hra || 0) +
+        (row.cla || 0) +
+        (row.medicalAllowance || 0) +
+        (row.transportAllowance || 0) +
+        (row.specialPay || 0) +
+        (row.washingAllowance || 0) +
+        (row.nonPrivatePracticeAllowance || 0) +
+        (row.otherAllowance || 0);
+      grossValidation = Math.abs(computed - (row.grossAmount || 0)) <= 1;
+    } else {
+      const computed =
+        (row.incomeTax || 0) +
+        (row.profTax || 0) +
+        (row.hbaInterest || 0) +
+        (row.gpfRegular || 0) +
+        (row.gpfClass4 || 0) +
+        (row.npsRegular || 0) +
+        (row.gisGovtFund || 0) +
+        (row.gisGovtSaving || 0) +
+        (row.otherDeductions || 0);
+      grossValidation = Math.abs(computed - (row.totalDeductions || 0)) <= 1;
+    }
+
+    return {
+      hrpnMatch: rec.mappingStatus === 'MATCHED',
+      nameMatch: !rec.nameMismatch,
+      designationMatch,
+      columnMappingValid: rec.validationStatus !== 'ERROR',
+      grossValidation,
+      totalReconciled: true, // bill-level reconciliation is validated separately
+    };
+  }
   /**
    * Fetch master employees from database for HRPN mapping
    */
@@ -27,38 +87,12 @@ export class PayBillStorageService {
         budgetHeadId: emp.budget_head_id,
       }));
     } catch (err) {
-      console.warn('[PayBillStorage] Could not fetch master employees from Supabase, using mock/cache:', err);
-      // Fallback sample master list for standalone testing
-      return [
-        {
-          id: 'emp-1',
-          name: 'Shri.Dr Dineshbhai Chamabhai Chaudhari',
-          pan: 'ABCDE1234F',
-          hprnNo: '20013826',
-          designation: 'Deputy Director (Animal Husbandary)',
-        },
-        {
-          id: 'emp-2',
-          name: 'Shri.Dr Hitendrabhai Manilal Patidar',
-          pan: 'BCDEF2345G',
-          hprnNo: '20014113',
-          designation: 'Assistant Director',
-        },
-        {
-          id: 'emp-3',
-          name: 'Shri.Dr Jagdishkumar Mohanbhai Jalandhra',
-          pan: 'CDEFG3456H',
-          hprnNo: '20014151',
-          designation: 'Assistant Director',
-        },
-        {
-          id: 'emp-4',
-          name: 'Shri.Dr Harit Dhananjaybhai Bhatt',
-          pan: 'DEFGH4567I',
-          hprnNo: '20014153',
-          designation: 'Assistant Director',
-        },
-      ];
+      console.error('[PayBillStorage] Could not fetch master employees from database:', err);
+      throw new Error(
+        'Could not load master employee records from the database. Import is blocked because ' +
+          'HRPN mapping requires the master employee list. Check the database connection / office ' +
+          'selection and try again.'
+      );
     }
   }
 
@@ -128,6 +162,7 @@ export class PayBillStorageService {
       billNo: metadata.billNo || 'Srt0299002201',
       month,
       financialYear,
+      sheetType: 'EARNING',
       ddoHrpn: metadata.ddoHrpn || null,
       ddoName: metadata.ddoName || null,
       majorHead: metadata.majorHead || null,
@@ -168,6 +203,11 @@ export class PayBillStorageService {
       otherAllowance: rec.row.otherAllowance || 0,
       grossAmount: rec.row.grossAmount || 0,
       mappingStatus: rec.mappingStatus,
+      validationStatus: rec.validationStatus,
+      mappingMessage: rec.mappingMessage || null,
+      nameMismatch: rec.nameMismatch || false,
+      errors: rec.errors,
+      warnings: rec.warnings,
       createdAt: new Date().toISOString(),
     }));
 
@@ -185,6 +225,7 @@ export class PayBillStorageService {
             bill_no: metadata.billNo || 'Srt0299002201',
             month,
             financial_year: financialYear,
+            sheet_type: 'EARNING',
             ddo_hrpn: metadata.ddoHrpn || null,
             ddo_name: metadata.ddoName || null,
             major_head: metadata.majorHead || null,
@@ -225,13 +266,30 @@ export class PayBillStorageService {
           cla: Math.round((rec.row.cla || 0) * 100) / 100,
           medical_allowance: Math.round((rec.row.medicalAllowance || 0) * 100) / 100,
           transport_allowance: Math.round((rec.row.transportAllowance || 0) * 100) / 100,
+          special_pay: Math.round((rec.row.specialPay || 0) * 100) / 100,
+          washing_allowance: Math.round((rec.row.washingAllowance || 0) * 100) / 100,
           npp_allowance: Math.round((rec.row.nonPrivatePracticeAllowance || 0) * 100) / 100,
           gross_amount: Math.round((rec.row.grossAmount || 0) * 100) / 100,
           mapping_status: rec.mappingStatus,
         }));
 
         if (earningsPayload.length > 0) {
-          await supabase.from('paybill_employee_earnings').upsert(earningsPayload);
+          const earningsValidationPayload = earningsPayload.map((p, idx) => ({
+            ...p,
+            validation_status: records[idx].validationStatus || 'VALID',
+            mapping_message: records[idx].mappingMessage || null,
+            name_mismatch: records[idx].nameMismatch || false,
+            errors: records[idx].errors || [],
+            warnings: records[idx].warnings || [],
+            validation_flags: this.computeValidationFlags(records[idx], 'EARNING') as unknown as Record<string, unknown>,
+          }));
+          const { error: fullErr } = await supabase
+            .from('paybill_employee_earnings')
+            .upsert(earningsValidationPayload);
+          if (fullErr && /validation_status|mapping_message|name_mismatch|validation_flags/i.test(String(fullErr.message))) {
+            // Old schema without validation columns: retry with base payload
+            await supabase.from('paybill_employee_earnings').upsert(earningsPayload);
+          }
         }
 
         // 3. Create a record in salary_imports for backward compatibility
@@ -276,7 +334,7 @@ export class PayBillStorageService {
           });
         }
 
-        // 5. Upsert to employee_salaries for matched records so Monthly Entry & Quarter Reports update
+        // 5. Upsert to employee_salaries for matched records
         const payrollGridRows = matchedRecords
           .filter((r) => r.matchedEmployee?.id)
           .map((r) => ({
@@ -310,10 +368,177 @@ export class PayBillStorageService {
       billNo: metadata.billNo || 'Srt0299002201',
       month,
       financialYear,
+      sheetType: 'EARNING',
       totalRecords: records.length,
       matchedCount: matchedRecords.length,
       notFoundCount: notFoundRecords.length,
       appliedToPayrollGrid,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Commit and persist imported deduction data into the system
+   */
+  async importDeductions(
+    metadata: PayBillMetadata,
+    records: PayBillDeductionExtractedRecord[],
+    fileName = 'PayBill_Deduction_Sheet.pdf'
+  ): Promise<PayBillImportResult> {
+    const officeId = getOfficeId();
+    const userId = useAuthStore.getState().user?.id;
+    const { month, financialYear } = this.parseMonthAndFy(metadata.month);
+
+    const matchedRecords = records.filter((r) => r.mappingStatus === 'MATCHED');
+    const notFoundRecords = records.filter((r) => r.mappingStatus === 'NOT_FOUND');
+
+    let importId = `paybill_deduction_import_${Date.now()}`;
+    const totalDeductions = records.reduce((sum, r) => sum + (r.row.totalDeductions || 0), 0);
+    const netPayTotal = records.reduce((sum, r) => sum + (r.row.netPay || 0), 0);
+
+    const storedImport: PayBillStoredImport = {
+      id: importId,
+      officeId: officeId || 'default-office',
+      billNo: metadata.billNo || 'Srt0299002202',
+      month,
+      financialYear,
+      sheetType: 'DEDUCTION',
+      ddoHrpn: metadata.ddoHrpn || null,
+      ddoName: metadata.ddoName || null,
+      majorHead: metadata.majorHead || null,
+      ddoCode: metadata.ddoCode || null,
+      department: metadata.department || null,
+      officeName: metadata.officeName || null,
+      tanNo: metadata.tanNo || null,
+      cardexNo: metadata.cardexNo || null,
+      totalRecords: records.length,
+      matchedCount: matchedRecords.length,
+      grossTotal: 0,
+      totalDeductions: Math.round(totalDeductions * 100) / 100,
+      netPayTotal: Math.round(netPayTotal * 100) / 100,
+      uploadedFile: metadata.billNo ? `PayBill_Ded_${metadata.billNo}.pdf` : fileName,
+      createdAt: new Date().toISOString(),
+    };
+
+    const storedDeductions: PayBillStoredDeduction[] = records.map((rec, idx) => ({
+      id: `${importId}_row_${idx + 1}`,
+      importId,
+      officeId: officeId || 'default-office',
+      employeeId: rec.matchedEmployee?.id || null,
+      hrpn: rec.row.hrpn,
+      employeeName: rec.row.employeeName,
+      designation: rec.row.designation || null,
+      month,
+      financialYear,
+      incomeTax: rec.row.incomeTax || 0,
+      profTax: rec.row.profTax || 0,
+      hbaInterest: rec.row.hbaInterest || 0,
+      gpfRegular: rec.row.gpfRegular || 0,
+      gpfClass4: rec.row.gpfClass4 || 0,
+      npsRegular: rec.row.npsRegular || 0,
+      gisGovtFund: rec.row.gisGovtFund || 0,
+      gisGovtSaving: rec.row.gisGovtSaving || 0,
+      otherDeductions: rec.row.otherDeductions || 0,
+      totalDeductions: rec.row.totalDeductions || 0,
+      netPay: rec.row.netPay || 0,
+      mappingStatus: rec.mappingStatus,
+      validationStatus: rec.validationStatus,
+      mappingMessage: rec.mappingMessage || null,
+      nameMismatch: rec.nameMismatch || false,
+      errors: rec.errors,
+      warnings: rec.warnings,
+      createdAt: new Date().toISOString(),
+    }));
+
+    const { paybillRepository } = await import('../repositories/paybill.repository');
+    paybillRepository.saveDeductionsToCache(storedImport, storedDeductions);
+
+    try {
+      if (officeId) {
+        const { data: pImport, error: pImportErr } = await supabase
+          .from('paybill_imports')
+          .insert({
+            office_id: officeId,
+            bill_no: metadata.billNo || 'Srt0299002202',
+            month,
+            financial_year: financialYear,
+            sheet_type: 'DEDUCTION',
+            ddo_hrpn: metadata.ddoHrpn || null,
+            ddo_name: metadata.ddoName || null,
+            major_head: metadata.majorHead || null,
+            ddo_code: metadata.ddoCode || null,
+            department: metadata.department || null,
+            office_name: metadata.officeName || null,
+            tan_no: metadata.tanNo || null,
+            cardex_no: metadata.cardexNo || null,
+            total_records: records.length,
+            matched_count: matchedRecords.length,
+            gross_total: 0,
+            uploaded_file: metadata.billNo ? `PayBill_Ded_${metadata.billNo}.pdf` : fileName,
+            uploaded_by: userId || null,
+          })
+          .select()
+          .maybeSingle();
+
+        if (!pImportErr && pImport) {
+          importId = pImport.id;
+        }
+
+        const dedPayload = records.map((rec) => ({
+          import_id: importId,
+          office_id: officeId,
+          employee_id: rec.matchedEmployee?.id || null,
+          hrpn: rec.row.hrpn,
+          employee_name: rec.row.employeeName,
+          designation: rec.row.designation || null,
+          month,
+          financial_year: financialYear,
+          income_tax: Math.round((rec.row.incomeTax || 0) * 100) / 100,
+          prof_tax: Math.round((rec.row.profTax || 0) * 100) / 100,
+          hba_interest: Math.round((rec.row.hbaInterest || 0) * 100) / 100,
+          gpf_regular: Math.round((rec.row.gpfRegular || 0) * 100) / 100,
+          gpf_class4: Math.round((rec.row.gpfClass4 || 0) * 100) / 100,
+          nps_regular: Math.round((rec.row.npsRegular || 0) * 100) / 100,
+          gis_govt_fund: Math.round((rec.row.gisGovtFund || 0) * 100) / 100,
+          gis_govt_saving: Math.round((rec.row.gisGovtSaving || 0) * 100) / 100,
+          total_deductions: Math.round((rec.row.totalDeductions || 0) * 100) / 100,
+          net_pay: Math.round((rec.row.netPay || 0) * 100) / 100,
+          mapping_status: rec.mappingStatus,
+        }));
+
+        if (dedPayload.length > 0) {
+          const dedValidationPayload = dedPayload.map((p, idx) => ({
+            ...p,
+            validation_status: records[idx].validationStatus || 'VALID',
+            mapping_message: records[idx].mappingMessage || null,
+            name_mismatch: records[idx].nameMismatch || false,
+            errors: records[idx].errors || [],
+            warnings: records[idx].warnings || [],
+            validation_flags: this.computeValidationFlags(records[idx], 'DEDUCTION') as unknown as Record<string, unknown>,
+          }));
+          const { error: fullErr } = await supabase
+            .from('paybill_employee_deductions')
+            .upsert(dedValidationPayload);
+          if (fullErr && /validation_status|mapping_message|name_mismatch|validation_flags/i.test(String(fullErr.message))) {
+            // Old schema without validation columns: retry with base payload
+            await supabase.from('paybill_employee_deductions').upsert(dedPayload);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[PayBillStorage] Deduction database sync fallback to local cache:', err);
+    }
+
+    return {
+      importId,
+      billNo: metadata.billNo || 'Srt0299002202',
+      month,
+      financialYear,
+      sheetType: 'DEDUCTION',
+      totalRecords: records.length,
+      matchedCount: matchedRecords.length,
+      notFoundCount: notFoundRecords.length,
+      appliedToPayrollGrid: matchedRecords.length,
       createdAt: new Date().toISOString(),
     };
   }

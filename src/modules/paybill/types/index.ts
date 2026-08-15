@@ -1,3 +1,74 @@
+export type PayBillSheetType = 'EARNING' | 'DEDUCTION' | 'COMBINED';
+
+export interface PayBillParameterMatrixRow {
+  key: string;
+  parameter: string;
+  months: {
+    April: number;
+    May: number;
+    June: number;
+    July: number;
+    August: number;
+    September: number;
+    October: number;
+    November: number;
+    December: number;
+    January: number;
+    February: number;
+    March: number;
+    [key: string]: number;
+  };
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  total: number;
+}
+
+export interface PayBillAllowanceMatrixReport {
+  financialYear: number;
+  hrpn?: string | null;
+  employeeName?: string | null;
+  monthLabels: string[];
+  rows: PayBillParameterMatrixRow[];
+  totalGross: number;
+}
+
+export interface PayBillMonthlyMatrixColumn {
+  key: string;
+  label: string;
+  group: 'EARNING' | 'DEDUCTION';
+}
+
+export interface PayBillMonthlyEmployeeMatrixRow {
+  hrpn: string;
+  employeeName: string;
+  designation: string | null;
+  values: Record<string, number>;
+}
+
+export interface PayBillMonthlyEmployeeMatrixReport {
+  month: string;
+  financialYear: number;
+  columns: PayBillMonthlyMatrixColumn[];
+  rows: PayBillMonthlyEmployeeMatrixRow[];
+  totals: Record<string, number>;
+}
+
+export interface PayBillBatchMatrixMonth {
+  monthLabel: string;
+  month: string;
+  financialYear: number;
+  rows: PayBillMonthlyEmployeeMatrixRow[];
+  totals: Record<string, number>;
+}
+
+export interface PayBillBatchMatrix {
+  months: PayBillBatchMatrixMonth[];
+  totalEmployees: number;
+  totalFiles: number;
+}
+
 export interface PayBillMetadata {
   month: string;
   ddoHrpn: string;
@@ -136,12 +207,16 @@ export interface PayBillImportSummary {
 }
 
 export interface PayBillParsedResult {
+  sheetType: PayBillSheetType;
   metadata: PayBillMetadata;
   rows: PayBillEmployeeRow[];
   pdfTotals: PayBillTotalRow | null;
+  deductionRows?: PayBillDeductionRow[];
+  pdfDeductionTotals?: PayBillDeductionTotalRow | null;
   rawText: string;
   pageCount: number;
   parsingWarnings: string[];
+  detection?: PayBillDetectionInfo;
 }
 
 export interface PayBillImportResult {
@@ -149,6 +224,7 @@ export interface PayBillImportResult {
   billNo: string;
   month: string;
   financialYear: number;
+  sheetType?: PayBillSheetType;
   totalRecords: number;
   matchedCount: number;
   notFoundCount: number;
@@ -162,6 +238,7 @@ export interface PayBillStoredImport {
   billNo: string;
   month: string;
   financialYear: number;
+  sheetType?: PayBillSheetType;
   ddoHrpn: string | null;
   ddoName: string | null;
   majorHead: string | null;
@@ -173,8 +250,19 @@ export interface PayBillStoredImport {
   totalRecords: number;
   matchedCount: number;
   grossTotal: number;
+  totalDeductions?: number;
+  netPayTotal?: number;
   uploadedFile: string | null;
   createdAt: string;
+}
+
+export interface PayBillValidationFlags {
+  hrpnMatch: boolean;
+  nameMatch: boolean;
+  designationMatch: boolean;
+  columnMappingValid: boolean;
+  grossValidation: boolean;
+  totalReconciled: boolean;
 }
 
 export interface PayBillStoredEarning {
@@ -202,40 +290,159 @@ export interface PayBillStoredEarning {
   otherAllowance?: number;
   grossAmount: number;
   mappingStatus: MappingStatus;
+  validationStatus?: ValidationStatus;
+  mappingMessage?: string | null;
+  nameMismatch?: boolean;
+  errors?: string[];
+  warnings?: string[];
+  validationFlags?: PayBillValidationFlags;
   createdAt: string;
 }
 
-export interface PayBillParameterMatrixRow {
-  parameter: string; // e.g. "Basic Pay", "DA (0103)", "Gross Amount"
-  key: string; // e.g. "basic_pay", "da", "gross_amount"
-  months: {
-    April: number;
-    May: number;
-    June: number;
-    July: number;
-    August: number;
-    September: number;
-    October: number;
-    November: number;
-    December: number;
-    January: number;
-    February: number;
-    March: number;
-  };
-  q1: number;
-  q2: number;
-  q3: number;
-  q4: number;
-  total: number;
+export interface PayBillStoredDeduction {
+  id: string;
+  importId: string;
+  officeId: string;
+  employeeId: string | null;
+  hrpn: string;
+  employeeName: string;
+  designation: string | null;
+  month: string;
+  financialYear: number;
+  incomeTax: number; // 9510
+  profTax: number; // 9570
+  hbaInterest: number; // 9591
+  gpfRegular: number; // 9670
+  gpfClass4: number; // 9531
+  npsRegular: number; // 9534
+  gisGovtFund: number; // 9581
+  gisGovtSaving: number; // 9582
+  otherDeductions?: number;
+  totalDeductions: number;
+  netPay: number;
+  mappingStatus: MappingStatus;
+  validationStatus?: ValidationStatus;
+  mappingMessage?: string | null;
+  nameMismatch?: boolean;
+  errors?: string[];
+  warnings?: string[];
+  validationFlags?: PayBillValidationFlags;
+  createdAt: string;
 }
 
-export interface PayBillAllowanceMatrixReport {
+export interface PayBillDeductionRow {
+  srNo?: number;
+  hrpn: string;
+  employeeName: string;
+  designation: string;
+  incomeTax: number; // 9510
+  profTax: number; // 9570
+  hbaInterest: number; // 9591
+  gpfRegular: number; // 9670
+  gpfClass4: number; // 9531
+  npsRegular: number; // 9534
+  gisGovtFund: number; // 9581
+  gisGovtSaving: number; // 9582
+  otherDeductions?: number;
+  totalDeductions: number;
+  netPay: number;
+}
+
+export interface PayBillDeductionTotalRow {
+  incomeTax: number;
+  profTax: number;
+  hbaInterest: number;
+  gpfRegular: number;
+  gpfClass4: number;
+  npsRegular: number;
+  gisGovtFund: number;
+  gisGovtSaving: number;
+  otherDeductions?: number;
+  totalDeductions: number;
+  netPay: number;
+}
+
+export interface PayBillDeductionExtractedRecord {
+  id: string;
+  row: PayBillDeductionRow;
+  mappingStatus: MappingStatus;
+  mappingMessage?: string;
+  matchedEmployee?: MasterEmployeeInfo | null;
+  nameMismatch?: boolean;
+  validationStatus: ValidationStatus;
+  errors: string[];
+  warnings: string[];
+  normalizedString: string;
+}
+
+export interface BatchFileItem {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  status: 'PENDING' | 'PARSING' | 'SUCCESS' | 'ERROR';
+  month?: string;
+  billNo?: string;
+  sheetType?: PayBillSheetType;
+  parsedResult?: PayBillParsedResult;
+  recordCount?: number;
+  grossTotal?: number;
+  error?: string;
+}
+
+export type AuditAnomalyType =
+  | 'DA_HIKE'
+  | 'BASIC_INCREMENT'
+  | 'OUTLIER_ALLOWANCE'
+  | 'NET_MISMATCH'
+  | 'NEW_EMPLOYEE'
+  | 'PROMOTION';
+
+export interface PayBillAuditAnomaly {
+  id: string;
+  hrpn: string;
+  employeeName: string;
+  type: AuditAnomalyType;
+  severity: 'INFO' | 'WARNING' | 'ALERT';
+  title: string;
+  description: string;
+  oldValue?: string | number;
+  newValue?: string | number;
+}
+
+export interface PayBillAuditReport {
+  month: string;
+  daPercentage: number;
+  previousDaPercentage?: number;
+  isDaHiked: boolean;
+  incrementCount: number;
+  anomalies: PayBillAuditAnomaly[];
+  healthyRecordCount: number;
+}
+
+export interface PostToLedgerPayload {
+  month: string;
   financialYear: number;
-  hrpn: string | null;
-  employeeName?: string | null;
-  monthLabels: string[];
-  rows: PayBillParameterMatrixRow[];
-  totalGross: number;
+  billNo: string;
+  voucherDate: string;
+  majorHead: string; // e.g. "2403-00-101-02-00"
+  basicPayTotal: number; // 0101
+  daTotal: number; // 0103
+  hraTotal: number; // 0110
+  claTotal: number; // 0111
+  medTotal: number; // 0107
+  transTotal: number; // 0113
+  specialPayTotal: number; // 0101/0102
+  washingTotal: number; // 0132
+  nppTotal: number; // 0128
+  grossTotal: number;
+  gpfTotal?: number;
+  npsTotal?: number;
+  incomeTaxTotal?: number;
+  ptTotal?: number;
+  gisTotal?: number;
+  netTotal?: number;
+  remarks?: string;
 }
 
 export type PayBillSortField =
@@ -251,3 +458,54 @@ export type PayBillSortField =
   | 'createdAt';
 
 export type PayBillSortDirection = 'asc' | 'desc';
+
+export interface PayBillDetectionInfo {
+  confidence: number; // 0 to 100
+  issues: string[];
+}
+
+export interface PayBillSettings {
+  ddoHrpn?: string;
+  ddoName?: string;
+  officeName?: string;
+  billNo?: string;
+  majorHead?: string;
+  ddoCode?: string;
+  department?: string;
+  tanNo?: string;
+  cardexNo?: string;
+  address?: string;
+  mobileNo?: string;
+  daRates: number[]; // DA percentage accepted for the current financial year
+  daHikeThreshold: number; // DA % above which an ALERT is raised (default 50)
+  basicPayChangeTolerance: number; // % basic-pay delta vs previous month that raises a WARNING (default 10)
+  manualAllowances?: string[]; // custom allowance parameters entered manually in the employee ledger
+  manualDeductions?: string[]; // custom deduction parameters entered manually in the employee ledger
+}
+
+export interface PayBillLedgerVoucher {
+  id: string;
+  voucherNo: string;
+  billNo: string;
+  month: string;
+  financialYear: number;
+  voucherDate: string;
+  majorHead: string | null;
+  grossTotal: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface PayBillAuditConfig {
+  daRates?: number[];
+  daHikeThreshold?: number;
+  basicPayChangeTolerance?: number;
+  previousDaPercentage?: number;
+  previousMonthRecords?: Array<{
+    hrpn: string;
+    basicPay: number;
+    da: number;
+    grossAmount: number;
+    month: string;
+  }>;
+}

@@ -1,5 +1,5 @@
-import { CheckCircle2, AlertCircle, AlertTriangle, HelpCircle, Loader2, ArrowRight, X } from 'lucide-react';
-import type { PayBillImportSummary, PayBillMetadata } from '../types';
+import { CheckCircle2, AlertCircle, AlertTriangle, HelpCircle, Loader2, ArrowRight, X, ShieldAlert } from 'lucide-react';
+import type { PayBillImportSummary, PayBillMetadata, PayBillStoredImport } from '../types';
 
 interface ImportConfirmationDialogProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface ImportConfirmationDialogProps {
   isImporting: boolean;
   summary: PayBillImportSummary;
   metadata: PayBillMetadata;
+  existingBill?: PayBillStoredImport | null;
 }
 
 export function ImportConfirmationDialog({
@@ -17,12 +18,14 @@ export function ImportConfirmationDialog({
   isImporting,
   summary,
   metadata,
+  existingBill,
 }: ImportConfirmationDialogProps) {
   if (!isOpen) return null;
 
   const hasCriticalErrors = summary.errorCount > 0;
   const hasDuplicates = summary.duplicateCount > 0;
   const hasUnmatched = summary.notFoundCount > 0;
+  const hasExistingBill = Boolean(existingBill);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -90,7 +93,23 @@ export function ImportConfirmationDialog({
         </div>
 
         {/* Warnings / Error Notices */}
-        {hasCriticalErrors ? (
+        {hasExistingBill ? (
+          <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-800 dark:text-red-300">
+            <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Duplicate Bill Already Imported</p>
+              <p className="text-[0.72rem] mt-0.5">
+                Bill <b className="font-mono">{existingBill?.billNo}</b> was already imported for{' '}
+                <b>{existingBill?.month}-{existingBill?.financialYear}</b>{' '}
+                ({existingBill?.totalRecords} records) on{' '}
+                {existingBill?.createdAt
+                  ? new Date(existingBill.createdAt).toLocaleDateString('en-IN')
+                  : 'an earlier date'}
+                . Import is blocked to avoid duplicate salary records.
+              </p>
+            </div>
+          </div>
+        ) : hasCriticalErrors ? (
           <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-800 dark:text-red-300">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             <div>
@@ -133,7 +152,7 @@ export function ImportConfirmationDialog({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={isImporting || hasCriticalErrors || summary.totalRecords === 0}
+            disabled={isImporting || hasCriticalErrors || hasExistingBill || summary.totalRecords === 0}
             className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {isImporting ? (

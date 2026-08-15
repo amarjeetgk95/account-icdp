@@ -244,6 +244,50 @@ export class PayBillValidationService {
       calculatedGrossTotal: reconciliation.calculatedGross,
     };
   }
+
+  /**
+   * Validate deduction records for arithmetic correctness
+   */
+  validateDeductionRecords(
+    records: import('../types').PayBillDeductionExtractedRecord[]
+  ): import('../types').PayBillDeductionExtractedRecord[] {
+    return records.map((record) => {
+      const { row } = record;
+      const errors = [...record.errors];
+      const warnings = [...record.warnings];
+
+      // Sum of deductions
+      const sumDed =
+        (row.incomeTax || 0) +
+        (row.profTax || 0) +
+        (row.hbaInterest || 0) +
+        (row.gpfRegular || 0) +
+        (row.gpfClass4 || 0) +
+        (row.npsRegular || 0) +
+        (row.gisGovtFund || 0) +
+        (row.gisGovtSaving || 0) +
+        (row.otherDeductions || 0);
+
+      const roundedSum = Math.round(sumDed * 100) / 100;
+      const roundedTotal = Math.round((row.totalDeductions || 0) * 100) / 100;
+
+      if (Math.abs(roundedSum - roundedTotal) > 1.0) {
+        errors.push(
+          `Total deductions (${roundedTotal}) does not match sum of individual deductions (${roundedSum})`
+        );
+      }
+
+      const validationStatus =
+        errors.length > 0 ? 'ERROR' : warnings.length > 0 ? 'WARNING' : 'VALID';
+
+      return {
+        ...record,
+        errors: Array.from(new Set(errors)),
+        warnings: Array.from(new Set(warnings)),
+        validationStatus,
+      };
+    });
+  }
 }
 
 export const paybillValidationService = new PayBillValidationService();

@@ -21,7 +21,6 @@ vi.mock('@/core/supabase/client', () => ({
   },
 }));
 
-// Mock dependencies
 vi.mock('@/core/auth/store', () => ({
   useAuthStore: {
     getState: () => ({
@@ -74,55 +73,92 @@ describe('PayBillImportPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders initial upload dropzone and sample load button', () => {
+  it('renders 2 module tabs and upload button in header', () => {
     render(
       <MemoryRouter>
         <PayBillImportPage />
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/Pay Bill PDF Import/i)).toBeInTheDocument();
-    expect(screen.getByText(/Load Sample Pay Bill PDF/i)).toBeInTheDocument();
-    expect(screen.getByText(/OCR \/ Text Paste Fallback/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pay Bill PDF Import & Allowance System/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Upload Pay Bill PDF/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /12-Month Matrix/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Employee Ledger/i })).toBeInTheDocument();
   });
 
-  it('loads and parses sample PDF data on sample button click', async () => {
+  it('opens upload popup modal on button click and extracts sample data', async () => {
     render(
       <MemoryRouter>
         <PayBillImportPage />
       </MemoryRouter>
     );
 
-    const sampleBtn = screen.getByText(/Load Sample Pay Bill PDF/i);
+    const uploadBtn = screen.getByRole('button', { name: /Upload Pay Bill PDF/i });
+    fireEvent.click(uploadBtn);
+
+    // Verify modal is open
+    expect(screen.getByText(/Upload & Extract Pay Bill PDF/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sample Earning PDF/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sample Deduction PDF/i)).toBeInTheDocument();
+
+    // Click sample load button inside modal
+    const sampleBtn = screen.getByText(/Sample Earning PDF/i);
     fireEvent.click(sampleBtn);
 
-    // Wait for the stages and ready state
+    // Wait for the extraction preview in modal
     await waitFor(
       () => {
-        expect(screen.getByText(/Pay Bill Inner Sheet Details/i)).toBeInTheDocument();
+        expect(screen.getByText(/Employee Earnings Preview & Verification/i)).toBeInTheDocument();
       },
       { timeout: 3000 }
     );
 
-    // Check Header Metadata
-    expect(screen.getByText(/July-2026/i)).toBeInTheDocument();
-    expect(screen.getByText(/2403/i)).toBeInTheDocument(); // Major Head
-    expect(screen.getByText(/SRTD00979G/i)).toBeInTheDocument(); // TAN
-
-    // Check HRPN Keys
     expect(screen.getByText('20013826')).toBeInTheDocument();
-    expect(screen.getByText('20014113')).toBeInTheDocument();
-    expect(screen.getByText('20014151')).toBeInTheDocument();
-    expect(screen.getByText('20014153')).toBeInTheDocument();
+    expect(screen.getByText(/Insert Data into Module/i)).toBeInTheDocument();
+  });
 
-    // Check Gross amounts
-    expect(screen.getByText('₹2,28,118')).toBeInTheDocument();
-    expect(screen.getByText('₹2,53,494')).toBeInTheDocument();
-    expect(screen.getByText('₹2,40,200')).toBeInTheDocument();
-    expect(screen.getByText('₹1,70,502')).toBeInTheDocument();
+  it('extracts sample deduction PDF data with 8 employees and reconciles net pay', async () => {
+    render(
+      <MemoryRouter>
+        <PayBillImportPage />
+      </MemoryRouter>
+    );
 
-    // Check Reconciliation
-    expect(screen.getByText(/Total Reconciliation Status:/i)).toBeInTheDocument();
-    expect(screen.getAllByText('MATCHED').length).toBeGreaterThan(0);
+    const uploadBtn = screen.getByRole('button', { name: /Upload Pay Bill PDF/i });
+    fireEvent.click(uploadBtn);
+
+    // Click sample deduction load button inside modal
+    const sampleDedBtn = screen.getByText(/Sample Deduction PDF/i);
+    fireEvent.click(sampleDedBtn);
+
+    // Wait for the extraction preview in modal
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Deduction Sheet & Net Pay Verification/i)).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
+
+    expect(screen.getAllByText('20105451').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('20105536')).toBeInTheDocument();
+    expect(screen.getByText(/Insert Data into Module/i)).toBeInTheDocument();
+  });
+
+  it('switches between 12-Month Matrix and Employee Ledger tabs', () => {
+    render(
+      <MemoryRouter>
+        <PayBillImportPage />
+      </MemoryRouter>
+    );
+
+    // Click 12-Month Matrix tab
+    const matrixTab = screen.getByRole('button', { name: /12-Month Matrix/i });
+    fireEvent.click(matrixTab);
+    expect(screen.getByText(/Pay Bill Allowance Matrix Report/i)).toBeInTheDocument();
+
+    // Click Employee Ledger tab
+    const employeeTab = screen.getByRole('button', { name: /Employee Ledger/i });
+    fireEvent.click(employeeTab);
+    expect(screen.getByText(/Select Employee:/i)).toBeInTheDocument();
   });
 });

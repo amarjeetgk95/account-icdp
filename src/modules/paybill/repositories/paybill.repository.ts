@@ -3,10 +3,17 @@ import { getOfficeId } from '@/shared/utilities/office';
 import type {
   PayBillStoredImport,
   PayBillStoredEarning,
+  PayBillStoredDeduction,
   PayBillAllowanceMatrixReport,
   PayBillParameterMatrixRow,
   PayBillSortField,
   PayBillSortDirection,
+  PayBillSheetType,
+  PayBillSettings,
+  PayBillLedgerVoucher,
+  PostToLedgerPayload,
+  MappingStatus,
+  PayBillValidationFlags,
 } from '../types';
 
 const MONTH_ORDER = [
@@ -16,9 +23,23 @@ const MONTH_ORDER = [
   'January', 'February', 'March',
 ];
 
+const DEFAULT_SETTINGS: PayBillSettings = {
+  daRates: [50, 53, 46, 42, 38],
+  daHikeThreshold: 50,
+  basicPayChangeTolerance: 10,
+  manualAllowances: [],
+  manualDeductions: [],
+};
+
 // Fallback in-memory cache for standalone/offline runs
 let localImportsCache: PayBillStoredImport[] = [];
 let localEarningsCache: PayBillStoredEarning[] = [];
+let localDeductionsCache: PayBillStoredDeduction[] = [];
+let localSettings: PayBillSettings | null = null;
+let localVouchersCache: PayBillLedgerVoucher[] = [];
+let localManualValuesCache: ManualLedgerValuesMap | null = null;
+
+type ManualLedgerValuesMap = Record<string, Record<string, Record<string, number>>>;
 
 export const paybillRepository = {
   /**
@@ -48,6 +69,7 @@ export const paybillRepository = {
           billNo: r.bill_no,
           month: r.month,
           financialYear: r.financial_year,
+          sheetType: (r.sheet_type as PayBillSheetType) || 'EARNING',
           ddoHrpn: r.ddo_hrpn,
           ddoName: r.ddo_name,
           majorHead: r.major_head,
@@ -71,6 +93,77 @@ export const paybillRepository = {
       return localImportsCache.filter((i) => i.financialYear === financialYear);
     }
     return localImportsCache;
+  },
+
+  /**
+   * Check whether a bill was already imported for the same month + sheet side.
+   * Used as a guard against duplicate imports before saving.
+   */
+  async findImportByBillNo(
+    billNo: string,
+    params?: { month?: string; financialYear?: number; sheetType?: PayBillSheetType }
+  ): Promise<PayBillStoredImport | null> {
+    if (!billNo) return null;
+    const officeId = getOfficeId();
+    const cleanBillNo = billNo.trim();
+
+    if (officeId) {
+      try {
+        let q = supabase
+          .from('paybill_imports')
+          .select('*')
+          .eq('office_id', officeId)
+          .ilike('bill_no', `%${cleanBillNo}%`);
+
+        if (params?.month) {
+          q = q.eq('month', params.month);
+        }
+        if (params?.financialYear != null) {
+          q = q.eq('financial_year', params.financialYear);
+        }
+        if (params?.sheetType) {
+          q = q.eq('sheet_type', params.sheetType);
+        }
+
+        const { data, error } = await q;
+        if (!error && data && data.length > 0) {
+          const r = data[0];
+          return {
+            id: r.id,
+            officeId: String(r.office_id),
+            billNo: r.bill_no,
+            month: r.month,
+            financialYear: r.financial_year,
+            sheetType: (r.sheet_type as PayBillSheetType) || 'EARNING',
+            ddoHrpn: r.ddo_hrpn,
+            ddoName: r.ddo_name,
+            majorHead: r.major_head,
+            ddoCode: r.ddo_code,
+            department: r.department,
+            officeName: r.office_name,
+            tanNo: r.tan_no,
+            cardexNo: r.cardex_no,
+            totalRecords: r.total_records,
+            matchedCount: r.matched_count,
+            grossTotal: Number(r.gross_total) || 0,
+            uploadedFile: r.uploaded_file,
+            createdAt: r.created_at,
+          };
+        }
+      } catch (err) {
+        console.warn('[PayBillRepository] findImportByBillNo db error:', err);
+      }
+    }
+
+    const cleanMonth = params?.month?.toLowerCase();
+    const match = localImportsCache.find((i) => {
+      if (i.billNo.toLowerCase() !== cleanBillNo.toLowerCase()) return false;
+      if (cleanMonth && i.month.toLowerCase() !== cleanMonth) return false;
+      if (params?.financialYear != null && i.financialYear !== params.financialYear) return false;
+      if (params?.sheetType && i.sheetType !== params.sheetType) return false;
+      return true;
+    });
+    return match || null;
   },
 
   /**
@@ -134,6 +227,19 @@ export const paybillRepository = {
             nppAllowance: Number(r.npp_allowance) || 0,
             grossAmount: Number(r.gross_amount) || 0,
             mappingStatus: r.mapping_status as PayBillStoredEarning['mappingStatus'],
+            validationStatus: (r as unknown as { validation_status?: string }).validation_status as
+              | PayBillStoredEarning['validationStatus']
+              | undefined,
+            mappingMessage: (r as unknown as { mapping_message?: string | null }).mapping_message,
+            nameMismatch: Boolean((r as unknown as { name_mismatch?: boolean }).name_mismatch),
+            errors: Array.isArray((r as unknown as { errors?: unknown }).errors)
+              ? ((r as unknown as { errors: string[] }).errors)
+              : undefined,
+            warnings: Array.isArray((r as unknown as { warnings?: unknown }).warnings)
+              ? ((r as unknown as { warnings: string[] }).warnings)
+              : undefined,
+            validationFlags: (r as unknown as { validation_flags?: PayBillValidationFlags | null })
+              .validation_flags || undefined,
             createdAt: r.created_at,
           }));
         }
@@ -197,6 +303,7 @@ export const paybillRepository = {
 
     localImportsCache = localImportsCache.filter((i) => i.id !== importId);
     localEarningsCache = localEarningsCache.filter((e) => e.importId !== importId);
+    localDeductionsCache = localDeductionsCache.filter((d) => d.importId !== importId);
   },
 
   /**
@@ -205,6 +312,177 @@ export const paybillRepository = {
   saveToCache(importRecord: PayBillStoredImport, earnings: PayBillStoredEarning[]) {
     localImportsCache = [importRecord, ...localImportsCache.filter((i) => i.id !== importRecord.id)];
     localEarningsCache = [...earnings, ...localEarningsCache.filter((e) => e.importId !== importRecord.id)];
+  },
+
+  /**
+   * Save import and deduction records into local cache
+   */
+  saveDeductionsToCache(importRecord: PayBillStoredImport, deductions: PayBillStoredDeduction[]) {
+    localImportsCache = [importRecord, ...localImportsCache.filter((i) => i.id !== importRecord.id)];
+    localDeductionsCache = [...deductions, ...localDeductionsCache.filter((d) => d.importId !== importRecord.id)];
+  },
+
+  /**
+   * List individual employee deduction records with filtering
+   */
+  async listDeductions(params?: {
+    financialYear?: number;
+    month?: string;
+    hrpn?: string;
+    importId?: string;
+  }): Promise<PayBillStoredDeduction[]> {
+    const officeId = getOfficeId();
+    let records: PayBillStoredDeduction[] = [];
+
+    try {
+      if (officeId) {
+        let q = supabase
+          .from('paybill_employee_deductions')
+          .select('*')
+          .eq('office_id', officeId);
+
+        if (params?.financialYear != null) {
+          q = q.eq('financial_year', params.financialYear);
+        }
+        if (params?.month) {
+          q = q.eq('month', params.month);
+        }
+        if (params?.hrpn) {
+          q = q.eq('hrpn', params.hrpn.trim());
+        }
+        if (params?.importId) {
+          q = q.eq('import_id', params.importId);
+        }
+
+        const { data, error } = await q;
+        if (!error && data) {
+          records = data.map((r) => ({
+            id: r.id,
+            importId: r.import_id,
+            officeId: String(r.office_id),
+            employeeId: r.employee_id,
+            hrpn: r.hrpn,
+            employeeName: r.employee_name,
+            designation: r.designation,
+            month: r.month,
+            financialYear: r.financial_year,
+            incomeTax: Number(r.income_tax) || 0,
+            profTax: Number(r.prof_tax) || 0,
+            hbaInterest: Number(r.hba_interest) || 0,
+            gpfRegular: Number(r.gpf_regular) || 0,
+            gpfClass4: Number(r.gpf_class4) || 0,
+            npsRegular: Number(r.nps_regular) || 0,
+            gisGovtFund: Number(r.gis_govt_fund) || 0,
+            gisGovtSaving: Number(r.gis_govt_saving) || 0,
+            otherDeductions: Number(r.other_deductions) || 0,
+            totalDeductions: Number(r.total_deductions) || 0,
+            netPay: Number(r.net_pay) || 0,
+            mappingStatus: (r.mapping_status as MappingStatus) || 'MATCHED',
+            validationStatus: (r as unknown as { validation_status?: string }).validation_status as
+              | PayBillStoredDeduction['validationStatus']
+              | undefined,
+            mappingMessage: (r as unknown as { mapping_message?: string | null }).mapping_message,
+            nameMismatch: Boolean((r as unknown as { name_mismatch?: boolean }).name_mismatch),
+            errors: Array.isArray((r as unknown as { errors?: unknown }).errors)
+              ? ((r as unknown as { errors: string[] }).errors)
+              : undefined,
+            warnings: Array.isArray((r as unknown as { warnings?: unknown }).warnings)
+              ? ((r as unknown as { warnings: string[] }).warnings)
+              : undefined,
+            validationFlags: (r as unknown as { validation_flags?: PayBillValidationFlags | null })
+              .validation_flags || undefined,
+            createdAt: r.created_at || new Date().toISOString(),
+          }));
+          return records;
+        }
+      }
+    } catch (err) {
+      console.warn('[PayBillRepository] listDeductions fallback to cache:', err);
+    }
+
+    let filtered = [...localDeductionsCache];
+    if (params?.financialYear != null) {
+      filtered = filtered.filter((r) => r.financialYear === params.financialYear);
+    }
+    if (params?.month) {
+      filtered = filtered.filter((r) => r.month === params.month);
+    }
+    if (params?.hrpn) {
+      filtered = filtered.filter((r) => r.hrpn === params.hrpn!.trim());
+    }
+    return filtered;
+  },
+
+  /**
+   * Generate Deduction Parameter Matrix Report (Columns = Months, Rows = Deduction items + Total Ded + Net Pay)
+   */
+  async getDeductionMatrix(
+    financialYear: number,
+    hrpn?: string | null
+  ): Promise<PayBillAllowanceMatrixReport> {
+    const cleanHrpn = hrpn ? hrpn.trim() : null;
+    const deductions = await this.listDeductions({ financialYear, hrpn: cleanHrpn || undefined });
+
+    const parameterDefs: Array<{ label: string; key: keyof PayBillStoredDeduction }> = [
+      { label: 'Income Tax (9510)', key: 'incomeTax' },
+      { label: 'Prof Tax (9570)', key: 'profTax' },
+      { label: 'HBA Interest (9591)', key: 'hbaInterest' },
+      { label: 'GPF Regular (9670)', key: 'gpfRegular' },
+      { label: 'GPF Class 4 (9531)', key: 'gpfClass4' },
+      { label: 'NPS Regular (9534)', key: 'npsRegular' },
+      { label: 'Govt Fund (9581)', key: 'gisGovtFund' },
+      { label: 'Govt Saving (9582)', key: 'gisGovtSaving' },
+      { label: 'Total Deductions', key: 'totalDeductions' },
+      { label: 'Net Pay', key: 'netPay' },
+    ];
+
+    const rows: PayBillParameterMatrixRow[] = parameterDefs.map((def) => {
+      const monthVals: Record<string, number> = {
+        April: 0, May: 0, June: 0,
+        July: 0, August: 0, September: 0,
+        October: 0, November: 0, December: 0,
+        January: 0, February: 0, March: 0,
+      };
+
+      for (const d of deductions) {
+        if (monthVals[d.month] !== undefined) {
+          const val = Number(d[def.key]) || 0;
+          monthVals[d.month] = Math.round((monthVals[d.month] + val) * 100) / 100;
+        }
+      }
+
+      const q1 = Math.round((monthVals.April + monthVals.May + monthVals.June) * 100) / 100;
+      const q2 = Math.round((monthVals.July + monthVals.August + monthVals.September) * 100) / 100;
+      const q3 = Math.round((monthVals.October + monthVals.November + monthVals.December) * 100) / 100;
+      const q4 = Math.round((monthVals.January + monthVals.February + monthVals.March) * 100) / 100;
+      const total = Math.round((q1 + q2 + q3 + q4) * 100) / 100;
+
+      return {
+        parameter: def.label,
+        key: String(def.key),
+        months: monthVals as PayBillParameterMatrixRow['months'],
+        q1,
+        q2,
+        q3,
+        q4,
+        total,
+      };
+    });
+
+    const netRow = rows.find((r) => r.key === 'netPay');
+    let empName: string | null = null;
+    if (cleanHrpn && deductions.length > 0) {
+      empName = deductions[0].employeeName;
+    }
+
+    return {
+      financialYear,
+      hrpn: cleanHrpn,
+      employeeName: empName,
+      monthLabels: MONTH_ORDER,
+      rows,
+      totalGross: netRow ? netRow.total : 0,
+    };
   },
 
   /**
@@ -311,5 +589,413 @@ export const paybillRepository = {
       rows,
       totalGross: grossRow ? grossRow.total : 0,
     };
+  },
+
+  /**
+   * 1-Click Auto-Create Master Employee from Pay Bill row
+   */
+  async createMasterEmployeeFromPayBill(
+    row: { hrpn: string; employeeName: string; designation?: string; payScale?: string },
+    pan?: string
+  ): Promise<{ id: string; name: string; hrpn: string }> {
+    const officeId = getOfficeId();
+    if (!officeId) throw new Error('No active office selected');
+
+    // Generate dummy PAN if not provided e.g. "HRPN20105536"
+    const panVal = pan || `PAN${row.hrpn}`.slice(0, 10).toUpperCase();
+
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .insert({
+          office_id: officeId,
+          hprn_no: row.hrpn,
+          name: row.employeeName,
+          designation: row.designation || null,
+          pay_scale: row.payScale || null,
+          pan: panVal,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        return {
+          id: String(data.id),
+          name: data.name,
+          hrpn: data.hprn_no || row.hrpn,
+        };
+      }
+    } catch (err) {
+      console.warn('[PayBillRepository] createMasterEmployee fallback:', err);
+    }
+
+    return {
+      id: `local-emp-${row.hrpn}`,
+      name: row.employeeName,
+      hrpn: row.hrpn,
+    };
+  },
+
+  /**
+   * 1-Click Update Master Employee Designation / Pay Scale
+   */
+  async syncMasterEmployeePayScale(
+    empId: string,
+    updates: { designation?: string; payScale?: string }
+  ): Promise<boolean> {
+    const officeId = getOfficeId();
+    if (!officeId) return true;
+
+    try {
+      const payload: { designation?: string; pay_scale?: string } = {};
+      if (updates.designation) payload.designation = updates.designation;
+      if (updates.payScale) payload.pay_scale = updates.payScale;
+
+      const { error } = await supabase
+        .from('employees')
+        .update(payload)
+        .eq('id', empId)
+        .eq('office_id', officeId);
+
+      return !error;
+    } catch (err) {
+      console.warn('[PayBillRepository] syncMasterEmployeePayScale fallback:', err);
+      return true;
+    }
+  },
+
+  /**
+   * Post Salary Expenditure to Ledger / Budget Voucher
+   * Creates a real `paybill_vouchers` row (salary journal entry). If the office
+   * already has a voucher for the same month, the existing voucher is returned
+   * instead of creating a duplicate.
+   */
+  async postPayBillToLedger(payload: PostToLedgerPayload): Promise<{ success: boolean; voucherNo: string }> {
+    const officeId = getOfficeId();
+    const voucherNo = `SAL/${payload.month.toUpperCase().slice(0, 3)}/${payload.billNo || '001'}`;
+
+    if (!officeId) {
+      console.warn('[PayBillRepository] No office selected - keeping voucher in local cache only');
+      const cached: PayBillLedgerVoucher = {
+        id: `local-voucher-${voucherNo}`,
+        voucherNo,
+        billNo: payload.billNo,
+        month: payload.month,
+        financialYear: payload.financialYear,
+        voucherDate: payload.voucherDate || new Date().toISOString().slice(0, 10),
+        majorHead: payload.majorHead || null,
+        grossTotal: payload.grossTotal,
+        status: 'POSTED',
+        createdAt: new Date().toISOString(),
+      };
+      localVouchersCache = [cached, ...localVouchersCache.filter((v) => v.voucherNo !== voucherNo)];
+      return { success: true, voucherNo };
+    }
+
+    try {
+      const existing = await this.getPostedVoucher(payload.month, payload.financialYear);
+      if (existing) {
+        console.info(
+          `[PayBillRepository] Voucher already posted for month=${payload.month} fy=${payload.financialYear}: ${existing.voucherNo}`
+        );
+        return { success: true, voucherNo: existing.voucherNo };
+      }
+
+      const { data, error } = await supabase
+        .from('paybill_vouchers')
+        .insert({
+          office_id: officeId,
+          voucher_no: voucherNo,
+          bill_no: payload.billNo,
+          month: payload.month,
+          financial_year: payload.financialYear,
+          voucher_date: payload.voucherDate || new Date().toISOString().slice(0, 10),
+          major_head: payload.majorHead || null,
+          gross_total: payload.grossTotal || 0,
+          basic_pay_total: payload.basicPayTotal || 0,
+          da_total: payload.daTotal || 0,
+          hra_total: payload.hraTotal || 0,
+          cla_total: payload.claTotal || 0,
+          med_total: payload.medTotal || 0,
+          trans_total: payload.transTotal || 0,
+          special_pay_total: payload.specialPayTotal || 0,
+          washing_total: payload.washingTotal || 0,
+          npp_total: payload.nppTotal || 0,
+          gpf_total: payload.gpfTotal || 0,
+          nps_total: payload.npsTotal || 0,
+          income_tax_total: payload.incomeTaxTotal || 0,
+          pt_total: payload.ptTotal || 0,
+          gis_total: payload.gisTotal || 0,
+          net_total: payload.netTotal || 0,
+          remarks: payload.remarks || null,
+          status: 'POSTED',
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // Unique month+office constraint hit - another tab/user posted already
+        const already = await this.getPostedVoucher(payload.month, payload.financialYear);
+        if (already) return { success: true, voucherNo: already.voucherNo };
+        throw error;
+      }
+
+      if (data) {
+        const voucher: PayBillLedgerVoucher = {
+          id: data.id,
+          voucherNo: data.voucher_no,
+          billNo: data.bill_no,
+          month: data.month,
+          financialYear: data.financial_year,
+          voucherDate: data.voucher_date,
+          majorHead: data.major_head,
+          grossTotal: Number(data.gross_total) || 0,
+          status: data.status,
+          createdAt: data.created_at,
+        };
+        localVouchersCache = [voucher, ...localVouchersCache.filter((v) => v.voucherNo !== voucher.voucherNo)];
+      }
+
+      console.info(`[PayBillRepository] Voucher ${voucherNo} posted for month=${payload.month} fy=${payload.financialYear}`);
+      return { success: true, voucherNo };
+    } catch (err) {
+      console.warn('[PayBillRepository] postPayBillToLedger db error:', err);
+      return { success: false, voucherNo: '' };
+    }
+  },
+
+  /**
+   * Fetch the posted ledger voucher for a month (if any)
+   */
+  async getPostedVoucher(month: string, financialYear: number): Promise<PayBillLedgerVoucher | null> {
+    const officeId = getOfficeId();
+    if (officeId) {
+      try {
+        const { data, error } = await supabase
+          .from('paybill_vouchers')
+          .select('*')
+          .eq('office_id', officeId)
+          .eq('month', month)
+          .eq('financial_year', financialYear)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && data) {
+          return {
+            id: data.id,
+            voucherNo: data.voucher_no,
+            billNo: data.bill_no,
+            month: data.month,
+            financialYear: data.financial_year,
+            voucherDate: data.voucher_date,
+            majorHead: data.major_head,
+            grossTotal: Number(data.gross_total) || 0,
+            status: data.status,
+            createdAt: data.created_at,
+          };
+        }
+      } catch (err) {
+        console.warn('[PayBillRepository] getPostedVoucher db error:', err);
+      }
+    }
+    return (
+      localVouchersCache.find((v) => v.month === month && v.financialYear === financialYear) || null
+    );
+  },
+
+  /**
+   * Load office-level paybill settings (DA rates, bill metadata defaults, audit tolerances)
+   */
+  async getSettings(): Promise<PayBillSettings> {
+    if (localSettings) return localSettings;
+
+    const officeId = getOfficeId();
+    const stored = officeId
+      ? (() => {
+          try {
+            const raw = localStorage.getItem(`paybill_settings_${officeId}`);
+            return raw ? (JSON.parse(raw) as PayBillSettings) : null;
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+
+    if (officeId) {
+      try {
+        const { data, error } = await supabase
+          .from('paybill_settings')
+          .select('*')
+          .eq('office_id', officeId);
+
+        if (!error && data && data.length > 0) {
+          const merged = { ...DEFAULT_SETTINGS };
+          for (const row of data) {
+            if (row.settings_key !== 'defaults') continue;
+            const val = row.settings_value as Partial<PayBillSettings>;
+            if (val && typeof val === 'object') {
+              Object.assign(merged, val);
+            }
+          }
+          localSettings = merged;
+          return merged;
+        }
+      } catch (err) {
+        console.warn('[PayBillRepository] getSettings db error:', err);
+      }
+    }
+
+    const fallback: PayBillSettings = { ...DEFAULT_SETTINGS, ...(stored || {}) };
+    localSettings = fallback;
+    return fallback;
+  },
+
+  /**
+   * Persist office-level paybill settings
+   */
+  async saveSettings(patch: Partial<PayBillSettings>): Promise<PayBillSettings> {
+    const current = await this.getSettings();
+    const next: PayBillSettings = {
+      ...current,
+      ...patch,
+      daRates: Array.isArray(patch.daRates) && patch.daRates.length > 0
+        ? patch.daRates.map((n) => Number(n)).filter((n) => !Number.isNaN(n))
+        : current.daRates,
+    };
+    localSettings = next;
+
+    const officeId = getOfficeId();
+    if (!officeId) return next;
+
+    const toStore: Partial<PayBillSettings> = {
+      ddoHrpn: next.ddoHrpn,
+      ddoName: next.ddoName,
+      officeName: next.officeName,
+      billNo: next.billNo,
+      majorHead: next.majorHead,
+      ddoCode: next.ddoCode,
+      department: next.department,
+      tanNo: next.tanNo,
+      cardexNo: next.cardexNo,
+      address: next.address,
+      mobileNo: next.mobileNo,
+      daRates: next.daRates,
+      daHikeThreshold: next.daHikeThreshold,
+      basicPayChangeTolerance: next.basicPayChangeTolerance,
+      manualAllowances: next.manualAllowances,
+      manualDeductions: next.manualDeductions,
+    };
+
+    try {
+      localStorage.setItem(`paybill_settings_${officeId}`, JSON.stringify(toStore));
+    } catch {
+      // storage may be unavailable - non-fatal
+    }
+
+    try {
+      const { error } = await supabase
+        .from('paybill_settings')
+        .upsert(
+          { office_id: officeId, settings_key: 'defaults', settings_value: toStore },
+          { onConflict: 'office_id,settings_key' }
+        );
+      if (error) {
+        console.warn('[PayBillRepository] saveSettings db error:', error);
+      }
+    } catch (err) {
+      console.warn('[PayBillRepository] saveSettings db error:', err);
+    }
+
+    return next;
+  },
+
+  /**
+   * Load manually entered ledger values: { [hrpn]: { [paramKey]: { [month]: number } } }
+   */
+  async getManualLedgerValues(): Promise<ManualLedgerValuesMap> {
+    if (localManualValuesCache) return localManualValuesCache;
+
+    const officeId = getOfficeId();
+    const stored = officeId
+      ? (() => {
+          try {
+            const raw = localStorage.getItem(`paybill_manual_values_${officeId}`);
+            return raw ? (JSON.parse(raw) as ManualLedgerValuesMap) : null;
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+
+    if (officeId) {
+      try {
+        const { data, error } = await supabase
+          .from('paybill_settings')
+          .select('*')
+          .eq('office_id', officeId)
+          .eq('settings_key', 'manual_values');
+
+        if (!error && data && data.length > 0) {
+          const remote = data[data.length - 1].settings_value as ManualLedgerValuesMap;
+          if (remote && typeof remote === 'object') {
+            localManualValuesCache = remote;
+            return remote;
+          }
+        }
+      } catch (err) {
+        console.warn('[PayBillRepository] getManualLedgerValues db error:', err);
+      }
+    }
+
+    const fallback = stored || {};
+    localManualValuesCache = fallback;
+    return fallback;
+  },
+
+  /**
+   * Persist a single manual ledger cell value for an employee, parameter and month
+   */
+  async saveManualLedgerValue(
+    hrpn: string,
+    paramKey: string,
+    month: string,
+    value: number
+  ): Promise<void> {
+    const current = (await this.getManualLedgerValues()) || {};
+    const next: ManualLedgerValuesMap = {
+      ...current,
+      [hrpn]: {
+        ...(current[hrpn] || {}),
+        [paramKey]: {
+          ...(current[hrpn]?.[paramKey] || {}),
+          [month]: value,
+        },
+      },
+    };
+    localManualValuesCache = next;
+
+    const officeId = getOfficeId();
+    if (!officeId) return;
+
+    try {
+      localStorage.setItem(`paybill_manual_values_${officeId}`, JSON.stringify(next));
+    } catch {
+      // storage may be unavailable - non-fatal
+    }
+
+    try {
+      const { error } = await supabase
+        .from('paybill_settings')
+        .upsert(
+          { office_id: officeId, settings_key: 'manual_values', settings_value: next },
+          { onConflict: 'office_id,settings_key' }
+        );
+      if (error) {
+        console.warn('[PayBillRepository] saveManualLedgerValue db error:', error);
+      }
+    } catch (err) {
+      console.warn('[PayBillRepository] saveManualLedgerValue db error:', err);
+    }
   },
 };

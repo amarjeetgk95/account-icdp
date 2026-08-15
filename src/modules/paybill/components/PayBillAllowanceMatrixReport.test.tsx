@@ -29,7 +29,7 @@ describe('PayBillAllowanceMatrixReport', () => {
     vi.clearAllMocks();
   });
 
-  it('renders report header, month columns, and allowance parameter rows', async () => {
+  it('renders report header, month dropdown, and grouped parameter columns (earning + deduction)', async () => {
     render(
       <MemoryRouter>
         <PayBillAllowanceMatrixReport financialYear={2026} />
@@ -39,21 +39,30 @@ describe('PayBillAllowanceMatrixReport', () => {
     expect(
       screen.getByText(/Pay Bill Allowance Matrix Report/i)
     ).toBeInTheDocument();
-    expect(screen.getByText(/Allowance Parameter/i)).toBeInTheDocument();
 
-    // Check Quarter and Month column headers
-    expect(screen.getByText('Apr')).toBeInTheDocument();
-    expect(screen.getByText('Jul')).toBeInTheDocument();
-    expect(screen.getByText('Q1 Total')).toBeInTheDocument();
-    expect(screen.getByText('Q2 Total')).toBeInTheDocument();
-    expect(screen.getByText('FY Total')).toBeInTheDocument();
+    // Employee column on the left, month dropdown instead of employee dropdown
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(screen.getByText(/April/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Employee/i).length).toBeGreaterThan(0);
 
-    // Wait for rows to load
+    // Group headers: Earning + Deduction portions on top
+    expect(screen.getByText(/EARNING/)).toBeInTheDocument();
+    expect(screen.getByText(/DEDUCTION/)).toBeInTheDocument();
+
+    // Earning parameter columns
+    expect(screen.getByText('Basic Pay')).toBeInTheDocument();
+    expect(screen.getByText('DA')).toBeInTheDocument();
+    expect(screen.getByText('HRA')).toBeInTheDocument();
+    expect(screen.getByText('Gross Amt')).toBeInTheDocument();
+
+    // Deduction parameter columns
+    expect(screen.getByText('Income Tax')).toBeInTheDocument();
+    expect(screen.getByText('Total Deductions')).toBeInTheDocument();
+    expect(screen.getByText('Net Pay')).toBeInTheDocument();
+
+    // Empty state once load completes
     await waitFor(() => {
-      expect(screen.getByText('Basic Pay')).toBeInTheDocument();
-      expect(screen.getByText('DA (0103)')).toBeInTheDocument();
-      expect(screen.getByText('HRA (0110)')).toBeInTheDocument();
-      expect(screen.getByText('Gross Amount')).toBeInTheDocument();
+      expect(screen.getByText(/No imported pay bill data available/)).toBeInTheDocument();
     });
   });
 });

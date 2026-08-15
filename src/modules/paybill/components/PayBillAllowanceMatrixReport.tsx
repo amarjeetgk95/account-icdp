@@ -1,68 +1,99 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Download,
   Printer,
-  User,
   RefreshCw,
+  CalendarDays,
   Landmark,
+  Upload,
 } from 'lucide-react';
+import { paybillReportService, PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/paybillReport.service';
+import { paybillExcelService } from '../services/paybillExcel.service';
+import { paybillPdfService } from '../services/paybillPdf.service';
 import { paybillRepository } from '../repositories/paybill.repository';
-import { paybillReportService } from '../services/paybillReport.service';
-import type { PayBillAllowanceMatrixReport as MatrixReportType } from '../types';
+import { PbButton, PbPanel } from './ui';
+import type { PayBillMonthlyEmployeeMatrixReport, PayBillMonthlyMatrixColumn } from '../types';
 
 interface PayBillAllowanceMatrixReportProps {
   financialYear: number;
-  initialHrpn?: string | null;
+  onOpenUploadModal?: () => void;
+  refreshTrigger?: number;
+}
+
+const MONTH_OPTIONS = [
+  'April', 'May', 'June',
+  'July', 'August', 'September',
+  'October', 'November', 'December',
+  'January', 'February', 'March',
+];
+
+function defaultMonthForFy(financialYear: number): string {
+  const now = new Date();
+  const monthIdx = now.getMonth(); // 0 = January
+  const currentFy = monthIdx >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  if (currentFy !== financialYear) return 'April';
+  return MONTH_OPTIONS[monthIdx >= 3 ? monthIdx - 3 : monthIdx + 9];
 }
 
 export function PayBillAllowanceMatrixReport({
   financialYear,
-  initialHrpn = null,
+  onOpenUploadModal,
+  refreshTrigger = 0,
 }: PayBillAllowanceMatrixReportProps) {
-  const [selectedHrpn, setSelectedHrpn] = useState<string>(initialHrpn || 'ALL');
-  const [report, setReport] = useState<MatrixReportType | null>(null);
-  const [availableEmployees, setAvailableEmployees] = useState<
-    Array<{ hrpn: string; name: string; designation?: string | null; payScale?: string | null }>
-  >([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => defaultMonthForFy(financialYear));
+  const [report, setReport] = useState<PayBillMonthlyEmployeeMatrixReport | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [manualAllowances, setManualAllowances] = useState<string[]>([]);
+  const [manualDeductions, setManualDeductions] = useState<string[]>([]);
+  const [manualValues, setManualValues] = useState<
+    Record<string, Record<string, Record<string, number>>>
+  >({});
 
-  // Load available distinct employees for dropdown
+  // Load manual parameter config & manually entered values (async callbacks only)
   useEffect(() => {
-    async function loadEmployees() {
-      const list = await paybillRepository.listEarnings({ financialYear });
-      const map = new Map<
-        string,
-        { name: string; designation?: string | null; payScale?: string | null }
-      >();
-      for (const e of list) {
-        if (!map.has(e.hrpn)) {
-          map.set(e.hrpn, {
-            name: e.employeeName,
-            designation: e.designation,
-            payScale: e.payScale,
-          });
-        }
-      }
-      setAvailableEmployees(
-        Array.from(map.entries()).map(([hrpn, info]) => ({
-          hrpn,
-          name: info.name,
-          designation: info.designation,
-          payScale: info.payScale,
-        }))
-      );
-    }
-    loadEmployees();
-  }, [financialYear]);
+    let cancelled = false;
+    Promise.all([paybillRepository.getSettings(), paybillRepository.getManualLedgerValues()])
+      .then(([settings, manualVals]) => {
+        if (cancelled) return;
+        setManualAllowances(settings.manualAllowances || []);
+        setManualDeductions(settings.manualDeductions || []);
+        setManualValues(manualVals);
+      })
+      .catch((err) => {
+        console.error('[PayBillAllowanceMatrixReport] settings load error:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshTrigger]);
 
-  // Load report data
+  const earningCols = useMemo<PayBillMonthlyMatrixColumn[]>(
+    () => [
+      ...PAYBILL_EARNING_COLUMNS,
+      ...manualAllowances.map((l) => ({ key: `manual::${l}`, label: l, group: 'EARNING' as const })),
+    ],
+    [manualAllowances]
+  );
+
+  const deductionCols = useMemo<PayBillMonthlyMatrixColumn[]>(
+    () => [
+      ...PAYBILL_DEDUCTION_COLUMNS,
+      ...manualDeductions.map((l) => ({ key: `manual::${l}`, label: l, group: 'DEDUCTION' as const })),
+    ],
+    [manualDeductions]
+  );
+
+  const allCols = useMemo(() => [...earningCols, ...deductionCols], [earningCols, deductionCols]);
+
+  const manualValueFor = (hrpn: string, label: string): number =>
+    Number(manualValues[hrpn]?.[label]?.[selectedMonth] ?? 0);
+
+  const manualColTotal = (label: string): number =>
+    (report?.rows ?? []).reduce((sum, row) => sum + manualValueFor(row.hrpn, label), 0);
+
   const loadReport = async () => {
-    setIsLoading(true);
     try {
-      const data = await paybillReportService.getMatrixReport(
-        financialYear,
-        selectedHrpn === 'ALL' ? null : selectedHrpn
-      );
+      const data = await paybillReportService.getMonthlyEmployeeMatrix(financialYear, selectedMonth);
       setReport(data);
     } catch (err) {
       console.error('[PayBillAllowanceMatrixReport] load error:', err);
@@ -72,8 +103,21 @@ export function PayBillAllowanceMatrixReport({
   };
 
   useEffect(() => {
-    loadReport();
-  }, [financialYear, selectedHrpn]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await paybillReportService.getMonthlyEmployeeMatrix(financialYear, selectedMonth);
+        if (!cancelled) setReport(data);
+      } catch (err) {
+        console.error('[PayBillAllowanceMatrixReport] load error:', err);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [financialYear, selectedMonth, refreshTrigger]);
 
   const formatInr = (n: number | undefined) => {
     if (n === undefined || n === null || isNaN(n)) return '₹0';
@@ -82,7 +126,13 @@ export function PayBillAllowanceMatrixReport({
 
   const handleExportCsv = () => {
     if (report) {
-      paybillReportService.exportToCsv(report);
+      paybillReportService.exportMonthlyMatrixCsv(report);
+    }
+  };
+
+  const handleExportPdf = () => {
+    if (report && report.rows.length > 0) {
+      paybillPdfService.exportMonthlyEmployeeMatrixPdf(report);
     }
   };
 
@@ -91,217 +141,261 @@ export function PayBillAllowanceMatrixReport({
   };
 
   const fyLabel = `${financialYear}-${String(financialYear + 1).slice(-2)}`;
+  const employeeCount = report?.rows.length ?? 0;
+  const tableColSpan = 1 + allCols.length;
+
+  const yearFor = (m: string) =>
+    m === 'April' ? financialYear : m === 'January' || m === 'February' || m === 'March' ? financialYear + 1 : financialYear;
 
   return (
     <div className="space-y-4">
       {/* Top Filter & Actions Bar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <div>
-              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                Pay Bill Allowance Matrix Report
-              </h3>
-              <p className="text-xs text-slate-500">
-                Monthly Breakdown (Columns = Months, Rows = Parameters) &bull; FY {fyLabel}
-              </p>
+      <PbPanel
+        icon={Landmark}
+        iconClass="bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm"
+        title="Pay Bill Allowance Matrix Report"
+        subtitle={`Columns = Allowance Parameters (Earning + Deduction) • Rows = Employees • FY ${fyLabel}`}
+        actions={
+          <>
+            <div className="flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-slate-400" />
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs"
+              >
+                {MONTH_OPTIONS.map((m) => (
+                  <option key={m} value={m}>
+                    {m} {yearFor(m)}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
 
-          <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden md:block" />
+            {onOpenUploadModal && (
+              <PbButton variant="amber" icon={Upload} onClick={onOpenUploadModal} title="Upload Pay Bill PDF">
+                Upload
+              </PbButton>
+            )}
 
-          {/* Employee Filter Dropdown */}
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-slate-400" />
-            <select
-              value={selectedHrpn}
-              onChange={(e) => setSelectedHrpn(e.target.value)}
-              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <PbButton
+              variant="ghost"
+              icon={RefreshCw}
+              onClick={() => {
+                setIsLoading(true);
+                loadReport();
+              }}
+              disabled={isLoading}
+              className={isLoading ? 'animate-spin pointer-events-none' : ''}
+              title="Refresh Report"
+            />
+
+            <PbButton
+              variant="primary"
+              icon={Download}
+              onClick={async () => {
+                if (report) {
+                  await paybillExcelService.exportMonthlyEmployeeMatrixToExcel(report, fyLabel);
+                }
+              }}
+              disabled={!report || report.rows.length === 0}
             >
-              <option value="ALL">All Employees (Office Aggregate)</option>
-              {availableEmployees.map((emp) => (
-                <option key={emp.hrpn} value={emp.hrpn}>
-                  {emp.hrpn} - {emp.name}
-                  {emp.designation ? ` (${emp.designation}${emp.payScale ? ` • ${emp.payScale}` : ''})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+              Export Excel (.xlsx)
+            </PbButton>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={loadReport}
-            disabled={isLoading}
-            className="p-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            title="Refresh Report"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
+            <PbButton
+              variant="success"
+              icon={Download}
+              onClick={handleExportPdf}
+              disabled={!report || report.rows.length === 0}
+            >
+              Export PDF
+            </PbButton>
 
-          <button
-            onClick={handleExportCsv}
-            disabled={!report || report.rows.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-all"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Export CSV
-          </button>
+            <PbButton
+              variant="success"
+              icon={Download}
+              onClick={handleExportCsv}
+              disabled={!report || report.rows.length === 0}
+            >
+              CSV
+            </PbButton>
 
-          <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg transition-colors"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Print Report
-          </button>
-        </div>
-      </div>
+            <PbButton variant="secondary" icon={Printer} onClick={handlePrint}>
+              Print Report
+            </PbButton>
+          </>
+        }
+      />
 
       {/* Main Matrix Table */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden flex flex-col">
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between">
-          <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-            <span>Statement Target:</span>
-            <span className="text-blue-600 dark:text-blue-400 font-extrabold">
-              {selectedHrpn === 'ALL'
-                ? 'Full Office Allowance Aggregate'
-                : `${report?.employeeName || 'Employee'} (HRPN: ${selectedHrpn})`}
+      <PbPanel
+        className="overflow-hidden"
+        padded={false}
+        bodyClassName="flex flex-col"
+        actions={
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+            <span>
+              Employees: <span className="text-emerald-600 dark:text-emerald-400">{employeeCount}</span>
+            </span>
+            <span>
+              Gross Total: <span className="text-emerald-600 dark:text-emerald-400">{formatInr(report?.totals.grossAmount)}</span>
+            </span>
+            <span>
+              Net Pay Total: <span className="text-emerald-600 dark:text-emerald-400">{formatInr(report?.totals.netPay)}</span>
             </span>
           </div>
-
-          <div className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-            Annual Gross Total: <span className="text-emerald-600 dark:text-emerald-400">{formatInr(report?.totalGross)}</span>
-          </div>
+        }
+      >
+        <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/40 dark:from-blue-950/40 dark:to-indigo-950/20 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Statement Period:</span>
+          <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300">
+            {selectedMonth} {yearFor(selectedMonth)} &bull; FY {fyLabel}
+          </span>
+          <span className="ml-auto hidden sm:inline text-[0.68rem] text-slate-400 font-medium">
+            All amounts in INR
+          </span>
         </div>
 
         <div className="overflow-x-auto max-h-[560px] app-scroll">
-          <table className="w-full text-xs text-left border-collapse">
-            <thead className="bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 sticky top-0 z-10 shadow-sm font-sans">
-              <tr className="border-b border-slate-200 dark:border-slate-700">
-                <th className="py-2.5 px-3 font-bold sticky left-0 bg-slate-100 dark:bg-slate-800 min-w-[200px] z-20">
-                  Allowance Parameter
-                </th>
-                {/* Q1 Months */}
-                <th className="py-2.5 px-2 text-right font-semibold">Apr</th>
-                <th className="py-2.5 px-2 text-right font-semibold">May</th>
-                <th className="py-2.5 px-2 text-right font-semibold">Jun</th>
-                <th className="py-2.5 px-2.5 text-right font-bold bg-slate-200/50 dark:bg-slate-700/50 text-slate-900 dark:text-slate-100">
-                  Q1 Total
-                </th>
-
-                {/* Q2 Months */}
-                <th className="py-2.5 px-2 text-right font-semibold">Jul</th>
-                <th className="py-2.5 px-2 text-right font-semibold">Aug</th>
-                <th className="py-2.5 px-2 text-right font-semibold">Sep</th>
-                <th className="py-2.5 px-2.5 text-right font-bold bg-slate-200/50 dark:bg-slate-700/50 text-slate-900 dark:text-slate-100">
-                  Q2 Total
-                </th>
-
-                {/* Q3 Months */}
-                <th className="py-2.5 px-2 text-right font-semibold">Oct</th>
-                <th className="py-2.5 px-2 text-right font-semibold">Nov</th>
-                <th className="py-2.5 px-2 text-right font-semibold">Dec</th>
-                <th className="py-2.5 px-2.5 text-right font-bold bg-slate-200/50 dark:bg-slate-700/50 text-slate-900 dark:text-slate-100">
-                  Q3 Total
-                </th>
-
-                {/* Q4 Months */}
-                <th className="py-2.5 px-2 text-right font-semibold">Jan</th>
-                <th className="py-2.5 px-2 text-right font-semibold">Feb</th>
-                <th className="py-2.5 px-2 text-right font-semibold">Mar</th>
-                <th className="py-2.5 px-2.5 text-right font-bold bg-slate-200/50 dark:bg-slate-700/50 text-slate-900 dark:text-slate-100">
-                  Q4 Total
-                </th>
-
-                {/* Total FY */}
-                <th className="py-2.5 px-3 text-right font-extrabold bg-blue-100/70 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 min-w-[110px]">
-                  FY Total
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[0.72rem]">
-              {!report || report.rows.length === 0 ? (
-                <tr>
-                  <td colSpan={18} className="py-8 text-center text-slate-400 font-sans">
-                    No imported allowance data available for this selection.
-                  </td>
+          <table className="w-full text-xs text-left border-separate border-spacing-0">
+              <thead className="text-slate-700 dark:text-slate-200 sticky top-0 z-30 shadow-sm font-sans">
+                {/* Group Header Row */}
+                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/90">
+                  <th
+                    rowSpan={2}
+                    className="py-2.5 px-3 font-bold sticky left-0 bg-slate-100 dark:bg-slate-800 min-w-[190px] z-20 border-r border-b border-slate-200 dark:border-slate-700"
+                  >
+                    Employee
+                  </th>
+                  <th
+                    colSpan={earningCols.length}
+                    className="py-2 px-2.5 text-center font-extrabold text-blue-900 dark:text-blue-200 bg-blue-100/80 dark:bg-blue-950/60 border-r border-slate-200 dark:border-slate-700"
+                  >
+                    EARNING
+                  </th>
+                  <th
+                    colSpan={deductionCols.length}
+                    className="py-2 px-2.5 text-center font-extrabold text-rose-900 dark:text-rose-200 bg-rose-100/80 dark:bg-rose-950/40"
+                  >
+                    DEDUCTION
+                  </th>
                 </tr>
-              ) : (
-                report.rows.map((row) => {
-                  const isGross = row.key === 'gross_amount' || row.key === 'grossAmount';
-                  return (
-                    <tr
-                      key={row.key}
-                      className={`hover:bg-blue-50/30 dark:hover:bg-slate-800/40 transition-colors ${
-                        isGross
-                          ? 'bg-blue-50/40 dark:bg-blue-950/20 font-bold border-t-2 border-slate-300 dark:border-slate-600'
-                          : ''
+                {/* Parameter Label Row (vertical text) */}
+                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/90">
+                  {allCols.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`py-1.5 px-1 text-center font-semibold align-bottom min-w-[52px] max-w-[64px] border-r border-slate-200 dark:border-slate-700 ${
+                        col.key === 'grossAmount'
+                          ? 'text-blue-900 dark:text-blue-200'
+                          : col.key === 'netPay'
+                            ? 'text-emerald-900 dark:text-emerald-200'
+                            : col.key === 'totalDeductions'
+                              ? 'text-rose-900 dark:text-rose-200'
+                              : 'text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      {/* Parameter Name */}
+                      <span
+                        className="inline-block leading-tight"
+                        style={{
+                          writingMode: 'vertical-rl',
+                          transform: 'rotate(180deg)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {col.label}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[0.72rem]">
+                {isLoading && (
+                  <tr>
+                    <td colSpan={tableColSpan} className="py-6 text-center">
+                      <div className="inline-flex items-center gap-2 text-slate-400">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        Loading matrix...
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {!isLoading && (report?.rows ?? []).map((row) => (
+                  <tr key={row.hrpn} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-2 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 font-sans border-r border-slate-100 dark:border-slate-800">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100 leading-snug">
+                        {row.employeeName}
+                      </div>
+                      <div className="text-[0.65rem] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                        {row.hrpn}
+                        {row.designation ? `  •  ${row.designation}` : ''}
+                      </div>
+                    </td>
+                    {allCols.map((col) => (
                       <td
-                        className={`py-2 px-3 sticky left-0 font-sans font-semibold z-10 ${
-                          isGross
-                            ? 'bg-blue-50 dark:bg-blue-950 text-blue-900 dark:text-blue-200'
-                            : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200'
+                        key={col.key}
+                        className={`py-2 px-2.5 text-right text-slate-700 dark:text-slate-300 whitespace-nowrap ${
+                          col.key === 'grossAmount'
+                            ? 'font-bold text-blue-700 dark:text-blue-300'
+                            : col.key === 'netPay'
+                              ? 'font-bold text-emerald-700 dark:text-emerald-300'
+                              : col.key === 'totalDeductions'
+                                ? 'font-bold text-rose-700 dark:text-rose-300'
+                                : ''
                         }`}
                       >
-                        {row.parameter}
+                        {formatInr(
+                          col.key.startsWith('manual::')
+                            ? manualValueFor(row.hrpn, col.label)
+                            : row.values[col.key]
+                        )}
                       </td>
+                    ))}
+                  </tr>
+                ))}
 
-                      {/* Q1 Months */}
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.April)}</td>
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.May)}</td>
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.June)}</td>
-                      <td className="py-2 px-2.5 text-right font-bold bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100">
-                        {formatInr(row.q1)}
-                      </td>
-
-                      {/* Q2 Months */}
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.July)}</td>
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.August)}</td>
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.September)}</td>
-                      <td className="py-2 px-2.5 text-right font-bold bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100">
-                        {formatInr(row.q2)}
-                      </td>
-
-                      {/* Q3 Months */}
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.October)}</td>
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.November)}</td>
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.December)}</td>
-                      <td className="py-2 px-2.5 text-right font-bold bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100">
-                        {formatInr(row.q3)}
-                      </td>
-
-                      {/* Q4 Months */}
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.January)}</td>
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.February)}</td>
-                      <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{formatInr(row.months.March)}</td>
-                      <td className="py-2 px-2.5 text-right font-bold bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100">
-                        {formatInr(row.q4)}
-                      </td>
-
-                      {/* Total FY */}
+                {/* Totals Row */}
+                {!isLoading && report && report.rows.length > 0 && (
+                  <tr className="bg-slate-100/80 dark:bg-slate-800/60 font-sans">
+                    <td className="py-2.5 px-3 sticky left-0 z-10 bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-slate-100 border-r border-slate-200 dark:border-slate-700">
+                      Total ({employeeCount} Employees)
+                    </td>
+                    {allCols.map((col) => (
                       <td
-                        className={`py-2 px-3 text-right font-extrabold ${
-                          isGross
-                            ? 'bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100 text-sm'
-                            : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100'
+                        key={col.key}
+                        className={`py-2.5 px-2.5 text-right font-extrabold whitespace-nowrap ${
+                          col.key === 'grossAmount'
+                            ? 'bg-blue-100 dark:bg-blue-950 text-blue-900 dark:text-blue-200'
+                            : col.key === 'netPay'
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-200'
+                              : col.key === 'totalDeductions'
+                                ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-900 dark:text-rose-200'
+                                : 'text-slate-900 dark:text-slate-100'
                         }`}
                       >
-                        {formatInr(row.total)}
+                        {formatInr(
+                          col.key.startsWith('manual::')
+                            ? manualColTotal(col.label)
+                            : report?.totals[col.key]
+                        )}
                       </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                    ))}
+                  </tr>
+                )}
+
+                {!isLoading && report && report.rows.length === 0 && (
+                  <tr>
+                    <td colSpan={tableColSpan} className="py-6 text-center text-slate-400 font-sans">
+                      No imported pay bill data available for {selectedMonth}.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
         </div>
-      </div>
+      </PbPanel>
     </div>
   );
 }
