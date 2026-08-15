@@ -9,6 +9,7 @@ import {
   Shield,
   Clock,
   Receipt,
+  FileSpreadsheet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -21,6 +22,7 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   admin: Shield,
   adminaudit: Clock,
   gtr44: Receipt,
+  paybill: FileSpreadsheet,
 };
 
 export const SECTION_ICONS: Record<string, LucideIcon> = {

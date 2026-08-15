@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useUIStore } from '@/core/stores/ui-store';
 import { payrollService } from '../services/payroll.service';
 import { useRoster, useSaveSalary, useQuarterReport, useMonthDataCheck, useClearMonth } from '../hooks/usePayroll';
@@ -43,6 +43,7 @@ const TABS: { id: Mode; label: string; icon: React.ElementType; description: str
 ];
 
 export function PayrollPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const initialTab: Mode = tabParam === 'employees' || tabParam === 'lookup' ? tabParam : 'entry';
@@ -373,10 +374,22 @@ export function PayrollPage() {
               <button
                 type="button"
                 onClick={() => setShowExcelImport(true)}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-sm hover:shadow-md transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-sm hover:shadow-md transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                title="Import pension/bank payout Excel sheet"
               >
-                <FileSpreadsheet size={16} />
-                <span>Import Excel Salary Sheet</span>
+                <FileSpreadsheet size={15} />
+                <span>Excel Import</span>
+              </button>
+
+              {/* Pay Bill PDF Import Button */}
+              <button
+                type="button"
+                onClick={() => navigate('/paybill-import')}
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs shadow-sm hover:shadow-md transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                title="Upload Pay Bill Inner Sheet PDF (Earning Side)"
+              >
+                <FileText size={15} />
+                <span>PDF Pay Bill Import</span>
               </button>
 
               <button

@@ -220,6 +220,8 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
                               hprnNo: employee.hprn_no || '',
                               name: employee.name,
                               pan: employee.pan,
+                              designation: employee.designation || '',
+                              payScale: employee.pay_scale || '',
                               joinDate: employee.join_date || '',
                               transferDate: employee.transfer_date || '',
                               budgetHeadId: employee.budget_head_id || '',

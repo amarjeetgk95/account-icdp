@@ -11,6 +11,7 @@ export interface FeatureFlags {
   parties_module: boolean;
   reports_module: boolean;
   gtr44_module: boolean;
+  paybill_module: boolean;
 }
 
 interface FeatureFlagStore {
@@ -27,6 +28,7 @@ const defaultFlags: FeatureFlags = {
   parties_module: true,
   reports_module: true,
   gtr44_module: true,
+  paybill_module: true,
 };
 
 export const useFeatureFlags = create<FeatureFlagStore>()(
