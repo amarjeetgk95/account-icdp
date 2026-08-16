@@ -3,11 +3,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { PayBillAllowanceMatrixReport } from './PayBillAllowanceMatrixReport';
 import { MemoryRouter } from 'react-router-dom';
 
+interface MockQueryBuilder {
+  eq: () => MockQueryBuilder;
+  order: () => MockQueryBuilder;
+  then: (resolve: (value: { data: unknown[]; error: null }) => void) => Promise<{ data: unknown[]; error: null }>;
+}
+
 vi.mock('@/core/supabase/client', () => {
-  const queryBuilder: any = {
+  const queryBuilder: MockQueryBuilder = {
     eq: () => queryBuilder,
     order: () => queryBuilder,
-    then: (resolve: any) => Promise.resolve({ data: [], error: null }).then(resolve),
+    then: (resolve) => Promise.resolve({ data: [], error: null }).then((value) => { resolve(value); return value; }),
   };
 
   return {
@@ -22,6 +28,7 @@ vi.mock('@/core/supabase/client', () => {
 
 vi.mock('@/shared/utilities/office', () => ({
   getOfficeId: () => 'office-123',
+  isAllOfficesMode: () => false,
 }));
 
 describe('PayBillAllowanceMatrixReport', () => {

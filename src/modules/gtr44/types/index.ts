@@ -9,6 +9,8 @@ export interface GTR44Entry {
   amount: number;
   sanctionOrderNo?: string;
   sanctionDate?: string;
+  // EDP Code determines where the voucher amount is placed on Page 1 of GTR-44
+  edpCode?: string;
 }
 
 export interface GTR44ObjectExpenditureItem {
@@ -19,10 +21,32 @@ export interface GTR44ObjectExpenditureItem {
 }
 
 export interface GTR44Deductions {
-  tds9510: number; // Income Tax (9510)
-  surcharge9520: number; // Surcharge on Income Tax (9520)
-  sd9600: number; // Security Deposits (9600)
-  misc9910: number; // Miscellaneous Recoveries (9910)
+  // Income Tax deducted directly against the relevant EDP Code (9510)
+  incomeTax: number;
+  // GST Deduction - details reflected in the checklist on the third page
+  gst: number;
+  gstCgst: number;
+  gstSgst: number;
+  gstNo?: string;
+  // Legacy fields kept for backward compatibility with previously saved bills
+  tds9510?: number;
+  surcharge9520?: number;
+  sd9600?: number;
+  misc9910?: number;
+}
+
+export interface GTR44BudgetHead {
+  id: string;
+  name: string;
+  headChargeableCode: string;
+  sector: string;
+  demandNo: string;
+  demandNoLabel: string;
+  majorHead: string;
+  subMajorHead: string;
+  minorHead: string;
+  subHead: string;
+  detailedHead: string;
 }
 
 export interface GTR44FormData {
@@ -66,6 +90,9 @@ export interface GTR44FormData {
   minorHead: string;
   subHead: string;
   detailedHead: string; // 2 digits (e.g. "00")
+
+  // Budget Head selected in the second wizard tab
+  budgetHeadId: string;
 
   // Budget Grant & Expenditure
   budgetGrantYearFrom: string; // e.g. "2026"
@@ -128,6 +155,7 @@ export interface SubVoucher {
   sanctionDate?: string;
   amount: number;
   attachmentUrl?: string;
+  edpCode?: string;
 }
 
 export interface Deduction {
@@ -177,25 +205,3 @@ export interface GTR44Bill {
   formData: GTR44FormData;
 }
 
-// Backwards compatibility legacy aliases
-export type GTR44Settings = Partial<GTR44FormData> & {
-  officeAddress?: string;
-  departmentName?: string;
-  financialYear?: string;
-  budgetCode?: string;
-  budgetDescription?: string;
-  objectHead?: string;
-  ytdExpenditure?: number;
-  fontFamily?: string;
-  outwardNo?: string;
-  cardexNo?: string;
-  sanctionOrderRef?: string;
-  payeeDesignation?: string;
-  lineHeight?: number;
-  paragraphSpacing?: number;
-  tablePadding?: number;
-  textJustify?: boolean;
-  textIndent?: number;
-};
-
-export type GTR44TransactionRecord = GTR44Entry;

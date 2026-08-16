@@ -1,7 +1,8 @@
 import React from 'react';
 import { GTR44Document } from './GTR44Document';
 import { GTR44Bill, GTR44FormData, SubVoucher } from '../types';
-import { DEFAULT_GTR44_FORM_DATA } from '../store/gtr44Store';
+import { DEFAULT_GTR44_FORM_DATA } from '../store/gtr44Defaults';
+import { subVoucherToEntry } from '../services/gtr44Mapping.service';
 
 interface GTR44PrintableFormProps {
   className?: string;
@@ -40,16 +41,9 @@ export const GTR44PrintableForm: React.FC<GTR44PrintableFormProps> = ({
       detailedHead: bill.detailedHead || DEFAULT_GTR44_FORM_DATA.detailedHead,
       budgetGrant: bill.budgetAllotment || DEFAULT_GTR44_FORM_DATA.budgetGrant,
       ddoCardexCode: bill.ddoCardexCode || DEFAULT_GTR44_FORM_DATA.ddoCardexCode,
-      partyEntries: (bill.subVouchers || []).map((sv: SubVoucher, idx: number) => ({
-        id: sv.id || `sv-${idx}`,
-        srNo: idx + 1,
-        subVoucherNo: sv.subVoucherNo || String(idx + 1),
-        partyName: sv.payeeName,
-        billNo: sv.sanctionOrderNo || `BILL-${idx + 1}`,
-        date: sv.sanctionDate || new Date().toISOString().split('T')[0],
-        details: sv.description,
-        amount: sv.amount,
-      })),
+      partyEntries: (bill.subVouchers || []).map((sv: SubVoucher, idx: number) =>
+        subVoucherToEntry(sv, idx)
+      ),
     };
   } else {
     data = DEFAULT_GTR44_FORM_DATA;

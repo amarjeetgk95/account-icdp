@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search,
   ArrowUpDown,
@@ -22,6 +22,21 @@ interface PayBillRecordsArchiveProps {
   onViewReportForEmployee?: (hrpn: string) => void;
 }
 
+interface SortIconProps {
+  field: PayBillSortField;
+  sortField: PayBillSortField;
+  sortDir: PayBillSortDirection;
+}
+
+function SortIcon({ field, sortField, sortDir }: SortIconProps) {
+  if (sortField !== field) return <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60" />;
+  return sortDir === 'asc' ? (
+    <ArrowUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 font-bold" />
+  ) : (
+    <ArrowDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 font-bold" />
+  );
+}
+
 export function PayBillRecordsArchive({
   financialYear,
   onViewReportForEmployee,
@@ -36,8 +51,7 @@ export function PayBillRecordsArchive({
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = useCallback(async () => {
     try {
       const [importList, earningsList] = await Promise.all([
         paybillRepository.listImports(financialYear),
@@ -47,14 +61,33 @@ export function PayBillRecordsArchive({
       setEarnings(earningsList);
     } catch (err) {
       console.error('[PayBillRecordsArchive] load error:', err);
+    }
+  }, [financialYear, sortField, sortDir]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      setIsLoading(true);
+      try {
+        await loadData();
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadData]);
+
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    try {
+      await loadData();
     } finally {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadData();
-  }, [financialYear, sortField, sortDir]);
 
   const handleDeleteImport = async (importId: string, billNo: string) => {
     if (window.confirm(`Are you sure you want to delete imported bill "${billNo}" and its employee earnings?`)) {
@@ -74,7 +107,7 @@ export function PayBillRecordsArchive({
   };
 
   const formatInr = (n: number | undefined) =>
-    `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
+    `â‚¹${Math.round(n || 0).toLocaleString('en-IN')}`;
 
   const filteredEarnings = useMemo(() => {
     return earnings.filter((rec) => {
@@ -100,15 +133,6 @@ export function PayBillRecordsArchive({
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   );
-
-  const SortIcon = ({ field }: { field: PayBillSortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60" />;
-    return sortDir === 'asc' ? (
-      <ArrowUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 font-bold" />
-    ) : (
-      <ArrowDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 font-bold" />
-    );
-  };
 
   const hasSpecialPay = useMemo(() => filteredEarnings.some((r) => (r.specialPay || 0) > 0), [filteredEarnings]);
   const hasWashing = useMemo(() => filteredEarnings.some((r) => (r.washingAllowance || 0) > 0), [filteredEarnings]);
@@ -137,7 +161,7 @@ export function PayBillRecordsArchive({
           </div>
 
           <button
-            onClick={loadData}
+            onClick={handleRefresh}
             disabled={isLoading}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors self-start sm:self-auto"
           >
@@ -201,7 +225,7 @@ export function PayBillRecordsArchive({
           </div>
         ) : (
           <div className="text-center py-4 text-xs text-slate-400">
-            No pay bills imported yet for this financial year. Upload a PDF in the "PDF Import" tab.
+            No pay bills imported yet for this financial year. Upload a PDF in the &ldquo;PDF Import&rdquo; tab.
           </div>
         )}
       </div>
@@ -251,7 +275,7 @@ export function PayBillRecordsArchive({
                 >
                   <div className="flex items-center gap-1">
                     <span>Month</span>
-                    <SortIcon field="month" />
+                    <SortIcon field="month" sortField={sortField} sortDir={sortDir} />
                   </div>
                 </th>
                 <th
@@ -260,7 +284,7 @@ export function PayBillRecordsArchive({
                 >
                   <div className="flex items-center gap-1">
                     <span>HRPN Key</span>
-                    <SortIcon field="hrpn" />
+                    <SortIcon field="hrpn" sortField={sortField} sortDir={sortDir} />
                   </div>
                 </th>
                 <th
@@ -269,7 +293,7 @@ export function PayBillRecordsArchive({
                 >
                   <div className="flex items-center gap-1">
                     <span>Employee Name</span>
-                    <SortIcon field="employeeName" />
+                    <SortIcon field="employeeName" sortField={sortField} sortDir={sortDir} />
                   </div>
                 </th>
                 <th
@@ -278,7 +302,7 @@ export function PayBillRecordsArchive({
                 >
                   <div className="flex items-center gap-1">
                     <span>Designation</span>
-                    <SortIcon field="designation" />
+                    <SortIcon field="designation" sortField={sortField} sortDir={sortDir} />
                   </div>
                 </th>
                 <th
@@ -287,7 +311,7 @@ export function PayBillRecordsArchive({
                 >
                   <div className="flex items-center gap-1">
                     <span>Pay Scale</span>
-                    <SortIcon field="payScale" />
+                    <SortIcon field="payScale" sortField={sortField} sortDir={sortDir} />
                   </div>
                 </th>
                 <th
@@ -296,7 +320,7 @@ export function PayBillRecordsArchive({
                 >
                   <div className="flex items-center justify-end gap-1">
                     <span>Basic Pay</span>
-                    <SortIcon field="basicPay" />
+                    <SortIcon field="basicPay" sortField={sortField} sortDir={sortDir} />
                   </div>
                 </th>
                 <th
@@ -305,7 +329,7 @@ export function PayBillRecordsArchive({
                 >
                   <div className="flex items-center justify-end gap-1">
                     <span>DA</span>
-                    <SortIcon field="da" />
+                    <SortIcon field="da" sortField={sortField} sortDir={sortDir} />
                   </div>
                 </th>
                 <th
@@ -314,7 +338,7 @@ export function PayBillRecordsArchive({
                 >
                   <div className="flex items-center justify-end gap-1">
                     <span>HRA</span>
-                    <SortIcon field="hra" />
+                    <SortIcon field="hra" sortField={sortField} sortDir={sortDir} />
                   </div>
                 </th>
                 <th className="py-2.5 px-3 font-semibold text-right">CLA</th>
@@ -329,7 +353,7 @@ export function PayBillRecordsArchive({
                 >
                   <div className="flex items-center justify-end gap-1">
                     <span>Gross Amount</span>
-                    <SortIcon field="grossAmount" />
+                    <SortIcon field="grossAmount" sortField={sortField} sortDir={sortDir} />
                   </div>
                 </th>
                 <th className="py-2.5 px-3 font-semibold text-center">Status</th>
@@ -440,7 +464,7 @@ export function PayBillRecordsArchive({
         {filteredEarnings.length > 0 && (
           <div className="px-3 py-2.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span className="text-[0.7rem] text-slate-500 font-medium">
-              Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}â€“
               {Math.min(currentPage * PAGE_SIZE, filteredEarnings.length)} of{' '}
               {filteredEarnings.length} records
             </span>

@@ -1,12 +1,32 @@
-import { GTR44Bill, EDPCode } from '../types';
-import { DEFAULT_GTR44_FORM_DATA } from '../store/gtr44Store';
+import { GTR44Bill, EDPCode, GTR44FormData } from '../types';
+import { DEFAULT_GTR44_FORM_DATA, DEFAULT_EXPENDITURE_ITEMS } from '../store/gtr44Defaults';
 
 const STORAGE_KEY = 'gtr44-bills-v1';
+
+function normalizeFormData(formData: GTR44FormData): GTR44FormData {
+  const items = (formData.expenditureItems || []).map((item, idx) => {
+    const defaultItem = DEFAULT_EXPENDITURE_ITEMS[idx];
+    if (!defaultItem) return item;
+    return item && item.edpCode
+      ? item
+      : {
+          ...item,
+          code: item?.code || defaultItem.code,
+          name: item?.name || defaultItem.name,
+          edpCode: defaultItem.edpCode,
+        };
+  });
+  return { ...formData, expenditureItems: items };
+}
 
 function loadBills(): GTR44Bill[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const bills: GTR44Bill[] = stored ? JSON.parse(stored) : [];
+    return bills.map((bill) => ({
+      ...bill,
+      formData: bill.formData ? normalizeFormData(bill.formData) : bill.formData,
+    }));
   } catch {
     return [];
   }

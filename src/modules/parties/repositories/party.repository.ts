@@ -1,16 +1,8 @@
 import { supabase } from '@/core/supabase/client';
-import { useUIStore } from '@/core/stores/ui-store';
-import { useAuthStore } from '@/core/auth/store';
+import { getOfficeScope, requireOfficeId } from '@/shared/utilities/office';
 import { MONTHS } from '@/shared/constants';
 import type { Party, PartyTransaction, TransactionInput, GSTReport, IncomeTaxReport } from '../types';
 import type { Database } from '@/shared/database.types';
-
-
-function getOfficeId(): string | null {
-  const authOfficeId = useAuthStore.getState().user?.officeId || null;
-  if (authOfficeId) return authOfficeId;
-  return useUIStore.getState().activeOfficeId || null;
-}
 
 function money(value: number): number {
   return Math.round(value * 100) / 100;
@@ -18,28 +10,28 @@ function money(value: number): number {
 
 export const partyRepository = {
   async listParties(): Promise<Party[]> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { data, error } = await supabase
+    let q = supabase
       .from('parties')
-      .select('id, name, gst_no, pan_no')
-      .eq('office_id', officeId)
-      .order('name');
+      .select('id, name, gst_no, pan_no');
+    if (!scope.all) q = q.eq('office_id', scope.officeId!);
+    const { data, error } = await q.order('name');
 
     if (error) throw error;
     return data || [];
   },
 
   async listTransactions(): Promise<PartyTransaction[]> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { data, error } = await supabase
+    let q = supabase
       .from('party_transactions')
-      .select('id, bill_no, transaction_date, amount, cgst, sgst, igst, total_gst, income_tax, parties(id, name)')
-      .eq('office_id', officeId)
-      .order('id', { ascending: false });
+      .select('id, bill_no, transaction_date, amount, cgst, sgst, igst, total_gst, income_tax, parties(id, name)');
+    if (!scope.all) q = q.eq('office_id', scope.officeId!);
+    const { data, error } = await q.order('id', { ascending: false });
 
     if (error) throw error;
 
@@ -72,8 +64,7 @@ export const partyRepository = {
   },
 
   async saveTransaction(input: TransactionInput): Promise<string> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
 
     if (!input.partyName.trim()) throw new Error('Party Name is required');
     if (!input.billNo.trim()) throw new Error('Bill No is required');
@@ -159,8 +150,7 @@ export const partyRepository = {
   },
 
   async updateTransaction(id: string, updates: Partial<TransactionInput>): Promise<string> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
 
     const upd: Database['public']['Tables']['party_transactions']['Update'] = {};
     if (updates.billNo !== undefined) upd.bill_no = updates.billNo.trim() || undefined;
@@ -189,8 +179,7 @@ export const partyRepository = {
   },
 
   async deleteTransaction(id: string): Promise<string> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
 
     const { error } = await supabase
       .from('party_transactions')
@@ -203,8 +192,8 @@ export const partyRepository = {
   },
 
   async getGSTReport(fy: number, quarter: string, officeId?: string): Promise<GSTReport> {
-    const targetOfficeId = officeId || getOfficeId();
-    if (!targetOfficeId) throw new Error('No office selected');
+    const scope = getOfficeScope(officeId);
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
     const quarterMonths: Record<string, string[]> = {
       Q1: ['April', 'May', 'June'],
@@ -216,12 +205,12 @@ export const partyRepository = {
     const isYearly = quarter === 'Yearly';
     const months = isYearly ? MONTHS : quarterMonths[quarter] || quarterMonths.Q1;
 
-    const { data, error } = await supabase
+    let qGST = supabase
       .from('party_transactions')
       .select('bill_no, cpin_no, transaction_date, amount, cgst, sgst, igst, total_gst, parties(name, gst_no)')
-      .eq('office_id', targetOfficeId)
-      .gte('transaction_date', `${fy}-04-01`)
-      .order('id');
+      .gte('transaction_date', `${fy}-04-01`);
+    if (!scope.all) qGST = qGST.eq('office_id', scope.officeId!);
+    const { data, error } = await qGST.order('id');
 
     if (error) throw error;
 
@@ -284,8 +273,8 @@ export const partyRepository = {
   },
 
   async getIncomeTaxReport(fy: number, quarter: string, officeId?: string): Promise<IncomeTaxReport> {
-    const targetOfficeId = officeId || getOfficeId();
-    if (!targetOfficeId) throw new Error('No office selected');
+    const scope = getOfficeScope(officeId);
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
     const quarterMonths: Record<string, string[]> = {
       Q1: ['April', 'May', 'June'],
@@ -297,12 +286,12 @@ export const partyRepository = {
     const isYearly = quarter === 'Yearly';
     const months = isYearly ? MONTHS : quarterMonths[quarter] || quarterMonths.Q1;
 
-    const { data, error } = await supabase
+    let qIT = supabase
       .from('party_transactions')
       .select('bill_no, transaction_date, amount, income_tax, parties(name, pan_no)')
-      .eq('office_id', targetOfficeId)
-      .gte('transaction_date', `${fy}-04-01`)
-      .order('id');
+      .gte('transaction_date', `${fy}-04-01`);
+    if (!scope.all) qIT = qIT.eq('office_id', scope.officeId!);
+    const { data, error } = await qIT.order('id');
 
     if (error) throw error;
 
@@ -356,8 +345,7 @@ export const partyRepository = {
   async saveBulkTransactions(
     inputs: TransactionInput[]
   ): Promise<{ saved: number; errors: string[] }> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
 
     let saved = 0;
     const errors: string[] = [];

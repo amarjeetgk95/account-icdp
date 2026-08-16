@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { paybillRepository } from '../repositories/paybill.repository';
 import { paybillPdfService } from '../services/paybillPdf.service';
 import { PostToLedgerModal } from './PostToLedgerModal';
@@ -73,8 +73,7 @@ export const PayBillMonthlyView: React.FC<PayBillMonthlyViewProps> = ({
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settings, setSettings] = useState<PayBillSettings | null>(null);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = useCallback(async () => {
     try {
       const [importList, earningsList, deductionList] = await Promise.all([
         paybillRepository.listImports(financialYear),
@@ -86,14 +85,33 @@ export const PayBillMonthlyView: React.FC<PayBillMonthlyViewProps> = ({
       setDeductions(deductionList);
     } catch (err) {
       console.error('[PayBillMonthlyView] load error:', err);
+    }
+  }, [financialYear]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      setIsLoading(true);
+      try {
+        await loadData();
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadData, refreshTrigger]);
+
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    try {
+      await loadData();
     } finally {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadData();
-  }, [financialYear, refreshTrigger]);
 
   useEffect(() => {
     let cancelled = false;
@@ -450,7 +468,7 @@ export const PayBillMonthlyView: React.FC<PayBillMonthlyViewProps> = ({
           </button>
 
           <button
-            onClick={loadData}
+            onClick={handleRefresh}
             disabled={isLoading}
             className="p-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
             title="Refresh Data"

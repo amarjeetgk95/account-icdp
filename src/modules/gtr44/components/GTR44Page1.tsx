@@ -3,6 +3,7 @@ import { GTR44FormData } from '../types';
 import { GTR44Header } from './GTR44Header';
 import { GTR44ExpenditureTable } from './GTR44ExpenditureTable';
 import { formatIndianCurrency } from '../utils/gtr44Utils';
+import { getGrossAmount, getTotalDeductions, getNetAmount, getBalance } from '../services/gtr44Calc.service';
 
 interface GTR44Page1Props {
   data: GTR44FormData;
@@ -42,19 +43,11 @@ const renderBoxes = (value: string | number | undefined | null, count: number) =
 };
 
 export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }) => {
-  const partyTotal = data.partyEntries.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const expItemsTotal = data.expenditureItems.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const grossTotal = partyTotal > 0 ? partyTotal : expItemsTotal;
-
-  const totalDeduction =
-    (data.deductions.tds9510 || 0) +
-    (data.deductions.surcharge9520 || 0) +
-    (data.deductions.sd9600 || 0) +
-    (data.deductions.misc9910 || 0);
-
-  const netAmount = Math.max(0, grossTotal - totalDeduction);
+  const grossTotal = getGrossAmount(data);
+  const totalDeduction = getTotalDeductions(data.deductions);
+  const netAmount = getNetAmount(grossTotal, totalDeduction);
   const grant = data.budgetGrant || 0;
-  const balance = Math.max(0, grant - grossTotal);
+  const balance = getBalance(data.budgetGrant, grossTotal);
 
   return (
     <div className="gtr-page" id="gtr44-page-1">

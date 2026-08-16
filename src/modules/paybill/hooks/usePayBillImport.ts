@@ -29,6 +29,7 @@ import type {
   PayBillBatchMatrixMonth,
   PayBillMonthlyEmployeeMatrixRow,
   DetectedComponentInfo,
+  PayBillParsedResult,
 } from '../types';
 
 const CALENDAR_MONTHS = [
@@ -322,19 +323,10 @@ export function usePayBillImport() {
 
         // Stage 5: Mapping Employees
         updateStage('MAPPING_EMPLOYEES', 'Mapping Employees', 80, 'Matching extracted deduction HRPNs with Master Employee dataset...');
-        const mappedDeductions: PayBillDeductionExtractedRecord[] = parsedResult.deductionRows.map((r, idx) => {
-          const matched = masterEmployees.find((e) => e.hprnNo === r.hrpn);
-          return {
-            id: `ded_rec_${idx + 1}`,
-            row: r,
-            mappingStatus: matched ? 'MATCHED' : 'NOT_FOUND',
-            matchedEmployee: matched || null,
-            validationStatus: 'VALID',
-            errors: [],
-            warnings: [],
-            normalizedString: `HRPN=${r.hrpn}|NAME=${r.employeeName}|TOTDED=${r.totalDeductions}|NET=${r.netPay}`,
-          };
-        });
+        const mappedDeductions = hrpnMappingService.mapDeductionRows(
+          parsedResult.deductionRows,
+          masterEmployees
+        );
         await delay(100);
 
         // Stage 6: Validating
@@ -482,20 +474,12 @@ export function usePayBillImport() {
       updateStage('EXTRACTING_HRPN', 'Extracting HRPN', 65, 'Extracted 8 employee deduction rows');
       const masterEmployees = await paybillStorageService.getMasterEmployees();
 
-      const mappedDeductions: PayBillDeductionExtractedRecord[] = (parsedResult.deductionRows || []).map((r, idx) => {
-        const matched = masterEmployees.find((e) => e.hprnNo === r.hrpn);
-        return {
-          id: `ded_rec_${idx + 1}`,
-          row: r,
-          mappingStatus: matched ? 'MATCHED' : 'NOT_FOUND',
-          matchedEmployee: matched || null,
-          validationStatus: 'VALID',
-          errors: [],
-          warnings: [],
-          normalizedString: `HRPN=${r.hrpn}|NAME=${r.employeeName}|TOTDED=${r.totalDeductions}|NET=${r.netPay}`,
-        };
-      });
+      const mappedDeductions = hrpnMappingService.mapDeductionRows(
+        parsedResult.deductionRows || [],
+        masterEmployees
+      );
       await delay(100);
+
 
       updateStage('VALIDATING_DATA', 'Validating Data', 90, 'Reconciling Total Deductions ₹85,388 & Net Pay ₹447,496...');
       const validated = paybillValidationService.validateDeductionRecords(mappedDeductions);
@@ -595,8 +579,8 @@ export function usePayBillImport() {
 
           return validated;
         });
-      } catch (err: any) {
-        setError(err.message || 'Failed to update record.');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to update record.');
       }
     },
     [pdfTotals]
@@ -622,8 +606,8 @@ export function usePayBillImport() {
 
           return validated;
         });
-      } catch (err: any) {
-        setError(err.message || 'Failed to delete record.');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete record.');
       }
     },
     [pdfTotals]
@@ -738,9 +722,9 @@ export function usePayBillImport() {
     let masterEmployees: Awaited<ReturnType<typeof paybillStorageService.getMasterEmployees>> = [];
     try {
       masterEmployees = await paybillStorageService.getMasterEmployees();
-    } catch (err: any) {
+    } catch (err) {
       setIsBatchProcessing(false);
-      setError(err.message || 'Failed to load master employees for batch processing.');
+      setError(err instanceof Error ? err.message : 'Failed to load master employees for batch processing.');
       return;
     }
 
@@ -789,11 +773,11 @@ export function usePayBillImport() {
           setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
           succeededItems.push(updated);
         }
-      } catch (err: any) {
+      } catch (err) {
         setBatchQueue((prev) =>
           prev.map((q) =>
             q.id === item.id
-              ? { ...q, status: 'ERROR', error: err.message || 'Failed to parse' }
+              ? { ...q, status: 'ERROR', error: err instanceof Error ? err.message : 'Failed to parse' }
               : q
           )
         );
@@ -852,19 +836,7 @@ export function usePayBillImport() {
         const parsed = item.parsedResult!;
         try {
           if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
-            const mapped: PayBillDeductionExtractedRecord[] = parsed.deductionRows.map((r, idx) => {
-              const matched = masterEmployees.find((e) => e.hprnNo === r.hrpn);
-              return {
-                id: `ded_rec_${idx + 1}`,
-                row: r,
-                mappingStatus: matched ? 'MATCHED' : 'NOT_FOUND',
-                matchedEmployee: matched || null,
-                validationStatus: 'VALID',
-                errors: [],
-                warnings: [],
-                normalizedString: `HRPN=${r.hrpn}|NAME=${r.employeeName}|TOTDED=${r.totalDeductions}|NET=${r.netPay}`,
-              };
-            });
+            const mapped = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
             const validated = paybillValidationService.validateDeductionRecords(mapped);
             await paybillStorageService.importDeductions(parsed.metadata, validated, item.name);
           } else {
@@ -906,19 +878,10 @@ export function usePayBillImport() {
       try {
         if (item.parsedResult.sheetType === 'DEDUCTION' && item.parsedResult.deductionRows) {
         const masterEmployees = await paybillStorageService.getMasterEmployees();
-        const mappedDeductions: PayBillDeductionExtractedRecord[] = item.parsedResult.deductionRows.map((r, idx) => {
-          const matched = masterEmployees.find((e) => e.hprnNo === r.hrpn);
-          return {
-            id: `ded_rec_${idx + 1}`,
-            row: r,
-            mappingStatus: matched ? 'MATCHED' : 'NOT_FOUND',
-            matchedEmployee: matched || null,
-            validationStatus: 'VALID',
-            errors: [],
-            warnings: [],
-            normalizedString: `HRPN=${r.hrpn}|NAME=${r.employeeName}|TOTDED=${r.totalDeductions}|NET=${r.netPay}`,
-          };
-        });
+        const mappedDeductions = hrpnMappingService.mapDeductionRows(
+          item.parsedResult.deductionRows,
+          masterEmployees
+        );
 
         const validated = paybillValidationService.validateDeductionRecords(mappedDeductions);
         setMetadata(item.parsedResult.metadata);
@@ -950,8 +913,8 @@ export function usePayBillImport() {
         100,
         `Loaded ${item.month || item.name} from batch queue (${validated.length} records).`
       );
-      } catch (err: any) {
-        setError(err.message || 'Failed to load batch item.');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load batch item.');
       }
     },
     [checkDuplicateBill]
@@ -991,8 +954,8 @@ export function usePayBillImport() {
           setSummary(summ);
           return validated;
         });
-      } catch (err: any) {
-        setError(err.message || 'Failed to add employee to master.');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to add employee to master.');
       }
     },
     [pdfTotals, sheetType]
@@ -1013,8 +976,8 @@ export function usePayBillImport() {
           const validated = paybillValidationService.validateRecords(mapped);
           return validated;
         });
-      } catch (err: any) {
-        setError(err.message || 'Failed to sync employee pay scale.');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to sync employee pay scale.');
       }
     },
     []
@@ -1058,7 +1021,8 @@ export function usePayBillImport() {
 
         if (cancelled) return;
 
-        const fakeParsed: any = {
+        const fakeParsed: PayBillParsedResult = {
+          sheetType,
           metadata,
           rows: records.map((r) => r.row),
           pdfTotals,
@@ -1083,7 +1047,7 @@ export function usePayBillImport() {
     return () => {
       cancelled = true;
     };
-  }, [metadata, records, pdfTotals, settings]);
+  }, [metadata, records, pdfTotals, settings, sheetType]);
 
   /**
    * Reset all state
@@ -1139,6 +1103,7 @@ export function usePayBillImport() {
     isImporting,
     importResult,
     error,
+    setError,
     unknownComponents,
     dismissUnknownComponent,
     resetUnknownComponents,

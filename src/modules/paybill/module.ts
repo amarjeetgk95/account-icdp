@@ -12,9 +12,9 @@ const moduleDefinition: ModuleDefinition = {
   featureFlag: 'paybill_module',
   order: 1,
   children: [
-    { path: '/paybill-import?tab=matrix', label: '12-Month Matrix', icon: 'bar-chart' },
-    { path: '/paybill-import?tab=employee', label: 'Employee Ledger', icon: 'user' },
-    { path: '/paybill-import?tab=components', label: 'Component Master', icon: 'layers' },
+    { path: '/paybill/matrix', label: '12-Month Matrix', icon: 'bar-chart' },
+    { path: '/paybill/employee', label: 'Employee Ledger', icon: 'user' },
+    { path: '/paybill/components', label: 'Component Master', icon: 'layers' },
   ],
 };
 

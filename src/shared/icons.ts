@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   Wallet,
   Users,
-  Building2,
   FileBarChart,
   Settings,
   Shield,
@@ -38,7 +37,6 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
 export const SECTION_ICONS: Record<string, LucideIcon> = {
   overview: LayoutDashboard,
   users: Users,
-  offices: Building2,
   reports: FileBarChart,
   audit: Clock,
   upload: Upload,

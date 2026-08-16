@@ -1,5 +1,5 @@
 import { supabase } from '@/core/supabase/client';
-import { getOfficeId } from '@/shared/utilities/office';
+import { getOfficeScope, requireOfficeId } from '@/shared/utilities/office';
 import type { Database } from '@/shared/database.types';
 import type { BudgetHeadInput } from '../types';
 
@@ -7,23 +7,23 @@ type BudgetHeadRow = Database['public']['Tables']['budget_heads']['Row'];
 
 export const budgetHeadRepository = {
   async list(): Promise<BudgetHeadRow[]> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { data, error } = await supabase
-      .from('budget_heads')
-      .select('*')
-      .eq('office_id', officeId)
+    const baseQuery = supabase.from('budget_heads').select('*');
+    const q = (scope.all
+      ? baseQuery
+      : baseQuery.eq('office_id', scope.officeId!))
       .order('sort_order', { ascending: true })
       .order('code', { ascending: true });
 
+    const { data, error } = await q;
     if (error) throw error;
     return data || [];
   },
 
   async create(input: BudgetHeadInput): Promise<BudgetHeadRow> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
 
     const { data: duplicate } = await supabase
       .from('budget_heads')
@@ -53,8 +53,7 @@ export const budgetHeadRepository = {
   },
 
   async update(input: BudgetHeadInput): Promise<BudgetHeadRow> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
     if (!input.id) throw new Error('Budget head ID is required for update');
 
     const { data: duplicate } = await supabase
@@ -85,8 +84,7 @@ export const budgetHeadRepository = {
   },
 
   async delete(id: string): Promise<void> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
 
     const { error } = await supabase
       .from('budget_heads')
@@ -98,16 +96,16 @@ export const budgetHeadRepository = {
   },
 
   async getById(id: string): Promise<BudgetHeadRow | null> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { data, error } = await supabase
-      .from('budget_heads')
-      .select('*')
-      .eq('id', id)
-      .eq('office_id', officeId)
+    const baseQuery = supabase.from('budget_heads').select('*').eq('id', id);
+    const q = (scope.all
+      ? baseQuery
+      : baseQuery.eq('office_id', scope.officeId!))
       .maybeSingle();
 
+    const { data, error } = await q;
     if (error) throw error;
     return data;
   },

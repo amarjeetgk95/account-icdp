@@ -1,8 +1,16 @@
 import { supabase } from '@/core/supabase/client';
 import { useAuthStore } from '@/core/auth/store';
-import { getOfficeId } from '@/shared/utilities/office';
+import { getOfficeId, resolveOfficeIdForUser } from '@/shared/utilities/office';
 import { employeeService } from '@/modules/payroll/services/employee.service';
 import { componentMasterService } from './componentMaster.service';
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidUuid(value: string | null | undefined): value is string {
+  return typeof value === 'string' && UUID_REGEX.test(value);
+}
+
 import type {
   PayBillMetadata,
   PayBillExtractedRecord,
@@ -145,8 +153,17 @@ export class PayBillStorageService {
     records: PayBillExtractedRecord[],
     fileName = 'PayBill_Inner_Sheet.pdf'
   ): Promise<PayBillImportResult> {
-    const officeId = getOfficeId();
-    const userId = useAuthStore.getState().user?.id;
+    const user = useAuthStore.getState().user;
+    if (user?.role === 'admin') {
+      throw new Error('Admin users cannot import pay bills. Please use an office account.');
+    }
+
+    const userId = user?.id;
+    let officeId = getOfficeId();
+    if (!officeId && userId) {
+      officeId = await resolveOfficeIdForUser(userId);
+    }
+    if (!officeId) throw new Error('No office is assigned to this account. Contact an administrator.');
     const { month, financialYear } = this.parseMonthAndFy(metadata.month);
 
     const matchedRecords = records.filter((r) => r.mappingStatus === 'MATCHED');
@@ -217,8 +234,14 @@ export class PayBillStorageService {
     const { paybillRepository } = await import('../repositories/paybill.repository');
     paybillRepository.saveToCache(storedImport, storedEarnings);
 
-    try {
-      if (officeId) {
+    let dbSync = false;
+    let dbError: string | null = null;
+
+    if (!officeId) {
+      dbError =
+        'No active office selected — data was saved to local cache only. It will sync to the database once an office is selected.';
+    } else {
+      try {
         // 1. Insert into dedicated paybill_imports table
         const { data: pImport, error: pImportErr } = await supabase
           .from('paybill_imports')
@@ -245,7 +268,12 @@ export class PayBillStorageService {
           .select()
           .maybeSingle();
 
-        if (!pImportErr && pImport) {
+        if (pImportErr) {
+          throw new Error(
+            `Could not create pay bill import record: ${pImportErr.message || pImportErr.code || 'unknown error'}`
+          );
+        }
+        if (pImport) {
           importId = pImport.id;
         }
 
@@ -307,7 +335,7 @@ export class PayBillStorageService {
         );
 
         // 3. Create a record in salary_imports for backward compatibility
-        const { data: importRecord, error: _importError } = await supabase
+        const { data: importRecord } = await supabase
           .from('salary_imports')
           .insert({
             office_id: officeId,
@@ -371,10 +399,15 @@ export class PayBillStorageService {
           if (!gridError) {
             appliedToPayrollGrid = payrollGridRows.length;
           }
+          dbSync = true;
         }
+      } catch (err) {
+        console.warn('[PayBillStorage] Database upsert failed; kept in local cache:', err);
+        dbError =
+          err instanceof Error
+            ? err.message
+            : 'Database persistence failed; data was saved to local cache only.';
       }
-    } catch (err) {
-      console.warn('[PayBillStorage] Database upsert completed with local repository sync:', err);
     }
 
     return {
@@ -388,6 +421,8 @@ export class PayBillStorageService {
       notFoundCount: notFoundRecords.length,
       appliedToPayrollGrid,
       createdAt: new Date().toISOString(),
+      dbSync,
+      dbWarning: dbError || undefined,
     };
   }
 
@@ -404,12 +439,20 @@ export class PayBillStorageService {
   ): Promise<void> {
     if (!officeId || items.length === 0) return;
 
+    // Refresh the master from the DB so component IDs are real UUIDs, not the
+    // placeholder "seed-" ids used by the offline fallback matcher.
+    await componentMasterService.refresh().catch(() => {
+      // If refresh fails we still fall back to the cached list, but we will
+      // filter out non-UUID component ids below to avoid DB type errors.
+    });
+
     const master = componentMasterService.getCachedComponents();
     const resolveComponentId = (code: string | null, name: string): string | null => {
       const comp = master.find(
         (c) => c.componentName === name && (!code || c.componentCode === code || !c.componentCode)
       );
-      return comp?.id || null;
+      const id = comp?.id;
+      return isValidUuid(id) ? id : null;
     };
 
     const payload: Array<{
@@ -431,7 +474,7 @@ export class PayBillStorageService {
         payload.push({
           import_id: importId,
           office_id: officeId,
-          paybill_employee_id: item.employeeId || null,
+          paybill_employee_id: isValidUuid(item.employeeId) ? item.employeeId : null,
           hrpn: item.hrpn,
           sheet_type: sheetType,
           component_id: resolveComponentId(comp.componentCode, comp.componentName),
@@ -462,8 +505,17 @@ export class PayBillStorageService {
     records: PayBillDeductionExtractedRecord[],
     fileName = 'PayBill_Deduction_Sheet.pdf'
   ): Promise<PayBillImportResult> {
-    const officeId = getOfficeId();
-    const userId = useAuthStore.getState().user?.id;
+    const user = useAuthStore.getState().user;
+    if (user?.role === 'admin') {
+      throw new Error('Admin users cannot import pay bills. Please use an office account.');
+    }
+
+    const userId = user?.id;
+    let officeId = getOfficeId();
+    if (!officeId && userId) {
+      officeId = await resolveOfficeIdForUser(userId);
+    }
+    if (!officeId) throw new Error('No office is assigned to this account. Contact an administrator.');
     const { month, financialYear } = this.parseMonthAndFy(metadata.month);
 
     const matchedRecords = records.filter((r) => r.mappingStatus === 'MATCHED');
@@ -530,8 +582,14 @@ export class PayBillStorageService {
     const { paybillRepository } = await import('../repositories/paybill.repository');
     paybillRepository.saveDeductionsToCache(storedImport, storedDeductions);
 
-    try {
-      if (officeId) {
+    let dbSync = false;
+    let dbError: string | null = null;
+
+    if (!officeId) {
+      dbError =
+        'No active office selected — data was saved to local cache only. It will sync to the database once an office is selected.';
+    } else {
+      try {
         const { data: pImport, error: pImportErr } = await supabase
           .from('paybill_imports')
           .insert({
@@ -557,7 +615,12 @@ export class PayBillStorageService {
           .select()
           .maybeSingle();
 
-        if (!pImportErr && pImport) {
+        if (pImportErr) {
+          throw new Error(
+            `Could not create pay bill deduction import record: ${pImportErr.message || pImportErr.code || 'unknown error'}`
+          );
+        }
+        if (pImport) {
           importId = pImport.id;
         }
 
@@ -613,9 +676,14 @@ export class PayBillStorageService {
             components: rec.row.components,
           }))
         );
+        dbSync = true;
+      } catch (err) {
+        console.warn('[PayBillStorage] Deduction database sync failed; kept in local cache:', err);
+        dbError =
+          err instanceof Error
+            ? err.message
+            : 'Database persistence failed; data was saved to local cache only.';
       }
-    } catch (err) {
-      console.warn('[PayBillStorage] Deduction database sync fallback to local cache:', err);
     }
 
     return {
@@ -629,6 +697,8 @@ export class PayBillStorageService {
       notFoundCount: notFoundRecords.length,
       appliedToPayrollGrid: matchedRecords.length,
       createdAt: new Date().toISOString(),
+      dbSync,
+      dbWarning: dbError || undefined,
     };
   }
 }

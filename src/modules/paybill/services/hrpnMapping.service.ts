@@ -1,6 +1,8 @@
 import type {
   PayBillEmployeeRow,
   PayBillExtractedRecord,
+  PayBillDeductionRow,
+  PayBillDeductionExtractedRecord,
   MasterEmployeeInfo,
   MappingStatus,
 } from '../types';
@@ -167,6 +169,68 @@ export class HrpnMappingService {
         errors,
         warnings,
         normalizedString,
+      });
+    }
+
+    return records;
+  }
+
+  /**
+   * Build master-employee lookup map (shared by earnings + deductions mapping).
+   */
+  private buildMasterMap(masterEmployees: MasterEmployeeInfo[]): Map<string, MasterEmployeeInfo> {
+    const masterMap = new Map<string, MasterEmployeeInfo>();
+    for (const emp of masterEmployees) {
+      if (emp.hprnNo) {
+        masterMap.set(this.normalizeHrpn(emp.hprnNo), emp);
+      }
+    }
+    return masterMap;
+  }
+
+  /**
+   * Generate canonical derived representation for a deduction row.
+   */
+  generateDeductionNormalizedString(row: PayBillDeductionRow): string {
+    const hrpn = this.normalizeHrpn(row.hrpn);
+    const name = (row.employeeName || '').trim();
+    return `HRPN=${hrpn}|NAME=${name}|TOTDED=${Math.round(row.totalDeductions || 0)}|NET=${Math.round(
+      row.netPay || 0
+    )}`;
+  }
+
+  /**
+   * Map extracted deduction rows against master employee dataset using HRPN.
+   * Mirrors `mapRows` for the deduction side.
+   */
+  mapDeductionRows(
+    rows: PayBillDeductionRow[],
+    masterEmployees: MasterEmployeeInfo[]
+  ): PayBillDeductionExtractedRecord[] {
+    const masterMap = this.buildMasterMap(masterEmployees);
+
+    const records: PayBillDeductionExtractedRecord[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const hrpn = this.normalizeHrpn(row.hrpn);
+      const matchedEmployee = hrpn ? (masterMap.get(hrpn) || null) : null;
+      const mappingStatus: MappingStatus = matchedEmployee ? 'MATCHED' : 'NOT_FOUND';
+      const mappingMessage = matchedEmployee
+        ? `Matched with master record: ${matchedEmployee.name}`
+        : `HRPN ${hrpn || ''} not found in master employee dataset`;
+
+      records.push({
+        id: `ded_rec_${i + 1}`,
+        row,
+        mappingStatus,
+        mappingMessage,
+        matchedEmployee,
+        nameMismatch: false,
+        validationStatus: 'VALID',
+        errors: [],
+        warnings: [],
+        normalizedString: this.generateDeductionNormalizedString(row),
       });
     }
 

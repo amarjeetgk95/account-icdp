@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal } from '@/shared/components/Modal';
+import { Modal } from './Modal';
 
 type WidthMap = 'max-w-sm' | 'max-w-md' | 'max-w-lg' | 'max-w-xl' | 'max-w-2xl' | 'max-w-4xl' | 'max-w-5xl';
 

@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef } from 'react';
-import { Search, Users, ShieldCheck, Building2, ArrowUp, ArrowDown, Trash2, UserRound, UserCheck, UserX } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Search, Users, ShieldCheck, Building2, ArrowUp, ArrowDown, Trash2, UserRound, UserCheck, UserX, AlertTriangle, ChevronRight } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { AdminModal } from '@/shared/components/AdminModal';
 import { SkeletonTable } from '@/shared/components/Skeleton';
-import { formatDateTime } from '@/shared/utilities';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { formatDate } from '@/shared/utilities';
 import type { UserInfo } from '../types';
 
 interface UserListProps {
@@ -36,6 +36,7 @@ export function UserList({
   const [search, setSearch] = useState('');
   const [dialog, setDialog] = useState<Dialog>(null);
   const [roleOfficeId, setRoleOfficeId] = useState('');
+  const [selected, setSelected] = useState<UserInfo | null>(null);
 
   const filteredUsers = users.filter((u) => {
     if (!search) return true;
@@ -48,22 +49,13 @@ export function UserList({
     );
   });
 
-  const availableOffices = useMemo(
+const availableOffices = useMemo(
     () =>
       offices.filter(
         (o) => Number(o.users) === 0 || (dialog?.type === 'role' && dialog.user.office_id === o.id)
       ),
     [offices, dialog]
   );
-
-  const openRoleDialog = (user: UserInfo, newRole: 'admin' | 'office') => {
-    setDialog({ type: 'role', user, newRole });
-    setRoleOfficeId(user.office_id || availableOffices[0]?.id || '');
-  };
-
-    const openSuspendDialog = (user: UserInfo, toSuspended: boolean) => {
-    setDialog({ type: 'suspend', user, toSuspended });
-  };
 
   const confirmRole = async () => {
     if (!dialog || dialog.type !== 'role') return;
@@ -120,15 +112,24 @@ export function UserList({
   return (
     <>
       <div className="space-y-4">
-        <div className="um-search search-input-wrapper max-w-sm">
-          <Search size={16} className="search-icon" />
-          <input
-            type="search"
-            placeholder="Search email / office / role..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input"
-          />
+        <div className="flex flex-wrap items-center justify-between gap-3 px-3 pt-3">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 inline-flex items-center gap-2">
+            <Users size={15} className="text-indigo-500 dark:text-indigo-400" />
+            All Users
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 tabular-nums">
+              {filteredUsers.length}/{users.length}
+            </span>
+          </h3>
+          <div className="um-search search-input-wrapper w-full sm:w-72">
+            <Search size={16} className="search-icon" />
+            <input
+              type="search"
+              placeholder="Search email / office / role..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input"
+            />
+          </div>
         </div>
 
         {filteredUsers.length === 0 ? (
@@ -142,12 +143,13 @@ export function UserList({
           <VirtualizedUserTable
             users={filteredUsers}
             currentUserEmail={currentUserEmail}
-            onOpenRoleDialog={openRoleDialog}
-            onOpenSuspendDialog={openSuspendDialog}
-            onOpenDelete={(u) => setDialog({ type: 'delete', user: u })}
+            onSelect={(u) => setSelected(u)}
           />
         )}
       </div>
+
+      <AdminModal open={selected !== null} onClose={() => setSelected(null)} title="User Details" maxWidth="max-w-lg">
+        {selected && <UserDetailBody user={selected} isCurrentUser={selected.email.toLowerCase() === (currentUserEmail || '').toLowerCase()} onSuspend={() => { setSelected(null); setDialog({ type: 'suspend', user: selected, toSuspended: !selected.suspended }); }} onRole={() => { setRoleOfficeId(selected.office_id || ''); setSelected(null); setDialog({ type: 'role', user: selected, newRole: selected.role === 'admin' ? 'office' : 'admin' }); }} onDelete={() => { setSelected(null); setDialog({ type: 'delete', user: selected }); }} />}</AdminModal>
 
       <ConfirmDialog
         open={dialog?.type === 'suspend'}
@@ -235,78 +237,57 @@ export function UserList({
 function VirtualizedUserTable({
   users,
   currentUserEmail,
-  onOpenRoleDialog,
-  onOpenSuspendDialog,
-  onOpenDelete,
+  onSelect,
 }: {
   users: UserInfo[];
   currentUserEmail?: string;
-  onOpenRoleDialog: (u: UserInfo, r: 'admin' | 'office') => void;
-  onOpenSuspendDialog: (u: UserInfo, b: boolean) => void;
-  onOpenDelete: (u: UserInfo) => void;
+  onSelect: (u: UserInfo) => void;
 }) {
-  const parentRef = useRef<HTMLDivElement>(null);
-  const ROW_HEIGHT = 46;
-  const rowVirtualizer = useVirtualizer({
-    count: users.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 8,
-  });
   return (
-    <div ref={parentRef} className="overflow-auto um-table h-[560px]">
+    <div className="um-table">
       <table className="table table-sm">
         <thead>
           <tr>
-            <th>Email</th>
-            <th>Status</th>
+            <th>User</th>
             <th>Role</th>
             <th>Office</th>
+            <th>Status</th>
             <th>Created</th>
-            <th>Last Sign-in</th>
-            <th className="text-center">Actions</th>
+            <th className="text-right">Details</th>
           </tr>
         </thead>
-        <tbody style={{ height: `${users.length * ROW_HEIGHT}px`, position: 'relative' }}>
-          {rowVirtualizer.getVirtualItems().map((vr) => {
-            const user = users[vr.index];
+        <tbody>
+          {users.map((user) => {
             const isCurrentUser = user.email.toLowerCase() === (currentUserEmail || '').toLowerCase();
-            const canToggle = !isCurrentUser;
+            const missingOffice = user.role === 'office' && !user.office_name;
             return (
               <tr
                 key={user.id}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: `${ROW_HEIGHT}px`,
-                  transform: `translateY(${vr.start}px)`,
-                }}
+                onClick={() => onSelect(user)}
+                className="cursor-pointer"
+                title="View user details"
               >
                 <td className="font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">
-                  <span className="inline-flex items-center gap-2 min-w-0">
-                    <span className="hidden sm:inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
-                      <UserRound size={13} strokeWidth={2} />
-                    </span>
-                    <span className="truncate max-w-[260px]">{user.email}</span>
-                    {isCurrentUser && (
-                      <span className="um-you-pill">
-                        <UserRound size={9} /> you
+                  <span className="inline-flex items-center gap-2.5 min-w-0">
+                    <span className="relative shrink-0">
+                      <span
+                        className={
+                          'inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold uppercase ' +
+                          (user.role === 'admin'
+                            ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300'
+                            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300')
+                        }
+                      >
+                        {user.email.charAt(0) || '?'}
                       </span>
-                    )}
+                      {isCurrentUser && (
+                        <span className="absolute -bottom-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full bg-indigo-600 text-white text-[7px] font-bold leading-none border-2 border-white dark:border-slate-900">
+                          you
+                        </span>
+                      )}
+                    </span>
+                    <span className="truncate max-w-[280px]">{user.email}</span>
                   </span>
-                </td>
-                <td className="whitespace-nowrap">
-                  {user.suspended ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300 border border-red-200/60 dark:border-red-900">
-                      <UserX size={11} /> Suspended
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900">
-                      <UserCheck size={11} /> Active
-                    </span>
-                  )}
                 </td>
                 <td>
                   <span className={`um-chip ${user.role === 'admin' ? 'um-chip-admin' : 'um-chip-office'}`}>
@@ -314,31 +295,166 @@ function VirtualizedUserTable({
                     {user.role}
                   </span>
                 </td>
-                <td className="text-slate-600 dark:text-slate-300">{user.office_name || '-'}</td>
-                <td className="text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums">
-                  {user.created_at ? formatDateTime(user.created_at) : '-'}
+                <td className="whitespace-nowrap">
+                  {user.office_name ? (
+                    <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                      <Building2 size={12} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                      {user.office_name}
+                    </span>
+                  ) : missingOffice ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900">
+                      <AlertTriangle size={11} /> Not assigned
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500">-</span>
+                  )}
+                </td>
+                <td className="whitespace-nowrap">
+                  <span
+                    className={
+                      'inline-flex items-center gap-1.5 text-xs font-semibold ' +
+                      (user.suspended
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-emerald-600 dark:text-emerald-400')
+                    }
+                  >
+                    <span
+                      className={
+                        'w-1.5 h-1.5 rounded-full ' +
+                        (user.suspended ? 'bg-red-500' : 'bg-emerald-500')
+                      }
+                    />
+                    {user.suspended ? 'Suspended' : 'Active'}
+                  </span>
                 </td>
                 <td className="text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums">
-                  {user.last_sign_in_at ? formatDateTime(user.last_sign_in_at) : '-'}
+                  {user.created_at ? formatDate(user.created_at) : '-'}
                 </td>
-                <td>
-                  <div className="flex justify-center gap-1">
-                    <button onClick={() => onOpenSuspendDialog(user, !user.suspended)} disabled={!canToggle} className="um-icon-btn" title={user.suspended ? 'Reactivate user' : 'Suspend user'} aria-label={user.suspended ? `Reactivate ${user.email}` : `Suspend ${user.email}`}>
-                      {user.suspended ? <UserCheck size={15} /> : <UserX size={15} />}
-                    </button>
-                    <button onClick={() => onOpenRoleDialog(user, user.role === 'admin' ? 'office' : 'admin')} disabled={isCurrentUser} className="um-icon-btn" title={user.role === 'admin' ? 'Demote to office user' : 'Promote to admin'} aria-label={user.role === 'admin' ? 'Demote to office user' : 'Promote to admin'}>
-                      {user.role === 'admin' ? <ArrowDown size={15} /> : <ArrowUp size={15} />}
-                    </button>
-                    <button onClick={() => onOpenDelete(user)} disabled={isCurrentUser} className="um-icon-btn um-icon-btn-danger" title="Delete user and their office" aria-label={`Delete ${user.email}`}>
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
+                <td className="text-right">
+                  <span className="um-icon-btn inline-flex">
+                    <ChevronRight size={15} />
+                  </span>
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function UserDetailBody({
+  user,
+  isCurrentUser,
+  onSuspend,
+  onRole,
+  onDelete,
+}: {
+  user: UserInfo;
+  isCurrentUser: boolean;
+  onSuspend: () => void;
+  onRole: () => void;
+  onDelete: () => void;
+}) {
+  const missingOffice = user.role === 'office' && !user.office_name;
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <span
+          className={
+            'flex items-center justify-center w-12 h-12 rounded-full text-base font-bold uppercase shrink-0 ' +
+            (user.role === 'admin'
+              ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300'
+              : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300')
+          }
+        >
+          {user.email.charAt(0) || <UserRound size={18} />}
+        </span>
+        <div className="min-w-0">
+          <p className="font-semibold text-slate-900 dark:text-white break-all inline-flex items-center gap-2">
+            {user.email}
+            {isCurrentUser && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
+                you
+              </span>
+            )}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Joined {user.created_at ? formatDate(user.created_at) : '—'}
+          </p>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
+        <div>
+          <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Role</dt>
+          <dd className="mt-1">
+            <span className={`um-chip ${user.role === 'admin' ? 'um-chip-admin' : 'um-chip-office'}`}>
+              {user.role === 'admin' ? <ShieldCheck size={12} /> : <Building2 size={12} />}
+              {user.role}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Status</dt>
+          <dd className="mt-1">
+            <span
+              className={
+                'inline-flex items-center gap-1.5 text-xs font-semibold ' +
+                (user.suspended ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')
+              }
+            >
+              <span className={'w-1.5 h-1.5 rounded-full ' + (user.suspended ? 'bg-red-500' : 'bg-emerald-500')} />
+              {user.suspended ? 'Suspended' : 'Active'}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Office</dt>
+          <dd className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+            {user.office_name ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Building2 size={13} className="text-slate-400 dark:text-slate-500" />
+                {user.office_name}
+              </span>
+            ) : missingOffice ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900">
+                <AlertTriangle size={11} /> Not assigned
+              </span>
+            ) : (
+              <span className="text-slate-400 dark:text-slate-500">-</span>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Last Sign-in</dt>
+          <dd className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+            {user.last_sign_in_at ? formatDate(user.last_sign_in_at) : 'Never'}
+          </dd>
+        </div>
+      </dl>
+
+      {missingOffice && (
+        <div className="alert alert-warning">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+          <span>This office user has no office assigned, so they cannot see any employee or paybill data. Use Demote to Office User below to assign an office.</span>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+        <button onClick={onSuspend} disabled={isCurrentUser} className="btn btn-outline">
+          {user.suspended ? <UserCheck size={15} /> : <UserX size={15} />}
+          {user.suspended ? 'Reactivate' : 'Suspend'}
+        </button>
+        <button onClick={onRole} disabled={isCurrentUser} className="btn btn-outline">
+          {user.role === 'admin' ? <ArrowDown size={15} /> : <ArrowUp size={15} />}
+          {user.role === 'admin' ? 'Demote to Office User' : 'Promote to Admin'}
+        </button>
+        <button onClick={onDelete} disabled={isCurrentUser} className="btn btn-danger ml-auto">
+          <Trash2 size={15} /> Delete
+        </button>
+      </div>
     </div>
   );
 }

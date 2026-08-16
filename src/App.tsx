@@ -1,7 +1,6 @@
 import { useModules } from '@/modules';
 import { Layout } from '@/shared/components/Layout';
 import { Routes } from '@/shared/components/Routes';
-import { Sidebar } from '@/shared/components/Sidebar';
 import { Header } from '@/shared/components/Header';
 import { CommandPalette } from '@/shared/components/CommandPalette';
 import { AuthGate } from '@/shared/components/AuthGate';
@@ -10,7 +9,6 @@ import { ToastContainer } from '@/shared/components/Toast';
 import { Toaster } from '@/components/ui/toaster';
 import { SkeletonTable, SkeletonCard } from '@/shared/components/Skeleton';
 import { useAuthStore } from '@/core/auth/store';
-import { useUIStore } from '@/core/stores/ui-store';
 import { usePermissions } from '@/core/permissions/hooks';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, Suspense } from 'react';
@@ -49,10 +47,6 @@ export default function App() {
         e.preventDefault();
         setShowCommandPalette((open) => !open);
       }
-      if (e.key === '\\' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        useUIStore.getState().toggleSidebar();
-      }
     };
     window.addEventListener('keydown', down);
     return () => window.removeEventListener('keydown', down);
@@ -77,9 +71,8 @@ export default function App() {
           </main>
         ) : (
           <Layout>
-            <Sidebar modules={modules} />
             <div className="flex-1 flex flex-col overflow-hidden">
-              <Header />
+<Header modules={modules} onOpenCommandPalette={() => setShowCommandPalette(true)} />
               <main className="flex-1 overflow-hidden">
                 <div className="app-scroll h-full p-4 pt-3">
                   <Suspense fallback={<LoadingFallback />}>

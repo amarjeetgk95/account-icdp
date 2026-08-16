@@ -22,6 +22,13 @@ interface RawTextItem {
   page: number;
 }
 
+interface PdfTextItem {
+  str: string;
+  transform?: number[];
+  width?: number;
+  height?: number;
+}
+
 interface DetectedColumns {
   hasSpecialPay: boolean;
   hasWashing: boolean;
@@ -195,11 +202,12 @@ export class PdfParserService {
 
         for (const item of textContent.items) {
           if ('str' in item && item.str.trim()) {
-            const transform = (item as any).transform;
+            const pdfItem = item as PdfTextItem;
+            const transform = pdfItem.transform;
             const x = transform ? transform[4] : 0;
             const y = transform ? transform[5] : 0;
-            const w = (item as any).width || 0;
-            const h = (item as any).height || 0;
+            const w = pdfItem.width || 0;
+            const h = pdfItem.height || 0;
 
             const rawItem: RawTextItem = {
               str: item.str,
@@ -439,7 +447,7 @@ export class PdfParserService {
       return isNaN(num) ? 0 : num;
     };
 
-    for (const [_pageNum, pageItems] of pageMap) {
+    for (const [, pageItems] of pageMap) {
       // 1. Locate Table Header Y position
       // Find the header items: "HRPN", "Employee Name", "Designation", "Pay Scale", "Basic Pay"
       let tableHeaderY = 0;
@@ -449,7 +457,6 @@ export class PdfParserService {
       let payScaleHeaderItem: RawTextItem | undefined;
       let phHeaderItem: RawTextItem | undefined;
       let sloHeaderItem: RawTextItem | undefined;
-      let basicHeaderItem: RawTextItem | undefined;
       const componentHeaderItems: Array<{ match: ComponentMatchResult; item: RawTextItem }> = [];
 
       const matcher = componentMasterService.getMatcher();
@@ -499,7 +506,7 @@ export class PdfParserService {
             /Basic/i.test(item.str)) &&
           Math.abs(item.y - tableHeaderY) < 100
       );
-      basicHeaderItem = basicCandidate?.item;
+      const basicHeaderItem = basicCandidate?.item;
 
       // 2. Locate Table Total / Footer Y position
       let totalY = 0;
@@ -588,7 +595,7 @@ export class PdfParserService {
           .filter((i) => i.x >= colBoundNameMax && i.x < colBoundDesigMax)
           .sort((a, b) => b.y - a.y || a.x - b.x);
 
-        let designation = desigItems
+        const designation = desigItems
           .map((i) => i.str.trim())
           .filter(Boolean)
           .join(' ')
@@ -604,7 +611,7 @@ export class PdfParserService {
           )
           .sort((a, b) => b.y - a.y || a.x - b.x);
 
-        let payScale = payScaleItems
+        const payScale = payScaleItems
           .map((i) => i.str.trim())
           .filter(Boolean)
           .join(' ')
@@ -1162,7 +1169,7 @@ export class PdfParserService {
       return isNaN(num) ? 0 : num;
     };
 
-    for (const [_pageNum, pageItems] of pageMap) {
+    for (const [, pageItems] of pageMap) {
       // 1. Locate Table Header Y position
       let tableHeaderY = 0;
       let hrpnHeaderItem: RawTextItem | undefined;
@@ -1268,7 +1275,7 @@ export class PdfParserService {
           .filter((i) => i.x >= colBoundHrpnMax && i.x < colBoundNameMax)
           .sort((a, b) => b.y - a.y || a.x - b.x);
 
-        let employeeName = nameItems
+        const employeeName = nameItems
           .map((i) => i.str.trim())
           .filter(Boolean)
           .join(' ')
@@ -1281,7 +1288,7 @@ export class PdfParserService {
           .filter((i) => i.x >= colBoundNameMax && i.x < colBoundDesigMax)
           .sort((a, b) => b.y - a.y || a.x - b.x);
 
-        let designation = desigItems
+        const designation = desigItems
           .map((i) => i.str.trim())
           .filter(Boolean)
           .join(' ')

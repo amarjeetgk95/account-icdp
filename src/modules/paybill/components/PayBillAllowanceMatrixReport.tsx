@@ -44,6 +44,7 @@ export function PayBillAllowanceMatrixReport({
   const [selectedMonth, setSelectedMonth] = useState<string>(() => defaultMonthForFy(financialYear));
   const [report, setReport] = useState<PayBillMonthlyEmployeeMatrixReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [manualAllowances, setManualAllowances] = useState<string[]>([]);
   const [manualDeductions, setManualDeductions] = useState<string[]>([]);
   const [earningColumnOrder, setEarningColumnOrder] = useState<string[]>([]);
@@ -139,11 +140,13 @@ export function PayBillAllowanceMatrixReport({
   };
 
   const loadReport = async () => {
+    setLoadError(null);
     try {
       const data = await paybillReportService.getMonthlyEmployeeMatrix(financialYear, selectedMonth);
       setReport(data);
     } catch (err) {
       console.error('[PayBillAllowanceMatrixReport] load error:', err);
+      setLoadError(err instanceof Error ? err.message : 'Could not load the matrix report.');
     } finally {
       setIsLoading(false);
     }
@@ -152,11 +155,15 @@ export function PayBillAllowanceMatrixReport({
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoadError(null);
       try {
         const data = await paybillReportService.getMonthlyEmployeeMatrix(financialYear, selectedMonth);
         if (!cancelled) setReport(data);
       } catch (err) {
         console.error('[PayBillAllowanceMatrixReport] load error:', err);
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err.message : 'Could not load the matrix report.');
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -201,7 +208,6 @@ export function PayBillAllowanceMatrixReport({
         icon={Landmark}
         iconClass="bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm"
         title="Pay Bill Allowance Matrix Report"
-        subtitle={`Columns = Allowance Parameters (Earning + Deduction) • Rows = Employees • FY ${fyLabel}`}
         actions={
           <>
             <div className="flex items-center gap-2">
@@ -303,6 +309,18 @@ export function PayBillAllowanceMatrixReport({
             All amounts in INR
           </span>
         </div>
+
+        {loadError && (
+          <div className="px-4 py-3 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 flex items-start gap-2.5">
+            <span className="mt-0.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+              !
+            </span>
+            <div className="text-xs text-rose-700 dark:text-rose-300">
+              <div className="font-bold">Employee data could not be loaded</div>
+              <div className="mt-0.5 opacity-90">{loadError}</div>
+            </div>
+          </div>
+        )}
 
         <div className="overflow-x-auto max-h-[560px] app-scroll">
           <table className="w-full text-xs text-left border-separate border-spacing-0">

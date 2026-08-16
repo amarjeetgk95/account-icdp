@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   useParties,
   useTransactions,
@@ -15,21 +16,18 @@ import { GSTReportSection } from '../components/GSTReportSection';
 import { ITReportSection } from '../components/ITReportSection';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
+import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { downloadCsv } from '@/shared/utilities';
 import { useUIStore } from '@/core/stores/ui-store';
-import { FileImage, FileText, LayoutDashboard, Receipt } from 'lucide-react';
+import { FileImage } from 'lucide-react';
 import type { TransactionInput } from '../types';
 
 type SectionTab = 'overview' | 'gst' | 'it';
 
-const SECTION_TABS: { id: SectionTab; label: string; icon: React.ElementType; description: string }[] = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Vendor summary, new transactions, and recent activity' },
-  { id: 'gst', label: 'GST Report', icon: FileText, description: 'GST TDS statement summary report' },
-  { id: 'it', label: '26Q Income Tax', icon: Receipt, description: '26Q other than salary TDS statement' },
-];
-
 export function PartiesPage() {
-  const [activeTab, setActiveTab] = useState<SectionTab>('overview');
+  const { tab } = useParams<{ tab: string }>();
+  const validTabs: SectionTab[] = ['overview', 'gst', 'it'];
+  const activeTab: SectionTab = validTabs.includes(tab as SectionTab) ? (tab as SectionTab) : 'overview';
   const [selectedQuarter, setSelectedQuarter] = useState('Q1');
   const [showPreview, setShowPreview] = useState(false);
 
@@ -129,34 +127,13 @@ export function PartiesPage() {
 
   return (
     <>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Vendor & Party Management</h1>
-          <p className="page-subtitle">
-            Manage vendor transactions, GST, and 26Q income tax reports
-          </p>
-        </div>
-      </div>
+      <WorkspaceHeader
+        eyebrow="Vendor TDS · 26Q"
+        title="Vendor & party management"
+        context={<>FY {fyLabel}</>}
+      />
 
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Sticky top navigation */}
-        <div className="payroll-tabs sticky top-0 z-20 flex-shrink-0">
-          {SECTION_TABS.map((tab) => {
-            const TabIcon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`payroll-tab ${activeTab === tab.id ? 'active' : ''}`}
-                title={tab.description}
-              >
-                <TabIcon size={16} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
+        <div className="max-w-7xl mx-auto space-y-4">
         {activeTab === 'overview' && (
           <>
             {/* Summary Stats */}
@@ -166,9 +143,6 @@ export function PartiesPage() {
 
             {/* New Transaction Form */}
             <div className="card no-print animate-fade-in animate-fade-in-delay-1">
-              <div className="card-header">
-                <h2 className="font-semibold">New Transaction</h2>
-              </div>
               <div className="card-body">
                 <TransactionForm
                   parties={parties}
@@ -181,9 +155,6 @@ export function PartiesPage() {
 
             {/* Recent Transactions */}
             <div className="card no-print animate-fade-in animate-fade-in-delay-2">
-              <div className="card-header">
-                <h2 className="font-semibold">Recent Transactions</h2>
-              </div>
               <div className="card-body">
                 <TransactionsTable transactions={transactions} isLoading={txLoading} />
               </div>

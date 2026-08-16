@@ -92,42 +92,51 @@ ALTER TABLE public.paybill_employee_components ENABLE ROW LEVEL SECURITY;
 -- Component Master is shared application-wide configuration. Any authenticated
 -- user may read and maintain it (deletion/soft-deactivation is enforced at the
 -- application layer to protect historical references).
+DROP POLICY IF EXISTS "Any authenticated user can view components" ON public.payroll_components;
 CREATE POLICY "Any authenticated user can view components"
   ON public.payroll_components FOR SELECT
   USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Any authenticated user can manage components" ON public.payroll_components;
 CREATE POLICY "Any authenticated user can manage components"
   ON public.payroll_components FOR ALL
   USING (auth.uid() IS NOT NULL)
   WITH CHECK (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Admins can manage all components" ON public.payroll_components;
 CREATE POLICY "Admins can manage all components"
   ON public.payroll_components FOR ALL
   USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Any authenticated user can view component aliases" ON public.payroll_component_aliases;
 CREATE POLICY "Any authenticated user can view component aliases"
   ON public.payroll_component_aliases FOR SELECT
   USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Any authenticated user can manage component aliases" ON public.payroll_component_aliases;
 CREATE POLICY "Any authenticated user can manage component aliases"
   ON public.payroll_component_aliases FOR ALL
   USING (auth.uid() IS NOT NULL)
   WITH CHECK (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Admins can manage all component aliases" ON public.payroll_component_aliases;
 CREATE POLICY "Admins can manage all component aliases"
   ON public.payroll_component_aliases FOR ALL
   USING (public.is_admin());
 
 -- Employee component values are office-scoped historical data.
+DROP POLICY IF EXISTS "Users can view employee components in their office" ON public.paybill_employee_components;
 CREATE POLICY "Users can view employee components in their office"
   ON public.paybill_employee_components FOR SELECT
   USING (public.can_access_office(office_id));
 
+DROP POLICY IF EXISTS "Users can manage employee components in their office" ON public.paybill_employee_components;
 CREATE POLICY "Users can manage employee components in their office"
   ON public.paybill_employee_components FOR ALL
   USING (public.can_access_office(office_id))
   WITH CHECK (public.can_access_office(office_id));
 
+DROP POLICY IF EXISTS "Admins can manage all employee components" ON public.paybill_employee_components;
 CREATE POLICY "Admins can manage all employee components"
   ON public.paybill_employee_components FOR ALL
   USING (public.is_admin());

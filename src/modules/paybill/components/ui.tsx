@@ -10,7 +10,6 @@ interface PbPanelProps {
   icon?: LucideIcon;
   iconClass?: string;
   title?: ReactNode;
-  subtitle?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
@@ -22,7 +21,6 @@ export function PbPanel({
   icon: Icon,
   iconClass = '',
   title,
-  subtitle,
   actions,
   children,
   className = '',
@@ -50,9 +48,6 @@ export function PbPanel({
                 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
                   {title}
                 </h3>
-              )}
-              {subtitle !== undefined && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{subtitle}</p>
               )}
             </div>
           </div>

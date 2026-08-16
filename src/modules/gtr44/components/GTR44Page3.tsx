@@ -2,6 +2,7 @@ import React from 'react';
 import { GTR44FormData } from '../types';
 import { GTR44CertificationPage3 } from './GTR44Certification';
 import { splitAmount, formatDateDDMMYYYY, numberToWordsINR, formatIndianCurrency } from '../utils/gtr44Utils';
+import { sumPartyEntries } from '../services/gtr44Calc.service';
 
 interface GTR44Page3Props {
   data: GTR44FormData;
@@ -13,10 +14,10 @@ const PAGE_3_ROW_COUNT = 5;
 
 export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
   const page2Entries = data.partyEntries.slice(0, PAGE_2_ROW_COUNT);
-  const page2Total = page2Entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const page2Total = sumPartyEntries(page2Entries);
 
   const page3Entries = data.partyEntries.slice(PAGE_2_ROW_COUNT, PAGE_2_ROW_COUNT + PAGE_3_ROW_COUNT);
-  const totalAmount = data.partyEntries.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalAmount = sumPartyEntries(data.partyEntries);
 
   const broughtForwardSplit = splitAmount(page2Total);
   const totalSplit = splitAmount(totalAmount);
@@ -241,6 +242,43 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
           >
             {totalAmount > 0 ? `${formatIndianCurrency(underRs)} (${numberToWordsINR(underRs)})` : ''}
           </span>
+        </div>
+
+        {/* GST Deduction Details (checklist on the third page) */}
+        <div
+          style={{
+            border: '1px solid #000',
+            marginBottom: '14px',
+            fontSize: '10pt',
+            padding: '8px 12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontWeight: 700 }}>
+            <span>Deduction on account of GST :&nbsp;</span>
+            <span style={{ fontFamily: "'Courier New', monospace" }}>
+              {data.deductions.gst ? `Rs. ${formatIndianCurrency(data.deductions.gst)}` : ''}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '24px', marginTop: '6px', fontSize: '9.5pt', flexWrap: 'wrap' }}>
+            <span>
+              CGST&nbsp;
+              <span style={{ borderBottom: '1px solid #000', minWidth: '90px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
+                {data.deductions.gstCgst ? formatIndianCurrency(data.deductions.gstCgst) : ''}
+              </span>
+            </span>
+            <span>
+              SGST&nbsp;
+              <span style={{ borderBottom: '1px solid #000', minWidth: '90px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
+                {data.deductions.gstSgst ? formatIndianCurrency(data.deductions.gstSgst) : ''}
+              </span>
+            </span>
+            <span>
+              GSTIN&nbsp;
+              <span style={{ borderBottom: '1px solid #000', minWidth: '150px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
+                {data.deductions.gstNo || ''}
+              </span>
+            </span>
+          </div>
         </div>
 
         {/* Certifications 1, 2, 3, 4 */}

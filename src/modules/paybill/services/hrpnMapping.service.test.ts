@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { hrpnMappingService } from './hrpnMapping.service';
-import type { PayBillEmployeeRow, MasterEmployeeInfo } from '../types';
+import type { PayBillEmployeeRow, PayBillDeductionRow, MasterEmployeeInfo } from '../types';
 
 describe('HrpnMappingService', () => {
   const masterEmployees: MasterEmployeeInfo[] = [
@@ -158,5 +158,74 @@ describe('HrpnMappingService', () => {
 
     const records = hrpnMappingService.mapRows(rows, masterEmployees);
     expect(records[0].mappingStatus).toBe('INVALID_HRPN');
+  });
+
+  it('should map deduction rows and emit canonical normalized string', () => {
+    const deductionRows: PayBillDeductionRow[] = [
+      {
+        hrpn: '20013826',
+        employeeName: 'Shri.Dr Dineshbhai Chamabhai Chaudhari',
+        designation: 'Deputy Director',
+        incomeTax: 12000,
+        profTax: 200,
+        hbaInterest: 0,
+        gpfRegular: 3000,
+        gpfClass4: 0,
+        npsRegular: 21100,
+        gisGovtFund: 220,
+        gisGovtSaving: 0,
+        totalDeductions: 36520,
+        netPay: 191598,
+      },
+      {
+        hrpn: '20099999',
+        employeeName: 'Unknown Employee',
+        designation: 'Staff',
+        incomeTax: 0,
+        profTax: 0,
+        hbaInterest: 0,
+        gpfRegular: 0,
+        gpfClass4: 0,
+        npsRegular: 0,
+        gisGovtFund: 0,
+        gisGovtSaving: 0,
+        totalDeductions: 0,
+        netPay: 0,
+      },
+    ];
+
+    const records = hrpnMappingService.mapDeductionRows(deductionRows, masterEmployees);
+    expect(records).toHaveLength(2);
+    expect(records[0].mappingStatus).toBe('MATCHED');
+    expect(records[0].matchedEmployee?.id).toBe('emp-1');
+    expect(records[0].normalizedString).toBe(
+      'HRPN=20013826|NAME=Shri.Dr Dineshbhai Chamabhai Chaudhari|TOTDED=36520|NET=191598'
+    );
+    expect(records[1].mappingStatus).toBe('NOT_FOUND');
+    expect(records[1].matchedEmployee).toBeNull();
+  });
+
+  it('should normalize HRPN whitespace/case when mapping deductions', () => {
+    const deductionRows: PayBillDeductionRow[] = [
+      {
+        hrpn: ' 20014113 ',
+        employeeName: 'Dr. Hitendrabhai Manilal Patidar',
+        designation: 'Assistant Director',
+        incomeTax: 10000,
+        profTax: 150,
+        hbaInterest: 5000,
+        gpfRegular: 2000,
+        gpfClass4: 0,
+        npsRegular: 18000,
+        gisGovtFund: 150,
+        gisGovtSaving: 0,
+        totalDeductions: 35800,
+        netPay: 217694,
+      },
+    ];
+
+    const records = hrpnMappingService.mapDeductionRows(deductionRows, masterEmployees);
+    expect(records[0].mappingStatus).toBe('MATCHED');
+    expect(records[0].matchedEmployee?.id).toBe('emp-2');
   });
 });

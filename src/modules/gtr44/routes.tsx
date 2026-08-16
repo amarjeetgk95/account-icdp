@@ -1,8 +1,8 @@
 import { lazy } from 'react';
 import type { RouteDefinition } from '@/shared/types/module';
 
-const GTR44ModulePage = lazy(() =>
-  import('./pages/GTR44ModulePage').then((m) => ({ default: m.GTR44ModulePage }))
+const GTR44SettingsPage = lazy(() =>
+  import('./pages/GTR44SettingsPage').then((m) => ({ default: m.GTR44SettingsPage }))
 );
 const GTR44ListPage = lazy(() =>
   import('./pages/GTR44ListPage').then((m) => ({ default: m.GTR44ListPage }))
@@ -16,24 +16,8 @@ const GTR44ViewPage = lazy(() =>
 
 export const gtr44Routes: RouteDefinition[] = [
   {
-    path: '/gtr44',
-    element: <GTR44ModulePage />,
-  },
-  {
-    path: '/gtr44/entry',
-    element: <GTR44ModulePage />,
-  },
-  {
-    path: '/gtr44/preview',
-    element: <GTR44ModulePage />,
-  },
-  {
-    path: '/gtr44/pdf',
-    element: <GTR44ModulePage />,
-  },
-  {
     path: '/gtr44/settings',
-    element: <GTR44ModulePage />,
+    element: <GTR44SettingsPage />,
   },
   {
     path: '/gtr44/list',

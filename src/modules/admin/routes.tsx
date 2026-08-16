@@ -11,8 +11,17 @@ const AdminUsersPage = lazy(() =>
 const AdminReportsPage = lazy(() =>
   import('./pages/AdminReportsPage').then((m) => ({ default: m.AdminReportsPage }))
 );
-const AdminOfficesPage = lazy(() =>
-  import('./pages/AdminOfficesPage').then((m) => ({ default: m.AdminOfficesPage }))
+const AdminImportsPage = lazy(() =>
+  import('./pages/AdminImportsPage').then((m) => ({ default: m.AdminImportsPage }))
+);
+const AdminComponentsPage = lazy(() =>
+  import('./pages/AdminComponentsPage').then((m) => ({ default: m.AdminComponentsPage }))
+);
+const AdminSettingsPage = lazy(() =>
+  import('./pages/AdminSettingsPage').then((m) => ({ default: m.AdminSettingsPage }))
+);
+const AdminAuditPage = lazy(() =>
+  import('@/modules/adminaudit/pages/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage }))
 );
 
 export const adminRoutes: RouteDefinition[] = [
@@ -29,11 +38,23 @@ export const adminRoutes: RouteDefinition[] = [
     element: <AdminUsersPage />,
   },
   {
-    path: '/admin/offices',
-    element: <AdminOfficesPage />,
-  },
-  {
     path: '/admin/reports',
     element: <AdminReportsPage />,
+  },
+  {
+    path: '/admin/imports',
+    element: <AdminImportsPage />,
+  },
+  {
+    path: '/admin/components',
+    element: <AdminComponentsPage />,
+  },
+  {
+    path: '/admin/audit',
+    element: <AdminAuditPage />,
+  },
+  {
+    path: '/admin/settings',
+    element: <AdminSettingsPage />,
   },
 ];

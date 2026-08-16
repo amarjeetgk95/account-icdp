@@ -9,9 +9,11 @@ import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table';
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { SkeletonTable } from '../../../shared/components/Skeleton';
+import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { ConfirmDialog } from '../../../shared/components/ConfirmDialog';
 import { Search, Plus, Eye, Edit, Trash2, Send, FileText } from 'lucide-react';
 import { useToast } from '../../../hooks/use-toast';
+import { formatCurrency } from '@/shared/utilities';
 
 export function GTR44ListPage() {
   const { data: bills = [], isLoading } = useGTR44Bills();
@@ -74,28 +76,27 @@ export function GTR44ListPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="max-w-7xl mx-auto px-4 py-4">
         <SkeletonTable rows={6} cols={5} />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">GTR-44 Detailed Contingent Bills</h1>
-        <Button onClick={() => navigate('/gtr44/create')}>
+    <div className="max-w-7xl mx-auto px-4 py-4">
+      <WorkspaceHeader
+        eyebrow="Bill creation · GTR-44"
+        title="Detailed contingent bills"
+        actions={<Button onClick={() => navigate('/gtr44/create')}>
           <Plus className="mr-2 h-4 w-4" /> Create New Bill
-        </Button>
-      </div>
+        </Button>}
+      />
 
-       <GTR44StatsHeader 
-         totalBills={stats.total} 
-         ytdExpense={stats.ytdExpense} 
-         pendingCount={stats.pendingCount} 
+       <GTR44StatsHeader
+         totalBills={stats.total}
+         ytdExpense={stats.ytdExpense}
+         pendingCount={stats.pendingCount}
          passedTotal={stats.passedTotal}
-         activeTab={activeTab}
-         onTabClick={setActiveTab}
        />
 
       <div className="bg-white p-4 rounded-lg shadow-sm border mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -110,9 +111,9 @@ export function GTR44ListPage() {
         </Tabs>
 
         <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <Input 
-            placeholder="Search Bill No or Office..." 
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search Bill No or Office..."
             className="pl-9"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -146,24 +147,26 @@ export function GTR44ListPage() {
                   <TableCell className="font-medium">{bill.billNo}</TableCell>
                   <TableCell>{bill.billDate}</TableCell>
                   <TableCell>{bill.officeName}</TableCell>
-                  <TableCell className="tabular-nums">₹ {bill.grossAmount?.toLocaleString('en-IN')}</TableCell>
-                  <TableCell className="tabular-nums">₹ {bill.netAmount?.toLocaleString('en-IN')}</TableCell>
+                  <TableCell className="tabular-nums">{formatCurrency(bill.grossAmount || 0)}</TableCell>
+                  <TableCell className="tabular-nums">{formatCurrency(bill.netAmount || 0)}</TableCell>
                   <TableCell>
                     <GTR44StatusBadge status={bill.status} />
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon" title="View/Print" aria-label={`View or print bill ${bill.billNo}`} onClick={() => navigate(`/gtr44/view/${bill.id}`)}>
-                      <Eye className="h-4 w-4 text-blue-600" />
-                    </Button>
-                    <Button variant="ghost" size="icon" title="Edit" aria-label={`Edit bill ${bill.billNo}`} onClick={() => navigate(`/gtr44/edit/${bill.id}`)} disabled={bill.status !== 'draft'}>
-                      <Edit className="h-4 w-4 text-amber-600" />
-                    </Button>
-                    <Button variant="ghost" size="icon" title="Delete" aria-label={`Delete bill ${bill.billNo}`} onClick={() => setDeleteTarget(bill.id)} disabled={bill.status !== 'draft'}>
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </Button>
-                    <Button variant="ghost" size="icon" title="Submit to Treasury" aria-label={`Submit bill ${bill.billNo} to Treasury`} onClick={() => setSubmitTarget(bill.id)} disabled={bill.status !== 'draft'}>
-                      <Send className="h-4 w-4 text-green-600" />
-                    </Button>
+                  <TableCell className="text-right">
+                    <div className="inline-flex items-center gap-1">
+                      <Button variant="ghost" size="icon" title="View/Print" aria-label={`View or print bill ${bill.billNo}`} onClick={() => navigate(`/gtr44/view/${bill.id}`)}>
+                        <Eye className="h-4 w-4 text-slate-500" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Edit" aria-label={`Edit bill ${bill.billNo}`} onClick={() => navigate(`/gtr44/edit/${bill.id}`)} disabled={bill.status !== 'draft'}>
+                        <Edit className="h-4 w-4 text-slate-500" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Delete" aria-label={`Delete bill ${bill.billNo}`} onClick={() => setDeleteTarget(bill.id)} disabled={bill.status !== 'draft'}>
+                        <Trash2 className="h-4 w-4 text-slate-500" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Submit to Treasury" aria-label={`Submit bill ${bill.billNo} to Treasury`} onClick={() => setSubmitTarget(bill.id)} disabled={bill.status !== 'draft'}>
+                        <Send className="h-4 w-4 text-slate-500" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

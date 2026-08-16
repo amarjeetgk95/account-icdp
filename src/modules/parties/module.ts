@@ -11,6 +11,11 @@ const moduleDefinition: ModuleDefinition = {
   sidebar: true,
   featureFlag: 'parties_module',
   order: 2,
+  children: [
+    { path: '/parties/overview', label: 'Overview', icon: 'overview' },
+    { path: '/parties/gst', label: 'GST Report', icon: 'file-text' },
+    { path: '/parties/it', label: '26Q Income Tax', icon: 'calculator' },
+  ],
 };
 
 export default moduleDefinition;

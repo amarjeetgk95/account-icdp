@@ -1,12 +1,6 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
-import { useAuthStore } from '@/core/auth/store';
-
-function getOfficeId(): string | null {
-  const authOfficeId = useAuthStore.getState().user?.officeId || null;
-  if (authOfficeId) return authOfficeId;
-  return useUIStore.getState().activeOfficeId || null;
-}
+import { getOfficeScope, requireOfficeId } from '@/shared/utilities/office';
 
 function defaultFY(): number {
   const now = new Date();
@@ -15,14 +9,14 @@ function defaultFY(): number {
 
 export const financialYearRepository = {
   async getCurrent(): Promise<number> {
-    const officeId = getOfficeId();
-    if (!officeId) return defaultFY();
+    const scope = getOfficeScope();
+    if (scope.all || !scope.officeId) return defaultFY();
 
     const { data, error } = await supabase
       .from('app_config')
       .select('value')
       .eq('key', 'currentFY')
-      .eq('office_id', officeId)
+      .eq('office_id', scope.officeId)
       .maybeSingle();
 
     if (error) throw error;
@@ -38,8 +32,7 @@ export const financialYearRepository = {
   },
 
   async set(year: number): Promise<void> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
 
     if (!Number.isInteger(year) || year < 2000 || year > 2100) {
       throw new Error('Invalid financial year');

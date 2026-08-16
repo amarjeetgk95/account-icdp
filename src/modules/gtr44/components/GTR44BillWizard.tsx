@@ -4,10 +4,16 @@ import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
 import { Button } from '../../../components/ui/button';
 import { SubVoucherList, SubVoucher as ComponentSubVoucher } from './SubVoucherList';
-import { GTR44FormData, GTR44Entry, GTR44ObjectExpenditureItem, GTR44Deductions } from '../types';
+import { GTR44FormData, GTR44Entry, GTR44Deductions, GTR44BudgetHead } from '../types';
+import { buildNewBillFormData, useGTR44SettingsStore } from '../store/gtr44SettingsStore';
+import { EDP_CODE_SUGGESTIONS } from '../store/gtr44Defaults';
 import { useToast } from '../../../hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Save, Plus, AlertCircle, CheckCircle } from 'lucide-react';
+import { ChevronLeft, Save, ChevronRight, AlertCircle, CheckCircle, Check } from 'lucide-react';
+import { getGrossAmount, getTotalDeductions, applyTotals } from '../services/gtr44Calc.service';
+import { formatCurrency } from '@/shared/utilities';
+import { GTR44Document } from './GTR44Document';
+import { validateStep, GTR44WizardStepId } from '../services/gtr44Validation.service';
 import '../styles/gtr44.css';
 
 interface GTR44BillWizardProps {
@@ -16,126 +22,74 @@ interface GTR44BillWizardProps {
   isSubmitting?: boolean;
 }
 
-const DEFAULT_DEDUCTIONS: GTR44Deductions = { tds9510: 0, surcharge9520: 0, sd9600: 0, misc9910: 0 };
+const currentMonthText = () =>
+  new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+const generateBillRegisterNo = () => `GTR44-${Date.now()}`;
 
 export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }: GTR44BillWizardProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const budgetHeads = useGTR44SettingsStore((state) => state.budgetHeads);
 
-  const [formData, setFormData] = useState<GTR44FormData>(initialData || {
-    billTransitRegNo1: '',
-    billTransitDate1: '',
-    tokenNo1: '',
-    tokenDate1: '',
-    billTransitRegNo2: '',
-    billTransitDate2: '',
-    tokenNo2: '',
-    tokenDate2: '',
-    billRegisterNo: '',
-    billRegisterDate: new Date().toISOString().split('T')[0],
-    officeName: '',
-    monthOf: '',
-    treasuryName: '',
-    district: '66',
-    monthYear: new Date().getFullYear().toString().slice(-2) + String(new Date().getMonth() + 1).padStart(2, '0'),
-    voucherNo: '',
-    classOfExpenditure: '1',
-    fund: '3',
-    drawing: '299',
-    demandNo: '04',
-    typeOfBudget: '1',
-    schemeNo: '110263',
-    headChargeableCode: '240300102050',
-    sector: 'C-Economic Services',
-    demandNoLabel: '004',
-    majorHead: '2403 Animal Husbandry',
-    subMajorHead: '00',
-    minorHead: '102 Cattle and Buffalo Development',
-    subHead: '05 ANH-06 Intensive Cattle Development Programme',
-    detailedHead: '00',
-    budgetGrantYearFrom: new Date().getFullYear().toString(),
-    budgetGrantYearTo: String(new Date().getFullYear() + 1).slice(-2),
-    budgetGrant: null,
-    expenditureIncludingBill: null,
-    balance: null,
-    treasuryPayRs: null,
-    treasuryPayRsWords: '',
-    treasuryByTc: null,
-    treasuryTotalRs: null,
-    treasuryDate: '',
-    treasuryAccountant: '',
-    treasuryOfficer: '',
-    expenditureItems: Array(22).fill(null).map(() => ({ code: '', name: '', edpCode: '', amount: null as number | null })),
-    deductions: { ...DEFAULT_DEDUCTIONS },
-    partyEntries: [],
-    underRsAmount: null,
-    cert3Amount: null,
-    cert3RecoverableType: 'has been',
-    payToName: '',
-    payToDesignation: '',
-    messengerSignatureName: '',
-    drawingOfficerSignatureName: '',
-    billDated: new Date().toISOString().split('T')[0],
-    ddoCardexCode: '',
-    passedForAmount: null,
-    passedForAmountWords: '',
-    countersigningOfficerName: '',
-    countersigningOffice: '',
-    countersigningDate: '',
-    agTotalAmount: null,
-    agAdmittedAmount: null,
-    agObjectedAmount: null,
-    agAuditorName: '',
-    agSuperintendentName: '',
-  });
+  const [formData, setFormData] = useState<GTR44FormData>(initialData || buildNewBillFormData());
 
   const [currentStep, setCurrentStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const steps = [
-    { id: 'header', label: 'Bill Header', icon: '1' },
-    { id: 'classification', label: 'Head of Account', icon: '2' },
-    { id: 'budget', label: 'Budget & Treasury', icon: '3' },
-    { id: 'expenditure', label: 'Expenditure Items', icon: '4' },
-    { id: 'deductions', label: 'Deductions', icon: '5' },
-    { id: 'parties', label: 'Party Entries', icon: '6' },
-    { id: 'certification', label: 'Certification', icon: '7' },
+  const steps: { id: GTR44WizardStepId; label: string; icon: string }[] = [
+    { id: 'vouchers', label: 'Voucher Entry', icon: '1' },
+    { id: 'budgetHead', label: 'Budget Head Selection', icon: '2' },
+    { id: 'deductions', label: 'Deduction', icon: '3' },
+    { id: 'preview', label: 'Preview', icon: '4' },
   ];
 
-  const updateField = <K extends keyof GTR44FormData>(field: K, value: GTR44FormData[K]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field as string]) {
+  const updateDeduction = <K extends keyof GTR44Deductions>(field: K, value: GTR44Deductions[K]) => {
+    setFormData(prev => ({
+      ...prev,
+      deductions: { ...prev.deductions, [field]: value }
+    }));
+    if (errors['netAmount']) {
       setErrors(prev => {
         const newErrors = { ...prev };
-        delete newErrors[field as string];
+        delete newErrors['netAmount'];
         return newErrors;
       });
     }
   };
 
-  const updateExpenditureItem = (index: number, field: keyof GTR44ObjectExpenditureItem, value: string | number | null) => {
-    setFormData(prev => {
-      const items = [...prev.expenditureItems];
-      items[index] = { ...items[index], [field]: value };
-      return { ...prev, expenditureItems: items };
-    });
-  };
-
-  const updateDeduction = (field: keyof GTR44Deductions, value: number) => {
+  const applyBudgetHead = (head: GTR44BudgetHead) => {
     setFormData(prev => ({
       ...prev,
-      deductions: { ...prev.deductions, [field]: value }
+      budgetHeadId: head.id,
+      headChargeableCode: head.headChargeableCode,
+      sector: head.sector,
+      demandNo: head.demandNo,
+      demandNoLabel: head.demandNoLabel,
+      majorHead: head.majorHead,
+      subMajorHead: head.subMajorHead,
+      minorHead: head.minorHead,
+      subHead: head.subHead,
+      detailedHead: head.detailedHead,
     }));
+    if (errors['budgetHeadId']) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors['budgetHeadId'];
+        return newErrors;
+      });
+    }
   };
 
   const mapToComponentSubVoucher = (sv: GTR44Entry): ComponentSubVoucher => ({
     id: sv.id,
     voucherNo: sv.subVoucherNo || '',
     payee: sv.partyName,
-    description: sv.details,
-    sanctionOrder: sv.sanctionOrderNo || '',
-    sanctionDate: sv.sanctionDate || '',
-    amount: sv.amount
+    billNo: sv.billNo || '',
+    date: sv.date || sv.sanctionDate || '',
+    details: sv.details,
+    amount: sv.amount,
+    edpCode: sv.edpCode || '',
   });
 
   const handleAddSubVoucher = (csv: ComponentSubVoucher) => {
@@ -144,12 +98,12 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
       srNo: formData.partyEntries.length + 1,
       subVoucherNo: csv.voucherNo || String(formData.partyEntries.length + 1),
       partyName: csv.payee,
-      billNo: csv.voucherNo || `BILL-${formData.partyEntries.length + 1}`,
-      date: csv.sanctionDate || new Date().toISOString().split('T')[0],
-      details: csv.description,
+      billNo: csv.billNo || csv.voucherNo || `BILL-${formData.partyEntries.length + 1}`,
+      date: csv.date || new Date().toISOString().split('T')[0],
+      details: csv.details,
       amount: csv.amount,
-      sanctionOrderNo: csv.sanctionOrder,
-      sanctionDate: csv.sanctionDate,
+      sanctionDate: csv.date || undefined,
+      edpCode: csv.edpCode,
     };
     setFormData(prev => ({ ...prev, partyEntries: [...prev.partyEntries, newEntry] }));
   };
@@ -163,12 +117,12 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
               ...sv,
               subVoucherNo: csv.voucherNo,
               partyName: csv.payee,
-              billNo: csv.voucherNo || sv.billNo,
-              date: csv.sanctionDate || sv.date,
-              details: csv.description,
+              billNo: csv.billNo || sv.billNo,
+              date: csv.date || sv.date,
+              details: csv.details,
               amount: csv.amount,
-              sanctionOrderNo: csv.sanctionOrder,
-              sanctionDate: csv.sanctionDate,
+              sanctionDate: csv.date || undefined,
+              edpCode: csv.edpCode,
             }
           : sv
       )
@@ -184,38 +138,19 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
   };
 
   // Calculations
-  const grossAmount = (formData.partyEntries || []).reduce((acc: number, e) => acc + Number(e.amount || 0), 0);
-  const totalDeduction = Object.values(formData.deductions || DEFAULT_DEDUCTIONS).reduce((acc: number, d) => acc + Number(d || 0), 0);
+  const grossAmount = getGrossAmount(formData);
+  const totalDeduction = getTotalDeductions(formData.deductions);
   const netAmount = grossAmount - totalDeduction;
 
-  const validateStep = (stepIndex: number): boolean => {
-    const newErrors: Record<string, string> = {};
+  const handleValidateStep = (stepIndex: number): boolean => {
     const stepId = steps[stepIndex].id;
-
-    if (stepId === 'header') {
-      if (!formData.billRegisterNo) newErrors['billRegisterNo'] = 'Bill Register No. is required';
-      if (!formData.officeName) newErrors['officeName'] = 'Office Name is required';
-      if (!formData.monthOf) newErrors['monthOf'] = 'Month of Bill is required';
-      if (!formData.treasuryName) newErrors['treasuryName'] = 'Treasury Name is required';
-    }
-    if (stepId === 'classification') {
-      if (!formData.district) newErrors['district'] = 'District code is required';
-      if (!formData.headChargeableCode) newErrors['headChargeableCode'] = 'Head Chargeable Code is required';
-    }
-    if (stepId === 'budget') {
-      if (!formData.budgetGrant || formData.budgetGrant <= 0) newErrors['budgetGrant'] = 'Budget Grant must be greater than 0';
-    }
-    if (stepId === 'parties') {
-      if (formData.partyEntries.length === 0) newErrors['partyEntries'] = 'At least one party entry is required';
-      if (netAmount < 0) newErrors['netAmount'] = 'Net amount cannot be negative — check deductions';
-    }
-
+    const newErrors = validateStep(formData, stepId);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = () => {
-    if (validateStep(currentStep) && currentStep < steps.length - 1) {
+    if (handleValidateStep(currentStep) && currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -227,7 +162,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     for (let i = 0; i < steps.length; i++) {
-      if (!validateStep(i)) {
+      if (!handleValidateStep(i)) {
         setCurrentStep(i);
         return;
       }
@@ -240,18 +175,15 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
     if (grant > 0 && grossAmount > grant) {
       toast({ title: "Warning", description: "Gross amount exceeds total budget grant.", variant: "destructive" });
     }
-    const finalData = {
-      ...formData,
-      expenditureIncludingBill: grossAmount,
-      balance: (Number(formData.budgetGrant) || 0) - grossAmount,
-      treasuryTotalRs: grossAmount,
-      treasuryPayRs: netAmount,
-      treasuryPayRsWords: '',
-      passedForAmount: grossAmount,
-      agTotalAmount: grossAmount,
-      agAdmittedAmount: grossAmount,
+
+    const readyData: GTR44FormData = {
+      ...applyTotals(formData),
+      billRegisterNo: formData.billRegisterNo || generateBillRegisterNo(),
+      monthOf: formData.monthOf || currentMonthText(),
+      payToName: formData.payToName || formData.partyEntries[0]?.partyName || '',
+      ddoCardexCode: formData.ddoCardexCode || useGTR44SettingsStore.getState().settings.ddoCardexCode,
     };
-    onSubmit(finalData);
+    onSubmit(readyData);
   };
 
   const progressPercent = ((currentStep + 1) / steps.length) * 100;
@@ -265,275 +197,29 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
   const renderStepContent = () => {
     const s = steps[currentStep].id;
     switch (s) {
-      case 'header':
-        return (
-          <div className="space-y-6">
-            <Card className="border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 text-sm uppercase mb-4">Bill Header Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Bill Register No. *</Label>
-                  <Input
-                    value={formData.billRegisterNo}
-                    onChange={e => updateField('billRegisterNo', e.target.value)}
-                    className={errors['billRegisterNo'] ? 'border-red-500' : ''}
-                  />
-                  {errors['billRegisterNo'] && <p className="text-red-500 text-xs">{errors['billRegisterNo']}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Bill Register Date *</Label>
-                  <Input type="date" value={formData.billRegisterDate} onChange={e => updateField('billRegisterDate', e.target.value)} />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Office Name *</Label>
-                  <Input
-                    value={formData.officeName}
-                    onChange={e => updateField('officeName', e.target.value)}
-                    className={errors['officeName'] ? 'border-red-500' : ''}
-                  />
-                  {errors['officeName'] && <p className="text-red-500 text-xs">{errors['officeName']}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Treasury Name *</Label>
-                  <Input
-                    value={formData.treasuryName}
-                    onChange={e => updateField('treasuryName', e.target.value)}
-                    className={errors['treasuryName'] ? 'border-red-500' : ''}
-                  />
-                  {errors['treasuryName'] && <p className="text-red-500 text-xs">{errors['treasuryName']}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Month of Bill *</Label>
-                  <Input
-                    value={formData.monthOf}
-                    onChange={e => updateField('monthOf', e.target.value)}
-                    className={errors['monthOf'] ? 'border-red-500' : ''}
-                    placeholder="e.g. July 2026"
-                  />
-                  {errors['monthOf'] && <p className="text-red-500 text-xs">{errors['monthOf']}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Token No</Label>
-                  <Input value={formData.tokenNo1} onChange={e => updateField('tokenNo1', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Token Date</Label>
-                  <Input type="date" value={formData.tokenDate1} onChange={e => updateField('tokenDate1', e.target.value)} />
-                </div>
-              </div>
-            </Card>
-
-            <Card className="border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 text-sm uppercase mb-4">Computer Input Data</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>District Code (2 digits)</Label>
-                  <Input maxLength={2} value={formData.district} onChange={e => updateField('district', e.target.value)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Month-Year (4 digits)</Label>
-                  <Input maxLength={4} value={formData.monthYear} onChange={e => updateField('monthYear', e.target.value)} className="font-mono" placeholder="e.g. 0726" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Voucher No (4 digits)</Label>
-                  <Input maxLength={4} value={formData.voucherNo} onChange={e => updateField('voucherNo', e.target.value)} className="font-mono" />
-                </div>
-              </div>
-            </Card>
-          </div>
-        );
-
-      case 'classification':
-        return (
-          <div className="space-y-6">
-            <Card className="border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 text-sm uppercase mb-4">Head of Account Classification</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  <Label>Class of Expenditure (1 digit)</Label>
-                  <Input maxLength={1} value={formData.classOfExpenditure} onChange={e => updateField('classOfExpenditure', e.target.value)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Fund (1 digit)</Label>
-                  <Input maxLength={1} value={formData.fund} onChange={e => updateField('fund', e.target.value)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Drawing DDO Code (3 digits)</Label>
-                  <Input maxLength={3} value={formData.drawing} onChange={e => updateField('drawing', e.target.value)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Demand No.</Label>
-                  <Input maxLength={3} value={formData.demandNo} onChange={e => updateField('demandNo', e.target.value)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Type of Budget (1 digit)</Label>
-                  <Input maxLength={1} value={formData.typeOfBudget} onChange={e => updateField('typeOfBudget', e.target.value)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Scheme No.</Label>
-                  <Input maxLength={6} value={formData.schemeNo} onChange={e => updateField('schemeNo', e.target.value)} className="font-mono" placeholder="e.g. 110263" />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                  <Label>Head Chargeable Code (12 digits)</Label>
-                  <Input
-                    maxLength={12}
-                    value={formData.headChargeableCode}
-                    onChange={e => updateField('headChargeableCode', e.target.value)}
-                    className="font-mono"
-                  />
-                  {errors['headChargeableCode'] && <p className="text-red-500 text-xs">{errors['headChargeableCode']}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Detailed Head (2 digits)</Label>
-                  <Input maxLength={2} value={formData.detailedHead} onChange={e => updateField('detailedHead', e.target.value)} className="font-mono" />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                  <Label>Major Head</Label>
-                  <Input value={formData.majorHead} onChange={e => updateField('majorHead', e.target.value)} />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                  <Label>Minor Head</Label>
-                  <Input value={formData.minorHead} onChange={e => updateField('minorHead', e.target.value)} />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                  <Label>Sub Head</Label>
-                  <Input value={formData.subHead} onChange={e => updateField('subHead', e.target.value)} />
-                </div>
-              </div>
-            </Card>
-          </div>
-        );
-
-      case 'budget':
-        return (
-          <div className="space-y-6">
-            <Card className="border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 text-sm uppercase mb-4">Budget & Treasury Pay Order</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="space-y-2">
-                  <Label>Budget Grant Year From</Label>
-                  <Input type="number" value={formData.budgetGrantYearFrom} onChange={e => updateField('budgetGrantYearFrom', e.target.value)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Budget Grant Year To</Label>
-                  <Input maxLength={2} type="number" value={formData.budgetGrantYearTo} onChange={e => updateField('budgetGrantYearTo', e.target.value)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Budget Grant (₹) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.budgetGrant ?? ''}
-                    onChange={e => updateField('budgetGrant', parseFloat(e.target.value) || 0)}
-                    className={`font-mono font-bold ${errors['budgetGrant'] ? 'border-red-500' : ''}`}
-                  />
-                  {errors['budgetGrant'] && <p className="text-red-500 text-xs">{errors['budgetGrant']}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>DDO Cardex Code</Label>
-                  <Input value={formData.ddoCardexCode} onChange={e => updateField('ddoCardexCode', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Under Rs Amount</Label>
-                  <Input type="number" step="0.01" value={formData.underRsAmount ?? ''} onChange={e => updateField('underRsAmount', parseFloat(e.target.value) || 0)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Treasury Pay Rs (₹)</Label>
-                  <Input type="number" step="0.01" readOnly value={formData.treasuryPayRs ?? ''} className="font-mono font-bold bg-gray-50" />
-                </div>
-                <div className="md:col-span-3 space-y-2">
-                  <Label>Treasury Pay Rs in Words</Label>
-                  <Input value={formData.treasuryPayRsWords} onChange={e => updateField('treasuryPayRsWords', e.target.value)} placeholder="Auto-filled by system..." />
-                </div>
-                <div className="space-y-2">
-                  <Label>Treasury Date</Label>
-                  <Input type="date" value={formData.treasuryDate} onChange={e => updateField('treasuryDate', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Treasury Accountant</Label>
-                  <Input value={formData.treasuryAccountant} onChange={e => updateField('treasuryAccountant', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Treasury Officer</Label>
-                  <Input value={formData.treasuryOfficer} onChange={e => updateField('treasuryOfficer', e.target.value)} />
-                </div>
-              </div>
-            </Card>
-          </div>
-        );
-
-      case 'expenditure':
+      case 'vouchers':
         return (
           <div className="space-y-4">
-            <Card className="border border-gray-200 p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-gray-900 text-sm uppercase">EDP Object of Expenditure Items (22)</h3>
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  Total: ₹ {formData.expenditureItems.reduce((sum, i) => sum + (i.amount || 0), 0).toLocaleString('en-IN')}
-                </span>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm uppercase">Voucher Entry</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter all voucher details. The EDP Code on each voucher decides where its amount
+                  is placed on Page 1 of GTR-44 — vouchers sharing the same EDP Code are added
+                  together.
+                </p>
               </div>
-
-              <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-600 bg-gray-50 p-2 rounded mb-2">
-                <div className="col-span-1">Sr.</div>
-                <div className="col-span-2">Code</div>
-                <div className="col-span-4">Name of Object</div>
-                <div className="col-span-3">EDP Code</div>
-                <div className="col-span-2 text-right">Amount (₹)</div>
-              </div>
-
-              {formData.expenditureItems.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-center p-2 border-b border-gray-100 last:border-0">
-                  <span className="col-span-1 text-sm text-gray-500 font-bold">{idx + 1}</span>
-                  <Input className="col-span-2 text-xs font-mono" value={item.code} onChange={e => updateExpenditureItem(idx, 'code', e.target.value)} placeholder="Code" maxLength={4} />
-                  <Input className="col-span-4 text-xs" value={item.name} onChange={e => updateExpenditureItem(idx, 'name', e.target.value)} placeholder="Name of object" />
-                  <Input className="col-span-3 text-xs font-mono" value={item.edpCode} onChange={e => updateExpenditureItem(idx, 'edpCode', e.target.value)} placeholder="EDP code" />
-                  <Input type="number" step="0.01" className="col-span-2 text-xs text-right font-mono font-bold" value={item.amount ?? ''} onChange={e => updateExpenditureItem(idx, 'amount', parseFloat(e.target.value) || null)} placeholder="0.00" />
-                </div>
-              ))}
-            </Card>
-          </div>
-        );
-
-      case 'deductions':
-        return (
-          <div className="space-y-6">
-            <Card className="border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 text-sm uppercase mb-4">Statutory Deductions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  <Label>Income Tax / TDS (9510)</Label>
-                  <Input type="number" step="0.01" value={formData.deductions.tds9510 || 0} onChange={e => updateDeduction('tds9510', parseFloat(e.target.value) || 0)} className="font-mono font-bold" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Surcharge on IT (9520)</Label>
-                  <Input type="number" step="0.01" value={formData.deductions.surcharge9520 || 0} onChange={e => updateDeduction('surcharge9520', parseFloat(e.target.value) || 0)} className="font-mono font-bold" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Security Deposit (9600)</Label>
-                  <Input type="number" step="0.01" value={formData.deductions.sd9600 || 0} onChange={e => updateDeduction('sd9600', parseFloat(e.target.value) || 0)} className="font-mono font-bold" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Misc Recoveries (9910)</Label>
-                  <Input type="number" step="0.01" value={formData.deductions.misc9910 || 0} onChange={e => updateDeduction('misc9910', parseFloat(e.target.value) || 0)} className="font-mono font-bold" />
+              <div className="shrink-0 text-right">
+                <div className="text-xs text-gray-500">Gross Total</div>
+                <div className="font-mono font-bold text-lg text-gray-900">
+                  {formatCurrency(grossAmount)}
                 </div>
               </div>
-            </Card>
-          </div>
-        );
-
-      case 'parties':
-        return (
-          <div className="space-y-4">
+            </div>
             {errors['partyEntries'] && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center gap-2">
+              <div className="alert alert-danger text-xs py-2.5">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{errors['partyEntries']}</span>
-              </div>
-            )}
-            {errors['netAmount'] && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{errors['netAmount']}</span>
               </div>
             )}
             <Card className="border border-gray-200 p-6">
@@ -542,68 +228,188 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                 onAdd={handleAddSubVoucher}
                 onEdit={handleEditSubVoucher}
                 onDelete={handleDeleteSubVoucher}
+                edpCodeOptions={EDP_CODE_SUGGESTIONS}
               />
+            </Card>
+            {Object.keys(errors).filter((k) => k.startsWith('partyEntries.')).map((k) => (
+              <div key={k} className="alert alert-danger text-xs py-2.5">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{errors[k]}</span>
+              </div>
+            ))}
+          </div>
+        );
+
+      case 'budgetHead':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold text-gray-900 text-sm uppercase">Budget Head Selection</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Select the Budget Head to be charged. Newly added or modified Budget Heads from
+                Settings become available here.
+              </p>
+            </div>
+            {errors['budgetHeadId'] && (
+              <div className="alert alert-danger text-xs py-2.5">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{errors['budgetHeadId']}</span>
+              </div>
+            )}
+            {budgetHeads.length === 0 && (
+              <Card className="border border-gray-200 p-6 text-center">
+                <p className="text-sm text-gray-500">
+                  No Budget Heads available. Add one from the GTR-44 Settings page.
+                </p>
+                <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => navigate('/gtr44/settings')}>
+                  Open Settings
+                </Button>
+              </Card>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {budgetHeads.map((head) => {
+                const selected = formData.budgetHeadId === head.id;
+                return (
+                  <button
+                    key={head.id}
+                    type="button"
+                    onClick={() => applyBudgetHead(head)}
+                    className={`text-left p-5 rounded-xl border-2 transition-all ${
+                      selected
+                        ? 'border-blue-600 bg-blue-50 shadow-sm'
+                        : 'border-gray-200 bg-white hover:border-blue-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="font-semibold text-gray-900 text-sm">{head.name}</div>
+                      {selected && (
+                        <span className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-600 text-white shrink-0">
+                          <Check className="h-3 w-3" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-3 space-y-1 text-xs text-gray-600 font-mono">
+                      <div>Head Chargeable: <strong>{head.headChargeableCode}</strong></div>
+                      <div>Demand No: <strong>{head.demandNo}</strong> · Detailed Head: <strong>{head.detailedHead}</strong></div>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      {head.majorHead}
+                      {head.subMajorHead ? ` / ${head.subMajorHead}` : ''}
+                      {head.minorHead ? ` / ${head.minorHead}` : ''}
+                      {head.subHead ? ` / ${head.subHead}` : ''}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+
+      case 'deductions':
+        return (
+          <div className="space-y-6">
+            {errors['netAmount'] && (
+              <div className="alert alert-danger text-xs py-2.5">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{errors['netAmount']}</span>
+              </div>
+            )}
+            <Card className="border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-900 text-sm uppercase mb-1">Income Tax Deduction</h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Deducted directly against the relevant EDP Code (9510) on Page 1.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <Label>Income Tax / TDS (EDP 9510) (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.deductions.incomeTax || 0}
+                    onChange={e => updateDeduction('incomeTax', parseFloat(e.target.value) || 0)}
+                    className="font-mono font-bold"
+                  />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-900 text-sm uppercase mb-1">GST Deduction</h3>
+              <p className="text-xs text-gray-500 mb-4">
+                GST deduction details are reflected in the checklist on the third page of GTR-44.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <Label>GST Total (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.deductions.gst || 0}
+                    onChange={e => updateDeduction('gst', parseFloat(e.target.value) || 0)}
+                    className="font-mono font-bold"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>GSTIN</Label>
+                  <Input
+                    value={formData.deductions.gstNo || ''}
+                    onChange={e => updateDeduction('gstNo', e.target.value)}
+                    placeholder="e.g. 24ABCDE1234F1Z5"
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>CGST Component (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.deductions.gstCgst || 0}
+                    onChange={e => updateDeduction('gstCgst', parseFloat(e.target.value) || 0)}
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>SGST Component (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.deductions.gstSgst || 0}
+                    onChange={e => updateDeduction('gstSgst', parseFloat(e.target.value) || 0)}
+                    className="font-mono"
+                  />
+                </div>
+              </div>
             </Card>
           </div>
         );
 
-      case 'certification':
+      case 'preview':
         return (
-          <div className="space-y-6">
-            <Card className="border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 text-sm uppercase mb-4">Page 4 - Payment & Passing Details</h3>
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-700 text-xs uppercase">Payment Details</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="space-y-2">
-                    <Label>Pay To Name</Label>
-                    <Input value={formData.payToName} onChange={e => updateField('payToName', e.target.value)} placeholder="Payee name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Pay To Designation</Label>
-                    <Input value={formData.payToDesignation} onChange={e => updateField('payToDesignation', e.target.value)} placeholder="Designation" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Drawing Officer Signature Name</Label>
-                    <Input value={formData.drawingOfficerSignatureName} onChange={e => updateField('drawingOfficerSignatureName', e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Bill Dated</Label>
-                    <Input type="date" value={formData.billDated} onChange={e => updateField('billDated', e.target.value)} />
-                  </div>
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm uppercase">Live Preview</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Renders the full GTR-44 bill (all 4 pages) with the current data. Page 1 EDP
+                  aggregation and totals update as you edit.
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-xs text-gray-500">Net Payable</div>
+                <div className="font-mono font-bold text-lg text-gray-900">
+                  {formatCurrency(Math.max(0, netAmount))}
                 </div>
               </div>
-            </Card>
-
-            <Card className="border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 text-sm uppercase mb-4">AG&apos;s Office Verification</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  <Label>AG Total Amount (₹)</Label>
-                  <Input type="number" step="0.01" value={formData.agTotalAmount ?? ''} onChange={e => updateField('agTotalAmount', parseFloat(e.target.value) || 0)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>AG Admitted Amount (₹)</Label>
-                  <Input type="number" step="0.01" value={formData.agAdmittedAmount ?? ''} onChange={e => updateField('agAdmittedAmount', parseFloat(e.target.value) || 0)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>AG Objected Amount (₹)</Label>
-                  <Input type="number" step="0.01" value={formData.agObjectedAmount ?? ''} onChange={e => updateField('agObjectedAmount', parseFloat(e.target.value) || 0)} className="font-mono" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Countersigning Officer Name</Label>
-                  <Input value={formData.countersigningOfficerName} onChange={e => updateField('countersigningOfficerName', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Countersigning Office</Label>
-                  <Input value={formData.countersigningOffice} onChange={e => updateField('countersigningOffice', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Countersigning Date</Label>
-                  <Input type="date" value={formData.countersigningDate} onChange={e => updateField('countersigningDate', e.target.value)} />
-                </div>
+            </div>
+            <div className="overflow-auto rounded-lg bg-gray-100 border border-gray-200 p-4">
+              <div className="max-w-5xl mx-auto">
+                <GTR44Document data={applyTotals(formData)} containerId="gtr44-wizard-live-preview" />
               </div>
-            </Card>
+            </div>
           </div>
         );
 
@@ -613,7 +419,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 gtr44-wizard-form">
+    <form onSubmit={handleSubmit} className="space-y-5 gtr44-wizard-form">
       {/* Progress bar */}
       <div className="gtr44-progress">
         <div className="gtr44-progress-fill" style={{ width: `${progressPercent}%` }}></div>
@@ -625,8 +431,13 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
           <button
             key={step.id}
             type="button"
-            onClick={() => setCurrentStep(index)}
+            onClick={() => {
+              if (index <= currentStep || handleValidateStep(currentStep)) {
+                setCurrentStep(index);
+              }
+            }}
             className={`gtr44-wizard-tab ${getStepStatusClass(index)}`}
+            aria-current={index === currentStep ? 'step' : undefined}
           >
             <span className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-bold">
               {index < currentStep ? <CheckCircle className="h-3 w-3" /> : step.icon}
@@ -657,14 +468,14 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
             Cancel
           </Button>
           {currentStep === steps.length - 1 ? (
-            <Button type="submit" disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6">
+            <Button type="submit" disabled={isSubmitting} className="font-bold px-6">
               {isSubmitting ? 'Saving...' : 'Save Bill'}
               {!isSubmitting && <Save className="h-4 w-4 ml-1.5" />}
             </Button>
           ) : (
-            <Button type="button" size="sm" onClick={handleNext} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5">
+            <Button type="button" size="sm" onClick={handleNext} className="font-bold px-5">
               Next Step
-              <Plus className="h-3 w-3 ml-1" />
+              <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           )}
         </div>
@@ -674,15 +485,15 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
       <div className="gtr44-summary-bar">
         <div className="gtr44-summary-item gtr44-summary-gross">
           <span className="gtr44-summary-label">Gross:</span>
-          <span className="gtr44-summary-value">₹ {grossAmount.toLocaleString('en-IN')}</span>
+          <span className="gtr44-summary-value">{formatCurrency(grossAmount)}</span>
         </div>
         <div className="gtr44-summary-item gtr44-summary-deduct">
           <span className="gtr44-summary-label">Deductions:</span>
-          <span className="gtr44-summary-value">₹ {totalDeduction.toLocaleString('en-IN')}</span>
+          <span className="gtr44-summary-value">{formatCurrency(totalDeduction)}</span>
         </div>
         <div className="gtr44-summary-item gtr44-summary-net">
           <span className="gtr44-summary-label">Net Payable:</span>
-          <span className="gtr44-summary-value">₹ {Math.max(0, netAmount).toLocaleString('en-IN')}</span>
+          <span className="gtr44-summary-value">{formatCurrency(Math.max(0, netAmount))}</span>
            {netAmount < 0 && (
             <AlertCircle className="h-4 w-4 text-red-600" />
           )}

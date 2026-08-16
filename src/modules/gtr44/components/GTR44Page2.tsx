@@ -1,6 +1,7 @@
 import React from 'react';
 import { GTR44FormData } from '../types';
 import { splitAmount, formatDateDDMMYYYY } from '../utils/gtr44Utils';
+import { sumPartyEntries } from '../services/gtr44Calc.service';
 
 interface GTR44Page2Props {
   data: GTR44FormData;
@@ -12,7 +13,7 @@ const PAGE_2_ROW_COUNT = 13; // 13 rows with larger height (48px) fills Page 2 A
 export const GTR44Page2: React.FC<GTR44Page2Props> = ({ data }) => {
   // Page 2 displays up to first 13 entries
   const page2Entries = data.partyEntries.slice(0, PAGE_2_ROW_COUNT);
-  const page2Total = page2Entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const page2Total = sumPartyEntries(page2Entries);
   const carriedOverSplit = splitAmount(page2Total);
 
   // Fill remaining blank rows up to PAGE_2_ROW_COUNT

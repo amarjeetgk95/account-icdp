@@ -10,6 +10,9 @@ const moduleDefinition: ModuleDefinition = {
   sidebar: true,
   featureFlag: 'settings_module',
   order: 5,
+  children: [
+    { path: '/settings/office', label: 'Office Details', icon: 'settings' },
+  ],
 };
 
 export default moduleDefinition;

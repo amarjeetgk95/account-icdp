@@ -32,7 +32,7 @@ export function GTR44ViewPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="space-y-4">
           <SkeletonCard />
           <SkeletonCard />
@@ -43,7 +43,7 @@ export function GTR44ViewPage() {
 
   if (!bill) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="max-w-7xl mx-auto px-4 py-4">
         <EmptyState
           icon={FileQuestion}
           title="Bill not found."
@@ -59,24 +59,24 @@ export function GTR44ViewPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 print:hidden">
+    <div className="max-w-7xl mx-auto px-4 py-4 print:p-0">
+      <div className="page-header print:hidden">
         <div className="flex items-center">
-          <Button variant="ghost" className="mr-4" onClick={() => navigate('/gtr44/list')}>
-            <ChevronLeft className="h-5 w-5 mr-1" /> Return to List
+          <Button variant="ghost" size="sm" className="mr-2" onClick={() => navigate('/gtr44/list')}>
+            <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-3xl font-bold">View GTR-44 Bill</h1>
+          <h1 className="page-title">View GTR-44 Bill</h1>
         </div>
-        
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={handleExportData}>
-            <Download className="mr-2 h-4 w-4" /> Export Data
+
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportData}>
+            <Download className="mr-1 h-4 w-4" /> Export
           </Button>
-          <Button variant="outline" onClick={() => navigate(`/gtr44/edit/${id}`)} disabled={bill.status !== 'draft'}>
-            <Edit className="mr-2 h-4 w-4" /> Edit Bill
+          <Button variant="outline" size="sm" onClick={() => navigate(`/gtr44/edit/${id}`)} disabled={bill.status !== 'draft'}>
+            <Edit className="mr-1 h-4 w-4" /> Edit
           </Button>
-          <Button onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" /> Print GTR-44 PDF
+          <Button size="sm" onClick={handlePrint}>
+            <Printer className="mr-1 h-4 w-4" /> Print PDF
           </Button>
         </div>
       </div>

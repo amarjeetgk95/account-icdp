@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 import type { RouteDefinition } from '@/shared/types/module';
 
 const PartiesPage = lazy(() =>
@@ -6,8 +7,6 @@ const PartiesPage = lazy(() =>
 );
 
 export const partiesRoutes: RouteDefinition[] = [
-  {
-    path: '/parties',
-    element: <PartiesPage />,
-  },
+  { path: '/parties', element: <Navigate to="/parties/overview" replace /> },
+  { path: '/parties/:tab', element: <PartiesPage /> },
 ];

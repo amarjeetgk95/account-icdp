@@ -82,8 +82,8 @@ export const PostToLedgerModal: React.FC<PostToLedgerModalProps> = ({
 
       setPostedVoucher(res.voucherNo);
       if (onSuccess) onSuccess(res.voucherNo);
-    } catch (err: any) {
-      setError(err.message || 'Failed to post salary voucher to ledger');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to post salary voucher to ledger');
     } finally {
       setIsSubmitting(false);
     }

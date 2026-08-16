@@ -11,6 +11,11 @@ const moduleDefinition: ModuleDefinition = {
   sidebar: true,
   featureFlag: 'reports_module',
   order: 3,
+  children: [
+    { path: '/reports/24q', label: '24Q Employee', icon: 'file-text' },
+    { path: '/reports/26q', label: '26Q Vendor IT', icon: 'calculator' },
+    { path: '/reports/gst', label: 'GST Annual', icon: 'sliders' },
+  ],
 };
 
 export default moduleDefinition;

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePayBillImport } from '../hooks/usePayBillImport';
+import { toast } from '@/shared/components/Toast';
 import { PdfUploader } from './PdfUploader';
 import { PdfProcessingStatus } from './PdfProcessingStatus';
 import { BillMetadataCard } from './BillMetadataCard';
@@ -61,6 +62,7 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
     existingBill,
     isImporting,
     error,
+    setError,
     unknownComponents,
     dismissUnknownComponent,
     processFile,
@@ -105,11 +107,19 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
 
   const handleConfirmImport = async () => {
     const res = await importData();
-    if (res) {
-      setShowConfirmModal(false);
-      if (onImportSuccess) onImportSuccess();
-      onClose();
+    if (!res) return;
+
+    if (!res.dbSync && res.dbWarning) {
+      // Keep the modal open and surface the real persistence failure so the
+      // user cannot think the data was saved to the system.
+      setError(res.dbWarning);
+      return;
     }
+
+    toast.success('Pay bill imported and posted successfully.');
+    setShowConfirmModal(false);
+    if (onImportSuccess) onImportSuccess();
+    onClose();
   };
 
   const handleSaveBatch = async () => {

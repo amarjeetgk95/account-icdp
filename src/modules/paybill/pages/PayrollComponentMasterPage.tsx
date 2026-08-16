@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { usePermissions } from '@/core/permissions/hooks';
 import { componentMasterService } from '../services/componentMaster.service';
 import type { PayrollComponent, PayrollComponentType } from '../types/componentMaster';
 import { PbPanel, PbButton, PbChip, type PbChipTone } from '../components/ui';
@@ -11,10 +12,9 @@ import {
   Search,
   Plus,
   Pencil,
-  Trash2,
   Power,
+  Trash2,
   Layers,
-  FileSpreadsheet,
   RotateCcw,
 } from 'lucide-react';
 
@@ -36,6 +36,7 @@ const TYPE_TONE: Record<PayrollComponentType, PbChipTone> = {
 };
 
 export function PayrollComponentMasterPage() {
+  const { isAdmin } = usePermissions();
   const [components, setComponents] = useState<PayrollComponent[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
@@ -145,41 +146,47 @@ export function PayrollComponentMasterPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 pb-12">
-      <div className="bg-gradient-to-r from-indigo-700 via-violet-700 to-purple-800 rounded-2xl px-6 py-5 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5 min-w-0">
-          <span className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0">
-            <Layers size={22} strokeWidth={2.2} />
+    <div className="space-y-4">
+      <div className="page-header">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            <Layers size={14} strokeWidth={2.2} />
           </span>
           <div className="min-w-0">
-            <h1 className="text-lg font-bold font-heading tracking-tight truncate">
-              Payroll Component Master
-            </h1>
-            <p className="text-xs text-indigo-100 truncate">
-              Every earning / deduction column the PDF importer recognizes. The parser matches
-              detected table headers against this list — add new components here without code changes.
+            <h1 className="page-title">Payroll Component Master</h1>
+            <p className="page-subtitle">
+              Configure PDF header aliases, codes and column order
             </p>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
           <PbButton
             variant="secondary"
             icon={RotateCcw}
+            size="xs"
             onClick={() => setSeedConfirmOpen(true)}
-            className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+            disabled={!isAdmin}
+            title={isAdmin ? 'Restore defaults' : 'Only admins can modify the component master'}
+            className="text-xs"
           >
             Restore Defaults
           </PbButton>
-          <PbButton variant="primary" icon={Plus} onClick={handleAdd} className="bg-white/15 border border-white/25 hover:bg-white/25">
+          <PbButton
+            variant="primary"
+            icon={Plus}
+            size="xs"
+            onClick={handleAdd}
+            disabled={!isAdmin}
+            title={isAdmin ? 'Add component' : 'Only admins can modify the component master'}
+          >
             Add Component
           </PbButton>
         </div>
       </div>
 
       <PbPanel
-        icon={FileSpreadsheet}
         title={`Components (${components.length})`}
-        subtitle="Configure PDF header aliases, codes and column order"
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
@@ -250,10 +257,22 @@ export function PayrollComponentMasterPage() {
             hint="Load standard government payroll components (Basic, DA, HRA, CLA, Medical, Transport, etc.) or add custom components."
             action={
               <div className="flex items-center gap-2">
-                <PbButton variant="primary" icon={RotateCcw} onClick={() => setSeedConfirmOpen(true)}>
+                <PbButton
+                  variant="primary"
+                  icon={RotateCcw}
+                  onClick={() => setSeedConfirmOpen(true)}
+                  disabled={!isAdmin}
+                  title={isAdmin ? 'Load default components' : 'Only admins can modify the component master'}
+                >
                   Load Default Components
                 </PbButton>
-                <PbButton variant="secondary" icon={Plus} onClick={handleAdd}>
+                <PbButton
+                  variant="secondary"
+                  icon={Plus}
+                  onClick={handleAdd}
+                  disabled={!isAdmin}
+                  title={isAdmin ? 'Add component' : 'Only admins can modify the component master'}
+                >
                   Add Component
                 </PbButton>
               </div>
@@ -328,7 +347,8 @@ export function PayrollComponentMasterPage() {
                           variant="ghost"
                           size="xs"
                           icon={Pencil}
-                          title="Edit"
+                          title={isAdmin ? 'Edit' : 'Only admins can modify the component master'}
+                          disabled={!isAdmin}
                           onClick={() => handleEdit(c)}
                         >
                           Edit
@@ -337,7 +357,8 @@ export function PayrollComponentMasterPage() {
                           variant="ghost"
                           size="xs"
                           icon={Power}
-                          title={c.active ? 'Deactivate' : 'Activate'}
+                          title={isAdmin ? (c.active ? 'Deactivate' : 'Activate') : 'Only admins can modify the component master'}
+                          disabled={!isAdmin}
                           onClick={() => handleToggleActive(c)}
                         >
                           {c.active ? 'Off' : 'On'}
@@ -347,7 +368,8 @@ export function PayrollComponentMasterPage() {
                           size="xs"
                           icon={Trash2}
                           className="hover:text-rose-600"
-                          title="Delete"
+                          title={isAdmin ? 'Delete' : 'Only admins can modify the component master'}
+                          disabled={!isAdmin}
                           onClick={() => setDeleteTarget(c)}
                         >
                           Delete

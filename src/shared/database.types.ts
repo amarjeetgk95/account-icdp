@@ -143,8 +143,8 @@ export type Database = {
       admin_list_offices: { Args: Record<string, never>; Returns: Json }
       admin_create_office: { Args: { office_name: string; office_district: string }; Returns: Json }
       admin_update_office: { Args: { office_id: string; office_name: string; office_district: string }; Returns: Json }
-      admin_create_user: { Args: { user_email: string; user_password: string; user_role: string; user_office_id: string }; Returns: Json }
-      admin_invite_user: { Args: { user_email: string; user_role: string; user_office_id: string }; Returns: Json }
+      admin_create_user: { Args: { user_email: string; user_password: string; user_role: string; user_office_id: string | null }; Returns: Json }
+      admin_invite_user: { Args: { user_email: string; user_role: string; user_office_id: string | null }; Returns: Json }
       admin_entry_completion: { Args: Record<string, never>; Returns: Json }
       admin_office_financial_years: { Args: { target_office_id: string }; Returns: Json }
       admin_audit_list: { Args: { limit_count?: number; offset_count?: number }; Returns: Json }
@@ -152,6 +152,13 @@ export type Database = {
       get_system_stats: { Args: Record<string, never>; Returns: Json }
       admin_office_stats: { Args: Record<string, never>; Returns: Json }
       admin_data_entry_report: { Args: Record<string, never>; Returns: Json }
+      admin_import_health: { Args: Record<string, never>; Returns: Json }
+      admin_office_config: { Args: { target_office_id: string }; Returns: Json }
+      admin_set_office_fy: { Args: { target_office_id: string; fy: number }; Returns: Json }
+      admin_component_list: { Args: Record<string, never>; Returns: Json }
+      admin_component_save: { Args: { component: Json }; Returns: Json }
+      admin_component_set_active: { Args: { component_id: string; active: boolean }; Returns: Json }
+      admin_component_delete: { Args: { component_id: string }; Returns: Json }
       current_office_id: { Args: Record<string, never>; Returns: string }
       can_access_office: { Args: { target_office_id: string }; Returns: boolean }
       is_admin: { Args: Record<string, never>; Returns: boolean }

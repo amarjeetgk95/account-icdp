@@ -24,12 +24,17 @@ interface CreateUserFormProps {
   isLoading: boolean;
 }
 
-const createUserSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  role: z.enum(['admin', 'office']),
-  officeName: z.string().min(2, 'Office name must be at least 2 characters'),
-  password: z.string().optional(),
-});
+const createUserSchema = z
+  .object({
+    email: z.string().email('Invalid email address'),
+    role: z.enum(['admin', 'office']),
+    officeName: z.string().optional(),
+    password: z.string().optional(),
+  })
+  .refine((data) => data.role !== 'office' || !!data.officeName?.trim() && data.officeName.trim().length >= 2, {
+    path: ['officeName'],
+    message: 'Office name must be at least 2 characters',
+  });
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
@@ -50,11 +55,15 @@ export function CreateUserForm({ offices, onSubmit, isLoading }: CreateUserFormP
     handleSubmit,
     setError,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
     defaultValues: { email: '', role: 'office', officeName: '', password: '' },
   });
+
+  const role = watch('role');
+  const isAdminRole = role === 'admin';
 
   const availableOffices = offices.filter((o) => Number(o.users) === 0);
 
@@ -71,7 +80,7 @@ export function CreateUserForm({ offices, onSubmit, isLoading }: CreateUserFormP
         email: data.email.trim(),
         password: method === 'password' ? data.password : undefined,
         role: data.role,
-        officeName: data.officeName.trim(),
+        officeName: data.role === 'office' ? data.officeName?.trim() : undefined,
       });
       setStatus({ type: 'success', message });
       reset({ email: '', role: 'office', officeName: '', password: '' });
@@ -177,7 +186,7 @@ export function CreateUserForm({ offices, onSubmit, isLoading }: CreateUserFormP
 
         <div className="um-field">
           <label htmlFor="cuOffice" className="label">
-            Office
+            Office {isAdminRole ? <span className="text-slate-400 font-normal">(not required for admins)</span> : null}
           </label>
           <div className="relative">
             <Building2 size={15} className="um-field-icon" />
@@ -185,8 +194,9 @@ export function CreateUserForm({ offices, onSubmit, isLoading }: CreateUserFormP
               id="cuOffice"
               type="text"
               className="input pl-9"
-              placeholder="Type office name..."
+              placeholder={isAdminRole ? 'Admin — no office binding' : 'Type office name...'}
               list="cuOfficeList"
+              disabled={isAdminRole}
               {...register('officeName')}
             />
           </div>
@@ -196,6 +206,11 @@ export function CreateUserForm({ offices, onSubmit, isLoading }: CreateUserFormP
             ))}
           </datalist>
           {errors.officeName && <span className="um-field-error">{errors.officeName.message}</span>}
+          {isAdminRole && (
+            <span className="um-field-hint text-slate-400 dark:text-slate-500 text-xs">
+              Admins are not governed by an office and can access all offices.
+            </span>
+          )}
         </div>
       </div>
 

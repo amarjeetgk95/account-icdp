@@ -403,6 +403,14 @@ BEGIN
     jsonb_build_object('email_verified', true), now(), now(),
     '', '', '', '', '', ''
   );
+  -- GoTrue requires a companion auth.identities row for the user to be able to sign in.
+  INSERT INTO auth.identities (
+    id, user_id, provider, provider_id, identity_data, last_sign_in_at, created_at, updated_at
+  ) VALUES (
+    gen_random_uuid(), new_id, 'email', new_id::text,
+    jsonb_build_object('sub', new_id::text, 'email', user_email),
+    now(), now(), now()
+  );
   INSERT INTO public.profiles (id, role, office_id, suspended)
   VALUES (new_id, user_role, user_office_id, false);
 
@@ -442,6 +450,14 @@ BEGIN
     jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
     jsonb_build_object('email_verified', false), now(), now(),
     '', '', '', '', '', ''
+  );
+  -- GoTrue requires a companion auth.identities row for the user to be able to sign in.
+  INSERT INTO auth.identities (
+    id, user_id, provider, provider_id, identity_data, last_sign_in_at, created_at, updated_at
+  ) VALUES (
+    gen_random_uuid(), new_id, 'email', new_id::text,
+    jsonb_build_object('sub', new_id::text, 'email', user_email),
+    now(), now(), now()
   );
   INSERT INTO public.profiles (id, role, office_id, suspended)
   VALUES (new_id, user_role, user_office_id, false);

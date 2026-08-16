@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { PayBillImportPage } from './PayBillImportPage';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('@/core/supabase/client', () => ({
   supabase: {
@@ -31,6 +31,7 @@ vi.mock('@/core/auth/store', () => ({
 
 vi.mock('@/shared/utilities/office', () => ({
   getOfficeId: () => 'office-123',
+  isAllOfficesMode: () => false,
 }));
 
 vi.mock('@/modules/payroll/services/employee.service', () => ({
@@ -73,28 +74,30 @@ describe('PayBillImportPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders 3 module tabs and upload button in header', () => {
+  it('renders default matrix view and upload button in header', () => {
     render(
-      <MemoryRouter>
-        <PayBillImportPage />
+      <MemoryRouter initialEntries={['/paybill/matrix']}>
+        <Routes>
+          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
+        </Routes>
       </MemoryRouter>
     );
 
     expect(screen.getByText(/Pay Bill PDF Import & Allowance System/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Upload Pay Bill PDF/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /12-Month Matrix/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Employee Ledger/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Component Master/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Upload PDF/i })).toBeInTheDocument();
+    expect(screen.getByText(/Pay Bill Allowance Matrix Report/i)).toBeInTheDocument();
   });
 
   it('opens upload popup modal on button click and extracts sample data', async () => {
     render(
-      <MemoryRouter>
-        <PayBillImportPage />
+      <MemoryRouter initialEntries={['/paybill/matrix']}>
+        <Routes>
+          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
+        </Routes>
       </MemoryRouter>
     );
 
-    const uploadBtn = screen.getByRole('button', { name: /Upload Pay Bill PDF/i });
+    const uploadBtn = screen.getByRole('button', { name: /Upload PDF/i });
     fireEvent.click(uploadBtn);
 
     // Verify modal is open
@@ -120,12 +123,14 @@ describe('PayBillImportPage', () => {
 
   it('extracts sample deduction PDF data with 8 employees and reconciles net pay', async () => {
     render(
-      <MemoryRouter>
-        <PayBillImportPage />
+      <MemoryRouter initialEntries={['/paybill/matrix']}>
+        <Routes>
+          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
+        </Routes>
       </MemoryRouter>
     );
 
-    const uploadBtn = screen.getByRole('button', { name: /Upload Pay Bill PDF/i });
+    const uploadBtn = screen.getByRole('button', { name: /Upload PDF/i });
     fireEvent.click(uploadBtn);
 
     // Click sample deduction load button inside modal
@@ -145,21 +150,27 @@ describe('PayBillImportPage', () => {
     expect(screen.getByText(/Insert Data into Module/i)).toBeInTheDocument();
   });
 
-  it('switches between 12-Month Matrix and Employee Ledger tabs', () => {
+  it('switches between 12-Month Matrix and Employee Ledger via route params', () => {
     render(
-      <MemoryRouter>
-        <PayBillImportPage />
+      <MemoryRouter initialEntries={['/paybill/matrix']}>
+        <Routes>
+          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
+        </Routes>
       </MemoryRouter>
     );
 
-    // Click 12-Month Matrix tab
-    const matrixTab = screen.getByRole('button', { name: /12-Month Matrix/i });
-    fireEvent.click(matrixTab);
     expect(screen.getByText(/Pay Bill Allowance Matrix Report/i)).toBeInTheDocument();
 
-    // Click Employee Ledger tab
-    const employeeTab = screen.getByRole('button', { name: /Employee Ledger/i });
-    fireEvent.click(employeeTab);
+    cleanup();
+
+    render(
+      <MemoryRouter initialEntries={['/paybill/employee']}>
+        <Routes>
+          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
     expect(screen.getByText(/Select Employee:/i)).toBeInTheDocument();
   });
 });

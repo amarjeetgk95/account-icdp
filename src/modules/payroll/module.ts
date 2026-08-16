@@ -11,6 +11,13 @@ const moduleDefinition: ModuleDefinition = {
   sidebar: true,
   featureFlag: 'payroll_module',
   order: 1,
+  children: [
+    { path: '/payroll/entry', label: 'Monthly Entry', icon: 'file-spreadsheet' },
+    { path: '/payroll/report', label: 'Quarterly Report', icon: 'file-text' },
+    { path: '/payroll/budget', label: 'Budget Head Report', icon: 'layers' },
+    { path: '/payroll/lookup', label: 'Employee Lookup', icon: 'users' },
+    { path: '/payroll/employees', label: 'Employee Registration', icon: 'users' },
+  ],
 };
 
 export default moduleDefinition;

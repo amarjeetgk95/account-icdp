@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useOffices } from '../hooks/useAdmin';
 import { AdminReports } from '../components/AdminReports';
-import { AdminLayout } from '../components/AdminLayout';
+import { AdminLayout } from '@/shared/components/AdminLayout';
 import { getSectionIcon } from '@/shared/icons';
 
 export function AdminReportsPage() {
@@ -33,7 +33,6 @@ export function AdminReportsPage() {
   return (
     <AdminLayout
       title="Data Entry & Reports"
-      subtitle="Cross-office data-entry summary and report drill-down"
       icon={getSectionIcon('reports')}
     >
       <AdminReports

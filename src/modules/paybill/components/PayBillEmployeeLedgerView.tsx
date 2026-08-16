@@ -48,6 +48,7 @@ export function PayBillEmployeeLedgerView({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedHrpn, setSelectedHrpn] = useState<string>(initialHrpn || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [matrixReport, setMatrixReport] = useState<PayBillAllowanceMatrixReport | null>(null);
   const [manualAllowances, setManualAllowances] = useState<string[]>([]);
   const [manualDeductions, setManualDeductions] = useState<string[]>([]);
@@ -77,6 +78,7 @@ export function PayBillEmployeeLedgerView({
 
   const loadData = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const [earnings, deductions] = await Promise.all([
         paybillRepository.listEarnings({ financialYear }),
@@ -92,6 +94,7 @@ export function PayBillEmployeeLedgerView({
       }
     } catch (err) {
       console.error('[PayBillEmployeeLedgerView] load error:', err);
+      setLoadError(err instanceof Error ? err.message : 'Could not load employee ledger data.');
     } finally {
       setIsLoading(false);
     }
@@ -100,6 +103,7 @@ export function PayBillEmployeeLedgerView({
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoadError(null);
       try {
         const [earnings, deductions] = await Promise.all([
           paybillRepository.listEarnings({ financialYear }),
@@ -119,6 +123,9 @@ export function PayBillEmployeeLedgerView({
         );
       } catch (err) {
         console.error('[PayBillEmployeeLedgerView] load error:', err);
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err.message : 'Could not load employee ledger data.');
+        }
       }
     })();
     return () => {
@@ -515,7 +522,6 @@ export function PayBillEmployeeLedgerView({
         icon={User}
         iconClass="bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm"
         title="Employee Ledger"
-        subtitle={`HRPN-keyed 12-month allowance ledger • FY ${fyLabel}`}
         actions={
           <>
             <div className="flex items-center gap-2">
@@ -574,6 +580,18 @@ export function PayBillEmployeeLedgerView({
           </>
         }
       />
+
+      {loadError && (
+        <div className="px-4 py-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl flex items-start gap-2.5">
+          <span className="mt-0.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+            !
+          </span>
+          <div className="text-xs text-rose-700 dark:text-rose-300">
+            <div className="font-bold">Employee data could not be loaded</div>
+            <div className="mt-0.5 opacity-90">{loadError}</div>
+          </div>
+        </div>
+      )}
 
       {/* Employee Financial Details */}
       {currentEmployeeInfo && hasEmployeeData ? (

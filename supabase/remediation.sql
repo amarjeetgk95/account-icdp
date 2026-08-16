@@ -354,6 +354,14 @@ BEGIN
     jsonb_build_object('email_verified', true), now(), now(),
     '', '', '', '', '', ''
   );
+  -- GoTrue requires a companion auth.identities row for the user to be able to sign in.
+  INSERT INTO auth.identities (
+    id, user_id, provider, provider_id, identity_data, last_sign_in_at, created_at, updated_at
+  ) VALUES (
+    gen_random_uuid(), new_id, 'email', new_id::text,
+    jsonb_build_object('sub', new_id::text, 'email', user_email),
+    now(), now(), now()
+  );
   INSERT INTO public.profiles (id, role, office_id) VALUES (new_id, user_role, user_office_id);
   RETURN json_build_object('message', 'User created successfully');
 END;
@@ -578,6 +586,45 @@ BEGIN
   ) l;
 
   RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- Invite user (no password; user sets their own via forgot-password)
+CREATE OR REPLACE FUNCTION public.admin_invite_user(
+  user_email text, user_role text, user_office_id bigint
+)
+RETURNS json AS $$
+DECLARE new_id uuid;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RETURN json_build_object('error', 'Admin access required');
+  END IF;
+  IF user_role NOT IN ('admin', 'office') THEN
+    RETURN json_build_object('error', 'Invalid role');
+  END IF;
+  new_id := gen_random_uuid();
+  INSERT INTO auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+    confirmation_token, recovery_token, email_change_token_new,
+    email_change, email_change_token_current, reauthentication_token
+  ) VALUES (
+    '00000000-0000-0000-0000-000000000000', new_id, 'authenticated', 'authenticated',
+    user_email, '', NULL,
+    jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
+    jsonb_build_object('email_verified', false), now(), now(),
+    '', '', '', '', '', ''
+  );
+  -- GoTrue requires a companion auth.identities row for the user to be able to sign in.
+  INSERT INTO auth.identities (
+    id, user_id, provider, provider_id, identity_data, last_sign_in_at, created_at, updated_at
+  ) VALUES (
+    gen_random_uuid(), new_id, 'email', new_id::text,
+    jsonb_build_object('sub', new_id::text, 'email', user_email),
+    now(), now(), now()
+  );
+  INSERT INTO public.profiles (id, role, office_id) VALUES (new_id, user_role, user_office_id);
+  RETURN json_build_object('message', 'Invitation created successfully');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 

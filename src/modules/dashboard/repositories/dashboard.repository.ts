@@ -1,6 +1,6 @@
 import { supabase } from '@/core/supabase/client';
 import { useUIStore } from '@/core/stores/ui-store';
-import { getOfficeId } from '@/shared/utilities/office';
+import { getOfficeScope } from '@/shared/utilities/office';
 import { MONTHS, QUARTER_MONTHS, type Quarter } from '@/shared/constants';
 import { isActiveInEntryMonth } from '@/modules/payroll/utils/employeeDates';
 import type { DashboardData, MonthlyRoadmapData, Task } from '../types';
@@ -79,23 +79,24 @@ function getCurrentQuarter(): Quarter {
 
 export const dashboardRepository = {
   async getSummary(): Promise<DashboardData> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
     const fy = getFinancialYear();
 
-    const { data: employees, error: empError } = await supabase
+    let qEmployees = supabase
       .from('employees')
-      .select('id, name, pan, join_date, transfer_date')
-      .eq('office_id', officeId)
-      .order('id');
+      .select('id, name, pan, join_date, transfer_date');
+    if (!scope.all) qEmployees = qEmployees.eq('office_id', scope.officeId!);
+    const { data: employees, error: empError } = await qEmployees.order('id');
 
     if (empError) throw empError;
 
-    const { data: salaries, error: salError } = await supabase
+    let qSalaries = supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
-      .eq('financial_year', fy)
-      .eq('office_id', officeId);
+      .eq('financial_year', fy);
+    if (!scope.all) qSalaries = qSalaries.eq('office_id', scope.officeId!);
+    const { data: salaries, error: salError } = await qSalaries;
 
     if (salError) throw salError;
 

@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 import type { RouteDefinition } from '@/shared/types/module';
 
 const SettingsPage = lazy(() =>
@@ -6,8 +7,6 @@ const SettingsPage = lazy(() =>
 );
 
 export const settingsRoutes: RouteDefinition[] = [
-  {
-    path: '/settings',
-    element: <SettingsPage />,
-  },
+  { path: '/settings', element: <Navigate to="/settings/office" replace /> },
+  { path: '/settings/:tab', element: <SettingsPage /> },
 ];

@@ -238,6 +238,10 @@ export interface PayBillImportResult {
   notFoundCount: number;
   appliedToPayrollGrid: number;
   createdAt: string;
+  /** Whether the records were confirmed persisted to the database (not just local cache). */
+  dbSync: boolean;
+  /** Non-fatal warning surfaced to the user when DB persistence partially/failed. */
+  dbWarning?: string;
 }
 
 export interface PayBillStoredImport {

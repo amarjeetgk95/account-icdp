@@ -1,5 +1,6 @@
 import { supabase } from '@/core/supabase/client';
-import { getOfficeId } from '@/shared/utilities/office';
+import { useAuthStore } from '@/core/auth/store';
+import { getOfficeId, isAllOfficesMode, resolveOfficeIdForUser } from '@/shared/utilities/office';
 import type {
   PayBillStoredImport,
   PayBillStoredEarning,
@@ -33,30 +34,102 @@ const DEFAULT_SETTINGS: PayBillSettings = {
   deductionColumnOrder: [],
 };
 
-// Fallback in-memory cache for standalone/offline runs
-let localImportsCache: PayBillStoredImport[] = [];
-let localEarningsCache: PayBillStoredEarning[] = [];
-let localDeductionsCache: PayBillStoredDeduction[] = [];
-let localSettings: PayBillSettings | null = null;
-let localVouchersCache: PayBillLedgerVoucher[] = [];
-let localManualValuesCache: ManualLedgerValuesMap | null = null;
-
 type ManualLedgerValuesMap = Record<string, Record<string, Record<string, number>>>;
+
+interface OfficeCache {
+  imports: PayBillStoredImport[];
+  earnings: PayBillStoredEarning[];
+  deductions: PayBillStoredDeduction[];
+  settings: PayBillSettings | null;
+  vouchers: PayBillLedgerVoucher[];
+  manualValues: ManualLedgerValuesMap | null;
+}
+
+function emptyCache(): OfficeCache {
+  return {
+    imports: [],
+    earnings: [],
+    deductions: [],
+    settings: null,
+    vouchers: [],
+    manualValues: null,
+  };
+}
+
+// Per-office in-memory fallback cache for standalone/offline runs.
+// Scoped by officeId so that switching offices never leaks another
+// office's data through the cache.
+const cacheByOffice = new Map<string, OfficeCache>();
+const OFFLINE_OFFICE_KEY = '__offline__';
+
+function resolveOfficeCache(officeId: string | null): OfficeCache {
+  const key = officeId || OFFLINE_OFFICE_KEY;
+  let cache = cacheByOffice.get(key);
+  if (!cache) {
+    cache = emptyCache();
+    cacheByOffice.set(key, cache);
+  }
+  return cache;
+}
+
+/**
+ * Resolve the active office id for the current session.
+ *
+ * Falls back to the user's profile (profiles.office_id) when the stores are not
+ * populated yet (e.g. first render after a hard refresh), so office users never
+ * silently lose their employee data because of a store timing gap.
+ */
+async function resolveOfficeId(): Promise<string | null> {
+  const existing = getOfficeId();
+  if (existing) return existing;
+
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) return null;
+  return resolveOfficeIdForUser(userId);
+}
+
+/**
+ * Like resolveOfficeId(), but throws a descriptive error for signed-in users
+ * whose office cannot be determined. Returning an empty cache in that case
+ * looks like "no data" in the UI, which hides real configuration problems.
+ */
+async function requireOfficeId(): Promise<string> {
+  const user = useAuthStore.getState().user;
+  if (user?.role === 'admin') {
+    throw new Error('Admin users cannot perform office-specific data entry. Please use an office account.');
+  }
+
+  const officeId = await resolveOfficeId();
+  if (officeId) return officeId;
+
+  if (user?.id) {
+    throw new Error(
+      'No office is assigned to your account, so pay bill / employee data cannot be loaded. ' +
+        'Contact an administrator to assign an office to your user profile.'
+    );
+  }
+  throw new Error('No active office selected');
+}
 
 export const paybillRepository = {
   /**
    * List all imported paybill batches for an office and financial year
    */
   async listImports(financialYear?: number): Promise<PayBillStoredImport[]> {
-    const officeId = getOfficeId();
-    if (!officeId) return localImportsCache;
+    const allOffices = isAllOfficesMode();
+    const officeId = await resolveOfficeId();
+    const cache = resolveOfficeCache(officeId);
+    if (!allOffices && !officeId) return cache.imports;
 
     try {
       let q = supabase
         .from('paybill_imports')
         .select('*')
-        .eq('office_id', officeId)
         .order('created_at', { ascending: false });
+
+      if (!allOffices && officeId) {
+        q = q.eq('office_id', officeId!);
+      }
 
       if (financialYear != null) {
         q = q.eq('financial_year', financialYear);
@@ -92,9 +165,9 @@ export const paybillRepository = {
     }
 
     if (financialYear != null) {
-      return localImportsCache.filter((i) => i.financialYear === financialYear);
+      return cache.imports.filter((i) => i.financialYear === financialYear);
     }
-    return localImportsCache;
+    return cache.imports;
   },
 
   /**
@@ -106,16 +179,20 @@ export const paybillRepository = {
     params?: { month?: string; financialYear?: number; sheetType?: PayBillSheetType }
   ): Promise<PayBillStoredImport | null> {
     if (!billNo) return null;
-    const officeId = getOfficeId();
+    const allOffices = isAllOfficesMode();
+    const officeId = await resolveOfficeId();
     const cleanBillNo = billNo.trim();
 
-    if (officeId) {
+    if (allOffices || officeId) {
       try {
         let q = supabase
           .from('paybill_imports')
           .select('*')
-          .eq('office_id', officeId)
           .ilike('bill_no', `%${cleanBillNo}%`);
+
+        if (!allOffices && officeId) {
+          q = q.eq('office_id', officeId!);
+        }
 
         if (params?.month) {
           q = q.eq('month', params.month);
@@ -158,7 +235,8 @@ export const paybillRepository = {
     }
 
     const cleanMonth = params?.month?.toLowerCase();
-    const match = localImportsCache.find((i) => {
+    const cache = resolveOfficeCache(officeId);
+    const match = cache.imports.find((i) => {
       if (i.billNo.toLowerCase() !== cleanBillNo.toLowerCase()) return false;
       if (cleanMonth && i.month.toLowerCase() !== cleanMonth) return false;
       if (params?.financialYear != null && i.financialYear !== params.financialYear) return false;
@@ -179,15 +257,18 @@ export const paybillRepository = {
     sortField?: PayBillSortField;
     sortDir?: PayBillSortDirection;
   }): Promise<PayBillStoredEarning[]> {
-    const officeId = getOfficeId();
+    const allOffices = isAllOfficesMode();
+    const officeId = await resolveOfficeId();
     let records: PayBillStoredEarning[] = [];
 
     try {
-      if (officeId) {
-        let q = supabase
-          .from('paybill_employee_earnings')
-          .select('*')
-          .eq('office_id', officeId);
+      let q = supabase
+        .from('paybill_employee_earnings')
+        .select('*');
+
+      if (!allOffices && officeId) {
+        q = q.eq('office_id', officeId!);
+      }
 
         if (params?.financialYear != null) {
           q = q.eq('financial_year', params.financialYear);
@@ -203,8 +284,9 @@ export const paybillRepository = {
         }
 
         const { data, error } = await q;
+        if (error) throw error;
 
-        if (!error && data) {
+        if (data) {
           records = data.map((r) => ({
             id: r.id,
             importId: r.import_id,
@@ -224,8 +306,8 @@ export const paybillRepository = {
             cla: Number(r.cla) || 0,
             medicalAllowance: Number(r.medical_allowance) || 0,
             transportAllowance: Number(r.transport_allowance) || 0,
-            specialPay: Number((r as any).special_pay) || 0,
-            washingAllowance: Number((r as any).washing_allowance) || 0,
+            specialPay: Number((r as unknown as { special_pay?: unknown }).special_pay) || 0,
+            washingAllowance: Number((r as unknown as { washing_allowance?: unknown }).washing_allowance) || 0,
             nppAllowance: Number(r.npp_allowance) || 0,
             grossAmount: Number(r.gross_amount) || 0,
             mappingStatus: r.mapping_status as PayBillStoredEarning['mappingStatus'],
@@ -245,13 +327,14 @@ export const paybillRepository = {
             createdAt: r.created_at,
           }));
         }
-      }
     } catch (err) {
       console.warn('[PayBillRepository] listEarnings fallback to cache:', err);
+      if (allOffices) throw err;
     }
 
     if (records.length === 0) {
-      records = [...localEarningsCache];
+      const cache = resolveOfficeCache(officeId);
+      records = [...cache.earnings];
       if (params?.financialYear != null) {
         records = records.filter((r) => r.financialYear === params.financialYear);
       }
@@ -290,7 +373,7 @@ export const paybillRepository = {
    * Delete an imported paybill batch and all its employee earnings
    */
   async deleteImport(importId: string): Promise<void> {
-    const officeId = getOfficeId();
+    const officeId = await requireOfficeId();
     if (officeId) {
       try {
         await supabase
@@ -303,25 +386,30 @@ export const paybillRepository = {
       }
     }
 
-    localImportsCache = localImportsCache.filter((i) => i.id !== importId);
-    localEarningsCache = localEarningsCache.filter((e) => e.importId !== importId);
-    localDeductionsCache = localDeductionsCache.filter((d) => d.importId !== importId);
+    const cache = resolveOfficeCache(officeId);
+    cache.imports = cache.imports.filter((i) => i.id !== importId);
+    cache.earnings = cache.earnings.filter((e) => e.importId !== importId);
+    cache.deductions = cache.deductions.filter((d) => d.importId !== importId);
   },
 
   /**
    * Save import and earnings records into database and local cache
    */
   saveToCache(importRecord: PayBillStoredImport, earnings: PayBillStoredEarning[]) {
-    localImportsCache = [importRecord, ...localImportsCache.filter((i) => i.id !== importRecord.id)];
-    localEarningsCache = [...earnings, ...localEarningsCache.filter((e) => e.importId !== importRecord.id)];
+    const officeId = getOfficeId();
+    const cache = resolveOfficeCache(officeId);
+    cache.imports = [importRecord, ...cache.imports.filter((i) => i.id !== importRecord.id)];
+    cache.earnings = [...earnings, ...cache.earnings.filter((e) => e.importId !== importRecord.id)];
   },
 
   /**
    * Save import and deduction records into local cache
    */
   saveDeductionsToCache(importRecord: PayBillStoredImport, deductions: PayBillStoredDeduction[]) {
-    localImportsCache = [importRecord, ...localImportsCache.filter((i) => i.id !== importRecord.id)];
-    localDeductionsCache = [...deductions, ...localDeductionsCache.filter((d) => d.importId !== importRecord.id)];
+    const officeId = getOfficeId();
+    const cache = resolveOfficeCache(officeId);
+    cache.imports = [importRecord, ...cache.imports.filter((i) => i.id !== importRecord.id)];
+    cache.deductions = [...deductions, ...cache.deductions.filter((d) => d.importId !== importRecord.id)];
   },
 
   /**
@@ -333,32 +421,36 @@ export const paybillRepository = {
     hrpn?: string;
     importId?: string;
   }): Promise<PayBillStoredDeduction[]> {
-    const officeId = getOfficeId();
+    const allOffices = isAllOfficesMode();
+    const officeId = await resolveOfficeId();
     let records: PayBillStoredDeduction[] = [];
 
     try {
-      if (officeId) {
-        let q = supabase
-          .from('paybill_employee_deductions')
-          .select('*')
-          .eq('office_id', officeId);
+      let q = supabase
+        .from('paybill_employee_deductions')
+        .select('*');
 
-        if (params?.financialYear != null) {
-          q = q.eq('financial_year', params.financialYear);
-        }
-        if (params?.month) {
-          q = q.eq('month', params.month);
-        }
-        if (params?.hrpn) {
-          q = q.eq('hrpn', params.hrpn.trim());
-        }
-        if (params?.importId) {
-          q = q.eq('import_id', params.importId);
-        }
+      if (!allOffices && officeId) {
+        q = q.eq('office_id', officeId!);
+      }
 
-        const { data, error } = await q;
-        if (!error && data) {
-          records = data.map((r) => ({
+      if (params?.financialYear != null) {
+        q = q.eq('financial_year', params.financialYear);
+      }
+      if (params?.month) {
+        q = q.eq('month', params.month);
+      }
+      if (params?.hrpn) {
+        q = q.eq('hrpn', params.hrpn.trim());
+      }
+      if (params?.importId) {
+        q = q.eq('import_id', params.importId);
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+      if (data) {
+        records = data.map((r) => ({
             id: r.id,
             importId: r.import_id,
             officeId: String(r.office_id),
@@ -397,12 +489,13 @@ export const paybillRepository = {
           }));
           return records;
         }
-      }
     } catch (err) {
       console.warn('[PayBillRepository] listDeductions fallback to cache:', err);
+      if (allOffices) throw err;
     }
 
-    let filtered = [...localDeductionsCache];
+    const cache = resolveOfficeCache(officeId);
+    let filtered = [...cache.deductions];
     if (params?.financialYear != null) {
       filtered = filtered.filter((r) => r.financialYear === params.financialYear);
     }
@@ -494,11 +587,12 @@ export const paybillRepository = {
     financialYear: number,
     hrpn?: string | null
   ): Promise<PayBillAllowanceMatrixReport> {
-    const officeId = getOfficeId();
+    const allOffices = isAllOfficesMode();
+    const officeId = await resolveOfficeId();
     const cleanHrpn = hrpn ? hrpn.trim() : null;
 
-    // 1. Try DB RPC first
-    if (officeId) {
+    // 1. Try DB RPC first (requires a concrete office)
+    if (!allOffices && officeId) {
       try {
         const { data, error } = await supabase.rpc('get_paybill_parameter_matrix', {
           p_office_id: officeId,
@@ -506,23 +600,23 @@ export const paybillRepository = {
           p_hrpn: cleanHrpn,
         });
 
-        if (!error && data) {
-          const parsed = data as unknown as {
-            financial_year: number;
-            hrpn: string | null;
-            month_labels: string[];
-            rows: PayBillParameterMatrixRow[];
-          };
+      if (!error && data) {
+        const parsed = data as unknown as {
+          financial_year: number;
+          hrpn: string | null;
+          month_labels: string[];
+          rows: PayBillParameterMatrixRow[];
+        };
 
-          const grossRow = parsed.rows.find((r) => r.key === 'gross_amount');
-          return {
-            financialYear: parsed.financial_year || financialYear,
-            hrpn: cleanHrpn,
-            monthLabels: parsed.month_labels || MONTH_ORDER,
-            rows: parsed.rows || [],
-            totalGross: grossRow ? grossRow.total : 0,
-          };
-        }
+        const grossRow = parsed.rows.find((r) => r.key === 'gross_amount');
+        return {
+          financialYear: parsed.financial_year || financialYear,
+          hrpn: cleanHrpn,
+          monthLabels: parsed.month_labels || MONTH_ORDER,
+          rows: parsed.rows || [],
+          totalGross: grossRow ? grossRow.total : 0,
+        };
+      }
       } catch (err) {
         console.warn('[PayBillRepository] RPC get_paybill_parameter_matrix fallback to client compute:', err);
       }
@@ -600,8 +694,7 @@ export const paybillRepository = {
     row: { hrpn: string; employeeName: string; designation?: string; payScale?: string },
     pan?: string
   ): Promise<{ id: string; name: string; hrpn: string }> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No active office selected');
+    const officeId = await requireOfficeId();
 
     // Generate dummy PAN if not provided e.g. "HRPN20105536"
     const panVal = pan || `PAN${row.hrpn}`.slice(0, 10).toUpperCase();
@@ -645,8 +738,7 @@ export const paybillRepository = {
     empId: string,
     updates: { designation?: string; payScale?: string }
   ): Promise<boolean> {
-    const officeId = getOfficeId();
-    if (!officeId) return true;
+    const officeId = await requireOfficeId();
 
     try {
       const payload: { designation?: string; pay_scale?: string } = {};
@@ -673,33 +765,12 @@ export const paybillRepository = {
    * instead of creating a duplicate.
    */
   async postPayBillToLedger(payload: PostToLedgerPayload): Promise<{ success: boolean; voucherNo: string }> {
-    const officeId = getOfficeId();
+    const officeId = await requireOfficeId();
     const voucherNo = `SAL/${payload.month.toUpperCase().slice(0, 3)}/${payload.billNo || '001'}`;
-
-    if (!officeId) {
-      console.warn('[PayBillRepository] No office selected - keeping voucher in local cache only');
-      const cached: PayBillLedgerVoucher = {
-        id: `local-voucher-${voucherNo}`,
-        voucherNo,
-        billNo: payload.billNo,
-        month: payload.month,
-        financialYear: payload.financialYear,
-        voucherDate: payload.voucherDate || new Date().toISOString().slice(0, 10),
-        majorHead: payload.majorHead || null,
-        grossTotal: payload.grossTotal,
-        status: 'POSTED',
-        createdAt: new Date().toISOString(),
-      };
-      localVouchersCache = [cached, ...localVouchersCache.filter((v) => v.voucherNo !== voucherNo)];
-      return { success: true, voucherNo };
-    }
 
     try {
       const existing = await this.getPostedVoucher(payload.month, payload.financialYear);
       if (existing) {
-        console.info(
-          `[PayBillRepository] Voucher already posted for month=${payload.month} fy=${payload.financialYear}: ${existing.voucherNo}`
-        );
         return { success: true, voucherNo: existing.voucherNo };
       }
 
@@ -755,10 +826,10 @@ export const paybillRepository = {
           status: data.status,
           createdAt: data.created_at,
         };
-        localVouchersCache = [voucher, ...localVouchersCache.filter((v) => v.voucherNo !== voucher.voucherNo)];
+        const cache = resolveOfficeCache(officeId);
+        cache.vouchers = [voucher, ...cache.vouchers.filter((v) => v.voucherNo !== voucher.voucherNo)];
       }
 
-      console.info(`[PayBillRepository] Voucher ${voucherNo} posted for month=${payload.month} fy=${payload.financialYear}`);
       return { success: true, voucherNo };
     } catch (err) {
       console.warn('[PayBillRepository] postPayBillToLedger db error:', err);
@@ -770,18 +841,23 @@ export const paybillRepository = {
    * Fetch the posted ledger voucher for a month (if any)
    */
   async getPostedVoucher(month: string, financialYear: number): Promise<PayBillLedgerVoucher | null> {
-    const officeId = getOfficeId();
-    if (officeId) {
+    const allOffices = isAllOfficesMode();
+    const officeId = await resolveOfficeId();
+    if (allOffices || officeId) {
       try {
-        const { data, error } = await supabase
+        let q = supabase
           .from('paybill_vouchers')
           .select('*')
-          .eq('office_id', officeId)
           .eq('month', month)
           .eq('financial_year', financialYear)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .limit(1);
+
+        if (!allOffices && officeId) {
+          q = q.eq('office_id', officeId!);
+        }
+
+        const { data, error } = await q.maybeSingle();
 
         if (!error && data) {
           return {
@@ -801,18 +877,18 @@ export const paybillRepository = {
         console.warn('[PayBillRepository] getPostedVoucher db error:', err);
       }
     }
-    return (
-      localVouchersCache.find((v) => v.month === month && v.financialYear === financialYear) || null
-    );
+    const cache = resolveOfficeCache(officeId);
+    return cache.vouchers.find((v) => v.month === month && v.financialYear === financialYear) || null;
   },
 
   /**
    * Load office-level paybill settings (DA rates, bill metadata defaults, audit tolerances)
    */
   async getSettings(): Promise<PayBillSettings> {
-    if (localSettings) return localSettings;
+    const officeId = await resolveOfficeId();
+    const cache = resolveOfficeCache(officeId);
+    if (cache.settings) return cache.settings;
 
-    const officeId = getOfficeId();
     const stored = officeId
       ? (() => {
           try {
@@ -840,7 +916,7 @@ export const paybillRepository = {
               Object.assign(merged, val);
             }
           }
-          localSettings = merged;
+          cache.settings = merged;
           return merged;
         }
       } catch (err) {
@@ -849,7 +925,7 @@ export const paybillRepository = {
     }
 
     const fallback: PayBillSettings = { ...DEFAULT_SETTINGS, ...(stored || {}) };
-    localSettings = fallback;
+    cache.settings = fallback;
     return fallback;
   },
 
@@ -865,10 +941,9 @@ export const paybillRepository = {
         ? patch.daRates.map((n) => Number(n)).filter((n) => !Number.isNaN(n))
         : current.daRates,
     };
-    localSettings = next;
-
-    const officeId = getOfficeId();
-    if (!officeId) return next;
+    const officeId = await requireOfficeId();
+    const cache = resolveOfficeCache(officeId);
+    cache.settings = next;
 
     const toStore: Partial<PayBillSettings> = {
       ddoHrpn: next.ddoHrpn,
@@ -918,9 +993,10 @@ export const paybillRepository = {
    * Load manually entered ledger values: { [hrpn]: { [paramKey]: { [month]: number } } }
    */
   async getManualLedgerValues(): Promise<ManualLedgerValuesMap> {
-    if (localManualValuesCache) return localManualValuesCache;
+    const officeId = await resolveOfficeId();
+    const cache = resolveOfficeCache(officeId);
+    if (cache.manualValues) return cache.manualValues;
 
-    const officeId = getOfficeId();
     const stored = officeId
       ? (() => {
           try {
@@ -943,7 +1019,7 @@ export const paybillRepository = {
         if (!error && data && data.length > 0) {
           const remote = data[data.length - 1].settings_value as ManualLedgerValuesMap;
           if (remote && typeof remote === 'object') {
-            localManualValuesCache = remote;
+             cache.manualValues = remote;
             return remote;
           }
         }
@@ -953,7 +1029,7 @@ export const paybillRepository = {
     }
 
     const fallback = stored || {};
-    localManualValuesCache = fallback;
+    cache.manualValues = fallback;
     return fallback;
   },
 
@@ -977,10 +1053,9 @@ export const paybillRepository = {
         },
       },
     };
-    localManualValuesCache = next;
-
-    const officeId = getOfficeId();
-    if (!officeId) return;
+    const officeId = await requireOfficeId();
+    const cache = resolveOfficeCache(officeId);
+    cache.manualValues = next;
 
     try {
       localStorage.setItem(`paybill_manual_values_${officeId}`, JSON.stringify(next));
@@ -1000,6 +1075,19 @@ export const paybillRepository = {
       }
     } catch (err) {
       console.warn('[PayBillRepository] saveManualLedgerValue db error:', err);
+    }
+  },
+
+  /**
+   * Invalidate the in-memory cache for the given office (or all offices).
+   * Call this when the active office changes so data never bleeds across offices.
+   */
+  invalidateCache(officeId?: string | null) {
+    if (officeId === undefined) {
+      // Clear everything (e.g. on logout / full reset)
+      cacheByOffice.clear();
+    } else {
+      cacheByOffice.delete(officeId || OFFLINE_OFFICE_KEY);
     }
   },
 };

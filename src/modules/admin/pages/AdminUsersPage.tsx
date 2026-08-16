@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
-import { UserPlus, Info, UserX, UserCheck } from 'lucide-react';
+import { UserPlus, UserX, FileText, Building2, Users, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '@/core/auth/store';
 import { useNavigate } from 'react-router-dom';
 import { useUsers, useOffices, useCreateUser } from '../hooks/useAdmin';
 import { UserList } from '../components/UserList';
 import { CreateUserForm } from '../components/CreateUserForm';
-import { AdminModal } from '../components/AdminModal';
-import { AdminLayout } from '../components/AdminLayout';
+import { AdminLayout } from '@/shared/components/AdminLayout';
+import { AdminModal } from '@/shared/components/AdminModal';
+import { ErrorBanner } from '@/shared/components/ErrorBanner';
 import { useToast } from '@/hooks/use-toast';
 import { getSectionIcon } from '@/shared/icons';
 import type { CreateUserInput } from '../types';
@@ -36,6 +37,16 @@ export function AdminUsersPage() {
     () => users.filter((u) => u.suspended).length,
     [users]
   );
+
+  const adminCount = useMemo(() => users.filter((u) => u.role === 'admin').length, [users]);
+  const officeUserCount = useMemo(() => users.filter((u) => u.role === 'office').length, [users]);
+
+  const stats = [
+    { label: 'Total Users', value: users.length, icon: Users, accent: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' },
+    { label: 'Admins', value: adminCount, icon: ShieldCheck, accent: 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300' },
+    { label: 'Office Users', value: officeUserCount, icon: Building2, accent: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-300' },
+    { label: 'Suspended', value: suspendedCount, icon: UserX, accent: 'bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-300' },
+  ];
 
   const handleSetRole = async (userId: string, role: 'admin' | 'office', officeId: string | null) => {
     try {
@@ -92,70 +103,46 @@ export function AdminUsersPage() {
   return (
     <AdminLayout
       title="User Management"
-      subtitle="Create users, assign roles, and review admin activity"
       icon={getSectionIcon('users')}
+      actions={[
+        { label: 'Audit Trail', icon: FileText, onClick: () => navigate('/admin/audit') },
+        {
+          label: 'Add User',
+          icon: UserPlus,
+          onClick: () => setModalOpen(true),
+          variant: 'primary',
+        },
+      ]}
     >
-      <div className="space-y-5">
+      <div className="space-y-4">
         {officesError && (
-          <div className="alert alert-danger rounded-xl animate-fade-in">
-            <Info size={16} className="shrink-0 mt-0.5" />
-            <span>
-              Failed to load offices: {officesError instanceof Error ? officesError.message : 'Unknown error'}
-            </span>
-          </div>
+          <ErrorBanner title="Failed to load offices:" error={officesError} className="animate-fade-in" />
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 animate-fade-in">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700">
-              Users: <strong className="tabular-nums font-bold">{users.length}</strong>
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/15 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50">
-              Admins: <strong className="tabular-nums font-bold">{users.filter((u) => u.role === 'admin').length}</strong>
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-xs font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/50">
-              Office Users:{' '}
-              <strong className="tabular-nums font-bold">{users.filter((u) => u.role === 'office').length}</strong>
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 dark:bg-red-500/15 text-xs font-semibold text-red-700 dark:text-red-300 border border-red-200/60 dark:border-red-900/50">
-              <UserX size={11} /> Suspended:{' '}
-              <strong className="tabular-nums font-bold">{suspendedCount}</strong>
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-500/15 text-xs font-semibold text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/50">
-              <UserCheck size={11} /> Active:{' '}
-              <strong className="tabular-nums font-bold">{users.length - suspendedCount}</strong>
-            </span>
-            <button
-              onClick={() => navigate('/admin/offices')}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-500/15 text-xs font-semibold text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/50 hover:bg-amber-100 dark:hover:bg-amber-500/20"
-              title="Manage offices"
-            >
-              Office Management
-            </button>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700">
-              Offices: <strong className="tabular-nums font-bold">{offices?.length ?? '—'}</strong>
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate('/admin/audit')}
-              className="btn btn-outline btn-sm text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              View audit trail
-            </button>
-            <button onClick={() => setModalOpen(true)} className="btn btn-primary btn-sm">
-              <UserPlus size={14} />
-              Add User
-            </button>
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-fade-in">
+          {stats.map((stat) => (
+            <div key={stat.label} className="card rounded-2xl p-4 admin-section-card">
+              <div className="flex items-center gap-3">
+                <span className={'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ' + stat.accent}>
+                  <stat.icon size={18} strokeWidth={2} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold leading-none tabular-nums text-slate-900 dark:text-white">
+                    {stat.value}
+                  </p>
+                  <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
+                    {stat.label}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="card rounded-2xl animate-fade-in animate-fade-in-delay-1">
-          <div className="card-body">
+          <div className="card-body p-0">
             {usersError && (
-              <div className="alert alert-danger mb-4 rounded-xl">
-                Failed to load users. Please refresh the page.
-              </div>
+              <ErrorBanner message="Failed to load users. Please refresh the page." className="mb-4 mx-4 sm:mx-5 mt-4" />
             )}
             <UserList
               users={users}
