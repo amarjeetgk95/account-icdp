@@ -51,19 +51,19 @@ export function GTR44StatsHeader({
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       {tileConfig.map((tile) => (
         <Card
           key={tile.id}
           className="transition-all hover:shadow-md"
         >
-          <CardContent className="p-6 flex items-center justify-between">
+          <CardContent className="p-3.5 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">{tile.label}</p>
-              <h3 className="text-2xl font-bold mt-1">{tile.value}</h3>
+              <p className="text-xs font-medium text-muted-foreground">{tile.label}</p>
+              <h3 className="text-lg font-bold mt-0.5">{tile.value}</h3>
             </div>
-            <div className={`p-3 rounded-full ${tile.bg}`}>
-              <tile.icon className={`h-5 w-5 ${tile.iconColor}`} />
+            <div className={`p-2 rounded-full ${tile.bg}`}>
+              <tile.icon className={`h-4 w-4 ${tile.iconColor}`} />
             </div>
           </CardContent>
         </Card>

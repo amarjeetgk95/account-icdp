@@ -210,9 +210,12 @@
      TOP NAVIGATION (Enterprise header + 3-level hierarchy)
      - Header: full-width identity + primary nav + global actions
      - Level 2 (branch-menu-panel): branches divert VERTICALLY from
-       the selected top-nav item
-     - Level 3 (branch-menu-flyout): sub-branches divert HORIZONTALLY
-       from the selected branch
+       the selected top-nav item; this box is sized ONLY by its own
+       content
+     - Level 3 (branch-menu-child): sub-branches branch out
+       HORIZONTALLY from the selected branch item in a separate
+       absolutely-positioned container; it never affects the branch
+       panel's width/height
      ============================================================ */
 
   /* ── Main Header Bar ── */
@@ -258,6 +261,27 @@
     @apply relative flex items-center h-full;
   }
 
+  /* Separators between top-nav modules: a short vertical hairline
+     centered in the gap between adjacent modules (the dashboard link is
+     also a direct trigger, so it gets a separator before the first
+     module item as well). */
+  .topnav-nav-item + .topnav-nav-item::before,
+  .topnav-nav > a.topnav-nav-trigger + .topnav-nav-item::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 20px;
+    background: rgba(148, 163, 184, 0.45);
+    pointer-events: none;
+  }
+  .dark .topnav-nav-item + .topnav-nav-item::before,
+  .dark .topnav-nav > a.topnav-nav-trigger + .topnav-nav-item::before {
+    background: rgba(100, 116, 139, 0.35);
+  }
+
   .topnav-nav-trigger {
     @apply inline-flex items-center gap-1.5 px-3 h-full text-[13px] font-semibold text-slate-600 dark:text-slate-300 transition-colors duration-150 border-b-2 border-transparent hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/60 whitespace-nowrap;
   }
@@ -270,30 +294,28 @@
     @apply transition-transform duration-200;
   }
 
-  /* ── Level 2 + 3: Branch Menu (vertical branches + horizontal flyout) ── */
+  /* ── Level 2 + 3: Branch Menu (separate layout containers per level) ── */
   .branch-menu {
-    @apply absolute top-full left-0 mt-2 z-50 flex items-stretch;
+    @apply absolute top-full left-0 mt-2 z-50;
     animation: scaleIn 0.18s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
   }
 
   .branch-menu-right {
-    @apply left-auto right-0 flex-row-reverse;
+    @apply left-auto right-0;
   }
 
-  /* Level 2: vertical branch panel */
+  /* Level 2: branch navigation — its own box, sized only by its own
+     content. Child navigation is never inside this box, so adding or
+     removing child tabs can never change its dimensions. */
   .branch-menu-panel {
-    @apply w-72 max-w-[280px] bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl shadow-xl overflow-hidden;
+    @apply w-60 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl shadow-xl overflow-hidden;
     display: flex;
     flex-direction: column;
-    max-height: min(70vh, 560px);
-  }
-
-  .branch-menu-header {
-    @apply px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-700 shrink-0;
+    max-height: calc(100vh - 96px);
   }
 
   .branch-menu-list {
-    @apply py-1.5 overflow-y-auto flex-1 min-h-0;
+    @apply py-2 overflow-y-auto flex-1 min-h-0;
     scrollbar-width: thin;
     scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
   }
@@ -304,7 +326,7 @@
   .branch-menu-list::-webkit-scrollbar-track { background: transparent; }
 
   .branch-menu-item {
-    @apply w-full flex items-center gap-2.5 pl-3 pr-2 py-2.5 text-left text-[13px] font-medium text-slate-700 dark:text-slate-200 transition-colors duration-150 border-l-2 border-transparent;
+    @apply w-full flex items-center gap-3 pl-4 pr-3 py-3 text-left text-[13px] font-medium text-slate-700 dark:text-slate-200 transition-colors duration-150 border-l-2 border-transparent;
   }
 
   .branch-menu-item:hover {
@@ -331,88 +353,74 @@
     @apply min-w-0 flex-1;
   }
 
-  .branch-menu-item-end {
-    @apply flex items-center gap-1 shrink-0;
-  }
-
   .branch-menu-item-dot {
-    @apply w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 opacity-0 transition-opacity duration-150;
+    @apply w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 opacity-0 transition-opacity duration-150 shrink-0;
   }
 
-  .branch-menu-item-chevron {
-    @apply text-slate-300 dark:text-slate-600 transition-transform duration-150;
+  .branch-menu-item-count {
+    @apply text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 rounded-full px-1.5 py-0.5 shrink-0;
   }
 
-  .branch-menu-item-selected .branch-menu-item-chevron {
-    @apply text-indigo-400;
+  .branch-menu-item-selected .branch-menu-item-count {
+    @apply text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/50;
   }
 
-  /* Level 3: horizontal sub-branch flyout */
-  .branch-menu-flyout {
-    @apply w-80 max-w-[340px] bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl shadow-xl overflow-hidden;
+  /* Level 3: child navigation — an absolutely positioned SIBLING of the
+     branch box that branches out from the selected branch row. It is out
+     of the normal flow, so it never participates in the branch box's
+     width/height calculation; each child list sizes only its own box. */
+  .branch-menu-child {
+    @apply absolute left-full ml-2 w-80 max-w-[calc(100vw-1rem)] bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl shadow-xl overflow-hidden;
     display: flex;
     flex-direction: column;
-    max-height: min(70vh, 560px);
-    margin-left: 8px;
-  }
-  .branch-menu-right .branch-menu-flyout {
-    margin-left: 0;
-    margin-right: 8px;
+    max-height: calc(100vh - 96px);
   }
 
-  .branch-menu-flyout-header {
-    @apply flex items-center gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-700 shrink-0;
-  }
-  .branch-menu-right .branch-menu-flyout-header {
-    @apply flex-row-reverse;
+  .branch-menu-right .branch-menu-child {
+    @apply left-auto right-full ml-0 mr-2;
   }
 
-  .branch-menu-connector {
-    @apply h-px flex-1 max-w-10 bg-indigo-300 dark:bg-indigo-600;
-  }
-
-  .branch-menu-flyout-title {
-    @apply min-w-0;
-  }
-
-  .branch-menu-flyout-list {
-    @apply py-1.5 overflow-y-auto flex-1 min-h-0 border-l-2 border-slate-100 dark:border-slate-700;
-    margin-left: 14px;
+  .branch-menu-subbranch-list {
+    @apply py-2 overflow-y-auto flex-1 min-h-0;
     scrollbar-width: thin;
     scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
   }
-  .branch-menu-flyout-list::-webkit-scrollbar { width: 6px; }
-  .branch-menu-flyout-list::-webkit-scrollbar-thumb {
+  .branch-menu-subbranch-list::-webkit-scrollbar { width: 6px; }
+  .branch-menu-subbranch-list::-webkit-scrollbar-thumb {
     @apply bg-slate-300 dark:bg-slate-600 rounded-full;
   }
-  .branch-menu-flyout-list::-webkit-scrollbar-track { background: transparent; }
+  .branch-menu-subbranch-list::-webkit-scrollbar-track { background: transparent; }
 
-  .branch-menu-flyout-item {
-    @apply flex items-center gap-2.5 px-3 py-2 text-[13px] text-slate-600 dark:text-slate-300 transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/40 hover:text-indigo-700 dark:hover:text-indigo-300;
+  .branch-menu-subbranch-item {
+    @apply flex items-center gap-3 px-4 py-2.5 text-[13px] text-slate-600 dark:text-slate-300 transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/40 hover:text-indigo-700 dark:hover:text-indigo-300;
   }
 
-  .branch-menu-flyout-item-active {
+  .branch-menu-subbranch-item-active {
     @apply bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold;
   }
 
-  .branch-menu-flyout-item-icon {
+  .branch-menu-subbranch-item-icon {
     @apply w-5 h-5 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0;
   }
 
-  .branch-menu-flyout-item-active .branch-menu-flyout-item-icon {
+  .branch-menu-subbranch-item-active .branch-menu-subbranch-item-icon {
     @apply text-indigo-600 dark:text-indigo-400;
   }
 
-  .branch-menu-flyout-item-content {
+  .branch-menu-subbranch-item-content {
     @apply flex flex-col min-w-0;
   }
 
-  .branch-menu-flyout-item-label {
+  .branch-menu-subbranch-item-label {
     @apply font-medium;
   }
 
-  .branch-menu-flyout-item-sub {
+  .branch-menu-subbranch-item-sub {
     @apply text-[11px] text-slate-400 dark:text-slate-500;
+  }
+
+  .branch-menu-subbranch-empty {
+    @apply px-5 py-8 text-center text-xs text-slate-400 dark:text-slate-500;
   }
 
   /* ── Right Section: Actions ── */
@@ -541,31 +549,31 @@
      A common hierarchy for scope, status, action and supporting controls.
      ============================================================ */
   .workspace-header {
-    @apply rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm;
+    @apply flex flex-col gap-1.5;
   }
 
   .workspace-header-main {
-    @apply flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between;
+    @apply flex flex-wrap items-center gap-x-3 gap-y-1;
   }
 
   .workspace-header-eyebrow {
-    @apply mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500;
+    @apply mb-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 leading-none;
   }
 
   .workspace-header-title {
-    @apply text-xl font-bold tracking-tight text-slate-950;
+    @apply text-base font-bold tracking-tight text-slate-950 leading-tight;
   }
 
   .workspace-header-description {
-    @apply mt-1 max-w-3xl text-sm leading-5 text-slate-500;
+    @apply mt-0.5 max-w-3xl text-sm leading-5 text-slate-500;
   }
 
   .workspace-header-actions {
-    @apply flex shrink-0 flex-wrap items-center gap-2;
+    @apply flex shrink-0 flex-wrap items-center gap-2 ml-auto;
   }
 
   .workspace-header-context {
-    @apply inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-600 tabular-nums;
+    @apply inline-flex min-h-7 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 tabular-nums;
   }
 
   .workspace-header-primary-action {
@@ -573,7 +581,7 @@
   }
 
   .workspace-header-support {
-    @apply mt-4 border-t border-slate-100 pt-3;
+    @apply flex flex-wrap items-center gap-2;
   }
 
   .workspace-tabs {
@@ -925,7 +933,7 @@
   }
 
   .page-title {
-    @apply text-xl font-bold text-slate-800 dark:text-slate-100;
+    @apply text-base font-bold text-slate-800 dark:text-slate-100;
     letter-spacing: -0.02em;
   }
 

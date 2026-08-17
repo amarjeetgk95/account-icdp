@@ -22,8 +22,8 @@ const renderBoxes = (value: string | number | undefined | null, count: number) =
         <span
           key={i}
           style={{
-            width: 15,
-            height: 19,
+            width: 14,
+            height: 18,
             fontSize: '10pt',
             fontFamily: "'Courier New', monospace",
             fontWeight: 700,
@@ -88,7 +88,7 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
           (To be filled in by Treasury)
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '38% 34% 28%', alignItems: 'center', fontSize: '8.5pt' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '38% 34% 28%', alignItems: 'center', fontSize: '9.5pt' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ fontWeight: 600 }}>1.&nbsp;&nbsp;District</span>
             {renderBoxes(data.district || '66', 2)}
@@ -111,7 +111,7 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
           display: 'grid',
           gridTemplateColumns: '46% 54%',
           fontFamily: "'Times New Roman', Times, serif",
-          fontSize: '8.5pt',
+          fontSize: '9.5pt',
           minHeight: '620px',
         }}
       >
@@ -127,51 +127,51 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
         >
           <div>
             {/* 4. Class of Expenditure */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '150px auto', alignItems: 'center', marginBottom: '3px' }}>
               <span>4.&nbsp;&nbsp;Class of Expenditure</span>
               {renderBoxes(data.classOfExpenditure || '1', 1)}
             </div>
 
             {/* 5. Fund */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '150px auto', alignItems: 'center', marginBottom: '3px' }}>
               <span>5.&nbsp;&nbsp;Fund</span>
               {renderBoxes(data.fund || '3', 1)}
             </div>
 
             {/* 6. Drawing */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '150px auto', alignItems: 'center', marginBottom: '3px' }}>
               <span>6.&nbsp;&nbsp;Drawing</span>
               {renderBoxes(data.drawing || '299', 3)}
             </div>
 
             {/* 7. Demand No. */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '150px auto', alignItems: 'center', marginBottom: '3px' }}>
               <span>7.&nbsp;&nbsp;Demand No.</span>
               {renderBoxes(data.demandNo || '04', 2)}
             </div>
 
             {/* 8. Type of Budget */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '150px auto', alignItems: 'center', marginBottom: '3px' }}>
               <span>8.&nbsp;&nbsp;Type of Budget</span>
               {renderBoxes(data.typeOfBudget || '1', 1)}
             </div>
 
-            {/* 9. Schme No. (Spelled as in PDF) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <span>9.&nbsp;&nbsp;Schme No.</span>
-              {renderBoxes(data.schemeNo || '110263', 4)}
+            {/* 9. Scheme No. */}
+            <div style={{ display: 'grid', gridTemplateColumns: '150px auto', alignItems: 'center', marginBottom: '4px' }}>
+              <span>9.&nbsp;&nbsp;Scheme No.</span>
+              {renderBoxes(data.schemeNo || '110263', 6)}
             </div>
 
-            {/* 10. Head Chargeble (Spelled as in PDF) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-              <span>10.&nbsp;Head Chargeble</span>
+            {/* 10. Head Chargeable */}
+            <div style={{ display: 'grid', gridTemplateColumns: '150px auto', alignItems: 'center', marginBottom: '3px' }}>
+              <span>10.&nbsp;Head Chargeable</span>
             </div>
-            <div style={{ marginBottom: '6px' }}>
-              {renderBoxes(data.headChargeableCode || '2403001020', 10)}
+            <div style={{ marginBottom: '6px', paddingLeft: '150px' }}>
+              {renderBoxes(data.headChargeableCode || '2403001020000', 13)}
             </div>
 
             {/* Indented Classification Breakdown */}
-            <div style={{ paddingLeft: '16px', fontSize: '8.5pt', lineHeight: 1.35, marginBottom: '6px' }}>
+            <div style={{ paddingLeft: '16px', fontSize: '9.5pt', lineHeight: 1.35, marginBottom: '6px' }}>
               <p style={{ margin: 0, display: 'flex', justifyContent: 'space-between' }}>
                 <span>Sector</span>
                 <strong>{data.sector}</strong>
@@ -201,8 +201,8 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
             {/* Detailed Head */}
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
+                display: 'grid',
+                gridTemplateColumns: '150px auto',
                 alignItems: 'center',
                 borderTop: '1px solid #000',
                 paddingTop: '3px',
@@ -214,7 +214,7 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
             </div>
 
             {/* Budget Grant & Expenditure Block */}
-            <div style={{ borderTop: '1px solid #000', paddingTop: '4px', fontSize: '8.5pt', lineHeight: 1.35 }}>
+            <div style={{ borderTop: '1px solid #000', paddingTop: '4px', fontSize: '9.5pt', lineHeight: 1.35 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span>
                   Budget Grant for 20{data.budgetGrantYearFrom?.slice(-2) || '26'}&nbsp;&nbsp;20{data.budgetGrantYearTo?.slice(-2) || '27'}&nbsp;&nbsp;Rs.
@@ -239,7 +239,7 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
           </div>
 
           {/* Treasury Use Block (Bottom of Left Column) */}
-          <div style={{ borderTop: '1px solid #000', paddingTop: '4px', fontSize: '8.5pt' }}>
+          <div style={{ borderTop: '1px solid #000', paddingTop: '4px', fontSize: '9.5pt' }}>
             <p style={{ fontWeight: 700, fontStyle: 'italic', textAlign: 'center', margin: '0 0 4px 0' }}>
               For Use in Treasury
             </p>
@@ -264,7 +264,7 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
             </div>
 
             {/* Signatures */}
-            <div style={{ display: 'grid', gridTemplateColumns: '25% 35% 40%', fontWeight: 700, fontSize: '8pt', alignItems: 'flex-start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '25% 35% 40%', fontWeight: 700, fontSize: '9pt', alignItems: 'flex-start' }}>
               <div>Date</div>
               <div style={{ textAlign: 'center' }}>Accountant</div>
               <div style={{ textAlign: 'right', lineHeight: 1.15 }}>

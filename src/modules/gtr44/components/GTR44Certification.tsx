@@ -11,7 +11,7 @@ export const GTR44CertificationPage3: React.FC<GTR44CertificationPage3Props> = (
     <div
       style={{
         fontFamily: "'Times New Roman', Times, serif",
-        fontSize: '10.5pt',
+        fontSize: '11.5pt',
         lineHeight: 1.42,
         color: '#000',
         display: 'flex',
@@ -32,7 +32,7 @@ export const GTR44CertificationPage3: React.FC<GTR44CertificationPage3Props> = (
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
           <strong>2.</strong> Certified that I have personally checked the progressive total in the Bill with that in the contingent registeres and found to agree.
         </p>
-        <p style={{ fontStyle: 'normal', fontSize: '9.5pt', margin: '3px 0 0 0' }}>
+        <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
           G. R. F. D. No. 1722 dated 23-12-1922.
         </p>
       </div>
@@ -47,7 +47,7 @@ export const GTR44CertificationPage3: React.FC<GTR44CertificationPage3Props> = (
           &nbsp;on account of Municipal sanitary and water taxes for hired or Government residential quarters which are recoverable from the occupants. The amount so recoverable&nbsp;
           <span style={{ textDecoration: 'underline' }}>has been</span> / <span style={{ textDecoration: 'line-through' }}>will be</span> recovered by deductions from contingent bill
         </p>
-        <p style={{ fontStyle: 'normal', fontSize: '9.5pt', margin: '3px 0 0 0' }}>
+        <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
           (A. G.&apos;s Geal. Letter No. 7, (H. A. : 650) dated 28-9-1925 and G. D. No. 6 T. M. 29-C-2679, dated 27-1-33).
         </p>
       </div>
@@ -57,7 +57,7 @@ export const GTR44CertificationPage3: React.FC<GTR44CertificationPage3Props> = (
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
           <strong>4.</strong> I certify that the coolies engaged on manual labour and paid at daily or monthly rate for whom charges have been included in this bill were actually enterained and paid.
         </p>
-        <p style={{ fontStyle: 'normal', fontSize: '9.5pt', margin: '3px 0 0 0' }}>
+        <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
           (Item 10 of appendix 13 of audit code Vol. II).
         </p>
       </div>
@@ -74,7 +74,7 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
     <div
       style={{
         fontFamily: "'Times New Roman', Times, serif",
-        fontSize: '10.5pt',
+        fontSize: '11.5pt',
         lineHeight: 1.4,
         color: '#000',
         display: 'flex',
@@ -88,7 +88,7 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
           <strong>5.</strong> I certify that the purchases billed for have been received in good order, that quantities are correct and their quality good that the rates paid are not in excess or the accepted and the market rates and that suitable notes of payment have been recorded against the original indents and invoices concerned to prevent double payments.
         </p>
-        <p style={{ fontSize: '9.5pt', margin: '3px 0 0 0' }}>
+        <p style={{ fontSize: '10.5pt', margin: '3px 0 0 0' }}>
           (G. R. F. D. No. 6043 dated 9-5-1928)
         </p>
       </div>
@@ -115,7 +115,7 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
       </div>
 
       {/* Pay to and Specimen signature area */}
-      <div style={{ display: 'grid', gridTemplateColumns: '58% 42%', rowGap: '6px', fontSize: '10.5pt' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '58% 42%', rowGap: '6px', fontSize: '11.5pt' }}>
         <div style={{ display: 'flex', alignItems: 'baseline' }}>
           <span>Pay to&nbsp;</span>
           <span style={{ borderBottom: '1px solid #000', flex: 1, minHeight: '16px', fontWeight: 700, paddingLeft: '4px' }}>
@@ -137,7 +137,7 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
       </div>
 
       {/* Drawing Officer and E.E. Received Contents */}
-      <div style={{ display: 'grid', gridTemplateColumns: '50% 50%', fontSize: '10.5pt' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '50% 50%', fontSize: '11.5pt' }}>
         <div>
           <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>Signature of Drawing Officer,</p>
           <p style={{ margin: '18px 0 0 0' }}>
@@ -152,7 +152,7 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
       </div>
 
       {/* Passed for Rs */}
-      <div style={{ display: 'flex', alignItems: 'baseline', fontSize: '10.5pt' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', fontSize: '11.5pt' }}>
         <span style={{ whiteSpace: 'nowrap' }}>Passed for Rs. :&nbsp;</span>
         <span
           style={{
@@ -176,7 +176,7 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
       </div>
 
       {/* Countersigning signature */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '10.5pt' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '11.5pt' }}>
         <div style={{ textAlign: 'center', width: '240px' }}>
           <p style={{ margin: '0 0 2px 0', fontWeight: 700 }}>Signature</p>
           <p style={{ margin: '0 0 2px 0' }}>of countersining officer.</p>
@@ -190,8 +190,8 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
       {/* Divider + AG's Office Section */}
       <div>
         <div style={{ borderTop: '1px solid #000', margin: '0 0 14px 0' }}></div>
-        <div style={{ fontSize: '10.5pt' }}>
-          <p style={{ textAlign: 'center', fontWeight: 700, fontStyle: 'italic', margin: '0 0 10px 0', fontSize: '11pt', textDecoration: 'underline' }}>
+        <div style={{ fontSize: '11.5pt' }}>
+          <p style={{ textAlign: 'center', fontWeight: 700, fontStyle: 'italic', margin: '0 0 10px 0', fontSize: '12pt', textDecoration: 'underline' }}>
             For use in AG&apos;s Office
           </p>
 
@@ -217,7 +217,7 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
           </div>
 
           {/* Auditor & Superintendent Signatures */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '11pt', paddingTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '12pt', paddingTop: '16px' }}>
             <span>Auditor</span>
             <span style={{ paddingRight: '40px' }}>Superintendent.</span>
           </div>

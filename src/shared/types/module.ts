@@ -40,6 +40,7 @@ export interface FeatureFlagKeys {
   parties_module: boolean;
   reports_module: boolean;
   gtr44_module: boolean;
+  gtr30_module: boolean;
   paybill_module: boolean;
   paybill_component_master: boolean;
 }

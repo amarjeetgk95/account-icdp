@@ -31,7 +31,7 @@ export function PayBillImportPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
+    <div className="max-w-7xl mx-auto space-y-3">
       <WorkspaceHeader
         eyebrow="Employee IT · Government Pay Bill Register"
         title="Pay Bill PDF Import & Allowance System"

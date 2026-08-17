@@ -51,7 +51,7 @@ export function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="h-full overflow-hidden flex flex-col p-6 space-y-5">
+      <div className="h-full overflow-hidden flex flex-col p-4 space-y-3">
         <Skeleton className="h-12 rounded-xl" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[...Array(4)].map((_, i) => (
@@ -90,7 +90,7 @@ export function DashboardPage() {
     <div className="relative h-full overflow-hidden flex flex-col max-w-6xl mx-auto w-full">
 
 
-      <div className="px-6 pt-5 shrink-0">
+<div className="px-4 pt-3 shrink-0">
         <WorkspaceHeader
           eyebrow="Operations overview"
           title={officeName || 'Account Branch'}
@@ -109,19 +109,17 @@ export function DashboardPage() {
           <button
             type="button"
             onClick={() => refetch()}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
-            title="Refresh dashboard"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
+            title={data.lastUpdated ? `Last updated ${data.lastUpdated}` : 'Refresh dashboard'}
           >
             <RefreshCw size={14} />
           </button>
           }
-        >
-          {data.lastUpdated && <p className="text-[11px] text-slate-400">Last updated {data.lastUpdated}</p>}
-        </WorkspaceHeader>
+        />
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 px-6 py-5 overflow-y-auto space-y-5">
+      <div className="flex-1 min-h-0 px-4 py-4 overflow-y-auto space-y-3">
 
         {/* KPI Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in">

@@ -86,6 +86,37 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
   };
 }
 
+const CHUNK_LOAD_ERROR_PATTERNS = [
+  /failed to fetch dynamically imported module/i,
+  /importing a module script failed/i,
+  /error loading dynamically imported module/i,
+  /unable to preload css/i,
+  /failed to fetch.*\.(js|css)\?/i,
+];
+
+export function isChunkLoadError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  if (!message) return false;
+  return CHUNK_LOAD_ERROR_PATTERNS.some((re) => re.test(message));
+}
+
+export function reloadForChunkUpdate(): void {
+  const key = 'icdp-chunk-reload-count';
+  let count = 0;
+  try {
+    count = Number(sessionStorage.getItem(key)) || 0;
+  } catch {
+    // sessionStorage unavailable
+  }
+  if (count >= 1) return;
+  try {
+    sessionStorage.setItem(key, String(count + 1));
+  } catch {
+    // sessionStorage unavailable
+  }
+  window.location.reload();
+}
+
 export function downloadCsv(filename: string, headers: string[], rows: Array<Array<string | number>>): void {
   const cell = (value: string | number) => {
     const v = String(value == null ? '' : value);

@@ -34,7 +34,7 @@ export function AdminLayout({ title, icon: Icon, actions, refreshAction, childre
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
+    <div className="max-w-7xl mx-auto space-y-3">
       <WorkspaceHeader
         eyebrow="Admin console"
         title={title}

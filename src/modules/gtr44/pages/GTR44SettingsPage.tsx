@@ -7,7 +7,7 @@ export function GTR44SettingsPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="max-w-7xl mx-auto">
       <div className="page-header">
         <div className="flex items-center">
           <Button variant="ghost" size="sm" className="mr-2" onClick={() => navigate('/gtr44/list')} title="Back">

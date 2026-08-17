@@ -4,7 +4,7 @@ export const DEFAULT_EXPENDITURE_ITEMS: GTR44ObjectExpenditureItem[] = [
   { code: '0200', name: 'Wages', edpCode: '0 2 0 1 +', amount: null },
   { code: '1300', name: 'Offices Expenses', edpCode: '1 3 0 1 +', amount: null },
   { code: '2800', name: 'Payments for Professional Special Services', edpCode: '2 8 0 1 +', amount: null },
-  { code: '1400', name: 'Rents. Rates & Taxes', edpCode: '1 4 0 1 +', amount: null },
+  { code: '1400', name: 'Rents, Rates & Taxes', edpCode: '1 4 0 1 +', amount: null },
   { code: '1500', name: 'Royalty', edpCode: '1 5 0 1 +', amount: null },
   { code: '1600', name: 'Publications', edpCode: '1 6 0 1 +', amount: null },
   { code: '2600', name: 'Advertising, Sales and Publicity Expenses', edpCode: '2 6 0 1 +', amount: null },
@@ -21,8 +21,8 @@ export const DEFAULT_EXPENDITURE_ITEMS: GTR44ObjectExpenditureItem[] = [
   { code: '0114', name: 'Sumptuary Allowance', edpCode: '0 1 1 4 +', amount: null },
   { code: '1300', name: 'Fuel, Oil & Maintenance of Staff Car', edpCode: '1 3 0 6 +', amount: null },
   { code: '1300', name: 'On Repairs (of Staff Car)', edpCode: '1 3 0 7 +', amount: null },
-  { code: '1300', name: 'Electricity Expences', edpCode: '1 3 0 4 +', amount: null },
-  { code: '1300', name: 'Telephone Expences', edpCode: '1 3 0 3 +', amount: null },
+  { code: '1300', name: 'Electricity Expenses', edpCode: '1 3 0 4 +', amount: null },
+  { code: '1300', name: 'Telephone Expenses', edpCode: '1 3 0 3 +', amount: null },
 ];
 
 // Normalized EDP codes (spaces stripped) usable as suggestions in the Voucher Entry form

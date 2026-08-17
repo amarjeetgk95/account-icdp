@@ -43,7 +43,7 @@ export function GTR44ViewPage() {
 
   if (!bill) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="max-w-7xl mx-auto">
         <EmptyState
           icon={FileQuestion}
           title="Bill not found."
@@ -59,7 +59,7 @@ export function GTR44ViewPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4 print:p-0">
+    <div className="max-w-7xl mx-auto print:p-0">
       <div className="page-header print:hidden">
         <div className="flex items-center">
           <Button variant="ghost" size="sm" className="mr-2" onClick={() => navigate('/gtr44/list')}>

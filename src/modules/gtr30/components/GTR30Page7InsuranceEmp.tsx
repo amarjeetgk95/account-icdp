@@ -1,0 +1,149 @@
+import React from 'react';
+import type { GTR30FormData } from '../types';
+import { formatMoney, numberToWords } from '../services/gtr30Calc.service';
+
+interface Props {
+  data: GTR30FormData;
+}
+
+export const GTR30Page7InsuranceEmp: React.FC<Props> = ({ data }) => {
+  const employees = (data.employees || []).filter(
+    (e) => (e.gis1981Insurance || 0) > 0 || (e.gis1981Savings || 0) > 0 || (e.gis1979Insurance || 0) > 0
+  );
+
+  const totalInsurance = employees.reduce(
+    (sum, e) => sum + (e.gis1981Insurance || 0) + (e.gis1979Insurance || 0),
+    0
+  );
+  const totalSavings = employees.reduce((sum, e) => sum + (e.gis1981Savings || 0), 0);
+  const grandTotal = totalInsurance + totalSavings;
+
+  return (
+    <div className="gtr30-page gtr30-portrait" id="gtr30-page-7">
+      <div style={{ maxWidth: '780px', margin: '0 auto', fontSize: '9pt', lineHeight: 1.3 }}>
+        {/* Header */}
+        <h2
+          style={{
+            textAlign: 'center',
+            fontSize: '14pt',
+            fontWeight: 800,
+            fontFamily: "'Noto Serif Gujarati', serif",
+            margin: '0 0 10px 0',
+            letterSpacing: '0.5px',
+          }}
+        >
+          જૂથ વીમા કપાત (કર્મચારી વાઈઝ)
+        </h2>
+
+        <div style={{ textAlign: 'center', fontSize: '10pt', fontWeight: 700, marginBottom: '8px' }}>
+          For The Month of : {data.monthOf || 'December-2024'}
+        </div>
+
+        <div style={{ fontSize: '8.5pt', marginBottom: '6px' }}>
+          Name of the office:- <strong>{data.officeFullName || 'Deputy Director of A.H., Intensive Cattle Development Programme'}</strong>
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: '9.5pt', marginBottom: '10px' }}>
+          Code No. : <span style={{ textDecoration: 'underline' }}>8011 Insurance &amp; Savings Fund</span>
+        </div>
+
+        {/* Table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5pt', marginTop: '6px' }}>
+          <thead>
+            <tr style={{ background: '#f5f5f5', textAlign: 'center', fontFamily: "'Noto Serif Gujarati', serif", fontWeight: 700 }}>
+              <th style={{ border: '1px solid #000', padding: '5px 2px', width: '36px' }} rowSpan={2}>અ.<br />નં.</th>
+              <th style={{ border: '1px solid #000', padding: '5px 4px', width: '170px' }} rowSpan={2}>અધિકારી/<br />કર્મચારીનું નામ</th>
+              <th style={{ border: '1px solid #000', padding: '5px 4px', width: '120px' }} rowSpan={2}>હોદ્દો</th>
+              <th style={{ border: '1px solid #000', padding: '5px 4px', width: '80px' }} rowSpan={2}>જૂથ<br />(નવા દર મુજબ)</th>
+              <th style={{ border: '1px solid #000', padding: '3px 4px' }} colSpan={2}>જૂથ વીમા કપાત</th>
+              <th style={{ border: '1px solid #000', padding: '5px 4px', width: '90px' }} rowSpan={2}>કુલ કપાત<br />(રૂ.)</th>
+              <th style={{ border: '1px solid #000', padding: '5px 2px', width: '60px' }} rowSpan={2}>રીમાર્ક્સ</th>
+            </tr>
+            <tr style={{ background: '#f5f5f5', textAlign: 'center', fontFamily: "'Noto Serif Gujarati', serif", fontWeight: 700 }}>
+              <th style={{ border: '1px solid #000', padding: '3px 4px', width: '85px' }}>વીમા ફંડ<br />(રૂ.)</th>
+              <th style={{ border: '1px solid #000', padding: '3px 4px', width: '85px' }}>બચત ફંડ<br />(રૂ.)</th>
+            </tr>
+            <tr style={{ background: '#e9ecef', textAlign: 'center', fontSize: '7.5pt', fontWeight: 700 }}>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                <th key={num} style={{ border: '1px solid #000', padding: '2px 0' }}>{num}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {employees.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ border: '1px solid #000', padding: '12px', textAlign: 'center', color: '#666' }}>
+                  No group insurance deductions for this month.
+                </td>
+              </tr>
+            ) : (
+              employees.map((emp, idx) => {
+                const ins = (emp.gis1981Insurance || 0) + (emp.gis1979Insurance || 0);
+                const sav = emp.gis1981Savings || 0;
+                const tot = ins + sav;
+                return (
+                  <tr key={emp.id || idx} style={{ verticalAlign: 'middle' }}>
+                    <td style={{ border: '1px solid #000', padding: '6px 2px', textAlign: 'center', fontWeight: 600 }}>
+                      {idx + 1}.
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '6px 4px', fontWeight: 700 }}>
+                      {emp.name}
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '6px 4px', fontFamily: "'Noto Serif Gujarati', serif" }}>
+                      {emp.designationGujarati || emp.designation || 'સંશોધન મદદનીશ'}
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'center', fontFamily: "'Noto Serif Gujarati', serif", fontWeight: 700 }}>
+                      {emp.insuranceGroup || 'ખ'}
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'right', fontWeight: 600 }}>
+                      {formatMoney(ins)}
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'right', fontWeight: 600 }}>
+                      {formatMoney(sav)}
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'right', fontWeight: 700 }}>
+                      {formatMoney(tot)}
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '6px 2px', textAlign: 'center' }}>
+                      {emp.remarks || ''}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+
+            {/* Total Row */}
+            <tr style={{ background: '#f5f5f5', fontWeight: 700 }}>
+              <td colSpan={4} style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 800 }}>Total</td>
+              <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'right', fontWeight: 800 }}>
+                {formatMoney(totalInsurance)}
+              </td>
+              <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'right', fontWeight: 800 }}>
+                {formatMoney(totalSavings)}
+              </td>
+              <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'right', fontWeight: 800 }}>
+                {formatMoney(grandTotal)}
+              </td>
+              <td style={{ border: '1px solid #000', padding: '6px 2px' }}></td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Words */}
+        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '9.5pt', marginTop: '12px' }}>
+          Rupees {numberToWords(grandTotal)} Only
+        </div>
+
+        {/* Signature Block */}
+        <div style={{ marginTop: '75px', textAlign: 'center', fontSize: '8.5pt', lineHeight: 1.3, width: '340px', marginLeft: 'auto' }}>
+          <div style={{ fontWeight: 700 }}>({data.drawingOfficerName || 'SMT U.J.PATEL'})</div>
+          <div>{data.drawingOfficerDesignation || 'Assistant Administrative Cum Account Officer'}</div>
+          <div>{data.drawingOfficerOffice || 'Intensive Cattle Development Programme, Surat'}</div>
+          <div style={{ fontWeight: 700, marginTop: '2px' }}>
+            Code No.-{data.ddoCode || '299'} Cardex No.-{data.cardexNo || '22'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

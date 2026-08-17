@@ -59,7 +59,7 @@ export function StatCard({
             }
           : undefined
       }
-      className={`group bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-[0_8px_24px_-12px_rgba(99,102,241,0.22)] animate-fade-in ${
+      className={`group bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-[0_8px_24px_-12px_rgba(99,102,241,0.22)] animate-fade-in ${
         onClick
           ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2'
           : ''
@@ -69,16 +69,16 @@ export function StatCard({
         {Icon && (
           gradient ? (
             <span
-              className="w-10 h-10 rounded-xl inline-flex items-center justify-center text-white shadow-sm shrink-0"
+              className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-white shadow-sm shrink-0"
               style={{ background: gradient }}
             >
-              <Icon size={18} strokeWidth={2} />
+              <Icon size={16} strokeWidth={2} />
             </span>
           ) : (
             <div
-              className={`w-10 h-10 rounded-xl ring-1 flex items-center justify-center transition-colors shrink-0 ${TONE_STYLES[tone] || TONE_STYLES.indigo}`}
+              className={`w-8 h-8 rounded-lg ring-1 flex items-center justify-center transition-colors shrink-0 ${TONE_STYLES[tone] || TONE_STYLES.indigo}`}
             >
-              <Icon size={18} strokeWidth={2} />
+              <Icon size={16} strokeWidth={2} />
             </div>
           )
         )}
@@ -88,10 +88,10 @@ export function StatCard({
           </span>
         )}
       </div>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mt-4">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mt-3">
         {label}
       </div>
-      <div className="text-[1.7rem] leading-8 font-semibold text-slate-900 dark:text-slate-100 tracking-tight mt-0.5 tabular-nums">
+      <div className="text-lg leading-7 font-semibold text-slate-900 dark:text-slate-100 tracking-tight mt-0.5 tabular-nums">
         {display}
       </div>
       {subtitle && (

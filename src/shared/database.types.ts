@@ -166,6 +166,15 @@ export type Database = {
       get_budget_head_report: { Args: { p_office_id: string; p_financial_year: number }; Returns: Json }
       get_party_tds_summary: { Args: { p_office_id: string; p_financial_year: number }; Returns: Json }
       get_paybill_parameter_matrix: { Args: { p_office_id: string; p_financial_year: number; p_hrpn?: string | null }; Returns: Json }
+      list_gtr30_employee_master: { Args: { p_office_id: string }; Returns: Json }
+      get_gtr30_employee_master: { Args: { p_office_id: string; p_month_key: string; p_bill_code: string }; Returns: Json }
+      upsert_gtr30_employee_master: { Args: { p_office_id: string; p_month_key: string; p_bill_code: string; p_employees: Json }; Returns: Json }
+      get_gtr30_bill_code_mappings: { Args: { p_office_id: string }; Returns: Json }
+      upsert_gtr30_bill_code_mappings: { Args: { p_office_id: string; p_mappings: Json }; Returns: Json }
+      list_gtr30_bills: { Args: { p_office_id: string }; Returns: Json }
+      get_gtr30_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
+      upsert_gtr30_bill: { Args: { p_office_id: string; p_data: Json }; Returns: Json }
+      delete_gtr30_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
     }
   }
 }

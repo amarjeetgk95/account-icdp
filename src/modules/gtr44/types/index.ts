@@ -82,7 +82,7 @@ export interface GTR44FormData {
   schemeNo: string; // 4-6 digits (e.g. "110263")
 
   // Head Chargeable
-  headChargeableCode: string; // 10 digits
+  headChargeableCode: string; // 13 digits
   sector: string;
   demandNoLabel: string;
   majorHead: string;

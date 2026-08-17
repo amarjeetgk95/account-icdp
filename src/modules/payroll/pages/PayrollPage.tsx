@@ -216,7 +216,7 @@ export function PayrollPage() {
       {saveStatus && (
         <div
           className={
-            'alert mb-4 flex items-center gap-2 flex-shrink-0 ' +
+            'alert mb-2 flex items-center gap-2 flex-shrink-0 ' +
             (saveStatus.type === 'success'
               ? 'alert-success'
               : saveStatus.type === 'error'
@@ -264,7 +264,7 @@ export function PayrollPage() {
       )}
 
       {mode === 'entry' && (
-          <div className="w-full flex-shrink-0 mb-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 shadow-xs">
+          <div className="w-full flex-shrink-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-xs">
             <div className="w-full flex flex-wrap items-center justify-between gap-4">
               {/* Left Controls: Month Select Dropdown */}
               <div className="relative shrink-0" ref={dropdownRef}>
@@ -394,7 +394,7 @@ export function PayrollPage() {
       )}
 
       {mode === 'report' && (
-        <div className="flex-shrink-0 mb-2.5 flex flex-wrap items-center gap-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 shadow-sm">
+        <div className="flex-shrink-0 mb-2 flex flex-wrap items-center gap-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
           <FileText size={14} className="text-slate-400 dark:text-slate-500" />
           <span className="text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">
             FY {fyLabel}

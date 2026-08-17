@@ -1,0 +1,50 @@
+import type { GTR30FormData, GTR30Employee } from './bill';
+
+export type GTR30DefaultSettings = Pick<
+  GTR30FormData,
+  | 'officeName'
+  | 'officeFullName'
+  | 'branchName'
+  | 'treasuryName'
+  | 'phoneNo'
+  | 'district'
+  | 'station'
+  | 'cardexNo'
+  | 'ddoCode'
+  | 'classOfExpenditure'
+  | 'fund'
+  | 'drawingOfficer'
+  | 'demandNo'
+  | 'typeOfBudget'
+  | 'schemeNo'
+  | 'headChargeable'
+  | 'sector'
+  | 'majorHead'
+  | 'minorHead'
+  | 'subHead'
+  | 'budgetYear'
+  | 'schemeResolutionText'
+  | 'daResolutionText'
+  | 'drawingOfficerName'
+  | 'drawingOfficerNameGujarati'
+  | 'drawingOfficerDesignation'
+  | 'drawingOfficerDesignationGujarati'
+  | 'drawingOfficerOffice'
+  | 'drawingOfficerOfficeGujarati'
+  | 'messengerName'
+  | 'messengerDesignation'
+>;
+
+export type GTR30DefaultEmployeeTemplate = Pick<
+  GTR30Employee,
+  | 'designation'
+  | 'designationGujarati'
+  | 'cadreClass'
+  | 'payScale'
+  | 'gradePay'
+  | 'payLevelCell'
+  | 'ppaNo'
+  | 'quarterAddress'
+  | 'insuranceGroup'
+  | 'insuranceType'
+>;

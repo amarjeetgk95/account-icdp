@@ -11,6 +11,7 @@ export interface FeatureFlags {
   parties_module: boolean;
   reports_module: boolean;
   gtr44_module: boolean;
+  gtr30_module: boolean;
   paybill_module: boolean;
   paybill_component_master: boolean;
 }
@@ -29,6 +30,7 @@ const defaultFlags: FeatureFlags = {
   parties_module: true,
   reports_module: true,
   gtr44_module: true,
+  gtr30_module: true,
   paybill_module: true,
   paybill_component_master: true,
 };

@@ -52,8 +52,8 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
   const { sections } = useNavigationModel(modules);
 
   const [openSection, setOpenSection] = useState<string | null>(null);
-  const [hoveredBranchKey, setHoveredBranchKey] = useState<string | null>(null);
-  const [dismissedSection, setDismissedSection] = useState<string | null>(null);
+  const [pinnedSection, setPinnedSection] = useState<string | null>(null);
+  const [suppressAutoOpen, setSuppressAutoOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [openMobileSection, setOpenMobileSection] = useState<string | null>(null);
   const [openMobileBranch, setOpenMobileBranch] = useState<string | null>(null);
@@ -63,6 +63,8 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
   const navRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRefs = useRef(new Map<string, HTMLDivElement>());
+  const hoverTimerRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
 
   const currentPath = location.pathname + location.search;
   const currentBasePath = currentPath.split('?')[0];
@@ -79,31 +81,24 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
 
   /* Keep the branch panel open while the user works inside a module:
      every navigation (or the model becoming ready) re-anchors it to the
-     section/branch matching the URL, unless the user explicitly dismissed
-     it on the current page. Rendered as a render-phase adjustment so the
-     panel follows navigation without effect-driven state churn. */
+     section/branch matching the URL, EXCEPT navigations initiated from
+     inside the dropdown (those already close the panel). Rendered as a
+     render-phase adjustment so the panel follows navigation without
+     effect-driven state churn. */
   const navIdentity = `${currentBasePath}|sections:${sections.length}`;
   const [lastNavIdentity, setLastNavIdentity] = useState('');
   if (lastNavIdentity !== navIdentity) {
     setLastNavIdentity(navIdentity);
-    setHoveredBranchKey(null);
-    setDismissedSection(null);
-    if (activeNav?.section && dismissedSection !== activeNav.section.key) {
+    if (activeNav?.section && !suppressAutoOpen) {
       setOpenSection(activeNav.section.key);
+      setPinnedSection(activeNav.section.key);
       const sectionIndex = sections.indexOf(activeNav.section);
       if (sectionIndex >= 3) {
         setAlignments((prev) => ({ ...prev, [activeNav.section.key]: 'right' }));
       }
     }
+    if (suppressAutoOpen) setSuppressAutoOpen(false);
   }
-
-  /* The flyout follows the hovered branch while it belongs to the open
-     section; otherwise it follows the branch active for the current URL. */
-  const openSectionModel = sections.find((s) => s.key === openSection) ?? null;
-  const selectedBranchKey =
-    hoveredBranchKey && openSectionModel && openSectionModel.branches.some((b) => b.key === hoveredBranchKey)
-      ? hoveredBranchKey
-      : (activeNav?.branch.key ?? null);
 
   const fyLabel = (y: number) => `FY ${y}-${String(y + 1).slice(-2)}`;
 
@@ -172,28 +167,88 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
         .slice(0, 2)
     : '?';
 
-  const handleOpenSection = (sectionKey: string) => {
-    const currentlyOpen = openSection === sectionKey;
-    setDismissedSection(currentlyOpen ? sectionKey : null);
-    setOpenSection(currentlyOpen ? null : sectionKey);
-    if (!currentlyOpen) {
-      /* Anchor the panel to its top-nav trigger and mirror it near the
-         right edge of the viewport so the horizontal flyout never clips. */
-      const el = triggerRefs.current.get(sectionKey);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        const center = rect.left + rect.width / 2;
-        const align: Align = center > window.innerWidth / 2 ? 'right' : 'left';
-        setAlignments((prev) => (prev[sectionKey] === align ? prev : { ...prev, [sectionKey]: align }));
-      }
+  const clearTimer = (timerRef: { current: number | null }) => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
+  };
+
+  const openSectionPanel = (sectionKey: string) => {
+    setOpenSection(sectionKey);
+    /* Anchor the panel to its top-nav trigger and mirror it near the
+       right edge of the viewport so the panel never clips. */
+    const el = triggerRefs.current.get(sectionKey);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const center = rect.left + rect.width / 2;
+      const align: Align = center > window.innerWidth / 2 ? 'right' : 'left';
+      setAlignments((prev) => (prev[sectionKey] === align ? prev : { ...prev, [sectionKey]: align }));
+    }
+  };
+
+  /* Hovering a top-nav item opens its branch panel (after a short delay
+     when nothing is open, immediately when switching between sections).
+     Clicking pins the panel open so it survives moving the mouse away. */
+  const handleTriggerEnter = (sectionKey: string) => {
+    clearTimer(closeTimerRef);
+    if (pinnedSection !== sectionKey) setPinnedSection(null);
+    if (openSection !== sectionKey) {
+      clearTimer(hoverTimerRef);
+      hoverTimerRef.current = window.setTimeout(() => openSectionPanel(sectionKey), 120);
+    }
+  };
+
+  const handleTriggerLeave = () => {
+    clearTimer(hoverTimerRef);
+  };
+
+  const handleNavEnter = () => {
+    clearTimer(closeTimerRef);
+  };
+
+  const handleNavLeave = () => {
+    clearTimer(hoverTimerRef);
+    if (pinnedSection) return;
+    closeTimerRef.current = window.setTimeout(() => setOpenSection(null), 220);
+  };
+
+  const handleTriggerClick = (sectionKey: string) => {
+    clearTimer(hoverTimerRef);
+    clearTimer(closeTimerRef);
+    if (openSection === sectionKey && pinnedSection === sectionKey) {
+      setPinnedSection(null);
+      setOpenSection(null);
+      return;
+    }
+    setPinnedSection(sectionKey);
+    openSectionPanel(sectionKey);
+  };
+
+  /* Clicking a branch/sub-branch closes the dropdown and suppresses the
+     auto-reopen for the navigation that follows. The timeout clears the
+     suppression in case the navigation went to the current page (no URL
+     change, so the render-phase adjustment never runs). */
+  const closeBranchPanel = () => {
+    clearTimer(hoverTimerRef);
+    clearTimer(closeTimerRef);
+    setPinnedSection(null);
+    setOpenSection(null);
+    setSuppressAutoOpen(true);
+    window.setTimeout(() => setSuppressAutoOpen(false), 0);
+  };
+
+  const handleBranchNavigate = (path: string) => {
+    closeBranchPanel();
+    navigate(path);
   };
 
   const closeNavMenus = () => {
     setMobileNavOpen(false);
-    if (openSection) setDismissedSection(openSection);
+    clearTimer(hoverTimerRef);
+    clearTimer(closeTimerRef);
+    setPinnedSection(null);
     setOpenSection(null);
-    setHoveredBranchKey(null);
     setMenuOpen(false);
   };
 
@@ -212,11 +267,8 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(e.target as Node)) {
-        setOpenSection((current) => {
-          if (current) setDismissedSection(current);
-          return null;
-        });
-        setHoveredBranchKey(null);
+        setPinnedSection(null);
+        setOpenSection(null);
       }
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
@@ -228,7 +280,7 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         let closed = false;
-        if (openSection) { setDismissedSection(openSection); setOpenSection(null); setHoveredBranchKey(null); closed = true; }
+        if (openSection) { setPinnedSection(null); setOpenSection(null); closed = true; }
         if (menuOpen) { setMenuOpen(false); closed = true; }
         if (mobileNavOpen) { setMobileNavOpen(false); closed = true; }
         if (closed) e.preventDefault();
@@ -238,14 +290,21 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
     return () => document.removeEventListener('keydown', onKeydown);
   }, [openSection, menuOpen, mobileNavOpen, setMobileNavOpen]);
 
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current !== null) window.clearTimeout(hoverTimerRef.current);
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
   const renderBranchPanel = (section: NavSection) => (
     <BranchMenu
       section={section}
       align={alignments[section.key] ?? 'left'}
-      selectedBranchKey={selectedBranchKey}
+      selectedBranchKey={activeNav?.branch.key ?? null}
       currentBasePath={currentBasePath}
-      onSelectBranch={setHoveredBranchKey}
-      onNavigateTo={(path) => navigate(path)}
+      onNavigateTo={handleBranchNavigate}
+      onClosePanel={closeBranchPanel}
     />
   );
 
@@ -286,7 +345,13 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
         </div>
 
         {/* Center: Primary inline nav (desktop) */}
-        <nav className="topnav-nav" ref={navRef} aria-label="Primary navigation">
+        <nav
+          className="topnav-nav"
+          ref={navRef}
+          aria-label="Primary navigation"
+          onMouseEnter={handleNavEnter}
+          onMouseLeave={handleNavLeave}
+        >
           {dashboardModule && (
             <NavLink
               to="/dashboard"
@@ -313,7 +378,10 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
               >
                 <button
                   type="button"
-                  onClick={() => handleOpenSection(section.key)}
+                  onClick={() => handleTriggerClick(section.key)}
+                  onMouseEnter={() => handleTriggerEnter(section.key)}
+                  onMouseLeave={handleTriggerLeave}
+                  onFocus={() => handleTriggerEnter(section.key)}
                   aria-haspopup="true"
                   aria-expanded={isOpen}
                   className={`topnav-nav-trigger ${isActive ? 'topnav-nav-trigger-active' : ''}`}

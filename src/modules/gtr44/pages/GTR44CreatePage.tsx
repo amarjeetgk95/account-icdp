@@ -46,7 +46,7 @@ export function GTR44CreatePage() {
   const initialFormData = isEditMode && bill?.formData ? bill.formData : buildNewBillFormData();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="max-w-7xl mx-auto">
       <WorkspaceHeader
         eyebrow="Bill creation · GTR-44"
         title={isEditMode ? 'Edit detailed contingent bill' : 'Create detailed contingent bill'}

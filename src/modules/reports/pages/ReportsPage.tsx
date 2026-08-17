@@ -124,47 +124,47 @@ export function ReportsPage() {
       />
 
       {report && (
-        <div className="space-y-5 mb-6 no-print">
+        <div className="space-y-3 mb-6 no-print">
           {/* Payroll Overview Group */}
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
               <Users size={14} className="text-indigo-600 dark:text-indigo-400" />
               Payroll Overview (24Q Employee)
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="card p-4 border-l-4 border-l-emerald-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total Employees</div>
-                <div className="text-2xl font-extrabold mt-1 text-slate-800 dark:text-slate-100">{report.summary.totalEmployees}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="card p-3 border-l-4 border-l-emerald-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Total Employees</div>
+                <div className="text-lg font-extrabold mt-0.5 text-slate-800 dark:text-slate-100">{report.summary.totalEmployees}</div>
               </div>
-              <div className="card p-4 border-l-4 border-l-indigo-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Annual Gross + DA Salary</div>
-                <div className="text-2xl font-extrabold mt-1 text-indigo-600 dark:text-indigo-400">{formatCurrency(report.summary.totalGross)}</div>
+              <div className="card p-3 border-l-4 border-l-indigo-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Annual Gross + DA Salary</div>
+                <div className="text-lg font-extrabold mt-0.5 text-indigo-600 dark:text-indigo-400">{formatCurrency(report.summary.totalGross)}</div>
               </div>
-              <div className="card p-4 border-l-4 border-l-rose-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total TDS (24Q)</div>
-                <div className="text-2xl font-extrabold mt-1 text-rose-600 dark:text-rose-400">{formatCurrency(report.summary.totalTax)}</div>
+              <div className="card p-3 border-l-4 border-l-rose-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Total TDS (24Q)</div>
+                <div className="text-lg font-extrabold mt-0.5 text-rose-600 dark:text-rose-400">{formatCurrency(report.summary.totalTax)}</div>
               </div>
             </div>
           </div>
 
           {/* Vendor Overview Group */}
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
               <Store size={14} className="text-amber-600 dark:text-amber-400" />
               Vendor Overview (26Q & GST)
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="card p-4 border-l-4 border-l-amber-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total Vendors</div>
-                <div className="text-2xl font-extrabold mt-1 text-slate-800 dark:text-slate-100">{report.summary.totalVendors}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="card p-3 border-l-4 border-l-amber-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Total Vendors</div>
+                <div className="text-lg font-extrabold mt-0.5 text-slate-800 dark:text-slate-100">{report.summary.totalVendors}</div>
               </div>
-              <div className="card p-4 border-l-4 border-l-red-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Vendor IT Deducted (26Q)</div>
-                <div className="text-2xl font-extrabold mt-1 text-red-600 dark:text-red-400">{formatCurrency(report.summary.totalIncomeTax)}</div>
+              <div className="card p-3 border-l-4 border-l-red-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Vendor IT Deducted (26Q)</div>
+                <div className="text-lg font-extrabold mt-0.5 text-red-600 dark:text-red-400">{formatCurrency(report.summary.totalIncomeTax)}</div>
               </div>
-              <div className="card p-4 border-l-4 border-l-teal-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total GST (Annual)</div>
-                <div className="text-2xl font-extrabold mt-1 text-teal-600 dark:text-teal-400">{formatCurrency(report.summary.totalGst)}</div>
+              <div className="card p-3 border-l-4 border-l-teal-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Total GST (Annual)</div>
+                <div className="text-lg font-extrabold mt-0.5 text-teal-600 dark:text-teal-400">{formatCurrency(report.summary.totalGst)}</div>
               </div>
             </div>
           </div>

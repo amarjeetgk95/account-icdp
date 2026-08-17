@@ -17,9 +17,10 @@ import { ITReportSection } from '../components/ITReportSection';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
+import { Modal } from '@/shared/components/Modal';
 import { downloadCsv } from '@/shared/utilities';
 import { useUIStore } from '@/core/stores/ui-store';
-import { FileImage } from 'lucide-react';
+import { FileImage, Plus } from 'lucide-react';
 import type { TransactionInput } from '../types';
 
 type SectionTab = 'overview' | 'gst' | 'it';
@@ -30,6 +31,7 @@ export function PartiesPage() {
   const activeTab: SectionTab = validTabs.includes(tab as SectionTab) ? (tab as SectionTab) : 'overview';
   const [selectedQuarter, setSelectedQuarter] = useState('Q1');
   const [showPreview, setShowPreview] = useState(false);
+  const [showTxForm, setShowTxForm] = useState(false);
 
   const fy = useUIStore((state) => state.activeFinancialYear);
 
@@ -131,9 +133,18 @@ export function PartiesPage() {
         eyebrow="Vendor TDS · 26Q"
         title="Vendor & party management"
         context={<>FY {fyLabel}</>}
+        actions={
+          <button
+            type="button"
+            onClick={() => setShowTxForm(true)}
+            className="btn btn-primary btn-sm"
+          >
+            <Plus size={14} /> New Transaction
+          </button>
+        }
       />
 
-        <div className="max-w-7xl mx-auto space-y-4">
+        <div className="max-w-7xl mx-auto space-y-3">
         {activeTab === 'overview' && (
           <>
             {/* Summary Stats */}
@@ -141,20 +152,8 @@ export function PartiesPage() {
               <SummaryCards transactions={transactions} partiesCount={parties.length} />
             </div>
 
-            {/* New Transaction Form */}
-            <div className="card no-print animate-fade-in animate-fade-in-delay-1">
-              <div className="card-body">
-                <TransactionForm
-                  parties={parties}
-                  onSubmit={handleSave}
-                  onBulkSubmit={handleBulkSave}
-                  isLoading={saveTransaction.isPending}
-                />
-              </div>
-            </div>
-
             {/* Recent Transactions */}
-            <div className="card no-print animate-fade-in animate-fade-in-delay-2">
+            <div className="card no-print animate-fade-in animate-fade-in-delay-1">
               <div className="card-body">
                 <TransactionsTable transactions={transactions} isLoading={txLoading} />
               </div>
@@ -280,6 +279,21 @@ export function PartiesPage() {
           </ReportPrintArea>
         )}
       </PreviewModal>
+
+      {/* New Transaction Form — kept in a modal so the workspace stays data-first */}
+      <Modal
+        open={showTxForm}
+        onClose={() => setShowTxForm(false)}
+        title="New transaction"
+        maxWidth="xl"
+      >
+        <TransactionForm
+          parties={parties}
+          onSubmit={handleSave}
+          onBulkSubmit={handleBulkSave}
+          isLoading={saveTransaction.isPending}
+        />
+      </Modal>
     </>
   );
 }

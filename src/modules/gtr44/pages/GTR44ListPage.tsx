@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGTR44Bills, useDeleteGTR44Bill, useUpdateGTR44Bill } from '../hooks/useGTR44';
+import { useGTR44Bills, useDeleteGTR44Bill } from '../hooks/useGTR44';
 import { GTR44StatsHeader } from '../components/GTR44StatsHeader';
 import { GTR44StatusBadge } from '../components/GTR44StatusBadge';
 import { Input } from '../../../components/ui/input';
@@ -11,21 +11,19 @@ import { EmptyState } from '../../../shared/components/EmptyState';
 import { SkeletonTable } from '../../../shared/components/Skeleton';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { ConfirmDialog } from '../../../shared/components/ConfirmDialog';
-import { Search, Plus, Eye, Edit, Trash2, Send, FileText } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, FileText } from 'lucide-react';
 import { useToast } from '../../../hooks/use-toast';
 import { formatCurrency } from '@/shared/utilities';
 
 export function GTR44ListPage() {
   const { data: bills = [], isLoading } = useGTR44Bills();
   const deleteBill = useDeleteGTR44Bill();
-  const updateBill = useUpdateGTR44Bill();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [submitTarget, setSubmitTarget] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const stats = useMemo(() => {
@@ -60,30 +58,16 @@ export function GTR44ListPage() {
     }
   };
 
-  const handleSubmitToTreasury = async () => {
-    if (!submitTarget) return;
-    setBusy(true);
-    try {
-      await updateBill.mutateAsync({ id: submitTarget, bill: { status: 'submitted' } });
-      toast({ title: 'Success', description: 'Bill submitted to Treasury.' });
-      setSubmitTarget(null);
-    } catch {
-      toast({ title: 'Error', description: 'Failed to submit bill.', variant: 'destructive' });
-    } finally {
-      setBusy(false);
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="max-w-7xl mx-auto">
         <SkeletonTable rows={6} cols={5} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="max-w-7xl mx-auto space-y-3">
       <WorkspaceHeader
         eyebrow="Bill creation · GTR-44"
         title="Detailed contingent bills"
@@ -99,7 +83,7 @@ export function GTR44ListPage() {
          passedTotal={stats.passedTotal}
        />
 
-      <div className="bg-white p-4 rounded-lg shadow-sm border mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div className="bg-white p-2 rounded-xl shadow-sm border mb-3 flex flex-col sm:flex-row justify-between items-center gap-2">
         <Tabs value={activeTab} className="w-full sm:w-auto" onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
@@ -163,9 +147,6 @@ export function GTR44ListPage() {
                       <Button variant="ghost" size="icon" title="Delete" aria-label={`Delete bill ${bill.billNo}`} onClick={() => setDeleteTarget(bill.id)} disabled={bill.status !== 'draft'}>
                         <Trash2 className="h-4 w-4 text-slate-500" />
                       </Button>
-                      <Button variant="ghost" size="icon" title="Submit to Treasury" aria-label={`Submit bill ${bill.billNo} to Treasury`} onClick={() => setSubmitTarget(bill.id)} disabled={bill.status !== 'draft'}>
-                        <Send className="h-4 w-4 text-slate-500" />
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -188,22 +169,6 @@ export function GTR44ListPage() {
             Are you sure you want to delete bill{' '}
             <strong>{bills.find((b) => b.id === deleteTarget)?.billNo ?? ''}</strong>? This cannot
             be undone.
-          </>
-        }
-      />
-      <ConfirmDialog
-        open={submitTarget !== null}
-        title="Submit to Treasury"
-        confirmLabel="Submit"
-        busy={busy}
-        onConfirm={handleSubmitToTreasury}
-        onCancel={() => setSubmitTarget(null)}
-        message={
-          <>
-            Submit bill{' '}
-            <strong>{bills.find((b) => b.id === submitTarget)?.billNo ?? ''}</strong> to the
-            Treasury? The bill will be marked as <strong>Submitted</strong> and can no longer be
-            edited.
           </>
         }
       />
