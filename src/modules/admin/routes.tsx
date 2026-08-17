@@ -1,27 +1,16 @@
-import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
+import { lazyNamedExport } from '@/shared/utilities/lazyNamed';
 import type { RouteDefinition } from '@/shared/types/module';
 
-const AdminOverviewPage = lazy(() =>
-  import('./pages/AdminOverviewPage').then((m) => ({ default: m.AdminOverviewPage }))
-);
-const AdminUsersPage = lazy(() =>
-  import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage }))
-);
-const AdminReportsPage = lazy(() =>
-  import('./pages/AdminReportsPage').then((m) => ({ default: m.AdminReportsPage }))
-);
-const AdminImportsPage = lazy(() =>
-  import('./pages/AdminImportsPage').then((m) => ({ default: m.AdminImportsPage }))
-);
-const AdminComponentsPage = lazy(() =>
-  import('./pages/AdminComponentsPage').then((m) => ({ default: m.AdminComponentsPage }))
-);
-const AdminSettingsPage = lazy(() =>
-  import('./pages/AdminSettingsPage').then((m) => ({ default: m.AdminSettingsPage }))
-);
-const AdminAuditPage = lazy(() =>
-  import('@/modules/adminaudit/pages/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage }))
+const AdminOverviewPage = lazyNamedExport(() => import('./pages/AdminOverviewPage'), 'AdminOverviewPage');
+const AdminUsersPage = lazyNamedExport(() => import('./pages/AdminUsersPage'), 'AdminUsersPage');
+const AdminReportsPage = lazyNamedExport(() => import('./pages/AdminReportsPage'), 'AdminReportsPage');
+const AdminImportsPage = lazyNamedExport(() => import('./pages/AdminImportsPage'), 'AdminImportsPage');
+const AdminComponentsPage = lazyNamedExport(() => import('./pages/AdminComponentsPage'), 'AdminComponentsPage');
+const AdminSettingsPage = lazyNamedExport(() => import('./pages/AdminSettingsPage'), 'AdminSettingsPage');
+const AdminAuditPage = lazyNamedExport(
+  () => import('@/modules/adminaudit/pages/AdminAuditPage'),
+  'AdminAuditPage'
 );
 
 export const adminRoutes: RouteDefinition[] = [

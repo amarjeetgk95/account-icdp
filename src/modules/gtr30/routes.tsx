@@ -1,24 +1,15 @@
-import { lazy } from 'react';
+import { lazyNamedExport } from '@/shared/utilities/lazyNamed';
 import type { RouteDefinition } from '@/shared/types/module';
 
-const GTR30ListPage = lazy(() =>
-  import('./pages/GTR30ListPage').then((m) => ({ default: m.GTR30ListPage }))
+const GTR30ListPage = lazyNamedExport(() => import('./pages/GTR30ListPage'), 'GTR30ListPage');
+const GTR30CreatePage = lazyNamedExport(() => import('./pages/GTR30CreatePage'), 'GTR30CreatePage');
+const GTR30ViewPage = lazyNamedExport(() => import('./pages/GTR30ViewPage'), 'GTR30ViewPage');
+const GTR30SettingsPage = lazyNamedExport(() => import('./pages/GTR30SettingsPage'), 'GTR30SettingsPage');
+const GTR30EmployeeMasterPage = lazyNamedExport(
+  () => import('./pages/GTR30EmployeeMasterPage'),
+  'GTR30EmployeeMasterPage'
 );
-const GTR30CreatePage = lazy(() =>
-  import('./pages/GTR30CreatePage').then((m) => ({ default: m.GTR30CreatePage }))
-);
-const GTR30ViewPage = lazy(() =>
-  import('./pages/GTR30ViewPage').then((m) => ({ default: m.GTR30ViewPage }))
-);
-const GTR30SettingsPage = lazy(() =>
-  import('./pages/GTR30SettingsPage').then((m) => ({ default: m.GTR30SettingsPage }))
-);
-const GTR30EmployeeMasterPage = lazy(() =>
-  import('./pages/GTR30EmployeeMasterPage').then((m) => ({ default: m.GTR30EmployeeMasterPage }))
-);
-const GTR30LaunchPage = lazy(() =>
-  import('./pages/GTR30LaunchPage').then((m) => ({ default: m.GTR30LaunchPage }))
-);
+const GTR30LaunchPage = lazyNamedExport(() => import('./pages/GTR30LaunchPage'), 'GTR30LaunchPage');
 
 export const gtr30Routes: RouteDefinition[] = [
   { path: '/gtr30/list', element: <GTR30ListPage /> },

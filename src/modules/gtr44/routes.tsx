@@ -1,18 +1,10 @@
-import { lazy } from 'react';
+import { lazyNamedExport } from '@/shared/utilities/lazyNamed';
 import type { RouteDefinition } from '@/shared/types/module';
 
-const GTR44SettingsPage = lazy(() =>
-  import('./pages/GTR44SettingsPage').then((m) => ({ default: m.GTR44SettingsPage }))
-);
-const GTR44ListPage = lazy(() =>
-  import('./pages/GTR44ListPage').then((m) => ({ default: m.GTR44ListPage }))
-);
-const GTR44CreatePage = lazy(() =>
-  import('./pages/GTR44CreatePage').then((m) => ({ default: m.GTR44CreatePage }))
-);
-const GTR44ViewPage = lazy(() =>
-  import('./pages/GTR44ViewPage').then((m) => ({ default: m.GTR44ViewPage }))
-);
+const GTR44SettingsPage = lazyNamedExport(() => import('./pages/GTR44SettingsPage'), 'GTR44SettingsPage');
+const GTR44ListPage = lazyNamedExport(() => import('./pages/GTR44ListPage'), 'GTR44ListPage');
+const GTR44CreatePage = lazyNamedExport(() => import('./pages/GTR44CreatePage'), 'GTR44CreatePage');
+const GTR44ViewPage = lazyNamedExport(() => import('./pages/GTR44ViewPage'), 'GTR44ViewPage');
 
 export const gtr44Routes: RouteDefinition[] = [
   {
