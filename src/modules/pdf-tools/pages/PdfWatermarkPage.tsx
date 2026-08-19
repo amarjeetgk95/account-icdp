@@ -31,7 +31,7 @@ const PRESET_COLORS = [
   { label: 'Amber Orange', hex: '#d97706' },
 ];
 
-export const PdfWatermarkPage: React.FC = () => {
+export const PdfWatermarkPage: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pagePreviewUrl, setPagePreviewUrl] = useState<string | null>(null);
   const [watermarkText, setWatermarkText] = useState('CONFIDENTIAL');
@@ -114,23 +114,25 @@ export const PdfWatermarkPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 animate-in fade-in pb-12">
-      <PdfToolsNavHeader
-        title="Watermark &amp; Stamp PDF"
-        subtitle="Add security stamps, confidential marks, or Gujarati official designations"
-        badge="Pure Vector Engine"
-        actions={
-          selectedFile ? (
-            <button
-              type="button"
-              onClick={() => setSelectedFile(null)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
-            >
-              <RotateCcw size={13} />
-              <span>Choose Another File</span>
-            </button>
-          ) : undefined
-        }
-      />
+      {showHeader && (
+        <PdfToolsNavHeader
+          title="Watermark &amp; Stamp PDF"
+          subtitle="Add security stamps, confidential marks, or Gujarati official designations"
+          badge="Pure Vector Engine"
+          actions={
+            selectedFile ? (
+              <button
+                type="button"
+                onClick={() => setSelectedFile(null)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                <RotateCcw size={13} />
+                <span>Choose Another File</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {!selectedFile && (
         <div

@@ -17,7 +17,7 @@ import { toast } from '@/shared/components/Toast';
 
 type QualityPreset = 'extreme' | 'recommended' | 'light';
 
-export const PdfCompressPage: React.FC = () => {
+export const PdfCompressPage: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [qualityPreset, setQualityPreset] = useState<QualityPreset>('recommended');
   const [isCompressing, setIsCompressing] = useState(false);
@@ -82,26 +82,28 @@ export const PdfCompressPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in pb-12">
-      <PdfToolsNavHeader
-        title="Compress &amp; Optimize PDF"
-        subtitle="Reduce document file size for strict government portal limits (IFMS, e-Guj, GST, Municipal portals)"
-        badge="Portal Ready"
-        actions={
-          selectedFile ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedFile(null);
-                setResultStats(null);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
-            >
-              <RotateCcw size={13} />
-              <span>Choose Another File</span>
-            </button>
-          ) : undefined
-        }
-      />
+      {showHeader && (
+        <PdfToolsNavHeader
+          title="Compress &amp; Optimize PDF"
+          subtitle="Reduce document file size for strict government portal limits (IFMS, e-Guj, GST, Municipal portals)"
+          badge="Portal Ready"
+          actions={
+            selectedFile ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFile(null);
+                  setResultStats(null);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                <RotateCcw size={13} />
+                <span>Choose Another File</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {!selectedFile && (
         <div

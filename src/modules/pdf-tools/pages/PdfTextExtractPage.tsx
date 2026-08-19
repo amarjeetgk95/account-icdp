@@ -21,7 +21,7 @@ import type { ExtractedDocument, OcrProgressState } from '../types';
 import { saveAs } from 'file-saver';
 import { toast } from '@/shared/components/Toast';
 
-export const PdfTextExtractPage: React.FC = () => {
+export const PdfTextExtractPage: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [extractedDoc, setExtractedDoc] = useState<ExtractedDocument | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,25 +124,27 @@ export const PdfTextExtractPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 animate-in fade-in pb-12">
-      <PdfToolsNavHeader
-        title="Gujarati &amp; English Text Extractor"
-        subtitle="Searchable text stream extraction for government circulars, resolutions, and court orders"
-        badge="Unicode Gujarati Ready"
-        actions={
-          extractedDoc ? (
-            <button
-              type="button"
-              onClick={() => {
-                setExtractedDoc(null);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
-            >
-              <RotateCcw size={13} />
-              <span>New Document</span>
-            </button>
-          ) : undefined
-        }
-      />
+      {showHeader && (
+        <PdfToolsNavHeader
+          title="Gujarati &amp; English Text Extractor"
+          subtitle="Searchable text stream extraction for government circulars, resolutions, and court orders"
+          badge="Unicode Gujarati Ready"
+          actions={
+            extractedDoc ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setExtractedDoc(null);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                <RotateCcw size={13} />
+                <span>New Document</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {!extractedDoc && (
         <div className="space-y-4">

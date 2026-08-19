@@ -20,7 +20,7 @@ interface PageThumbnail {
   dataUrl: string;
 }
 
-export const PdfSplitPage: React.FC = () => {
+export const PdfSplitPage: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [thumbnails, setThumbnails] = useState<PageThumbnail[]>([]);
@@ -205,23 +205,25 @@ export const PdfSplitPage: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-5 animate-in fade-in pb-12">
-      <PdfToolsNavHeader
-        title="Split &amp; Extract PDF Pages"
-        subtitle="Extract specific page ranges or burst document into individual pages"
-        badge="Pure Vector Engine"
-        actions={
-          selectedFile ? (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
-            >
-              <RotateCcw size={13} />
-              <span>Choose Another File</span>
-            </button>
-          ) : undefined
-        }
-      />
+      {showHeader && (
+        <PdfToolsNavHeader
+          title="Split & Extract PDF Pages"
+          subtitle="Extract specific page ranges or burst document into individual pages"
+          badge="Fast Page Parser"
+          actions={
+            selectedFile ? (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                <RotateCcw size={13} />
+                <span>Choose Another File</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {!selectedFile && (
         <div

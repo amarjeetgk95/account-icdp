@@ -23,7 +23,7 @@ interface UploadedPdfItem {
   sizeBytes: number;
 }
 
-export const PdfMergePage: React.FC = () => {
+export const PdfMergePage: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [filesList, setFilesList] = useState<UploadedPdfItem[]>([]);
   const [isMerging, setIsMerging] = useState(false);
   const [mergedSuccess, setMergedSuccess] = useState<boolean>(false);
@@ -60,10 +60,12 @@ export const PdfMergePage: React.FC = () => {
     updated[index] = updated[targetIndex];
     updated[targetIndex] = item;
     setFilesList(updated);
+    setMergedSuccess(false);
   };
 
   const handleRemove = (id: string) => {
-    setFilesList((prev) => prev.filter((item) => item.id !== id));
+    setFilesList((prev) => prev.filter((f) => f.id !== id));
+    setMergedSuccess(false);
   };
 
   const handleClearAll = () => {
@@ -73,24 +75,23 @@ export const PdfMergePage: React.FC = () => {
 
   const handleMergeAndDownload = async () => {
     if (filesList.length < 2) {
-      toast.error('Please upload at least 2 PDF files to merge');
+      toast.warning('Please select at least 2 PDF files to merge.');
       return;
     }
 
-    setIsMerging(true);
     try {
-      const filesToMerge = filesList.map((item) => item.file);
-      const result = await pdfManipulationService.mergePdfs(filesToMerge);
+      setIsMerging(true);
+      const fileObjects = filesList.map((item) => item.file);
+      const result = await pdfManipulationService.mergePdfs(fileObjects);
 
       const blob = new Blob([result.data as BlobPart], { type: 'application/pdf' });
-      const outputName = `merged_${filesList[0].name.replace(/\.pdf$/i, '')}_and_${filesList.length - 1}_more.pdf`;
-      saveAs(blob, outputName);
+      saveAs(blob, `Merged_Document_${new Date().toISOString().slice(0, 10)}.pdf`);
 
       setMergedSuccess(true);
-      toast.success(`Successfully merged ${filesList.length} files (${result.pageCount} pages)!`);
+      toast.success(`Merged ${filesList.length} files (${result.pageCount} pages) successfully!`);
     } catch (err: any) {
-      console.error('[PdfMergePage] Merge error:', err);
-      toast.error(`Merge failed: ${err?.message || err}`);
+      console.error('[PdfMergePage] Error:', err);
+      toast.error('Failed to merge PDFs: ' + (err?.message || 'Unknown error'));
     } finally {
       setIsMerging(false);
     }
@@ -106,23 +107,25 @@ export const PdfMergePage: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-5 animate-in fade-in pb-12">
-      <PdfToolsNavHeader
-        title="Merge PDF Files"
-        subtitle="Combine multiple government documents, circulars &amp; invoices into a single PDF"
-        badge="Pure Vector Engine"
-        actions={
-          filesList.length > 0 ? (
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
-            >
-              <RotateCcw size={13} />
-              <span>Clear All</span>
-            </button>
-          ) : undefined
-        }
-      />
+      {showHeader && (
+        <PdfToolsNavHeader
+          title="Merge PDF Files"
+          subtitle="Combine multiple government documents, circulars &amp; invoices into a single PDF"
+          badge="Pure Vector Engine"
+          actions={
+            filesList.length > 0 ? (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                <RotateCcw size={13} />
+                <span>Clear All</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {/* Upload Dropzone */}
       <div

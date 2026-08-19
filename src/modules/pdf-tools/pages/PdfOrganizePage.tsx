@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Download,
-  RefreshCw,
 } from 'lucide-react';
 import { PdfToolsNavHeader } from '../components/PdfToolsNavHeader';
 import { pdfManipulationService } from '../services/pdfManipulation.service';
@@ -23,7 +22,7 @@ interface PageCardState {
   dataUrl: string;
 }
 
-export const PdfOrganizePage: React.FC = () => {
+export const PdfOrganizePage: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pages, setPages] = useState<PageCardState[]>([]);
   const [isLoadingThumbnails, setIsLoadingThumbnails] = useState(false);
@@ -36,106 +35,99 @@ export const PdfOrganizePage: React.FC = () => {
       return;
     }
 
-    let isMounted = true;
-
-    async function loadPdfThumbnails() {
+    let isCancelled = false;
+    const loadThumbnails = async () => {
       setIsLoadingThumbnails(true);
       try {
-        const buffer = await selectedFile!.arrayBuffer();
+        const buffer = await selectedFile.arrayBuffer();
         const pdfDoc = await getDocumentProxy(new Uint8Array(buffer));
-        const numPages = pdfDoc.numPages;
+        const total = pdfDoc.numPages;
+        const loaded: PageCardState[] = [];
 
-        const renderedPages: PageCardState[] = [];
-
-        for (let i = 1; i <= numPages; i++) {
-          const page = await pdfDoc.getPage(i);
+        for (let pNum = 1; pNum <= total; pNum++) {
+          if (isCancelled) break;
+          const page = await pdfDoc.getPage(pNum);
           const viewport = page.getViewport({ scale: 0.35 });
+
           const canvas = document.createElement('canvas');
-          canvas.width = Math.floor(viewport.width);
-          canvas.height = Math.floor(viewport.height);
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
           const ctx = canvas.getContext('2d');
 
           if (ctx && typeof (page as any).render === 'function') {
             await (page as any).render({ canvasContext: ctx, viewport } as any).promise;
+            loaded.push({
+              originalIndex: pNum - 1,
+              originalPageNumber: pNum,
+              rotation: 0,
+              dataUrl: canvas.toDataURL('image/jpeg', 0.65),
+            });
           }
-
-          renderedPages.push({
-            originalIndex: i - 1,
-            originalPageNumber: i,
-            rotation: 0,
-            dataUrl: canvas.toDataURL('image/jpeg', 0.8),
-          });
         }
 
-        if (isMounted) {
-          setPages(renderedPages);
+        if (!isCancelled) {
+          setPages(loaded);
         }
       } catch (err: any) {
-        console.error('[PdfOrganizePage] Error loading PDF:', err);
-        toast.error(`Could not preview PDF: ${err?.message || err}`);
+        console.error('[PdfOrganizePage] Thumbnail error:', err);
+        toast.error('Failed to load PDF pages: ' + (err?.message || err));
       } finally {
-        if (isMounted) setIsLoadingThumbnails(false);
+        if (!isCancelled) setIsLoadingThumbnails(false);
       }
-    }
+    };
 
-    loadPdfThumbnails();
+    loadThumbnails();
 
     return () => {
-      isMounted = false;
+      isCancelled = true;
     };
   }, [selectedFile]);
 
-  const handleRotatePage = (index: number, angleChange: number) => {
-    setPages((prev) =>
-      prev.map((p, idx) => {
-        if (idx === index) {
-          const nextRot = (p.rotation + angleChange + 360) % 360;
-          return { ...p, rotation: nextRot };
-        }
-        return p;
-      })
-    );
+  // Page manipulation actions
+  const handleRotatePage = (index: number, angle: number) => {
+    setPages((prev) => {
+      const next = [...prev];
+      const currentRot = next[index].rotation;
+      next[index] = {
+        ...next[index],
+        rotation: (currentRot + angle + 360) % 360,
+      };
+      return next;
+    });
   };
 
-  const handleRotateAll = (angleChange: number) => {
+  const handleRotateAll = (angle: number) => {
     setPages((prev) =>
       prev.map((p) => ({
         ...p,
-        rotation: (p.rotation + angleChange + 360) % 360,
+        rotation: (p.rotation + angle + 360) % 360,
       }))
     );
   };
 
   const handleDeletePage = (index: number) => {
-    if (pages.length <= 1) {
-      toast.error('The document must contain at least one page');
-      return;
-    }
-    setPages((prev) => prev.filter((_, idx) => idx !== index));
+    setPages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleMovePage = (index: number, direction: 'left' | 'right') => {
-    const targetIdx = direction === 'left' ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= pages.length) return;
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= pages.length) return;
 
-    const next = [...pages];
-    const item = next[index];
-    next[index] = next[targetIdx];
-    next[targetIdx] = item;
-    setPages(next);
+    setPages((prev) => {
+      const next = [...prev];
+      const item = next[index];
+      next[index] = next[targetIndex];
+      next[targetIndex] = item;
+      return next;
+    });
   };
 
   const handleReset = () => {
-    if (selectedFile) {
-      const reset = pages
-        .slice()
-        .sort((a, b) => a.originalIndex - b.originalIndex)
-        .map((p) => ({ ...p, rotation: 0 }));
-      setPages(reset);
-      toast.success('Reset all page order and rotations.');
-    }
+    setSelectedFile(null);
+    setPages([]);
   };
 
+  // Save new organized PDF
   const handleSaveOrganizedPdf = async () => {
     if (!selectedFile || pages.length === 0) return;
 
@@ -162,23 +154,25 @@ export const PdfOrganizePage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 animate-in fade-in pb-12">
-      <PdfToolsNavHeader
-        title="Rotate &amp; Organize PDF Pages"
-        subtitle="Visual page manager to rotate, delete, and reorder document pages"
-        badge="Pure Vector Engine"
-        actions={
-          selectedFile ? (
-            <button
-              type="button"
-              onClick={() => setSelectedFile(null)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
-            >
-              <RefreshCw size={13} />
-              <span>Choose Another File</span>
-            </button>
-          ) : undefined
-        }
-      />
+      {showHeader && (
+        <PdfToolsNavHeader
+          title="Rotate &amp; Organize PDF Pages"
+          subtitle="Visual page manager to rotate, delete, and reorder document pages"
+          badge="Pure Vector Engine"
+          actions={
+            selectedFile ? (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                <RotateCcw size={13} />
+                <span>Choose Another File</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {!selectedFile && (
         <div

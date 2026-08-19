@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   RotateCcw,
   Languages,
+  Layers,
 } from 'lucide-react';
 import { PdfToolsNavHeader } from '../components/PdfToolsNavHeader';
 import { PdfDropzone } from '../components/PdfDropzone';
@@ -21,6 +22,7 @@ import type {
 import { toast } from '@/shared/components/Toast';
 
 export function PdfToolsPage() {
+  const navigate = useNavigate();
   const { tab } = useParams<{ tab: string }>();
 
   const activeTab: 'word' | 'excel' = tab === 'excel' ? 'excel' : 'word';
@@ -148,17 +150,28 @@ export function PdfToolsPage() {
         title="OCR Document Studio"
         subtitle="Extract and edit documents into Word (.docx) and Excel (.xlsx) &bull; English + ગુજરાતી"
         badge="PaddleOCR + PDF.js"
+        showBack={false}
         actions={
-          extractedDoc ? (
+          <div className="flex items-center gap-2">
+            {extractedDoc && (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                <RotateCcw size={13} />
+                <span>New Document</span>
+              </button>
+            )}
             <button
               type="button"
-              onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => navigate('/pdf-tools/editor')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold shadow-xs hover:bg-slate-800 transition-colors cursor-pointer"
             >
-              <RotateCcw size={13} />
-              <span>New Document</span>
+              <Layers size={14} className="text-indigo-400 dark:text-indigo-600" />
+              <span>PDF Editor &amp; Utilities &rarr;</span>
             </button>
-          ) : undefined
+          </div>
         }
       />
 

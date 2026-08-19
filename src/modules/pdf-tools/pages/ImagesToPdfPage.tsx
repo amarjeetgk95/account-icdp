@@ -20,7 +20,7 @@ interface UploadedImageItem {
   previewUrl: string;
 }
 
-export const ImagesToPdfPage: React.FC = () => {
+export const ImagesToPdfPage: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [imagesList, setImagesList] = useState<UploadedImageItem[]>([]);
   const [orientation, setOrientation] = useState<'auto' | 'portrait' | 'landscape'>('auto');
   const [isConverting, setIsConverting] = useState(false);
@@ -91,23 +91,25 @@ export const ImagesToPdfPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 animate-in fade-in pb-12">
-      <PdfToolsNavHeader
-        title="Images to PDF Converter"
-        subtitle="Combine scanned bills, vouchers, receipt photos, and IDs into an A4 PDF"
-        badge="Pure Vector Engine"
-        actions={
-          imagesList.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setImagesList([])}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
-            >
-              <RotateCcw size={13} />
-              <span>Clear All</span>
-            </button>
-          ) : undefined
-        }
-      />
+      {showHeader && (
+        <PdfToolsNavHeader
+          title="Images to PDF Converter"
+          subtitle="Combine scanned bills, vouchers, receipt photos, and IDs into an A4 PDF"
+          badge="Pure Vector Engine"
+          actions={
+            imagesList.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setImagesList([])}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                <RotateCcw size={13} />
+                <span>Clear All</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {/* Upload Dropzone */}
       <div

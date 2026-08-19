@@ -20,7 +20,7 @@ interface RenderedImageResult {
   height: number;
 }
 
-export const PdfToImagesPage: React.FC = () => {
+export const PdfToImagesPage: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dpi, setDpi] = useState<number>(200);
   const [isRendering, setIsRendering] = useState(false);
@@ -42,26 +42,26 @@ export const PdfToImagesPage: React.FC = () => {
       });
 
       setRenderedImages(results);
-      toast.success(`Converted ${results.length} page(s) to images successfully!`);
+      toast.success(`Converted ${results.length} pages to images!`);
     } catch (err: any) {
       console.error('[PdfToImagesPage] Error:', err);
-      toast.error(`Image conversion failed: ${err?.message || err}`);
+      toast.error(`Convert failed: ${err?.message || err}`);
     } finally {
       setIsRendering(false);
     }
   };
 
-  const handleDownloadSingle = (item: RenderedImageResult) => {
-    if (!selectedFile) return;
-    const cleanName = selectedFile.name.replace(/\.pdf$/i, '');
-    saveAs(item.blob, `${cleanName}_page_${item.pageNumber}.png`);
+  const handleDownloadSingle = (img: RenderedImageResult) => {
+    saveAs(img.blob, `page_${img.pageNumber}.png`);
   };
 
   const handleDownloadAllZip = async () => {
-    if (!selectedFile || renderedImages.length === 0) return;
+    if (renderedImages.length === 0 || !selectedFile) return;
+
     try {
       const cleanName = selectedFile.name.replace(/\.pdf$/i, '');
       const zipBlob = await pdfManipulationService.packageImagesToZip(renderedImages, cleanName);
+
       saveAs(zipBlob, `${cleanName}_images_bundle.zip`);
       toast.success('ZIP package downloaded successfully!');
     } catch (err: any) {
@@ -71,26 +71,28 @@ export const PdfToImagesPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 animate-in fade-in pb-12">
-      <PdfToolsNavHeader
-        title="PDF to High-Res Images"
-        subtitle="Extract crystal clear PNG &amp; JPEG images from every page of your PDF"
-        badge="300 DPI Ready"
-        actions={
-          selectedFile ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedFile(null);
-                setRenderedImages([]);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
-            >
-              <RotateCcw size={13} />
-              <span>Choose Another File</span>
-            </button>
-          ) : undefined
-        }
-      />
+      {showHeader && (
+        <PdfToolsNavHeader
+          title="PDF to High-Res Images"
+          subtitle="Extract crystal clear PNG &amp; JPEG images from every page of your PDF"
+          badge="300 DPI Ready"
+          actions={
+            selectedFile ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFile(null);
+                  setRenderedImages([]);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                <RotateCcw size={13} />
+                <span>Choose Another File</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {!selectedFile && (
         <div
