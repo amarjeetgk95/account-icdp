@@ -1,5 +1,6 @@
 import type { ExtractedElement, OcrPageResult } from '../../types/spatial.types';
 import { gujaratiUnicodeRecoveryService } from '../gujaratiUnicodeRecovery.service';
+import { layoutReconstructionService } from '../layoutReconstruction.service';
 
 export class NativePdfEngine {
   readonly id = 'native-pdf';
@@ -71,21 +72,23 @@ export class NativePdfEngine {
       });
     }
 
-    // Apply Gujarati font/CMap & Indic orthography recovery
+    // Apply Gujarati font/CMap & Indic orthography recovery and glyph/word reconstruction
     const { elements: recoveredElements, recoveredCount } =
       gujaratiUnicodeRecoveryService.recoverElements(rawElements);
 
+    const stitchedWords = layoutReconstructionService.reconstructGlyphsAndWords(recoveredElements);
+
     const durationMs = Math.round(performance.now() - startTime);
-    const rawText = recoveredElements.map((e) => e.text).join(' ');
+    const rawText = stitchedWords.map((e) => e.text).join(' ');
 
     return {
       pageNumber,
       width: viewport.width,
       height: viewport.height,
-      elements: recoveredElements,
+      elements: stitchedWords.length > 0 ? stitchedWords : recoveredElements,
       rawText,
       confidence: recoveredCount > 0 ? 95 : 100,
-      engine: recoveredCount > 0 ? 'PDF.js Vector + Gujarati CMap Recovery' : 'PDF.js Native Text Engine',
+      engine: 'PDF.js Vector + Gujarati CMap Recovery',
       durationMs,
     };
   }

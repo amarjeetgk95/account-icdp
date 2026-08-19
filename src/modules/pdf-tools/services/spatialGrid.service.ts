@@ -8,6 +8,7 @@ import type {
   SpatialTable,
 } from '../types/spatial.types';
 import { dataNormalizationService } from './dataNormalization.service';
+import { layoutReconstructionService } from './layoutReconstruction.service';
 
 export interface SpatialGridOptions {
   minColumns?: number;
@@ -566,263 +567,48 @@ export class SpatialGridService {
 
   /**
    * Reconstruct document into structured 2D Spatial Tables and Paragraphs
+   * Uses Paragraph-First Layout Reconstruction, ensuring narrative prose is preserved as paragraphs
+   * and tables are created only when genuine structural evidence exists.
    */
   reconstructSpatialDocument(
     elements: ExtractedElement[],
     pageNumber = 1,
-    _pageWidth = 1000,
-    _pageHeight = 1000,
+    pageWidth = 1000,
+    pageHeight = 1000,
     customOptions?: SpatialGridOptions
   ): { tables: SpatialTable[]; paragraphs: SpatialParagraph[] } {
-    const opts = { ...this.defaultOptions, ...customOptions };
-    const explodedElements = this.explodeMultiTokenElements(elements);
-    const lines = this.clusterIntoLines(explodedElements, opts.yTolerancePx || 10);
-
-    if (lines.length === 0) {
+    if (elements.length === 0) {
       return { tables: [], paragraphs: [] };
     }
 
-    // Partition lines into Paragraph blocks vs Tabular table candidates
-    const tableCandidateLines: ExtractedElement[][] = [];
-    const paragraphLines: ExtractedElement[][] = [];
+    const opts = { ...this.defaultOptions, ...customOptions };
 
-    for (const line of lines) {
-      const lineText = line.map((e) => e.text).join(' ').trim();
-      const isDocTitle = /^(PAYBILL INNER SHEET|GOVERNMENT OF GUJARAT|D\.D\.O|Major Head|TAN No|Cardex|વિષય:|મંજૂરી હુકમ|સરકાર)/i.test(
-        lineText
-      );
-
-      const isSpanningHeader =
-        line.length === 1 &&
-        line[0].width > 120 &&
-        /ALLOWANCE|DEDUCTION|PARTICULAR|EARNING|STATEMENT|વિગત|ભથ્થાં|કપાત/i.test(lineText);
-
-      if (!isDocTitle && (line.length >= 2 || isSpanningHeader)) {
-        tableCandidateLines.push(line);
-      } else {
-        paragraphLines.push(line);
+    const layout = layoutReconstructionService.reconstructPageLayout(
+      elements,
+      pageNumber,
+      pageWidth,
+      pageHeight,
+      {
+        minColumnsForTable: opts.minColumns,
+        yTolerancePx: opts.yTolerancePx,
+        columnGapThresholdPx: opts.columnGapThresholdPx,
+        enableMergedHeaderDetection: opts.enableMergedHeaderDetection,
       }
-    }
-
-    // Determine candidate lines for structured table grid and narrative paragraphs
-    const isExplicitTable = tableCandidateLines.length >= 2;
-    const effectiveTableLines = isExplicitTable ? tableCandidateLines : lines;
-    const effectiveParagraphLines = isExplicitTable ? paragraphLines : [];
-
-    // Build paragraph representations for Word/text export
-    const paragraphs: SpatialParagraph[] = effectiveParagraphLines.map((l, idx) => {
-      const text = l.map((e) => e.text).join(' ');
-      const x0 = Math.min(...l.map((e) => e.bbox[0]));
-      const y0 = Math.min(...l.map((e) => e.bbox[1]));
-      const x1 = Math.max(...l.map((e) => e.bbox[2]));
-      const y1 = Math.max(...l.map((e) => e.bbox[3]));
-      const confAvg = l.reduce((s, e) => s + e.confidence, 0) / l.length;
-
-      const isHeading =
-        text.length < 60 &&
-        (text === text.toUpperCase() || /^[0-9]+\.|કચેરી|હુકમ|Department/i.test(text));
-
-      return {
-        id: `para-p${pageNumber}-${idx + 1}`,
-        text,
-        elements: l,
-        bbox: [x0, y0, x1, y1],
-        isHeading,
-        headingLevel: isHeading ? (text.length < 35 ? 1 : 2) : undefined,
-        confidence: Math.round(confAvg),
-      };
-    });
-
-    // Multi-strategy column boundary detection (borderless / multi-column support)
-    let colPartitions = this.inferColumnPartitions(
-      effectiveTableLines,
-      explodedElements,
-      opts.columnGapThresholdPx || 15
     );
 
-    if (colPartitions.length === 0) {
-      colPartitions = this.detectColumnPartitions(
-        effectiveTableLines,
-        opts.columnGapThresholdPx || 20
+    // If explicit single-column table layout requested (minColumns === 1) and no table detected by layout service
+    if (layout.tables.length === 0 && opts.minColumns === 1) {
+      const fallbackTable = this.inferSpatialGridFromCoordinates(
+        elements,
+        pageNumber,
+        pageWidth,
+        pageHeight
       );
+      return { tables: [fallbackTable], paragraphs: layout.paragraphs };
     }
 
-    if (colPartitions.length === 0) {
-      const allEls = effectiveTableLines.flat();
-      const minX = allEls.length > 0 ? Math.min(...allEls.map((e) => e.bbox[0])) : 50;
-      const maxX = allEls.length > 0 ? Math.max(...allEls.map((e) => e.bbox[2])) : 950;
-      colPartitions = [{ x0: minX, x1: maxX }];
-    }
-
-    const columnCount = Math.max(1, colPartitions.length);
-    const spatialRows: SpatialRow[] = [];
-    const matrixCells: SpatialCell[][] = [];
-
-    for (let rIdx = 0; rIdx < effectiveTableLines.length; rIdx++) {
-      const lineElements = effectiveTableLines[rIdx];
-      const rowY0 = Math.min(...lineElements.map((e) => e.bbox[1]));
-      const rowY1 = Math.max(...lineElements.map((e) => e.bbox[3]));
-      const rowCells: SpatialCell[] = [];
-
-      for (let cIdx = 0; cIdx < columnCount; cIdx++) {
-        const colBounds = colPartitions[cIdx];
-        // Collect all elements belonging to this column lane
-        const colElements = lineElements.filter((el) => {
-          const startsInThisCol = el.bbox[0] >= colBounds.x0 - 20 && el.bbox[0] < colBounds.x1;
-          if (lineElements.length < columnCount && startsInThisCol) {
-            return true;
-          }
-          const elMidX = (el.bbox[0] + el.bbox[2]) / 2;
-          return elMidX >= colBounds.x0 && elMidX < colBounds.x1;
-        });
-
-        const cellText = colElements.map((e) => e.text).join(' ').trim();
-        const confAvg =
-          colElements.length > 0
-            ? colElements.reduce((s, e) => s + e.confidence, 0) / colElements.length
-            : 90;
-
-        const normData = dataNormalizationService.normalize(cellText, Math.round(confAvg));
-        const cellBox: BoundingBox = [
-          colBounds.x0,
-          rowY0,
-          colBounds.x1,
-          rowY1,
-        ];
-
-        // Check if an element physically spans multiple columns (merged header)
-        let colSpan = 1;
-        if (opts.enableMergedHeaderDetection && colElements.length === 1) {
-          const el = colElements[0];
-          const coveringCols = colPartitions.filter(
-            (p) => el.bbox[0] < p.x1 - 10 && el.bbox[2] > p.x0 + 10
-          ).length;
-          if (coveringCols > 1) {
-            colSpan = coveringCols;
-          }
-        }
-
-        const spatialCell: SpatialCell = {
-          id: `cell-p${pageNumber}-r${rIdx}-c${cIdx}`,
-          pageNumber,
-          rowIndex: rIdx,
-          columnIndex: cIdx,
-          rowSpan: 1,
-          columnSpan: colSpan,
-          bbox: cellBox,
-          elements: colElements,
-          text: cellText,
-          data: normData,
-          isHeader: false,
-          isSubHeader: false,
-          isTotal: false,
-          isMerged: colSpan > 1,
-          align: normData.type === 'number' || normData.type === 'currency' ? 'right' : 'left',
-        };
-
-        rowCells.push(spatialCell);
-      }
-
-      const rowText = rowCells.map((c) => c.text).join(' ');
-      const isHeader = rIdx === 0 && this.isHeaderRow(rowCells);
-      const isTotal = this.isTotalRow(rowText);
-
-      // Propagate header/total flags to individual cells
-      for (const cell of rowCells) {
-        if (isHeader) cell.isHeader = true;
-        if (isTotal) cell.isTotal = true;
-      }
-
-      spatialRows.push({
-        rowIndex: rIdx,
-        cells: rowCells,
-        bbox: [
-          Math.min(...colPartitions.map((p) => p.x0)),
-          rowY0,
-          Math.max(...colPartitions.map((p) => p.x1)),
-          rowY1,
-        ],
-        isHeader,
-        isTotal,
-        baselineY: (rowY0 + rowY1) / 2,
-        height: Math.max(1, rowY1 - rowY0),
-      });
-
-      matrixCells.push(rowCells);
-    }
-
-    // Build column definitions
-    const spatialColumns: SpatialColumn[] = colPartitions.map((part, cIdx) => {
-      const headerCell = matrixCells[0]?.[cIdx];
-      const headerText = headerCell?.text || `Column ${cIdx + 1}`;
-
-      // Determine predominant type in this column across data rows
-      const dataCellTypes = matrixCells
-        .slice(1)
-        .map((row) => row[cIdx]?.data.type)
-        .filter((t) => t && t !== 'empty');
-
-      const numCount = dataCellTypes.filter((t) => t === 'number' || t === 'currency').length;
-      const isNumericCol = dataCellTypes.length > 0 && numCount / dataCellTypes.length >= 0.5;
-
-      return {
-        columnIndex: cIdx,
-        x0: part.x0,
-        x1: part.x1,
-        width: part.x1 - part.x0,
-        headerText,
-        predominantType: isNumericCol ? 'currency' : 'text',
-        align: isNumericCol ? 'right' : 'left',
-      };
-    });
-
-    // Propagate column currency type to numeric cells
-    for (let cIdx = 0; cIdx < spatialColumns.length; cIdx++) {
-      const col = spatialColumns[cIdx];
-      const isCurrCol =
-        col.predominantType === 'currency' &&
-        /Pay|Salary|Amount|Gross|Basic|DA|HRA|CLA|Med|Allowance|Rate|Value|Amt|ભથ્થું|પગાર|રકમ/i.test(
-          col.headerText
-        );
-
-      if (isCurrCol) {
-        for (let rIdx = 1; rIdx < matrixCells.length; rIdx++) {
-          const cell = matrixCells[rIdx]?.[cIdx];
-          if (cell && cell.data.type === 'number') {
-            cell.data.type = 'currency';
-            cell.data.currencySymbol = '₹';
-            cell.align = 'right';
-          }
-        }
-      }
-    }
-
-    const tableBbox: BoundingBox = [
-      Math.min(...colPartitions.map((p) => p.x0)),
-      Math.min(...spatialRows.map((r) => r.bbox[1])),
-      Math.max(...colPartitions.map((p) => p.x1)),
-      Math.max(...spatialRows.map((r) => r.bbox[3])),
-    ];
-
-    const avgConfidence =
-      elements.length > 0
-        ? Math.round(elements.reduce((s, e) => s + e.confidence, 0) / elements.length)
-        : 90;
-
-    const spatialTable: SpatialTable = {
-      id: `table-p${pageNumber}-1`,
-      pageNumber,
-      bbox: tableBbox,
-      columns: spatialColumns,
-      rows: spatialRows,
-      cells: matrixCells,
-      hasBorders: true,
-      confidence: avgConfidence,
-      columnCount,
-      rowCount: spatialRows.length,
-    };
-
-    return { tables: [spatialTable], paragraphs };
+    return { tables: layout.tables, paragraphs: layout.paragraphs };
+  }
   }
 }
 

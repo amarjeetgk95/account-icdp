@@ -254,6 +254,25 @@ export class GujaratiUnicodeRecoveryService {
   }
 
   /**
+   * Normalize punctuation, dashes, dandas, and spacing artifacts
+   */
+  healPunctuationAndSpacing(text: string): string {
+    if (!text) return text;
+
+    return text
+      // Normalize various dashes to standard en-dash or hyphen
+      .replace(/[\u2010\u2011\u2012]/g, '-')
+      .replace(/[\u2013\u2014\u2015]/g, ' – ')
+      // Normalize double spaces around dashes/colons
+      .replace(/\s+/g, ' ')
+      .replace(/\s*–\s*/g, ' – ')
+      .replace(/\s*:\s*/g, ': ')
+      // Standardize Gujarati / Devanagari Danda \u0964 -> ।
+      .replace(/\s*।\s*/g, ' । ')
+      .trim();
+  }
+
+  /**
    * Complete recovery pipeline on a single string
    */
   recoverText(text: string): { text: string; wasRecovered: boolean; quality: ExtractionQuality } {

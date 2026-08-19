@@ -137,6 +137,14 @@ export interface SpatialTable {
   rowCount: number;
 }
 
+export type StructuralBlockType =
+  | 'paragraph'
+  | 'heading'
+  | 'list'
+  | 'table'
+  | 'signature'
+  | 'form';
+
 export interface SpatialParagraph {
   id: string;
   text: string;
@@ -145,7 +153,26 @@ export interface SpatialParagraph {
   isHeading: boolean;
   headingLevel?: 1 | 2 | 3;
   confidence: number;
+  blockType?: StructuralBlockType;
+  align?: 'left' | 'right' | 'center' | 'justify';
+  listNumber?: string;
 }
+
+export type StructuralBlock =
+  | {
+      id: string;
+      type: 'paragraph' | 'heading' | 'list' | 'signature' | 'form';
+      paragraph: SpatialParagraph;
+      readingOrder: number;
+      bbox: BoundingBox;
+    }
+  | {
+      id: string;
+      type: 'table';
+      table: SpatialTable;
+      readingOrder: number;
+      bbox: BoundingBox;
+    };
 
 export interface SpatialPage {
   pageNumber: number;
@@ -156,6 +183,7 @@ export interface SpatialPage {
   elements: ExtractedElement[];
   tables: SpatialTable[];
   paragraphs: SpatialParagraph[];
+  blocks?: StructuralBlock[];
   rawText: string;
   confidence: number;
   renderingDurationMs: number;

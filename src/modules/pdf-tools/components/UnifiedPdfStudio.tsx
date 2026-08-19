@@ -20,6 +20,7 @@ import {
   Copy,
   Eye,
   X,
+  GripVertical,
 } from 'lucide-react';
 import { getDocumentProxy } from 'unpdf';
 import { pdfManipulationService } from '../services/pdfManipulation.service';
@@ -42,6 +43,10 @@ export const UnifiedPdfStudio: React.FC = () => {
   const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [actionProgress, setActionProgress] = useState<string>('');
   const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
+
+  // Drag and drop reordering state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Quick Action Dialog States
   const [showCompressModal, setShowCompressModal] = useState(false);
@@ -196,6 +201,46 @@ export const UnifiedPdfStudio: React.FC = () => {
       next[targetIdx] = item;
       return next;
     });
+  };
+
+  // Drag and Drop reordering handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    setPages((prev) => {
+      const next = [...prev];
+      const [movedItem] = next.splice(draggedIndex, 1);
+      next.splice(targetIndex, 0, movedItem);
+      return next;
+    });
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    toast.success(`Moved Page to position ${targetIndex + 1}`);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleDeletePage = (id: string) => {
@@ -671,29 +716,49 @@ export const UnifiedPdfStudio: React.FC = () => {
                 ? 'rotate-270'
                 : 'rotate-0';
 
+            const isDragging = draggedIndex === index;
+            const isDragOver = dragOverIndex === index && draggedIndex !== index;
+
             return (
               <div
                 key={item.id}
-                className={`group relative bg-white dark:bg-slate-900 rounded-2xl border transition-all shadow-xs flex flex-col ${
-                  item.selected
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`group relative bg-white dark:bg-slate-900 rounded-2xl border transition-all duration-150 shadow-xs flex flex-col cursor-grab active:cursor-grabbing ${
+                  isDragging
+                    ? 'opacity-40 scale-95 border-dashed border-indigo-500'
+                    : isDragOver
+                    ? 'ring-4 ring-indigo-500/40 border-indigo-500 scale-102 bg-indigo-50/20 dark:bg-indigo-950/20'
+                    : item.selected
                     ? 'border-indigo-600 dark:border-indigo-500 ring-2 ring-indigo-500/20'
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-400'
                 }`}
               >
                 {/* Card Top Header */}
                 <div className="p-2.5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleSelectPage(item.id)}
-                    className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
-                  >
-                    {item.selected ? (
-                      <CheckSquare size={16} className="text-indigo-600 fill-indigo-50" />
-                    ) : (
-                      <Square size={16} className="text-slate-400 hover:text-slate-600" />
-                    )}
-                    <span>Page {index + 1}</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing"
+                      title="Drag to reorder page"
+                    >
+                      <GripVertical size={14} />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSelectPage(item.id)}
+                      className="flex items-center gap-1 font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      {item.selected ? (
+                        <CheckSquare size={15} className="text-indigo-600 fill-indigo-50" />
+                      ) : (
+                        <Square size={15} className="text-slate-400 hover:text-slate-600" />
+                      )}
+                      <span>Page {index + 1}</span>
+                    </button>
+                  </div>
 
                   <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 truncate max-w-[80px]">
                     {item.sourceType === 'image' ? 'Image' : `p.${item.pageNumberInSource}`}

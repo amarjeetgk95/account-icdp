@@ -3,6 +3,7 @@ import { nativePdfEngine } from './ocr/nativePdf.service';
 import { ocrRegistryService } from './ocr/ocrRegistry.service';
 import { imagePreprocessingService } from './imagePreprocessing.service';
 import { spatialGridService } from './spatialGrid.service';
+import { layoutReconstructionService } from './layoutReconstruction.service';
 import type {
   ExtractedElement,
   ExtractionOptions,
