@@ -1,7 +1,7 @@
 import { dashboardRepository } from '../repositories/dashboard.repository';
 import type { DashboardData } from '../types';
 
-export class DashboardService {
+class DashboardService {
   async getSummary(): Promise<DashboardData> {
     return dashboardRepository.getSummary();
   }

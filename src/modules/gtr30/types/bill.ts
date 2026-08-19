@@ -1,6 +1,3 @@
-export type { GTR30EmployeeMaster, GTR30BillCodeMapping } from './master';
-export type { GTR30DefaultSettings, GTR30DefaultEmployeeTemplate } from './settings';
-
 export interface GTR30PostItem {
   id: string;
   srNo: number | string;

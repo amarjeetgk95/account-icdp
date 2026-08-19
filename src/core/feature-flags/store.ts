@@ -14,6 +14,7 @@ export interface FeatureFlags {
   gtr30_module: boolean;
   paybill_module: boolean;
   paybill_component_master: boolean;
+  pdf_tools_module: boolean;
 }
 
 interface FeatureFlagStore {
@@ -33,9 +34,10 @@ const defaultFlags: FeatureFlags = {
   gtr30_module: true,
   paybill_module: true,
   paybill_component_master: true,
+  pdf_tools_module: true,
 };
 
-export const useFeatureFlags = create<FeatureFlagStore>()(
+const useFeatureFlags = create<FeatureFlagStore>()(
   persist(
     () => ({
       flags: defaultFlags,

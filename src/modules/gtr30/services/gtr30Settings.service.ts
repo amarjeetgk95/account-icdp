@@ -13,7 +13,7 @@ import {
   type Gtr30SettingsPayload,
 } from '../repositories/gtr30Settings.repository';
 
-export class Gtr30SettingsService {
+class Gtr30SettingsService {
   getDefaults(): Gtr30SettingsPayload {
     return {
       settings: { ...DEFAULT_GTR30_SETTINGS },

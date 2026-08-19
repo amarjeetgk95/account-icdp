@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Printer, Save, Settings, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Printer, Save, Settings, Trash2, Users, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,7 +58,7 @@ export function GTR30CreatePage() {
     if (rows.length === 0) {
       toast({
         title: 'No Master Found',
-        description: `No employees assigned to bill code "${code}". Assign Bill Codes in Bill Settings.`,
+        description: `No employees assigned to bill code "${code}". Assign Bill Codes in Master Directory.`,
       });
       return;
     }
@@ -80,10 +80,42 @@ export function GTR30CreatePage() {
   const updateEmployee = (employeeId: string, field: keyof GTR30Employee, value: string | number) => {
     setData((current) => ({
       ...current,
-      employees: current.employees.map((emp) =>
-        emp.id === employeeId ? { ...emp, [field]: value } : emp
-      ),
+      employees: current.employees.map((emp) => {
+        if (emp.id !== employeeId) return emp;
+        const updated = { ...emp, [field]: value };
+
+        // Auto-recalculate DA (53%) and NPS (10%) when pay changes
+        if (field === 'payOfEstablishment' || field === 'payOfOfficer') {
+          const pay = Number(value) || 0;
+          if (pay > 0 && emp.da === 0) {
+            const da = Math.round(pay * 0.53);
+            updated.da = da;
+            updated.npsPension = Math.round((pay + da) * 0.1);
+            updated.payLevelCell = `PAY=${pay} (LEVEL CELL-7)`;
+          }
+        }
+        return updated;
+      }),
     }));
+  };
+
+  const autoRecalculateEmployee = (employeeId: string) => {
+    setData((current) => ({
+      ...current,
+      employees: current.employees.map((emp) => {
+        if (emp.id !== employeeId) return emp;
+        const pay = (emp.payOfEstablishment || emp.payOfOfficer || 0);
+        const da = Math.round(pay * 0.53);
+        const nps = Math.round((pay + da) * 0.1);
+        return {
+          ...emp,
+          da,
+          npsPension: nps,
+          payLevelCell: `PAY=${pay} (LEVEL CELL-7)`,
+        };
+      }),
+    }));
+    toast({ title: 'Recalculated', description: 'DA (53%) and NPS (10%) updated.' });
   };
 
   const addEmployee = () => {
@@ -92,25 +124,7 @@ export function GTR30CreatePage() {
       ...current,
       employees: [
         ...current.employees,
-        {
-          ...createDefaultEmployee(nextSr),
-          id: crypto.randomUUID(),
-          name: '',
-          designation: '',
-          designationGujarati: '',
-          payOfEstablishment: 0,
-          da: 0,
-          cla: 0,
-          medicalAllowance: 0,
-          transportAllowance: 0,
-          rentOfBuilding: 0,
-          professionalTax: 0,
-          gis1981Insurance: 0,
-          gis1981Savings: 0,
-          npsPension: 0,
-          societyDeduction: 0,
-          remarks: '',
-        },
+        createDefaultEmployee(nextSr),
       ],
     }));
   };
@@ -194,7 +208,7 @@ export function GTR30CreatePage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 pb-20">
+    <div className="max-w-7xl mx-auto space-y-4 pb-24">
       <WorkspaceHeader
         eyebrow="Bill Creation · GTR-30"
         title={id ? 'Edit GTR-30 Pay Bill' : 'Create GTR-30 Pay Bill'}
@@ -209,7 +223,7 @@ export function GTR30CreatePage() {
             <Button variant="outline" size="sm" onClick={printBill}>
               <Printer className="mr-1 h-4 w-4" /> Print PDF
             </Button>
-            <Button size="sm" onClick={saveBill} className="font-bold">
+            <Button size="sm" onClick={saveBill} className="font-bold bg-blue-600 hover:bg-blue-700 text-white">
               <Save className="mr-1 h-4 w-4" /> Save Bill
             </Button>
           </div>
@@ -247,7 +261,7 @@ export function GTR30CreatePage() {
               <Button size="sm" variant="outline" onClick={loadEmployeesFromMaster}>
                 <Users className="mr-1 h-4 w-4" /> Load from Master
               </Button>
-              <Button size="sm" onClick={addEmployee} className="font-semibold">
+              <Button size="sm" onClick={addEmployee} className="font-semibold bg-blue-600 hover:bg-blue-700 text-white">
                 <Plus className="mr-1 h-4 w-4" /> Add Employee
               </Button>
             </div>
@@ -257,6 +271,7 @@ export function GTR30CreatePage() {
             const empEarnings = earningsTotal(emp);
             const empDeductions = deductionsTotal(emp);
             const empNet = empEarnings - empDeductions;
+            const empNetAfterSociety = empNet - (emp.societyDeduction || 0);
 
             return (
               <Card key={emp.id} className="border border-slate-200 p-5 shadow-sm space-y-4">
@@ -278,8 +293,20 @@ export function GTR30CreatePage() {
                     <div className="text-xs text-right">
                       <span className="text-slate-500 mr-2">Gross: <strong>₹{formatMoney(empEarnings)}</strong></span>
                       <span className="text-slate-500 mr-2">Deductions: <strong>₹{formatMoney(empDeductions)}</strong></span>
-                      <span className="text-blue-700 font-bold">Net: ₹{formatMoney(empNet)}</span>
+                      <span className="text-blue-700 font-bold mr-2">Net: ₹{formatMoney(empNet)}</span>
+                      {emp.societyDeduction > 0 && (
+                        <span className="text-emerald-700 font-bold">After Society: ₹{formatMoney(empNetAfterSociety)}</span>
+                      )}
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => autoRecalculateEmployee(emp.id)}
+                      title="Auto-calculate DA (53%) & NPS (10%)"
+                      className="text-xs text-blue-600 hover:bg-blue-50"
+                    >
+                      <Calculator className="h-3.5 w-3.5 mr-1" /> Auto-Calc
+                    </Button>
                     {data.employees.length > 1 && (
                       <Button
                         variant="ghost"
@@ -377,6 +404,7 @@ export function GTR30CreatePage() {
                     <Input
                       value={emp.insuranceGroup}
                       onChange={(e) => updateEmployee(emp.id, 'insuranceGroup', e.target.value)}
+                      className="font-serif"
                       placeholder="e.g. ખ"
                     />
                   </div>
@@ -407,7 +435,7 @@ export function GTR30CreatePage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Dearness Allowance (0103)</Label>
+                      <Label className="text-xs font-bold text-emerald-800">Dearness Allowance (0103)</Label>
                       <Input
                         type="number"
                         min="0"
@@ -454,7 +482,7 @@ export function GTR30CreatePage() {
                   <div className="text-xs font-bold uppercase text-amber-900 mb-2">Schedule Deductions (₹)</div>
                   <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <div>
-                      <Label className="text-xs">NPS / New Pension (9534)</Label>
+                      <Label className="text-xs font-bold text-amber-900">NPS Pension (9534)</Label>
                       <Input
                         type="number"
                         min="0"
@@ -484,7 +512,7 @@ export function GTR30CreatePage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">GIS Insurance Fund (9581)</Label>
+                      <Label className="text-xs">GIS Ins. Fund (9581)</Label>
                       <Input
                         type="number"
                         min="0"
@@ -494,7 +522,7 @@ export function GTR30CreatePage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">GIS Savings Fund (9582)</Label>
+                      <Label className="text-xs">GIS Sav. Fund (9582)</Label>
                       <Input
                         type="number"
                         min="0"
@@ -504,7 +532,7 @@ export function GTR30CreatePage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">ICDP Credit Society</Label>
+                      <Label className="text-xs font-bold text-sky-800">ICDP Credit Society</Label>
                       <Input
                         type="number"
                         min="0"

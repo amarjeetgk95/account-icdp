@@ -6,7 +6,7 @@ import type {
   PayBillAuditConfig,
 } from '../types';
 
-export class PayBillAuditService {
+class PayBillAuditService {
   /**
    * Run smart audit on parsed paybill records
    */

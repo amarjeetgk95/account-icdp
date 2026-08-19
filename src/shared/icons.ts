@@ -18,10 +18,21 @@ import {
   Sliders,
   FileText,
   CreditCard,
+  Sparkles,
+  ScanText,
+  Merge,
+  Split,
+  RotateCw,
+  Minimize2,
+  Stamp,
+  Images,
+  Image as ImageIcon,
+  Languages,
+  Cpu,
   type LucideIcon,
 } from 'lucide-react';
 
-export const MODULE_ICONS: Record<string, LucideIcon> = {
+const MODULE_ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
   payroll: Wallet,
   parties: Users,
@@ -32,9 +43,11 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   gtr44: Receipt,
   paybill: FileSpreadsheet,
   'it-employee': FileSpreadsheet,
+  'pdf-tools': ScanText,
+  tools: ScanText,
 };
 
-export const SECTION_ICONS: Record<string, LucideIcon> = {
+const SECTION_ICONS: Record<string, LucideIcon> = {
   overview: LayoutDashboard,
   users: Users,
   reports: FileBarChart,
@@ -51,11 +64,22 @@ export const SECTION_ICONS: Record<string, LucideIcon> = {
   user: UserCheck,
   'file-text': FileText,
   'credit-card': CreditCard,
+  'scan-text': ScanText,
+  sparkles: Sparkles,
+  merge: Merge,
+  split: Split,
+  'rotate-cw': RotateCw,
+  'minimize-2': Minimize2,
+  stamp: Stamp,
+  images: Images,
+  image: ImageIcon,
+  languages: Languages,
+  cpu: Cpu,
 };
 
-export const FALLBACK_ICON: LucideIcon = LayoutDashboard;
+const FALLBACK_ICON: LucideIcon = LayoutDashboard;
 
-export function getModuleIcon(id: string): LucideIcon {
+function getModuleIcon(id: string): LucideIcon {
   return MODULE_ICONS[id] || FALLBACK_ICON;
 }
 

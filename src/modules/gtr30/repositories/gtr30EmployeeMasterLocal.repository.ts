@@ -41,7 +41,7 @@ function writeTo(key: string, payload: Record<string, GTR30MasterGroup>): void {
   }
 }
 
-export class Gtr30EmployeeMasterLocalRepository {
+class Gtr30EmployeeMasterLocalRepository {
   private storageKey(): string {
     const scope = resolveScope();
     return scope ? gtr30EmployeeMasterStorageKey(scope) : `${STORAGE_KEY_PREFIX}-default`;

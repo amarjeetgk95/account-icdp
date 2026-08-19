@@ -38,7 +38,7 @@ export function getIncomeTax(deductions: GTR44Deductions | undefined): number {
   return (deductions.incomeTax || 0) + (deductions.tds9510 || 0);
 }
 
-export function getGstTotal(deductions: GTR44Deductions | undefined): number {
+function getGstTotal(deductions: GTR44Deductions | undefined): number {
   if (!deductions) return 0;
   return deductions.gst || 0;
 }

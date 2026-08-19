@@ -12,9 +12,9 @@ export const GTR30Page10Pramanpatra: React.FC<Props> = ({ data }) => {
         style={{
           maxWidth: '780px',
           margin: '0 auto',
-          padding: '10mm 5mm',
+          padding: '12mm 8mm',
           fontSize: '9.5pt',
-          lineHeight: 1.6,
+          lineHeight: 1.65,
           fontFamily: "'Noto Serif Gujarati', serif",
         }}
       >
@@ -25,7 +25,7 @@ export const GTR30Page10Pramanpatra: React.FC<Props> = ({ data }) => {
             fontSize: '15pt',
             fontWeight: 800,
             textDecoration: 'underline',
-            marginBottom: '28px',
+            marginBottom: '26px',
             letterSpacing: '1px',
           }}
         >
@@ -34,63 +34,63 @@ export const GTR30Page10Pramanpatra: React.FC<Props> = ({ data }) => {
 
         {/* 9 Numbered Points */}
         <div style={{ textAlign: 'justify' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr', marginBottom: '13px' }}>
             <strong>૧.</strong>
             <div>
-              બીલમાં આકારેલ પગાર ભથ્થાના તમામ સરવાળા જી.ટી.આર.૨૬૨ ની જોગવાઇ મુજબ ચકાસણી કરવામાં આવેલ છે.અને તે સાચા છે.
+              બીલમાં આકારેલ પગાર ભથ્થાના તમામ સરવાળા જી.ટી.આર.૨૬૨ ની જોગવાઇ મુજબ ચકાસણી કરવામાં આવેલ છે. અને તે સાચા છે.
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr', marginBottom: '13px' }}>
             <strong>૨.</strong>
             <div>
-              પગારબીલમાં વ્યવસાયવેરાની કપાત કરેલ છે,જે નવા પગાર મુજબ કુલ મળનાર રકમ ઉપરના દરે કપાત કરેલ છે.
+              પગારબીલમાં વ્યવસાયવેરાની કપાત કરેલ છે, જે નવા પગાર મુજબ કુલ મળનાર રકમ ઉપરના દરે કપાત કરેલ છે.
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr', marginBottom: '13px' }}>
             <strong>૩.</strong>
             <div>
-              બીલમાં જે કર્મચારીઓનું ધોલાઇ ભથ્થુ આકારવામાં આવેલ છે,તેઓ સ્વચ્છ ગણવેશ પહેરીને ફરજ પર આવતા ખાતરી કરવામાં આવેલ છે.
+              બીલમાં જે કર્મચારીઓનું ધોલાઇ ભથ્થુ આકારવામાં આવેલ છે, તેઓ સ્વચ્છ ગણવેશ પહેરીને ફરજ પર આવતા ખાતરી કરવામાં આવેલ છે.
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr', marginBottom: '13px' }}>
             <strong>૪.</strong>
             <div>
-              આ બીલમાં પરિવહન ભથ્થુ આકારવામાં આવેલ છે તેઓ કચેરીએથી એક કિલોમીટર દુર રહેતા હોવાથી કચેરીના વડાની મંજુરી અનુસાર આ ભથ્થુ આકારવામાં આવેલ છે,તેઓને સરકારી વાહનની સગવડ આપવામાં આવેલ નથી.
+              આ બીલમાં પરિવહન ભથ્થુ આકારવામાં આવેલ છે તેઓ કચેરીએથી એક કિલોમીટર દુર રહેતા હોવાથી કચેરીના વડાની મંજુરી અનુસાર આ ભથ્થુ આકારવામાં આવેલ છે, તેઓને સરકારી વાહનની સગવડ આપવામાં આવેલ નથી.
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr', marginBottom: '13px' }}>
             <strong>૫.</strong>
             <div>
               આથી પ્રમાણિત કરવામાં આવે છે કે મારી કચેરીના માહે:-નવેમ્બર-૨૦૨૪ દરમ્યાન ઉગવવામાં આવેલ બીલોની વિગતો તિજોરી કચેરીમાંથી મારી કચેરીના સંલગ્ન રેકર્ડ સાથે મેળવણું કરેલ છે.
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr', marginBottom: '13px' }}>
             <strong>૬.</strong>
             <div>
-              માહે:-ડિસેમ્બર-૨૦૨૪ માટે છુટી પગાર આકારવામાં આવેલ છે,તે તમામ અધિકારી/કર્મચારીએ તે સમયે ગાળા દરમ્યાન નિયમિત ફરજ બજાવેલ છે અને તેઓ ફરજ ઉપર ગેરહાજર રહેલ નથી.
+              માહે:-ડિસેમ્બર-૨૦૨૪ માટે છુટી પગાર આકારવામાં આવેલ છે, તે તમામ અધિકારી/કર્મચારીએ તે સમયે ગાળા દરમ્યાન નિયમિત ફરજ બજાવેલ છે અને તેઓ ફરજ ઉપર ગેરહાજર રહેલ નથી.
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr', marginBottom: '13px' }}>
             <strong>૭.</strong>
             <div>
-              માહે:- ડિસેમ્બર-૨૦૨૪ ના માસનો પગાર ભથ્થાનો દાવો આકારેલ છે,જે સરકારશ્રીએ મંજુર કરેલ મહેકમ મુજબ જ આકારણી કરવામાં આવેલ છે,અને આ પગાર ભથ્થાનો દાવો આ અગાઉ આકારવામાં કે ઉગવવામાં આવેલ નથી,તેમજ તેની નોંધ પગાર રજીસ્ટર એ/બી/સી માં કરવામાં આવેલ છે.
+              માહે:- ડિસેમ્બર-૨૦૨૪ ના માસનો પગાર ભથ્થાનો દાવો આકારેલ છે, જે સરકારશ્રીએ મંજુર કરેલ મહેકમ મુજબ જ આકારણી કરવામાં આવેલ છે, અને આ પગાર ભથ્થાનો દાવો આ અગાઉ આકારવામાં કે ઉગવવામાં આવેલ નથી, તેમજ તેની નોંધ પગાર રજીસ્ટર એ/બી/સી માં કરવામાં આવેલ છે.
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr', marginBottom: '13px' }}>
             <strong>૮.</strong>
             <div>
               પગારબીલમાં મંજુર થયેલ મહેકમ કાયમી/હંગામી જગ્યાની વિગતો દર્શાવવામાં આવેલ છે.
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr', marginBottom: '13px' }}>
             <strong>૯.</strong>
             <div>
               {data.daResolutionText ||
@@ -106,7 +106,7 @@ export const GTR30Page10Pramanpatra: React.FC<Props> = ({ data }) => {
             textAlign: 'center',
             fontSize: '9.5pt',
             lineHeight: 1.4,
-            width: '340px',
+            width: '320px',
             marginLeft: 'auto',
           }}
         >

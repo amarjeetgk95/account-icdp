@@ -328,7 +328,7 @@ export const DEFAULT_COMPONENT_SEED: DefaultComponentSeed[] = [
   },
 ];
 
-export function buildDefaultComponents(): PayrollComponent[] {
+function buildDefaultComponents(): PayrollComponent[] {
   const now = new Date().toISOString();
   return DEFAULT_COMPONENT_SEED.map((seed, idx) => ({
     id: `seed-${idx + 1}`,
@@ -366,7 +366,7 @@ export function buildDefaultComponents(): PayrollComponent[] {
  *   6. Unknown component
  * ---------------------------------------------------------------------------
  */
-export class ComponentMasterMatcher {
+class ComponentMasterMatcher {
   private components: PayrollComponent[];
 
   constructor(components: PayrollComponent[]) {
@@ -514,7 +514,7 @@ export class ComponentMasterMatcher {
  * ---------------------------------------------------------------------------
  */
 
-export interface ComponentMasterInput {
+interface ComponentMasterInput {
   componentCode: string | null;
   componentName: string;
   shortName?: string | null;
@@ -566,7 +566,7 @@ function rowToComponent(
   };
 }
 
-export class ComponentMasterRepository {
+class ComponentMasterRepository {
   /** Load every component together with its aliases from the database. */
   async listAll(): Promise<PayrollComponent[]> {
     try {
@@ -1028,4 +1028,3 @@ class ComponentHeaderDetector {
 }
 
 export const componentMasterService = new ComponentMasterService();
-export { ComponentHeaderDetector };

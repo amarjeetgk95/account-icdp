@@ -67,7 +67,7 @@ Date : 15/08/2026 10:47
 karmyogi.gujarat.gov.in/Payrollsalaryfinalization?Billcode : 8NVS6tN✿R6ui2BtLQKQepQ♬♬
 `;
 
-export const SAMPLE_PAYBILL_RAW_TEXT_CLERICAL = `
+const SAMPLE_PAYBILL_RAW_TEXT_CLERICAL = `
 Smt. Sulochana Vijaykumar Solanki
 Assistant Administrative cum Accounts Officer - DDO
 Office of the Deputy Director (ICDP - Surat)
@@ -148,7 +148,7 @@ Rupees (In Words) : FOUR LAKH THIRTY THREE THOUSAND ONE HUNDRED AND NINETY
 FOUR ONLY
 `;
 
-export const SAMPLE_PAYBILL_RAW_TEXT_DEDUCTION = `
+const SAMPLE_PAYBILL_RAW_TEXT_DEDUCTION = `
 Smt. Sulochana Vijaykumar Solanki
 Assistant Administrative cum Accounts Officer - DDO
 Office of the Deputy Director (ICDP - Surat)

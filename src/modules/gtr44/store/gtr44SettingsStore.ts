@@ -11,7 +11,7 @@ export type GTR44DefaultSettings = Pick<
   | 'payToDesignation' | 'budgetGrantYearFrom' | 'budgetGrantYearTo'
 >;
 
-export const DEFAULT_SETTINGS: GTR44DefaultSettings = {
+const DEFAULT_SETTINGS: GTR44DefaultSettings = {
   officeName: DEFAULT_GTR44_FORM_DATA.officeName,
   treasuryName: DEFAULT_GTR44_FORM_DATA.treasuryName,
   district: DEFAULT_GTR44_FORM_DATA.district,
@@ -33,7 +33,7 @@ export const DEFAULT_SETTINGS: GTR44DefaultSettings = {
   budgetGrantYearTo: DEFAULT_GTR44_FORM_DATA.budgetGrantYearTo,
 };
 
-export const DEFAULT_BUDGET_HEADS: GTR44BudgetHead[] = [
+const DEFAULT_BUDGET_HEADS: GTR44BudgetHead[] = [
   {
     id: 'bh-1',
     name: 'ANH-06 Intensive Cattle Development Programme',

@@ -8,6 +8,7 @@ const master: GTR30EmployeeMaster = {
   hrpnNo: 'HRPN-1',
   name: 'Shri X',
   designation: 'Officer',
+  designationGujarati: 'સંશોધન મદદનીશ',
   payScale: '50000-100000',
   currentPay: 40000,
   currentPayDate: '2024-01-01',
@@ -15,19 +16,36 @@ const master: GTR30EmployeeMaster = {
   transportAllowance: 3600,
   medicalAllowance: 1000,
   claAllowance: 270,
+  rentOfBuilding: 300,
+  professionalTax: 200,
+  gis1981Insurance: 240,
+  gis1981Savings: 560,
+  societyDeduction: 4154,
+  quarterAddress: 'H-7, Government Quarters, Khatodara, Nr. Sub Jail, Surat',
+  insuranceGroup: 'ખ',
 };
 
 describe('gtr30EmployeeTransform.service', () => {
-  it('maps a master row to a bill employee with derived HRA and carryover fields', () => {
+  it('maps a master row to a bill employee with derived HRA, DA 53%, NPS and carryover fields', () => {
     const result = gtr30EmployeeTransformService.masterToBillEmployee(master, 1);
     expect(result.name).toBe('Shri X');
     expect(result.designation).toBe('Officer');
+    expect(result.designationGujarati).toBe('સંશોધન મદદનીશ');
     expect(result.payScale).toBe('50000-100000');
     expect(result.payOfEstablishment).toBe(40000);
     expect(result.hra).toBe(8000);
+    expect(result.da).toBe(21200); // 53% of 40000
+    expect(result.npsPension).toBe(6120); // 10% of 40000 + 21200
     expect(result.transportAllowance).toBe(3600);
     expect(result.medicalAllowance).toBe(1000);
     expect(result.cla).toBe(270);
+    expect(result.rentOfBuilding).toBe(300);
+    expect(result.professionalTax).toBe(200);
+    expect(result.gis1981Insurance).toBe(240);
+    expect(result.gis1981Savings).toBe(560);
+    expect(result.societyDeduction).toBe(4154);
+    expect(result.quarterAddress).toBe('H-7, Government Quarters, Khatodara, Nr. Sub Jail, Surat');
+    expect(result.insuranceGroup).toBe('ખ');
     expect(result.srNo).toBe(1);
     expect(result.id).toBeTruthy();
   });

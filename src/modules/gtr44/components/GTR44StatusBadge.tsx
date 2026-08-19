@@ -1,7 +1,7 @@
 import { CheckCircle, Clock, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-export type GTR44Status = 'draft' | 'submitted' | 'passed' | 'objected' | 'ac_adjusted';
+type GTR44Status = 'draft' | 'submitted' | 'passed' | 'objected' | 'ac_adjusted';
 
 interface GTR44StatusBadgeProps {
   status: GTR44Status;

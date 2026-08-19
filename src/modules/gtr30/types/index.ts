@@ -9,6 +9,4 @@ export type {
   GTR30EmployeeMaster,
   GTR30BillCodeMapping,
   GTR30MasterGroup,
-  GTR30MasterGroupDto,
 } from './master';
-export type { GTR30DefaultSettings, GTR30DefaultEmployeeTemplate } from './settings';

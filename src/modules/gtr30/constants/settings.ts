@@ -54,7 +54,7 @@ export const DEFAULT_GTR30_EMPLOYEE_TEMPLATE: GTR30DefaultEmployeeTemplate = {
   insuranceType: sampleGTR30FormData.employees[0].insuranceType,
 };
 
-export const DEFAULT_GTR30_POSTS: GTR30PostItem[] = defaultEstablishmentPosts.map((post) => ({
+const DEFAULT_GTR30_POSTS: GTR30PostItem[] = defaultEstablishmentPosts.map((post) => ({
   ...post,
 }));
 

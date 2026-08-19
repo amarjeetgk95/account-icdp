@@ -55,5 +55,3 @@ export const GTR44PrintableForm: React.FC<GTR44PrintableFormProps> = ({
     </div>
   );
 };
-
-export default GTR44PrintableForm;

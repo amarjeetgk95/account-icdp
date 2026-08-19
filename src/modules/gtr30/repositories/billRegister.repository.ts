@@ -55,7 +55,7 @@ function billToRowPayload(bill: GTR30Bill): Record<string, unknown> {
   return formData as Record<string, unknown>;
 }
 
-export class Gtr30BillRegisterRepository {
+class Gtr30BillRegisterRepository {
   async list(): Promise<GTR30Bill[]> {
     const officeId = await resolveOfficeId();
     if (!officeId) return [];

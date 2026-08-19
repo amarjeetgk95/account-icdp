@@ -42,7 +42,7 @@ export const EDP_CODE_SUGGESTIONS: string[] = Array.from(
   ])
 );
 
-export const INITIAL_PARTY_ENTRIES: GTR44Entry[] = [
+const INITIAL_PARTY_ENTRIES: GTR44Entry[] = [
   {
     id: 'tx-1',
     srNo: 1,

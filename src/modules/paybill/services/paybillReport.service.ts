@@ -33,7 +33,7 @@ export const PAYBILL_DEDUCTION_COLUMNS: PayBillMonthlyMatrixColumn[] = [
   { key: 'netPay', label: 'Net Pay', group: 'DEDUCTION' },
 ];
 
-export class PayBillReportService {
+class PayBillReportService {
   /**
    * Fetch matrix report for a financial year and optional employee HRPN
    */

@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 
-export function isAdminQueryKey(keys: readonly unknown[]): boolean {
+function isAdminQueryKey(keys: readonly unknown[]): boolean {
   return typeof keys[0] === 'string' && keys[0].startsWith('admin');
 }
 

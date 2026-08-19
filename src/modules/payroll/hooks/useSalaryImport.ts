@@ -18,9 +18,8 @@ export function useLatestSalaries() {
   const officeId = useActiveOfficeId();
   return useQuery({
     queryKey: ['latest-salaries', officeId],
-    queryFn: () => salaryRepository.listLatestByOffice(),
-    enabled: !!officeId,
-    select: (data): Map<string, EmployeeSalary> => {
+    queryFn: async (): Promise<Map<string, EmployeeSalary>> => {
+      const data = await salaryRepository.listLatestByOffice();
       const map = new Map<string, EmployeeSalary>();
       for (const row of data) {
         const key = row.hprn_no.toLowerCase();
@@ -31,5 +30,6 @@ export function useLatestSalaries() {
       }
       return map;
     },
+    enabled: !!officeId,
   });
 }

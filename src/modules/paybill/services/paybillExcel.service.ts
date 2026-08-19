@@ -60,7 +60,7 @@ async function saveWorkbook(workbook: ExcelJS.Workbook, fileName: string) {
   saveAs(new Blob([buffer]), fileName);
 }
 
-export class PayBillExcelService {
+class PayBillExcelService {
   /**
    * Export 12-Month Allowance Matrix to a formatted Excel workbook (.xlsx)
    */

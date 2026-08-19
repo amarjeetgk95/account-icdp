@@ -14,13 +14,13 @@ export const GTR30Page9Establishment: React.FC<Props> = ({ data }) => {
   const totalPosts = posts.reduce((s, p) => s + (p.total || 0), 0);
 
   return (
-    <div className="gtr30-page gtr30-portrait" id="gtr30-page-9">
-      <div style={{ maxWidth: '780px', margin: '0 auto', fontSize: '9pt', lineHeight: 1.35, fontFamily: "'Noto Serif Gujarati', serif" }}>
+    <div className="gtr30-page gtr30-landscape" id="gtr30-page-9">
+      <div style={{ maxWidth: '880px', margin: '0 auto', fontSize: '9pt', lineHeight: 1.35, fontFamily: "'Noto Serif Gujarati', serif", paddingTop: '20px' }}>
         {/* Header */}
         <h2
           style={{
             textAlign: 'center',
-            fontSize: '14pt',
+            fontSize: '15pt',
             fontWeight: 800,
             margin: '0 0 10px 0',
             letterSpacing: '0.5px',
@@ -29,11 +29,11 @@ export const GTR30Page9Establishment: React.FC<Props> = ({ data }) => {
           મહેકમની માહિતી
         </h2>
 
-        <div style={{ textAlign: 'center', fontSize: '9.5pt', fontWeight: 600, marginBottom: '4px' }}>
+        <div style={{ textAlign: 'center', fontSize: '10pt', fontWeight: 600, marginBottom: '4px' }}>
           કચેરીનુ નામ – નાયબ પશુપાલન નિયામકની કચેરી, ઘનિષ્ઠ પશુસુધારણા યોજના-સુરત
         </div>
 
-        <div style={{ textAlign: 'center', fontSize: '9.5pt', fontWeight: 700, marginBottom: '14px' }}>
+        <div style={{ textAlign: 'center', fontSize: '10pt', fontWeight: 700, marginBottom: '16px' }}>
           ૧૧૩-૯૯ આંકડાને સંગીન બનાવવાની યોજના- પ્લાન
         </div>
 
@@ -41,13 +41,13 @@ export const GTR30Page9Establishment: React.FC<Props> = ({ data }) => {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt', marginTop: '6px' }}>
           <thead>
             <tr style={{ background: '#f5f5f5', textAlign: 'center', fontWeight: 700 }}>
-              <th style={{ border: '1px solid #000', padding: '6px 4px', width: '45px' }}>અ.નં.</th>
+              <th style={{ border: '1px solid #000', padding: '6px 4px', width: '50px' }}>અ.નં.</th>
               <th style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>હોદ્દો /વર્ગ</th>
-              <th style={{ border: '1px solid #000', padding: '6px 4px', width: '55px' }}>વર્ગ</th>
-              <th style={{ border: '1px solid #000', padding: '6px 6px', width: '90px' }}>મંજુર થયેલ<br />જગ્યા</th>
-              <th style={{ border: '1px solid #000', padding: '6px 6px', width: '90px' }}>ભરાયેલ જગ્યા</th>
-              <th style={{ border: '1px solid #000', padding: '6px 6px', width: '90px' }}>ખાલી જગ્યા</th>
-              <th style={{ border: '1px solid #000', padding: '6px 6px', width: '90px' }}>કૂલ જગ્યા</th>
+              <th style={{ border: '1px solid #000', padding: '6px 4px', width: '65px' }}>વર્ગ</th>
+              <th style={{ border: '1px solid #000', padding: '6px 6px', width: '100px' }}>મંજુર થયેલ<br />જગ્યા</th>
+              <th style={{ border: '1px solid #000', padding: '6px 6px', width: '100px' }}>ભરાયેલ જગ્યા</th>
+              <th style={{ border: '1px solid #000', padding: '6px 6px', width: '100px' }}>ખાલી જગ્યા</th>
+              <th style={{ border: '1px solid #000', padding: '6px 6px', width: '100px' }}>કૂલ જગ્યા</th>
             </tr>
             <tr style={{ background: '#e9ecef', textAlign: 'center', fontSize: '8pt', fontWeight: 700 }}>
               <th style={{ border: '1px solid #000', padding: '2px 0' }}>૧</th>
@@ -61,7 +61,7 @@ export const GTR30Page9Establishment: React.FC<Props> = ({ data }) => {
           </thead>
           <tbody>
             {posts.map((post, idx) => (
-              <tr key={post.id || idx} style={{ verticalAlign: 'middle', height: '34px' }}>
+              <tr key={post.id || idx} style={{ verticalAlign: 'middle', height: '36px' }}>
                 <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'center', fontWeight: 600 }}>
                   {post.srNo || idx + 1}
                 </td>
@@ -87,7 +87,7 @@ export const GTR30Page9Establishment: React.FC<Props> = ({ data }) => {
             ))}
 
             {/* Total Row */}
-            <tr style={{ background: '#f5f5f5', fontWeight: 800 }}>
+            <tr style={{ background: '#f5f5f5', fontWeight: 800, height: '32px' }}>
               <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'center' }}></td>
               <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left' }}>કુલ</td>
               <td style={{ border: '1px solid #000', padding: '6px 4px', textAlign: 'center' }}></td>
@@ -100,7 +100,7 @@ export const GTR30Page9Establishment: React.FC<Props> = ({ data }) => {
         </table>
 
         {/* Signature Block */}
-        <div style={{ marginTop: '90px', textAlign: 'center', fontSize: '8.5pt', lineHeight: 1.3, width: '340px', marginLeft: 'auto', fontFamily: "'Times New Roman', serif" }}>
+        <div style={{ marginTop: '80px', textAlign: 'center', fontSize: '9pt', lineHeight: 1.3, width: '360px', marginLeft: 'auto', fontFamily: "'Times New Roman', serif" }}>
           <div style={{ fontWeight: 700 }}>({data.drawingOfficerName || 'SMT U.J.PATEL'})</div>
           <div>{data.drawingOfficerDesignation || 'Assistant Administrative Cum Account Officer'}</div>
           <div>{data.drawingOfficerOffice || 'Intensive Cattle Development Programme, Surat'}</div>

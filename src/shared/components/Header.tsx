@@ -17,7 +17,6 @@ import {
   CalendarDays,
   ChevronDown,
   LogOut,
-  Search,
   Shield,
   UserCheck,
   Menu,
@@ -36,7 +35,8 @@ interface HeaderProps {
 
 type Align = 'left' | 'right';
 
-export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
+export function Header({ modules, onOpenCommandPalette: _onOpenCommandPalette }: HeaderProps) {
+  void _onOpenCommandPalette;
   const { user, signOut } = useAuthStore();
   const navigate = useNavigate();
   const officeName = useOfficeName();
@@ -405,16 +405,6 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
             className="topnav-action-btn"
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-
-          <button
-            className="topnav-action-btn topnav-search-btn"
-            title="Search pages and employees (Ctrl+K)"
-            onClick={() => onOpenCommandPalette?.()}
-          >
-            <Search size={13} className="text-indigo-500" />
-            <span className="hidden sm:inline">Search</span>
-            <kbd className="topnav-kbd">Ctrl+K</kbd>
           </button>
 
           {activeFinancialYear && (

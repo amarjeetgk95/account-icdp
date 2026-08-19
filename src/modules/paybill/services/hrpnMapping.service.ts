@@ -7,7 +7,7 @@ import type {
   MappingStatus,
 } from '../types';
 
-export class HrpnMappingService {
+class HrpnMappingService {
   /**
    * Normalize an HRPN string (trims, uppercase, removes invalid characters)
    */

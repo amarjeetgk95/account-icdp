@@ -8,13 +8,13 @@ import {
 } from '../constants';
 import { createDefaultEmployee } from '../constants';
 
-export interface BuildNewBillInput {
+interface BuildNewBillInput {
   settings?: Partial<typeof DEFAULT_GTR30_SETTINGS>;
   employeeTemplate?: Partial<typeof DEFAULT_GTR30_EMPLOYEE_TEMPLATE>;
   defaultPosts?: ReturnType<typeof freshDefaultPosts>;
 }
 
-export class Gtr30BillFormService {
+class Gtr30BillFormService {
   emptyFormData(): GTR30FormData {
     return JSON.parse(JSON.stringify(sampleGTR30FormData)) as GTR30FormData;
   }

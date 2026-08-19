@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { GTR30EmployeeMasterView } from '../components/GTR30EmployeeMasterView';
 import { GTR30BillCodeMappingView } from '../components/GTR30BillCodeMappingView';
@@ -12,9 +12,12 @@ export function GTR30EmployeeMasterPage() {
   const hydrateMaster = useHydrateGTR30EmployeeMaster();
   const hydrateMappings = useHydrateGTR30BillCodeMappings();
 
+  const hydrated = useRef(false);
   useEffect(() => {
-    void hydrateMaster.mutateAsync();
-    void hydrateMappings.mutateAsync();
+    if (hydrated.current) return;
+    hydrated.current = true;
+    void hydrateMaster.mutateAsync().catch(() => {});
+    void hydrateMappings.mutateAsync().catch(() => {});
   }, [hydrateMaster, hydrateMappings]);
 
   return (

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminService } from '../services/admin.service';
 import { invalidateAdminQueries } from '@/shared/utilities/adminQuery';
-import type { CreateUserInput, UpdateOfficeInput } from '../types';
+import type { CreateUserInput } from '../types';
 
 export function useSystemStats() {
   return useQuery({
@@ -80,29 +80,6 @@ export function useOffices() {
   return useQuery({
     queryKey: ['admin-offices'],
     queryFn: () => adminService.listOffices(),
-  });
-}
-
-export function useCreateOffice() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ name, district }: { name: string; district?: string | null }) =>
-      adminService.createOffice(name, district ?? undefined),
-    onSuccess: () => {
-      void invalidateAdminQueries(queryClient);
-    },
-  });
-}
-
-export function useUpdateOffice() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: UpdateOfficeInput) => adminService.updateOffice(input),
-    onSuccess: () => {
-      void invalidateAdminQueries(queryClient);
-    },
   });
 }
 

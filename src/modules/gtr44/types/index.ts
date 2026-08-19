@@ -158,7 +158,7 @@ export interface SubVoucher {
   edpCode?: string;
 }
 
-export interface Deduction {
+interface Deduction {
   code: string;
   label: string;
   amount: number;

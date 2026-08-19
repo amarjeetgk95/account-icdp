@@ -39,14 +39,6 @@ export async function resolveOfficeIdForUser(userId: string): Promise<string | n
   return null;
 }
 
-export function clearOfficeIdCache(userId?: string): void {
-  if (userId) {
-    officeIdCacheByUser.delete(userId);
-  } else {
-    officeIdCacheByUser.clear();
-  }
-}
-
 export function getOfficeId(): string | null {
   // Admins are not scoped to a single office.
   const user = useAuthStore.getState().user;

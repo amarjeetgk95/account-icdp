@@ -149,9 +149,14 @@ describe('GTR30EmployeeMasterView', () => {
     expect(group()).toHaveLength(0);
   });
 
-  it('bulk-imports payroll directory employees with default salary fields', async () => {
+  it('bulk-imports payroll directory employees with default salary fields via selection dialog', async () => {
     renderView();
+    // Open selection dialog
     fireEvent.click(screen.getByRole('button', { name: /Import from Employee Directory/i }));
+
+    // Click Import Selected button in the dialog
+    const importBtn = await screen.findByRole('button', { name: /Import Selected/i });
+    fireEvent.click(importBtn);
 
     await waitFor(() => {
       const saved = group();
@@ -169,9 +174,39 @@ describe('GTR30EmployeeMasterView', () => {
   it('does not import duplicates when the directory employee already exists', async () => {
     renderView();
     fireEvent.click(screen.getByRole('button', { name: /Import from Employee Directory/i }));
+    const importBtn = await screen.findByRole('button', { name: /Import Selected/i });
+    fireEvent.click(importBtn);
     await waitFor(() => expect(group()).toHaveLength(1));
 
+    // The button should now be disabled since all employees are imported
+    const importTrigger = screen.getByRole('button', { name: /Import from Employee Directory/i });
+    expect(importTrigger).toHaveProperty('disabled', true);
+  });
+
+  it('allows deselecting and importing only selected employees from the dialog', async () => {
+    renderView();
     fireEvent.click(screen.getByRole('button', { name: /Import from Employee Directory/i }));
-    await waitFor(() => expect(group()).toHaveLength(1));
+
+    // Click Deselect All
+    const deselectBtn = await screen.findByRole('button', { name: /Deselect All/i });
+    fireEvent.click(deselectBtn);
+
+    // Import Selected button should now be disabled (0 selected)
+    const importBtn = screen.getByRole('button', { name: /Import Selected \(0\)/i });
+    expect(importBtn).toHaveProperty('disabled', true);
+
+    // Click on the employee row to select John Doe
+    fireEvent.click(screen.getByText('John Doe'));
+
+    // Now Import Selected (1) is active
+    const activeImportBtn = screen.getByRole('button', { name: /Import Selected \(1\)/i });
+    expect(activeImportBtn).not.toHaveProperty('disabled', true);
+    fireEvent.click(activeImportBtn);
+
+    await waitFor(() => {
+      const saved = group();
+      expect(saved).toHaveLength(1);
+      expect(saved[0].name).toBe('John Doe');
+    });
   });
 });

@@ -1,7 +1,4 @@
-import type {
-  GTR30EmployeeMaster,
-  GTR30MasterGroup,
-} from '../types';
+import type { GTR30EmployeeMaster } from '../types';
 import { gtr30EmployeeMasterLocalRepository } from '../repositories/gtr30EmployeeMasterLocal.repository';
 import { gtr30EmployeeMasterBackendRepository } from '../repositories/gtr30EmployeeMasterBackend.repository';
 import {
@@ -83,13 +80,13 @@ function debounceReplace(monthKey: string, billCode: string, employees: GTR30Emp
   );
 }
 
-export interface EmployeeGroupSnapshot {
+interface EmployeeGroupSnapshot {
   monthKey: string;
   billCode: string;
   employees: GTR30EmployeeMaster[];
 }
 
-export class Gtr30EmployeeMasterService {
+class Gtr30EmployeeMasterService {
   listGroups(): EmployeeGroupSnapshot[] {
     return Object.values(gtr30EmployeeMasterLocalRepository.loadAll());
   }
@@ -192,5 +189,3 @@ export const gtr30EmployeeMasterService = new Gtr30EmployeeMasterService();
 export function gtr30GroupKey(monthKey: string, billCode: string): string {
   return `${monthKey.trim().toLowerCase()}|${billCode.trim().toLowerCase()}`;
 }
-
-export type { GTR30MasterGroup };

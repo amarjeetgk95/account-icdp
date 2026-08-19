@@ -20,7 +20,7 @@ function debounceReplace(mappings: GTR30BillCodeMapping[]): void {
   );
 }
 
-export class Gtr30BillCodeMappingsService {
+class Gtr30BillCodeMappingsService {
   list(): GTR30BillCodeMapping[] {
     return gtr30BillCodeMappingsLocalRepository.loadAll();
   }

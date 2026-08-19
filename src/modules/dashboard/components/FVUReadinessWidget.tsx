@@ -379,5 +379,3 @@ export function FVUReadinessWidget({ data }: FVUReadinessWidgetProps) {
       </div>
   );
 }
-
-export default FVUReadinessWidget;

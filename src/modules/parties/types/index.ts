@@ -33,7 +33,7 @@ export interface TransactionInput {
   panNo?: string;
 }
 
-export interface GSTReportRow {
+interface GSTReportRow {
   partyName: string;
   gstNo: string;
   cpinNo: string;
@@ -59,7 +59,7 @@ export interface GSTReport {
   };
 }
 
-export interface IncomeTaxReportRow {
+interface IncomeTaxReportRow {
   partyName: string;
   panNo: string;
   billNo: string;

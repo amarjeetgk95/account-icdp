@@ -18,7 +18,7 @@ async function resolveOfficeId(): Promise<string | null> {
   return resolveOfficeIdForUser(userId);
 }
 
-export class Gtr30BillCodeMappingsBackendRepository {
+class Gtr30BillCodeMappingsBackendRepository {
   async list(): Promise<GTR30BillCodeMapping[] | null> {
     const officeId = await resolveOfficeId();
     if (!officeId) return null;

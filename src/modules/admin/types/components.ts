@@ -4,7 +4,7 @@ import type {
   PayrollComponentValidationRule,
 } from '@/modules/paybill/types/componentMaster';
 
-export interface AdminComponentAlias {
+interface AdminComponentAlias {
   id: string;
   alias_text: string;
   alias_type: 'HEADER' | 'CODE';

@@ -8,7 +8,7 @@ import { isModuleEnabled } from '@/core/feature-flags/store';
  *   Level 3 — Sub-branch (NavSubBranch): child options of a branch
  */
 
-export interface NavSubBranch {
+interface NavSubBranch {
   path: string;
   label: string;
   icon?: string;
@@ -43,14 +43,15 @@ interface NavGroupConfig {
   match: (m: ModuleDefinition) => boolean;
 }
 
-export const NAV_GROUPS: NavGroupConfig[] = [
+const NAV_GROUPS: NavGroupConfig[] = [
   { key: 'bills', label: 'Bill Creation', icon: 'receipt', match: (m) => m.navGroup === 'bills' },
   { key: 'tds', label: 'TDS', icon: 'calculator', match: (m) => m.navGroup === 'tds' },
   { key: 'it-employee', label: 'Employee IT', icon: 'file-spreadsheet', match: (m) => m.navGroup === 'it-employee' },
+  { key: 'tools', label: 'Doc Tools', icon: 'file-text', match: (m) => m.navGroup === 'tools' },
 ];
 
-export const SYSTEM_GROUP: NavGroupConfig = { key: 'system', label: 'System', icon: 'settings', match: () => true };
-export const ADMIN_GROUP: NavGroupConfig = { key: 'admin', label: 'Admin Console', icon: 'users', match: () => true };
+const SYSTEM_GROUP: NavGroupConfig = { key: 'system', label: 'System', icon: 'settings', match: () => true };
+const ADMIN_GROUP: NavGroupConfig = { key: 'admin', label: 'Admin Console', icon: 'users', match: () => true };
 
 export function matchesRoute(routePath: string, currentBasePath: string): boolean {
   if (routePath === currentBasePath) return true;

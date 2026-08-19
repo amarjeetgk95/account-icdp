@@ -26,7 +26,7 @@ import type {
   PayBillEmployeeComponent,
 } from '../types';
 
-export class PayBillStorageService {
+class PayBillStorageService {
   /**
    * Best-effort per-record confidence flags for the validation layer
    */

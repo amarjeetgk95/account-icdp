@@ -5,7 +5,7 @@ import { getOfficeScope, type OfficeScope } from '@/shared/utilities/office';
 const STORAGE_KEY_PREFIX = 'gtr30-employee-master-v3-mappings';
 const LEGACY_STORAGE_KEY = 'gtr30-employee-master-v3-mappings';
 
-export function gtr30BillCodeMappingsStorageKey(scope: OfficeScope): string {
+function gtr30BillCodeMappingsStorageKey(scope: OfficeScope): string {
   const suffix = scope.all ? 'all' : scope.officeId ?? 'default';
   return `${STORAGE_KEY_PREFIX}-${suffix}`;
 }
@@ -38,7 +38,7 @@ function writeTo(key: string, mappings: GTR30BillCodeMapping[]): void {
   }
 }
 
-export class Gtr30BillCodeMappingsLocalRepository {
+class Gtr30BillCodeMappingsLocalRepository {
   private storageKey(): string {
     const scope = resolveScope();
     return scope ? gtr30BillCodeMappingsStorageKey(scope) : `${STORAGE_KEY_PREFIX}-default`;

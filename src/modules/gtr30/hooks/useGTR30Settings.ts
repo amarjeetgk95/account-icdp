@@ -6,10 +6,6 @@ import {
 
 const SETTINGS_KEY = ['gtr30Settings'] as const;
 
-export function gtr30SettingsQueryKey(): readonly unknown[] {
-  return SETTINGS_KEY;
-}
-
 export function useGTR30Settings() {
   return useQuery({
     queryKey: SETTINGS_KEY,

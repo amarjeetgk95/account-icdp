@@ -38,7 +38,7 @@ interface DetectedColumns {
   components?: DetectedComponentInfo[];
 }
 
-export class PdfParserService {
+class PdfParserService {
   /**
    * Parse Pay Bill PDF from ArrayBuffer or File
    */

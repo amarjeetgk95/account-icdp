@@ -10,6 +10,7 @@ import { ExtractionPreviewTable } from './ExtractionPreviewTable';
 import { DeductionPreviewTable } from './DeductionPreviewTable';
 import { ImportConfirmationDialog } from './ImportConfirmationDialog';
 import { OcrFallbackModal } from './OcrFallbackModal';
+import { PdfExtractorModal } from '@/modules/pdf-tools/components/PdfExtractorModal';
 import { ComponentFormModal } from './ComponentFormModal';
 import { BatchImportQueue } from './BatchImportQueue';
 import { BatchMatrixPreview } from './BatchMatrixPreview';
@@ -85,6 +86,7 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showOcrModal, setShowOcrModal] = useState(false);
+  const [showPdfExtractorModal, setShowPdfExtractorModal] = useState(false);
   const [showComponentForm, setShowComponentForm] = useState(false);
   const [componentPreset, setComponentPreset] = useState<{
     componentCode: string | null;
@@ -325,6 +327,7 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
                 onLoadSample={processSampleData}
                 onLoadSampleDeduction={processSampleDeductionData}
                 onOpenOcrFallback={() => setShowOcrModal(true)}
+                onOpenPdfExtractor={() => setShowPdfExtractorModal(true)}
                 onClear={reset}
               />
 
@@ -486,6 +489,16 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
           isOpen={showOcrModal}
           onClose={() => setShowOcrModal(false)}
           onSubmitText={processRawText}
+        />
+
+        {/* PDF to Word & Excel OCR Extractor Modal */}
+        <PdfExtractorModal
+          isOpen={showPdfExtractorModal}
+          onClose={() => setShowPdfExtractorModal(false)}
+          onExtractedText={(text) => {
+            processRawText(text);
+            setShowPdfExtractorModal(false);
+          }}
         />
 
         {/* Add unknown component to Component Master */}

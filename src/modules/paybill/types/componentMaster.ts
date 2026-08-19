@@ -103,10 +103,3 @@ export interface DetectedComponentInfo {
   order: number;
   isTotalField: boolean;
 }
-
-export interface ComponentMasterFilters {
-  search?: string;
-  type?: PayrollComponentType | 'ALL';
-  category?: string;
-  active?: boolean | 'ALL';
-}

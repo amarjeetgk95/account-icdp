@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 
-export type StatTone = 'indigo' | 'emerald' | 'amber' | 'sky' | 'violet' | 'rose';
+type StatTone = 'indigo' | 'emerald' | 'amber' | 'sky' | 'violet' | 'rose';
 
 const TONE_STYLES: Record<StatTone, string> = {
   indigo: 'bg-indigo-50 text-indigo-600 ring-indigo-100 group-hover:bg-indigo-100/70',

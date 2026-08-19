@@ -18,7 +18,7 @@ async function resolveOfficeId(): Promise<string | null> {
   return resolveOfficeIdForUser(userId);
 }
 
-export class Gtr30EmployeeMasterBackendRepository {
+class Gtr30EmployeeMasterBackendRepository {
   async listGroups(): Promise<GTR30MasterGroup[] | null> {
     const officeId = await resolveOfficeId();
     if (!officeId) return null;

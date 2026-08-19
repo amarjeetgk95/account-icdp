@@ -13,7 +13,7 @@ import { GTR30Page10Pramanpatra } from './GTR30Page10Pramanpatra';
 import { Button } from '@/components/ui/button';
 import { Printer, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
-export type GTR30PageView =
+type GTR30PageView =
   | 'all'
   | 'p1'
   | 'p2'

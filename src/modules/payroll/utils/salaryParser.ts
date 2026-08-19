@@ -1,6 +1,6 @@
 import type { ParsedSalaryRecord } from '../validation/salary.schema';
 
-export interface SalaryColumnDef {
+interface SalaryColumnDef {
   label: string;
   month: string;
   financialYear: number;
@@ -75,7 +75,7 @@ export function parseMonthYear(header: string): ParsedMonthYear | null {
   return { month: MONTH_NAME_BY_NUM[slotMonthNum], financialYear, monthNum: slotMonthNum };
 }
 
-export function classifyColumnType(header: string): 'gross' | 'income_tax' | null {
+function classifyColumnType(header: string): 'gross' | 'income_tax' | null {
   const h = header.toLowerCase();
   if (h.includes('income tax') || h === 'it' || h.includes('i.t.') || h.includes('inctax') || h.includes('itax') || /^\s*tax\s*$/.test(h)) return 'income_tax';
   if (h.includes('gross')) return 'gross';
@@ -98,7 +98,7 @@ export function parseCurrencyCell(value: unknown): { value: number; valid: boole
   return { value: num, valid: true };
 }
 
-export function normalizeRows(values: unknown[][]): string[][] {
+function normalizeRows(values: unknown[][]): string[][] {
   return values.map((row) =>
     (row == null ? [] as unknown[] : row).map((c) => (c == null ? '' : String(c).trim()))
   );

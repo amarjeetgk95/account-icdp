@@ -11,7 +11,7 @@ export interface MonthlyRoadmapData {
   pendingNames: string[];
 }
 
-export interface QuarterReadiness {
+interface QuarterReadiness {
   pct: number;
   processed: number;
   expected: number;

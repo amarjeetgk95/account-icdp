@@ -16,7 +16,7 @@ export interface Gtr30SettingsPayload {
   defaultPosts: GTR30PostItem[];
 }
 
-export class Gtr30SettingsLocalStorageRepository {
+class Gtr30SettingsLocalStorageRepository {
   load(): Gtr30SettingsPayload | null {
     try {
       const raw = localStorage.getItem(GTR30_SETTINGS_STORAGE_KEY);

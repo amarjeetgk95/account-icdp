@@ -2,14 +2,7 @@ import type { GTR30Bill, GTR30FormData } from '../types';
 import { billTotals } from './gtr30Calc.service';
 import { gtr30BillRegisterRepository } from '../repositories/billRegister.repository';
 
-export class Gtr30BillGuardError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'Gtr30BillGuardError';
-  }
-}
-
-export class Gtr30BillsService {
+class Gtr30BillsService {
   async listBills(): Promise<GTR30Bill[]> {
     return gtr30BillRegisterRepository.list();
   }

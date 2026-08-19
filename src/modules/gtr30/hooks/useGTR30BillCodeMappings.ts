@@ -4,7 +4,7 @@ import { invalidateGtr30Queries } from '@/shared/utilities/gtr30Query';
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 import type { GTR30BillCodeMapping } from '../types';
 
-export function gtr30BillCodeMappingsKey(officeId?: string | null): readonly unknown[] {
+function gtr30BillCodeMappingsKey(officeId?: string | null): readonly unknown[] {
   return ['gtr30BillCodeMappings', officeId ?? null];
 }
 
@@ -58,5 +58,3 @@ export function useHydrateGTR30BillCodeMappings() {
     },
   });
 }
-
-export { gtr30BillCodeMappingsService };

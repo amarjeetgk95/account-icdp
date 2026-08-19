@@ -10,7 +10,7 @@ function fileToArray(rows: unknown[][]): string[][] {
   );
 }
 
-export class SalaryService {
+class SalaryService {
   async readExcelRows(file: File): Promise<unknown[][]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

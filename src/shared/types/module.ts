@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export type UserRole = 'admin' | 'office';
 
-export type NavGroup = 'overview' | 'bills' | 'tds' | 'it-employee' | 'system' | 'admin' | 'main';
+export type NavGroup = 'overview' | 'bills' | 'tds' | 'it-employee' | 'tools' | 'system' | 'admin' | 'main';
 
 export interface RouteDefinition {
   path: string;
@@ -10,7 +10,7 @@ export interface RouteDefinition {
   children?: RouteDefinition[];
 }
 
-export interface SidebarChild {
+interface SidebarChild {
   path: string;
   label: string;
   icon?: string;
@@ -43,4 +43,5 @@ export interface FeatureFlagKeys {
   gtr30_module: boolean;
   paybill_module: boolean;
   paybill_component_master: boolean;
+  pdf_tools_module: boolean;
 }

@@ -6,7 +6,7 @@ import type {
   ReconciliationItem,
 } from '../types';
 
-export class PayBillValidationService {
+class PayBillValidationService {
   /**
    * Validate individual records for arithmetic correctness and required values
    */

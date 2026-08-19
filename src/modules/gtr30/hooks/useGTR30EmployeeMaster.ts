@@ -2,16 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   gtr30EmployeeMasterService,
   gtr30GroupKey,
-  type EmployeeGroupSnapshot,
 } from '../services/gtr30EmployeeMaster.service';
 import { invalidateGtr30Queries } from '@/shared/utilities/gtr30Query';
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 
-export function gtr30EmployeeMasterGroupsKey(officeId?: string | null): readonly unknown[] {
+function gtr30EmployeeMasterGroupsKey(officeId?: string | null): readonly unknown[] {
   return ['gtr30EmployeeMasterGroups', officeId ?? null];
 }
 
-export function gtr30EmployeeMasterGroupKey(
+function gtr30EmployeeMasterGroupKey(
   officeId: string | null | undefined,
   monthKey: string,
   billCode: string
@@ -122,5 +121,4 @@ export function useHydrateGTR30EmployeeMaster() {
   });
 }
 
-export { gtr30EmployeeMasterService, gtr30GroupKey };
-export type { EmployeeGroupSnapshot };
+export { gtr30GroupKey };

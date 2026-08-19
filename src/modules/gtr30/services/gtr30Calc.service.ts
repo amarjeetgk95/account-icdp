@@ -22,7 +22,7 @@ export const splitRsPs = (value: number | undefined | null) => {
   };
 };
 
-export const employeeEarningsSubtotal = (e: GTR30Employee): number => {
+const employeeEarningsSubtotal = (e: GTR30Employee): number => {
   return (
     (e.payOfOfficer || 0) +
     (e.payOfEstablishment || 0) +
@@ -49,7 +49,7 @@ export const employeeEarningsSubtotal = (e: GTR30Employee): number => {
   );
 };
 
-export const employeeRecoveriesSubtotal = (e: GTR30Employee): number => {
+const employeeRecoveriesSubtotal = (e: GTR30Employee): number => {
   return (
     (e.recovFestivalAdv || 0) +
     (e.recovFoodGrainAdv || 0) +
@@ -99,14 +99,6 @@ export const deductionsTotal = (e: GTR30Employee): number => {
     (e.miscRecoveries || 0) +
     (e.npsPension || 0)
   );
-};
-
-export const employeeNetPayable = (e: GTR30Employee): number => {
-  return earningsTotal(e) - deductionsTotal(e);
-};
-
-export const employeeNetAfterSociety = (e: GTR30Employee): number => {
-  return employeeNetPayable(e) - (e.societyDeduction || 0);
 };
 
 export const billTotals = (data: GTR30FormData) => {

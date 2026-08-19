@@ -23,7 +23,7 @@ export interface QuarterReport {
   rows: QuarterReportRow[];
 }
 
-export interface QuarterReportRow {
+interface QuarterReportRow {
   name: string;
   pan: string;
   g: [number, number, number];

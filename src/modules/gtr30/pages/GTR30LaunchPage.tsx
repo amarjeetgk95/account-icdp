@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, ChevronLeft, CreditCard, FilePlus, Pencil, ArrowRight, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { useUIStore } from '@/core/stores/ui-store';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
+import { gtr30MonthKeyFor, gtr30MonthOptions, gtr30YearOptions } from '../utils/gtr30MonthKey';
 import { gtr30BillFormService } from '../services/gtr30BillForm.service';
 import { gtr30EmployeeTransformService } from '../services/gtr30EmployeeTransform.service';
 import { useGTR30Settings } from '../hooks/useGTR30Settings';
@@ -19,6 +20,7 @@ const INR = (n: number) => '₹' + n.toLocaleString('en-IN', { maximumFractionDi
 
 export function GTR30LaunchPage() {
   const navigate = useNavigate();
+  const activeFY = useUIStore((state) => state.activeFinancialYear) ?? 2026;
   const { toast } = useToast();
   const billsQuery = useGtr30Bills();
   const saveMutation = useGtr30SaveBill();
@@ -30,15 +32,23 @@ export function GTR30LaunchPage() {
 
   const bills = billsQuery.data ?? [];
 
+  const hydrated = useRef(false);
   useEffect(() => {
-    void hydrateMappings.mutateAsync();
-    void hydrateMaster.mutateAsync();
+    if (hydrated.current) return;
+    hydrated.current = true;
+    void hydrateMappings.mutateAsync().catch(() => {});
+    void hydrateMaster.mutateAsync().catch(() => {});
   }, [hydrateMappings, hydrateMaster]);
 
   const billCodeMappings = mappingsQuery.data ?? [];
   const employeeGroups = groupsQuery.data ?? {};
 
-  const [monthKey, setMonthKey] = useState('July-2026');
+  const [month, setMonth] = useState('July');
+  const [year, setYear] = useState(activeFY);
+
+  const monthKey = gtr30MonthKeyFor(month, year);
+  const selectStyle =
+    'w-full h-9 rounded-md border border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-2 text-sm';
 
   const existingFor = (billCode: string) =>
     bills.find((b) => b.monthOf === monthKey.trim() && b.billCode === billCode);
@@ -99,14 +109,26 @@ export function GTR30LaunchPage() {
           <Calendar className="h-5 w-5 text-blue-600" />
           <h2 className="font-bold text-md text-slate-900">Select Bill Month &amp; Year</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <div>
-            <Label className="text-xs">Month &amp; Year (e.g. July-2026)</Label>
-            <Input
-              value={monthKey}
-              onChange={(e) => setMonthKey(e.target.value)}
-              placeholder="e.g. July-2026"
-            />
+            <Label className="text-xs">Month</Label>
+            <select value={month} onChange={(e) => setMonth(e.target.value)} className={selectStyle}>
+              {gtr30MonthOptions().map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs">Year (FY)</Label>
+            <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={selectStyle}>
+              {gtr30YearOptions(activeFY).map((y) => (
+                <option key={y} value={y}>
+                  {y}-{String(y + 1).slice(-2)}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="text-xs text-slate-500 self-end pb-2">
             Salary entries saved in Employee Master for this month will be picked up automatically.

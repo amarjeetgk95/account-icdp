@@ -134,7 +134,7 @@ export interface PayBillTotalRow {
 
 export type MappingStatus = 'MATCHED' | 'NOT_FOUND' | 'DUPLICATE' | 'INVALID_HRPN';
 
-export type ValidationStatus = 'VALID' | 'WARNING' | 'ERROR';
+type ValidationStatus = 'VALID' | 'WARNING' | 'ERROR';
 
 export interface MasterEmployeeInfo {
   id: string;
@@ -404,7 +404,7 @@ export interface BatchFileItem {
   error?: string;
 }
 
-export type AuditAnomalyType =
+type AuditAnomalyType =
   | 'DA_HIKE'
   | 'BASIC_INCREMENT'
   | 'OUTLIER_ALLOWANCE'
@@ -473,7 +473,7 @@ export type PayBillSortField =
 
 export type PayBillSortDirection = 'asc' | 'desc';
 
-export interface PayBillDetectionInfo {
+interface PayBillDetectionInfo {
   confidence: number; // 0 to 100
   issues: string[];
 }

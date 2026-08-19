@@ -18,8 +18,8 @@ const renderBoxes = (value: string | number | undefined | null, count: number) =
           key={i}
           style={{
             width: 13,
-            height: 16,
-            fontSize: '8.5pt',
+            height: 15,
+            fontSize: '8pt',
             fontFamily: "'Courier New', monospace",
             fontWeight: 700,
             borderRight: '1px solid #000',
@@ -145,7 +145,7 @@ export const GTR30Page1Outer: React.FC<Props> = ({ data }) => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2px' }}>
         <div style={{ fontSize: '7.5pt', fontFamily: "'Noto Serif Gujarati', serif" }}>
-          નાણાં વિભાગના પત્ર ક્રમાંક:તજર-૧૦૦૪-૧૨૨૬-ઝ-૪૭[૦૬] તા:૨-૧-૨૦૦૬
+          નાણાં વિભાગના પત્ર ક્રમાંક:તજર-૧૦૦૪-૧૨૨૬-ઝ-૪૭[૦૫] તા:૨-૧-૨૦૦૬
           <div style={{ fontWeight: 700, fontSize: '9pt', marginTop: '1px' }}>બિલ દિવસ</div>
         </div>
         <div style={{ textAlign: 'center' }}>
@@ -186,7 +186,7 @@ export const GTR30Page1Outer: React.FC<Props> = ({ data }) => {
       </div>
 
       {/* Main 3-Column Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '27% 39% 34%', border: '1px solid #000', fontSize: '7.5pt', minHeight: '525px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '27% 38% 35%', border: '1px solid #000', fontSize: '7.5pt', minHeight: '525px' }}>
         {/* Left Column: Classification, Allotment, AG Office */}
         <div style={{ borderRight: '1px solid #000', padding: '3px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
@@ -244,7 +244,7 @@ export const GTR30Page1Outer: React.FC<Props> = ({ data }) => {
               <div><strong>{data.demandNoLabel || 'Demand No. 004'}</strong></div>
               <div><strong>{data.majorHead || 'Major Head-2403 Animal Husbandry'}</strong></div>
               <div><strong>{data.minorHead || 'Minor Head-113 Administative Investigation and Statistcs'}</strong></div>
-              <div style={{ fontStyle: 'italic' }}><strong>{data.subHead || 'Sub Head-99 Scheme for Strengthening of Statistical Wing...'}</strong></div>
+              <div style={{ fontStyle: 'italic' }}><strong>{data.subHead || 'Sub Head-99 Scheme for Strengthening of Statistical Wing in Directorate of Animal Husbandry (Pay and Allowances for Centrally Sponsored Scheme)'}</strong></div>
             </div>
 
             <div style={{ borderTop: '1px solid #000', paddingTop: '3px', marginTop: '3px', fontSize: '7.5pt' }}>
