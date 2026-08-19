@@ -13,7 +13,7 @@ const moduleDefinition: ModuleDefinition = {
   order: 2,
   children: [
     { path: '/pdf-tools/ocr', label: 'OCR Document Studio', icon: 'file-spreadsheet', subtitle: 'Bilingual OCR to Editable Word & Excel' },
-    { path: '/pdf-tools/editor', label: 'PDF Editor & Utilities', icon: 'layers', subtitle: 'Merge, Split, Organize, Compress & Convert' },
+    { path: '/pdf-tools/editor', label: 'PDF Workbench & Studio', icon: 'layers', subtitle: 'All-in-one Merge, Split, Images-to-PDF, Compress & Organize' },
   ],
 };
 

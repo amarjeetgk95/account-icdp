@@ -496,6 +496,162 @@ export class PdfManipulationService {
   }
 
   /**
+   * Universal Composer: Assemble a new PDF document from arbitrary pages across multiple PDFs and Images
+   */
+  async composeDocument(
+    pages: {
+      id: string;
+      sourceFile: File;
+      sourceType: 'pdf' | 'image';
+      pageNumberInSource: number;
+      rotation: number;
+    }[],
+    options?: {
+      watermark?: WatermarkOptions;
+    }
+  ): Promise<{ data: Uint8Array; pageCount: number }> {
+    if (!pages || pages.length === 0) {
+      throw new Error('At least one page is required to generate a PDF');
+    }
+
+    const targetDoc = await PDFDocument.create();
+    const docCache = new Map<string, PDFDocument>();
+
+    // Standard A4 dimensions in points
+    const A4_WIDTH = 595.28;
+    const A4_HEIGHT = 841.89;
+
+    for (const pageItem of pages) {
+      if (pageItem.sourceType === 'pdf') {
+        const cacheKey = `${pageItem.sourceFile.name}_${pageItem.sourceFile.size}_${pageItem.sourceFile.lastModified}`;
+        let donorDoc = docCache.get(cacheKey);
+        if (!donorDoc) {
+          const arrayBuffer = await readFileAsArrayBuffer(pageItem.sourceFile);
+          donorDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+          docCache.set(cacheKey, donorDoc);
+        }
+
+        const sourceIndex = pageItem.pageNumberInSource - 1;
+        if (sourceIndex >= 0 && sourceIndex < donorDoc.getPageCount()) {
+          const [copiedPage] = await targetDoc.copyPages(donorDoc, [sourceIndex]);
+          const currentRot = copiedPage.getRotation().angle;
+          const finalRot = (currentRot + pageItem.rotation) % 360;
+          copiedPage.setRotation(degrees(finalRot));
+          targetDoc.addPage(copiedPage);
+        }
+      } else if (pageItem.sourceType === 'image') {
+        const buffer = await readFileAsArrayBuffer(pageItem.sourceFile);
+        const uint8 = new Uint8Array(buffer);
+        const isPng = pageItem.sourceFile.type === 'image/png' || /\.png$/i.test(pageItem.sourceFile.name);
+
+        let embeddedImage;
+        try {
+          if (isPng) {
+            embeddedImage = await targetDoc.embedPng(uint8);
+          } else {
+            embeddedImage = await targetDoc.embedJpg(uint8);
+          }
+        } catch {
+          // Fallback: transcode via canvas to JPEG
+          const canvas = await this.fileToCanvas(pageItem.sourceFile);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          const base64 = dataUrl.split(',')[1];
+          const binStr = atob(base64);
+          const len = binStr.length;
+          const bytes = new Uint8Array(len);
+          for (let k = 0; k < len; k++) bytes[k] = binStr.charCodeAt(k);
+          embeddedImage = await targetDoc.embedJpg(bytes);
+        }
+
+        const imgWidth = embeddedImage.width;
+        const imgHeight = embeddedImage.height;
+        const isLandscape = imgWidth > imgHeight;
+        const pageW = isLandscape ? A4_HEIGHT : A4_WIDTH;
+        const pageH = isLandscape ? A4_WIDTH : A4_HEIGHT;
+
+        const page = targetDoc.addPage([pageW, pageH]);
+        const margin = 20;
+        const availW = pageW - margin * 2;
+        const availH = pageH - margin * 2;
+
+        const scale = Math.min(availW / imgWidth, availH / imgHeight, 1);
+        const finalW = imgWidth * scale;
+        const finalH = imgHeight * scale;
+
+        const x = margin + (availW - finalW) / 2;
+        const y = margin + (availH - finalH) / 2;
+
+        page.drawImage(embeddedImage, {
+          x,
+          y,
+          width: finalW,
+          height: finalH,
+        });
+
+        if (pageItem.rotation !== 0) {
+          page.setRotation(degrees(pageItem.rotation % 360));
+        }
+      }
+    }
+
+    if (options?.watermark && options.watermark.text.trim()) {
+      const { text, fontSize = 42, opacity = 0.25, rotationAngle = 45, colorHex = '#64748b', position = 'diagonal' } = options.watermark;
+      const font = await targetDoc.embedFont(StandardFonts.HelveticaBold);
+      const { r, g, b } = this.hexToRgbNormalized(colorHex);
+
+      const totalTargetPages = targetDoc.getPageCount();
+      for (let i = 0; i < totalTargetPages; i++) {
+        const page = targetDoc.getPage(i);
+        const { width, height } = page.getSize();
+        const textWidth = font.widthOfTextAtSize(text, fontSize);
+        const textHeight = font.heightAtSize(fontSize);
+
+        if (position === 'diagonal') {
+          const rad = (rotationAngle * Math.PI) / 180;
+          const centerX = width / 2;
+          const centerY = height / 2;
+          const x = centerX - (textWidth / 2) * Math.cos(rad) + (textHeight / 2) * Math.sin(rad);
+          const y = centerY - (textWidth / 2) * Math.sin(rad) - (textHeight / 2) * Math.cos(rad);
+
+          page.drawText(text, {
+            x,
+            y,
+            size: fontSize,
+            font,
+            color: rgb(r, g, b),
+            rotate: degrees(rotationAngle),
+            opacity,
+          });
+        } else if (position === 'header') {
+          page.drawText(text, {
+            x: (width - textWidth) / 2,
+            y: height - 40,
+            size: Math.min(fontSize, 14),
+            font,
+            color: rgb(r, g, b),
+            opacity,
+          });
+        } else if (position === 'footer') {
+          page.drawText(text, {
+            x: (width - textWidth) / 2,
+            y: 30,
+            size: Math.min(fontSize, 14),
+            font,
+            color: rgb(r, g, b),
+            opacity,
+          });
+        }
+      }
+    }
+
+    const data = await targetDoc.save();
+    return {
+      data,
+      pageCount: targetDoc.getPageCount(),
+    };
+  }
+
+  /**
    * Helper: Convert hex color to normalized RGB (0 to 1)
    */
   private hexToRgbNormalized(hex: string): { r: number; g: number; b: number } {
