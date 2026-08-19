@@ -13,6 +13,9 @@ import {
   ChevronRight,
   Download,
   Edit3,
+  Columns,
+  Sparkles,
+  Maximize2,
 } from 'lucide-react';
 import type {
   DataType,
@@ -23,6 +26,7 @@ import { historyService } from '../services/history.service';
 import { pdfToExcelService } from '../services/pdfToExcel.service';
 import { pdfToWordService } from '../services/pdfToWord.service';
 import { EditableGrid } from './EditableGrid';
+import { PdfViewer } from './PdfViewer';
 import { toast } from '@/shared/components/Toast';
 
 interface DocumentPreviewWorkbenchProps {
@@ -47,6 +51,7 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
 
   // Active Section: 'word' or 'excel'
   const [activeSection, setActiveSection] = useState<'word' | 'excel'>(initialSection);
+  const [showPdfSplit, setShowPdfSplit] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -65,6 +70,17 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
 
   const currentPage = doc.pages[currentPageIndex] || doc.pages[0];
   const totalPages = doc.pageCount;
+
+  // Auto-heal page if it has text but 0 paragraphs in Word view
+  useEffect(() => {
+    if (currentPage && currentPage.paragraphs.length === 0 && (currentPage.rawText || currentPage.elements.length > 0)) {
+      const textToUse = currentPage.rawText || currentPage.elements.map((e) => e.text).join(' ');
+      if (textToUse.trim()) {
+        const next = documentEditorService.updatePageFullText(doc, currentPage.pageNumber, textToUse);
+        setDoc(next);
+      }
+    }
+  }, [currentPageIndex]);
 
   // Document change wrapper with history
   const updateDocument = (nextDoc: SpatialDocument, description: string) => {
@@ -141,6 +157,24 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
     updateDocument(nextDoc, 'Update Page Text');
   };
 
+  // Clean formatting helper
+  const handleFormatCleanText = () => {
+    const currentText = currentPage.rawText || currentPage.paragraphs.map((p) => p.text).join('\n\n');
+    const cleaned = currentText
+      .split('\n')
+      .map((l) => l.replace(/\s+/g, ' ').trim())
+      .filter((l) => l.length > 0)
+      .join('\n\n');
+
+    const nextDoc = documentEditorService.updatePageFullText(
+      doc,
+      currentPage.pageNumber,
+      cleaned
+    );
+    updateDocument(nextDoc, 'Format Clean Text');
+    toast.success('Cleaned up text and whitespace formatting.');
+  };
+
   // --- EXCEL SECTION HANDLERS ---
   const handleUpdateCell = (cellId: string, newText: string, forcedType?: DataType) => {
     const nextDoc = documentEditorService.updateCell(doc, cellId, newText, forcedType);
@@ -175,6 +209,24 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
   const handleDeleteColumn = (tableId: string, colIndex: number) => {
     const nextDoc = documentEditorService.deleteColumn(doc, tableId, colIndex);
     updateDocument(nextDoc, 'Delete column');
+  };
+
+  const handlePasteTsv = (tableId: string, startR: number, startC: number, tsvText: string) => {
+    const nextDoc = documentEditorService.pasteTsv(doc, tableId, startR, startC, tsvText);
+    updateDocument(nextDoc, 'Paste TSV data');
+    toast.success('Pasted spreadsheet data into grid successfully!');
+  };
+
+  const handleGenerateSpatialGrid = () => {
+    const nextDoc = documentEditorService.inferSpatialGrid(doc, currentPage.pageNumber);
+    updateDocument(nextDoc, 'Infer Table Grid');
+    toast.success('Generated spreadsheet table from document text.');
+  };
+
+  const handleCreateTableManually = () => {
+    const nextDoc = documentEditorService.createManualTable(doc, currentPage.pageNumber, 6, 5);
+    updateDocument(nextDoc, 'Create Starter Table');
+    toast.success('Created fresh starter table.');
   };
 
   // --- EXPORT HANDLERS ---
@@ -220,7 +272,7 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Calculations for stats
+  // Stats calculation
   const pageWords = (currentPage.paragraphs || [])
     .map((p) => p.text)
     .join(' ')
@@ -231,7 +283,7 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
   return (
     <div className="flex flex-col h-[calc(100vh-130px)] min-h-[640px] bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-lg animate-in fade-in">
       {/* Top Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
         {/* Left: Document Name & Page Switcher */}
         <div className="flex items-center gap-3">
           <div
@@ -313,32 +365,49 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
           </div>
         </div>
 
-        {/* Center: Two Main Section Switchers (Word vs Excel) */}
-        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={() => setActiveSection('word')}
-            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeSection === 'word'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <FileText size={15} />
-            <span>1. Editable Word (.docx)</span>
-          </button>
+        {/* Center: Two Main Section Switchers (Word vs Excel) & Split View Toggle */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setActiveSection('word')}
+              className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeSection === 'word'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <FileText size={15} />
+              <span>1. Editable Word (.docx)</span>
+            </button>
 
+            <button
+              type="button"
+              onClick={() => setActiveSection('excel')}
+              className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeSection === 'excel'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <FileSpreadsheet size={15} />
+              <span>2. Editable Excel (.xlsx)</span>
+            </button>
+          </div>
+
+          {/* Original PDF Reference Split Toggle */}
           <button
             type="button"
-            onClick={() => setActiveSection('excel')}
-            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeSection === 'excel'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            onClick={() => setShowPdfSplit(!showPdfSplit)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+              showPdfSplit
+                ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
+            title="Toggle original PDF preview side-by-side"
           >
-            <FileSpreadsheet size={15} />
-            <span>2. Editable Excel (.xlsx)</span>
+            {showPdfSplit ? <Maximize2 size={13} /> : <Columns size={13} />}
+            <span>{showPdfSplit ? 'Full Width' : 'Split with PDF'}</span>
           </button>
         </div>
 
@@ -401,264 +470,292 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
         </div>
       </div>
 
-      {/* Main Workspace Body */}
+      {/* Main Workspace Body (Full Width or Side-by-Side Split View) */}
       <div className="flex-1 overflow-hidden p-3 bg-slate-100 dark:bg-slate-950 flex flex-col">
-        {/* ========================================================================= */}
-        {/* SECTION 1: EDITABLE WORD DOCUMENT */}
-        {/* ========================================================================= */}
-        {activeSection === 'word' && (
-          <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden animate-in fade-in">
-            {/* Word Editor Sub-Toolbar */}
-            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-xs shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">
-                  Document Editor
-                </span>
-                <span className="text-slate-300 dark:text-slate-700">&bull;</span>
-                <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
-                  <button
-                    type="button"
-                    onClick={() => setWordEditorMode('blocks')}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                      wordEditorMode === 'blocks'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
-                  >
-                    Paragraph Blocks
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setWordEditorMode('fulltext')}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                      wordEditorMode === 'fulltext'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
-                  >
-                    Full Text Editor
-                  </button>
-                </div>
-              </div>
-
-              {/* Stats and Add Paragraph */}
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] text-slate-500 font-mono">
-                  {pageWords} words on page &bull; {currentPage.paragraphs.length} paragraphs
-                </span>
-                {wordEditorMode === 'blocks' && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleAddParagraph(undefined, false)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 hover:bg-blue-100 text-[11px] font-semibold transition-colors cursor-pointer"
-                    >
-                      <Plus size={12} />
-                      <span>Add Paragraph</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddParagraph(undefined, true)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-[11px] font-semibold transition-colors cursor-pointer"
-                    >
-                      <Heading size={12} />
-                      <span>Add Heading</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+        <div className={`flex-1 flex overflow-hidden gap-3 ${showPdfSplit ? 'flex-col lg:flex-row' : 'flex-col'}`}>
+          {/* Left Column: Original PDF Reference View (Collapsible) */}
+          {showPdfSplit && (
+            <div className="w-full lg:w-1/2 h-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-sm animate-in fade-in">
+              <PdfViewer
+                page={currentPage}
+                currentPageIndex={currentPageIndex}
+                totalPages={totalPages}
+                onPageChange={setCurrentPageIndex}
+              />
             </div>
+          )}
 
-            {/* Word Editor Canvas */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50 dark:bg-slate-950 flex justify-center">
-              <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-6 sm:p-10 space-y-6 min-h-[500px]">
-                {/* Document Header */}
-                <div className="border-b border-slate-200 dark:border-slate-800 pb-4 text-center space-y-1">
-                  <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">
-                    {doc.fileName.replace(/\.pdf$/i, '')}
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    Page {currentPage.pageNumber} of {totalPages} &bull; Editable Word Content
-                  </p>
-                </div>
+          {/* Right Column: Active Editor (Word or Excel) */}
+          <div className={`h-full flex flex-col ${showPdfSplit ? 'w-full lg:w-1/2' : 'w-full'}`}>
+            {/* ========================================================================= */}
+            {/* SECTION 1: EDITABLE WORD DOCUMENT */}
+            {/* ========================================================================= */}
+            {activeSection === 'word' && (
+              <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden animate-in fade-in">
+                {/* Word Editor Sub-Toolbar */}
+                <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-xs shrink-0 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      Word Document Editor
+                    </span>
+                    <span className="text-slate-300 dark:text-slate-700">&bull;</span>
+                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => setWordEditorMode('blocks')}
+                        className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                          wordEditorMode === 'blocks'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        }`}
+                      >
+                        Paragraph Blocks
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWordEditorMode('fulltext')}
+                        className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                          wordEditorMode === 'fulltext'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        }`}
+                      >
+                        Continuous Text
+                      </button>
+                    </div>
+                  </div>
 
-                {/* Mode A: Block Paragraphs Editor */}
-                {wordEditorMode === 'blocks' && (
-                  <div className="space-y-4">
-                    {currentPage.paragraphs.length === 0 && (
-                      <div className="text-center py-12 text-slate-400 text-xs">
-                        No paragraphs extracted on this page.{' '}
+                  {/* Actions & Format Helpers */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleFormatCleanText}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+                      title="Normalize paragraph breaks and clean whitespace"
+                    >
+                      <Sparkles size={12} className="text-amber-500" />
+                      <span>Format Clean</span>
+                    </button>
+
+                    {wordEditorMode === 'blocks' && (
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => handleAddParagraph(0, false)}
-                          className="text-blue-600 underline font-semibold ml-1"
+                          onClick={() => handleAddParagraph(undefined, false)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 hover:bg-blue-100 text-[11px] font-semibold transition-colors cursor-pointer"
                         >
-                          Click here to add text.
+                          <Plus size={12} />
+                          <span>Add Paragraph</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddParagraph(undefined, true)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-[11px] font-semibold transition-colors cursor-pointer"
+                        >
+                          <Heading size={12} />
+                          <span>Add Heading</span>
                         </button>
                       </div>
                     )}
+                  </div>
+                </div>
 
-                    {currentPage.paragraphs.map((p, idx) => (
-                      <div
-                        key={p.id}
-                        className="group relative border border-transparent hover:border-slate-200 dark:hover:border-slate-700 p-2.5 rounded-xl transition-all hover:bg-slate-50/70 dark:hover:bg-slate-800/40"
-                      >
-                        {/* Hover Action Strip */}
-                        <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-0.5 shadow-xs transition-opacity z-10">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateParagraph(p.id, p.text, !p.isHeading)}
-                            className={`p-1 rounded text-xs transition-colors ${
-                              p.isHeading
-                                ? 'bg-indigo-100 text-indigo-700'
-                                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
-                            }`}
-                            title={p.isHeading ? 'Convert to regular paragraph' : 'Convert to Heading'}
+                {/* Word Editor Canvas */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-950 flex justify-center">
+                  <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-5 min-h-[500px]">
+                    {/* Document Header */}
+                    <div className="border-b border-slate-200 dark:border-slate-800 pb-3 text-center space-y-1">
+                      <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+                        {doc.fileName.replace(/\.pdf$/i, '')}
+                      </h1>
+                      <p className="text-[11px] text-slate-400">
+                        Page {currentPage.pageNumber} of {totalPages} &bull; {pageWords} words
+                      </p>
+                    </div>
+
+                    {/* Mode A: Block Paragraphs Editor */}
+                    {wordEditorMode === 'blocks' && (
+                      <div className="space-y-3.5">
+                        {currentPage.paragraphs.length === 0 && (
+                          <div className="text-center py-12 text-slate-400 text-xs">
+                            No paragraphs on this page.{' '}
+                            <button
+                              type="button"
+                              onClick={() => handleAddParagraph(0, false)}
+                              className="text-blue-600 underline font-semibold ml-1 cursor-pointer"
+                            >
+                              Click here to add text.
+                            </button>
+                          </div>
+                        )}
+
+                        {currentPage.paragraphs.map((p, idx) => (
+                          <div
+                            key={p.id}
+                            className="group relative border border-transparent hover:border-slate-200 dark:hover:border-slate-700 p-2 rounded-xl transition-all hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                           >
-                            <Heading size={13} />
-                          </button>
+                            {/* Hover Action Strip */}
+                            <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-0.5 shadow-xs transition-opacity z-10">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateParagraph(p.id, p.text, !p.isHeading)}
+                                className={`p-1 rounded text-xs transition-colors cursor-pointer ${
+                                  p.isHeading
+                                    ? 'bg-indigo-100 text-indigo-700'
+                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                }`}
+                                title={p.isHeading ? 'Convert to regular paragraph' : 'Convert to Heading'}
+                              >
+                                <Heading size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAddParagraph(idx + 1, false)}
+                                className="p-1 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                                title="Insert paragraph below"
+                              >
+                                <Plus size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteParagraph(p.id)}
+                                className="p-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                                title="Delete paragraph"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+
+                            {/* Editable Paragraph Input */}
+                            {p.isHeading ? (
+                              <input
+                                type="text"
+                                value={p.text}
+                                onChange={(e) => handleUpdateParagraph(p.id, e.target.value, true)}
+                                placeholder="Heading text..."
+                                className="w-full font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-transparent border-b border-dashed border-indigo-300 dark:border-indigo-700 focus:border-indigo-600 focus:outline-none py-1"
+                              />
+                            ) : (
+                              <textarea
+                                value={p.text}
+                                onChange={(e) => handleUpdateParagraph(p.id, e.target.value, false)}
+                                placeholder="Paragraph text..."
+                                rows={Math.max(1, Math.ceil(p.text.length / 85))}
+                                className="w-full text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded-lg p-1.5 resize-none focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                              />
+                            )}
+                          </div>
+                        ))}
+
+                        {/* Quick Add Paragraph at Bottom */}
+                        <div className="pt-2 flex items-center justify-center">
                           <button
                             type="button"
-                            onClick={() => handleAddParagraph(idx + 1, false)}
-                            className="p-1 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
-                            title="Insert paragraph below"
+                            onClick={() => handleAddParagraph(undefined, false)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-blue-600 hover:border-blue-400 text-xs font-medium transition-colors cursor-pointer"
                           >
                             <Plus size={13} />
+                            <span>Add New Paragraph Below</span>
                           </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mode B: Full Continuous Text Editor */}
+                    {wordEditorMode === 'fulltext' && (
+                      <div className="space-y-2">
+                        <p className="text-[11px] text-slate-400 italic">
+                          Continuous editable text stream. Paragraphs and line breaks are fully synchronized with Word (.docx) export.
+                        </p>
+                        <textarea
+                          value={currentPage.rawText || currentPage.paragraphs.map((p) => p.text).join('\n\n')}
+                          onChange={(e) => handleFullTextChange(e.target.value)}
+                          rows={18}
+                          className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                        />
+                      </div>
+                    )}
+
+                    {/* Embedded Tables Display if present */}
+                    {currentPage.tables.length > 0 && (
+                      <div className="border-t border-slate-200 dark:border-slate-800 pt-5 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <FileSpreadsheet size={14} className="text-emerald-600" />
+                            <span>Embedded Table ({currentPage.tables[0].rowCount} rows &times; {currentPage.tables[0].columnCount} cols)</span>
+                          </h3>
                           <button
                             type="button"
-                            onClick={() => handleDeleteParagraph(p.id)}
-                            className="p-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                            title="Delete paragraph"
+                            onClick={() => setActiveSection('excel')}
+                            className="text-xs text-blue-600 hover:underline font-semibold cursor-pointer"
                           >
-                            <Trash2 size={13} />
+                            Edit this Table in Excel Grid &rarr;
                           </button>
                         </div>
 
-                        {/* Editable Paragraph Input */}
-                        {p.isHeading ? (
-                          <input
-                            type="text"
-                            value={p.text}
-                            onChange={(e) => handleUpdateParagraph(p.id, e.target.value, true)}
-                            placeholder="Heading text..."
-                            className="w-full font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-transparent border-b border-dashed border-indigo-300 dark:border-indigo-700 focus:border-indigo-600 focus:outline-none py-1"
-                          />
-                        ) : (
-                          <textarea
-                            value={p.text}
-                            onChange={(e) => handleUpdateParagraph(p.id, e.target.value, false)}
-                            placeholder="Paragraph text..."
-                            rows={Math.max(1, Math.ceil(p.text.length / 80))}
-                            className="w-full text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded-lg p-1 resize-none focus:bg-white dark:focus:bg-slate-800 transition-colors"
-                          />
-                        )}
-                      </div>
-                    ))}
-
-                    {/* Quick Add Paragraph at Bottom */}
-                    <div className="pt-2 flex items-center justify-center">
-                      <button
-                        type="button"
-                        onClick={() => handleAddParagraph(undefined, false)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-blue-600 hover:border-blue-400 text-xs font-medium transition-colors cursor-pointer"
-                      >
-                        <Plus size={13} />
-                        <span>Add New Paragraph Below</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Mode B: Full Continuous Text Editor */}
-                {wordEditorMode === 'fulltext' && (
-                  <div className="space-y-2">
-                    <p className="text-[11px] text-slate-400 italic">
-                      Directly edit the document's continuous text below. Line breaks and paragraphs are preserved for Word (.docx) export.
-                    </p>
-                    <textarea
-                      value={currentPage.rawText || currentPage.paragraphs.map((p) => p.text).join('\n\n')}
-                      onChange={(e) => handleFullTextChange(e.target.value)}
-                      rows={18}
-                      className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-                    />
-                  </div>
-                )}
-
-                {/* Embedded Tables Display if present */}
-                {currentPage.tables.length > 0 && (
-                  <div className="border-t border-slate-200 dark:border-slate-800 pt-6 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                        <FileSpreadsheet size={14} className="text-emerald-600" />
-                        <span>Embedded Table ({currentPage.tables[0].rowCount} rows &times; {currentPage.tables[0].columnCount} cols)</span>
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => setActiveSection('excel')}
-                        className="text-xs text-blue-600 hover:underline font-semibold"
-                      >
-                        Open in Editable Excel Grid &rarr;
-                      </button>
-                    </div>
-
-                    <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg">
-                      <table className="w-full text-xs text-left">
-                        <tbody>
-                          {currentPage.tables[0].rows.slice(0, 6).map((r, rIdx) => (
-                            <tr
-                              key={rIdx}
-                              className={
-                                r.isHeader
-                                  ? 'bg-slate-100 dark:bg-slate-800 font-bold border-b border-slate-300'
-                                  : 'border-b border-slate-100 dark:border-slate-800'
-                              }
-                            >
-                              {r.cells.map((c, cIdx) => (
-                                <td key={cIdx} className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-800 last:border-r-0">
-                                  {c.text || '—'}
-                                </td>
+                        <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg">
+                          <table className="w-full text-xs text-left">
+                            <tbody>
+                              {currentPage.tables[0].rows.slice(0, 5).map((r, rIdx) => (
+                                <tr
+                                  key={rIdx}
+                                  className={
+                                    r.isHeader
+                                      ? 'bg-slate-100 dark:bg-slate-800 font-bold border-b border-slate-300'
+                                      : 'border-b border-slate-100 dark:border-slate-800'
+                                  }
+                                >
+                                  {r.cells.map((c, cIdx) => (
+                                    <td key={cIdx} className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-800 last:border-r-0">
+                                      {c.text || '—'}
+                                    </td>
+                                  ))}
+                                </tr>
                               ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* ========================================================================= */}
-        {/* SECTION 2: EDITABLE EXCEL SPREADSHEET */}
-        {/* ========================================================================= */}
-        {activeSection === 'excel' && (
-          <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden animate-in fade-in">
-            {/* Editable Spreadsheet Grid Component */}
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <EditableGrid
-                document={doc}
-                selectedCellId={selectedCellId}
-                onSelectCell={setSelectedCellId}
-                onUpdateCell={handleUpdateCell}
-                onChangeCellType={handleChangeCellType}
-                onToggleLock={handleToggleLock}
-                onAddRow={handleAddRow}
-                onDeleteRow={handleDeleteRow}
-                onMoveRow={() => {}}
-                onAddColumn={handleAddColumn}
-                onDeleteColumn={handleDeleteColumn}
-                onMoveColumn={() => {}}
-                onSplitCell={() => {}}
-              />
-            </div>
+            {/* ========================================================================= */}
+            {/* SECTION 2: EDITABLE EXCEL SPREADSHEET */}
+            {/* ========================================================================= */}
+            {activeSection === 'excel' && (
+              <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden animate-in fade-in">
+                {/* Editable Spreadsheet Grid Component */}
+                <div className="flex-1 overflow-hidden flex flex-col">
+                  <EditableGrid
+                    document={doc}
+                    selectedCellId={selectedCellId}
+                    onSelectCell={setSelectedCellId}
+                    onUpdateCell={handleUpdateCell}
+                    onChangeCellType={handleChangeCellType}
+                    onToggleLock={handleToggleLock}
+                    onAddRow={handleAddRow}
+                    onDeleteRow={handleDeleteRow}
+                    onMoveRow={() => {}}
+                    onAddColumn={handleAddColumn}
+                    onDeleteColumn={handleDeleteColumn}
+                    onMoveColumn={() => {}}
+                    onSplitCell={() => {}}
+                    onPasteTsv={handlePasteTsv}
+                    onGenerateSpatialGrid={handleGenerateSpatialGrid}
+                    onCreateTableManually={handleCreateTableManually}
+                  />
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
 
 export default DocumentPreviewWorkbench;
+

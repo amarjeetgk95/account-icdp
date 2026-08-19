@@ -181,5 +181,33 @@ describe('DocumentEditorService', () => {
     expect(updated.pages[0].paragraphs.length).toBe(3);
     expect(updated.pages[0].paragraphs[0].text).toBe('GOVERNMENT OF GUJARAT');
   });
+
+  it('creates manual starter table and infers spatial grid', () => {
+    const doc = documentEditorService.cloneDocument(SAMPLE_ENGLISH_PAYBILL_DOC);
+    
+    // Create manual table
+    const withManual = documentEditorService.createManualTable(doc, 1, 4, 3);
+    expect(withManual.pages[0].tables.length).toBe(1);
+    expect(withManual.pages[0].tables[0].rowCount).toBe(4);
+    expect(withManual.pages[0].tables[0].columnCount).toBe(3);
+
+    // Infer spatial grid from text elements
+    const inferred = documentEditorService.inferSpatialGrid(doc, 1);
+    expect(inferred.pages[0].tables.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('pastes TSV text data directly into table cells', () => {
+    const doc = documentEditorService.cloneDocument(SAMPLE_ENGLISH_PAYBILL_DOC);
+    const tableId = doc.pages[0].tables[0].id;
+    
+    const tsvData = 'Emp1\t10000\t2000\nEmp2\t20000\t4000';
+    const pasted = documentEditorService.pasteTsv(doc, tableId, 1, 1, tsvData);
+    
+    const cell1 = pasted.pages[0].tables[0].rows[1].cells[1];
+    const cell2 = pasted.pages[0].tables[0].rows[1].cells[2];
+    expect(cell1.text).toBe('Emp1');
+    expect(cell2.text).toBe('10000');
+  });
 });
+
 

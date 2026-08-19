@@ -38,6 +38,7 @@ interface EditableGridProps {
   onMoveColumn: (tableId: string, fromIndex: number, toIndex: number) => void;
   onMergeCells?: (tableId: string, sRow: number, sCol: number, eRow: number, eCol: number) => void;
   onSplitCell: (cellId: string) => void;
+  onPasteTsv?: (tableId: string, startRowIndex: number, startColIndex: number, tsvText: string) => void;
   onGenerateSpatialGrid?: () => void;
   onCreateTableManually?: () => void;
   onViewRawExtraction?: () => void;
@@ -61,6 +62,7 @@ export const EditableGrid: React.FC<EditableGridProps> = ({
   onDeleteColumn,
   onMoveColumn,
   onSplitCell,
+  onPasteTsv,
   onGenerateSpatialGrid,
   onCreateTableManually,
   onViewRawExtraction,
@@ -430,23 +432,83 @@ export const EditableGrid: React.FC<EditableGridProps> = ({
               </div>
             </>
           ) : (
-            <span className="text-slate-500 italic flex items-center gap-1.5">
-              <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-              Click any cell to edit, lock, or modify table structure (Double click to edit text).
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 italic flex items-center gap-1.5">
+                <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                Click any cell to edit or navigate.
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onAddRow(activeTable.id, activeTable.rowCount - 1, 'below')}
+                  className="px-2 py-0.5 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-[11px] font-medium"
+                >
+                  + Add Row
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAddColumn(activeTable.id, activeTable.columnCount - 1, 'right')}
+                  className="px-2 py-0.5 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-[11px] font-medium"
+                >
+                  + Add Column
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Right: Table Info */}
-        <div className="flex items-center gap-2 text-[11px] text-slate-500 font-mono">
-          <span>{activeTable.rowCount} Rows</span>
-          <span>•</span>
-          <span>{activeTable.columnCount} Cols</span>
+        {/* Right: Table Info & Paste Action */}
+        <div className="flex items-center gap-2.5">
+          {onPasteTsv && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText();
+                  if (text) {
+                    const startR = currentSelectedCell ? currentSelectedCell.rowIndex : 0;
+                    const startC = currentSelectedCell ? currentSelectedCell.columnIndex : 0;
+                    onPasteTsv(activeTable.id, startR, startC, text);
+                  }
+                } catch {
+                  // clipboard read permission prompt fallback
+                  const manualText = prompt('Paste TSV or tab-separated text from Excel:');
+                  if (manualText) {
+                    const startR = currentSelectedCell ? currentSelectedCell.rowIndex : 0;
+                    const startC = currentSelectedCell ? currentSelectedCell.columnIndex : 0;
+                    onPasteTsv(activeTable.id, startR, startC, manualText);
+                  }
+                }
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-[11px] font-semibold transition-colors cursor-pointer"
+              title="Paste TSV table data copied from Excel directly into this sheet"
+            >
+              <span>📋 Paste from Excel</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono">
+            <span>{activeTable.rowCount} Rows</span>
+            <span>•</span>
+            <span>{activeTable.columnCount} Cols</span>
+          </div>
         </div>
       </div>
 
       {/* Main Table Spreadsheet Container */}
-      <div className="flex-1 overflow-auto p-4 select-none">
+      <div
+        className="flex-1 overflow-auto p-4 select-none"
+        onPaste={(e) => {
+          if (editingCellId) return; // let native text input handle inside cell
+          const text = e.clipboardData.getData('text/plain');
+          if (text && onPasteTsv && activeTable) {
+            e.preventDefault();
+            const startR = currentSelectedCell ? currentSelectedCell.rowIndex : 0;
+            const startC = currentSelectedCell ? currentSelectedCell.columnIndex : 0;
+            onPasteTsv(activeTable.id, startR, startC, text);
+          }
+        }}
+      >
         <div className="border border-slate-300 rounded-lg overflow-hidden shadow-xs inline-block min-w-full">
           <table className="w-full text-xs border-collapse font-sans bg-white">
             <thead>

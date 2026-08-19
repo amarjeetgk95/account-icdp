@@ -908,6 +908,68 @@ export class DocumentEditorService {
     return nextDoc;
   }
 
+  /**
+   * Paste TSV data into table starting from a given row and column
+   */
+  pasteTsv(
+    doc: SpatialDocument,
+    tableId: string,
+    startRowIndex = 0,
+    startColIndex = 0,
+    tsvText: string
+  ): SpatialDocument {
+    let currentDoc = this.cloneDocument(doc);
+    if (!tsvText || !tsvText.trim()) return currentDoc;
+
+    const tsvRows = tsvText
+      .trim()
+      .split(/\r?\n/)
+      .map((r) => r.split('\t'));
+
+    if (tsvRows.length === 0) return currentDoc;
+
+    const reqRows = startRowIndex + tsvRows.length;
+    const maxColsInTsv = Math.max(...tsvRows.map((r) => r.length));
+    const reqCols = startColIndex + maxColsInTsv;
+
+    // Find table
+    let table = currentDoc.consolidatedTables.find((t) => t.id === tableId);
+    if (!table) {
+      currentDoc = this.createManualTable(currentDoc, 1, Math.max(5, reqRows), Math.max(4, reqCols));
+      table = currentDoc.consolidatedTables[0];
+    }
+
+    // Expand rows if needed
+    while (table.rowCount < reqRows) {
+      currentDoc = this.addRow(currentDoc, table.id, table.rowCount - 1, 'below');
+      table = currentDoc.consolidatedTables.find((t) => t.id === tableId)!;
+    }
+
+    // Expand columns if needed
+    while (table.columnCount < reqCols) {
+      currentDoc = this.addColumn(currentDoc, table.id, table.columnCount - 1, 'right');
+      table = currentDoc.consolidatedTables.find((t) => t.id === tableId)!;
+    }
+
+    // Update cells
+    for (let r = 0; r < tsvRows.length; r++) {
+      const rowData = tsvRows[r];
+      const targetR = startRowIndex + r;
+      for (let c = 0; c < rowData.length; c++) {
+        const targetC = startColIndex + c;
+        const textVal = rowData[c];
+        const cell = table.rows[targetR]?.cells[targetC];
+        if (cell && !cell.locked) {
+          currentDoc = this.updateCell(currentDoc, cell.id, textVal);
+          table = currentDoc.consolidatedTables.find((t) => t.id === tableId)!;
+        }
+      }
+    }
+
+    return currentDoc;
+  }
+
+
   private refreshAllText(doc: SpatialDocument): void {
     doc.allText = doc.pages
       .map((p) => p.paragraphs.map((para) => para.text).join('\n\n'))
