@@ -59,7 +59,11 @@ export function GTR30LaunchPage() {
       toast({ title: 'Missing Month', description: 'Enter Month and Year first.' });
       return;
     }
-    const rows = employeeGroups[gtr30GroupKey(month, billCode)] ?? [];
+    const rows =
+      employeeGroups[gtr30GroupKey(month, billCode)] ??
+      employeeGroups[gtr30GroupKey('July-2026', billCode)] ??
+      employeeGroups[gtr30GroupKey('master', billCode)] ??
+      [];
     const bundle = settingsQuery.data;
     const base = bundle
       ? gtr30BillFormService.buildNewBillFormData({

@@ -119,13 +119,29 @@ class Gtr30EmployeeMasterService {
       hrpnNo: d.hrpnNo || undefined,
       name: d.name,
       designation: d.designation ?? '',
+      designationGujarati: d.designationGujarati ?? '',
+      cadreClass: d.cadreClass ?? '',
       payScale: d.payScale ?? '',
+      gradePay: d.gradePay ?? '',
+      payLevelCell: d.payLevelCell ?? '',
+      ppaNo: d.ppaNo ?? '',
       currentPay: d.currentPay,
       currentPayDate: d.currentPayDate ?? '',
+      quarterAddress: d.quarterAddress ?? '',
+      insuranceGroup: d.insuranceGroup ?? '',
+      insuranceType: d.insuranceType,
       hraPercent: d.hraPercent,
+      da: d.da,
       transportAllowance: d.transportAllowance,
       medicalAllowance: d.medicalAllowance,
       claAllowance: d.claAllowance,
+      rentOfBuilding: d.rentOfBuilding,
+      professionalTax: d.professionalTax,
+      gis1981Insurance: d.gis1981Insurance,
+      gis1981Savings: d.gis1981Savings,
+      npsPension: d.npsPension,
+      societyDeduction: d.societyDeduction,
+      remarks: d.remarks ?? '',
     };
   }
 
@@ -151,6 +167,40 @@ class Gtr30EmployeeMasterService {
     return valid;
   }
 
+  copyGroup(
+    sourceMonthKey: string,
+    sourceBillCode: string,
+    targetMonthKey: string,
+    targetBillCode: string,
+    options?: { overwrite?: boolean; daPercent?: number }
+  ): GTR30EmployeeMaster[] {
+    const source = this.getGroup(sourceMonthKey, sourceBillCode);
+    if (source.length === 0) {
+      throw new Error(`No employees found in source group (${sourceMonthKey} / ${sourceBillCode}).`);
+    }
+
+    const currentTarget = this.getGroup(targetMonthKey, targetBillCode);
+    if (currentTarget.length > 0 && !options?.overwrite) {
+      throw new Error(`Target group (${targetMonthKey} / ${targetBillCode}) already has employees. Enable overwrite to replace.`);
+    }
+
+    const cloned: GTR30EmployeeMaster[] = source.map((emp, idx) => {
+      const pay = emp.currentPay || 0;
+      let da = emp.da;
+      if (options?.daPercent !== undefined && pay > 0) {
+        da = Math.round(pay * (options.daPercent / 100));
+      }
+      return {
+        ...emp,
+        id: crypto.randomUUID(),
+        srNo: idx + 1,
+        da,
+      };
+    });
+
+    return this.saveGroup(targetMonthKey, targetBillCode, cloned);
+  }
+
   removeEmployee(
     monthKey: string,
     billCode: string,
@@ -162,6 +212,31 @@ class Gtr30EmployeeMasterService {
     setSyncPhase(gtr30GroupKey(monthKey, billCode), 'pending');
     debounceReplace(monthKey, billCode, next);
     return next;
+  }
+
+  removeEmployeeAcrossGroups(
+    employeeId: string,
+    hrpnNo: string | undefined,
+    billCode: string
+  ): { removedCount: number } {
+    const all = gtr30EmployeeMasterLocalRepository.loadAll();
+    const target = billCode.trim().toLowerCase();
+    const hrpn = hrpnNo?.trim().toLowerCase();
+    let removedCount = 0;
+    for (const [key, group] of Object.entries(all)) {
+      if (group.billCode.trim().toLowerCase() !== target) continue;
+      const next = group.employees.filter(
+        (e) =>
+          e.id === employeeId ||
+          (hrpn !== undefined && hrpn !== '' && (e.hrpnNo ?? '').trim().toLowerCase() === hrpn)
+      );
+      if (next.length === group.employees.length) continue;
+      removedCount += group.employees.length - next.length;
+      gtr30EmployeeMasterLocalRepository.saveGroup(group.monthKey, group.billCode, next);
+      setSyncPhase(key, 'pending');
+      debounceReplace(group.monthKey, group.billCode, next);
+    }
+    return { removedCount };
   }
 
   async hydrateFromBackend(): Promise<void> {

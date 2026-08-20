@@ -71,10 +71,13 @@ export default function App() {
           </main>
         ) : (
           <Layout>
-            <div className="flex-1 flex flex-col overflow-hidden">
-<Header modules={modules} onOpenCommandPalette={() => setShowCommandPalette(true)} />
+            <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
+              {/* Level 1: Horizontal Top Navigation with Cascading Flyout Menus */}
+              <Header modules={modules} onOpenCommandPalette={() => setShowCommandPalette(true)} />
+
+              {/* Workspace Main Scrollable Content */}
               <main className="flex-1 overflow-hidden">
-                <div className="app-scroll h-full p-4 pt-3">
+                <div className="app-scroll h-full p-4 md:p-6">
                   <Suspense fallback={<LoadingFallback />}>
                     <Routes modules={modules} />
                   </Suspense>

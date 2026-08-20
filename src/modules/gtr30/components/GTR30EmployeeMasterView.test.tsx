@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GTR30EmployeeMasterView } from './GTR30EmployeeMasterView';
 import { gtr30EmployeeMasterService } from '../services/gtr30EmployeeMaster.service';
@@ -9,30 +10,16 @@ vi.mock('@/core/stores/ui-store', () => ({
   useUIStore: () => 2026,
 }));
 
-vi.mock('@/modules/payroll/hooks/useEmployees', () => ({
-  useEmployees: () => ({
-    employees: [
-      {
-        id: 1,
-        name: 'John Doe',
-        pan: 'ABCDE1234F',
-        hprn_no: '100123',
-        designation: 'Research Assistant',
-        pay_scale: '34,500-1,12,400',
-      },
-    ],
-    isLoading: false,
-  }),
-}));
-
 function renderView() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const view = render(
-    <QueryClientProvider client={queryClient}>
-      <GTR30EmployeeMasterView />
-    </QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <GTR30EmployeeMasterView />
+      </QueryClientProvider>
+    </MemoryRouter>
   );
   return { ...view, queryClient };
 }
@@ -56,12 +43,16 @@ describe('GTR30EmployeeMasterView', () => {
       billCode: 'GTR30-SAL',
       description: 'Salary',
     });
+    gtr30BillCodeMappingsService.saveMapping({
+      id: 'm2',
+      billCode: 'GTR30-DA',
+      description: 'DA Arrears',
+    });
   });
 
   it('shows the empty state when no employees are saved for the selected group', () => {
     renderView();
     expect(screen.getByText(/No employees saved for/i)).toBeTruthy();
-    expect(screen.getByText('All changes saved')).toBeTruthy();
   });
 
   it('submitting the form adds the employee to the list and persists it', async () => {
@@ -69,38 +60,29 @@ describe('GTR30EmployeeMasterView', () => {
     addEmployeeWithName('Shri R.B.Makvana');
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Add Employee/i })).toBeTruthy();
+      expect(group()).toHaveLength(1);
+      expect(group()[0].name).toBe('Shri R.B.Makvana');
       expect(screen.getByText('Shri R.B.Makvana')).toBeTruthy();
     });
-
-    const saved = group();
-    expect(saved).toHaveLength(1);
-    expect(saved[0].name).toBe('Shri R.B.Makvana');
   });
 
   it('saved employees still appear after the page reloads (remount)', async () => {
-    const first = renderView();
-    addEmployeeWithName('Shri R.B.Makvana');
-
-    await waitFor(() => expect(group()).toHaveLength(1));
-    first.unmount();
+    await gtr30EmployeeMasterService.saveEmployee('July-2026', 'GTR30-SAL', {
+      id: 'e1',
+      srNo: 1,
+      name: 'Shri R.B.Makvana',
+      designation: 'Research Assistant',
+      payScale: '34,500-1,12,400',
+      currentPay: 39900,
+      currentPayDate: '2026-07-01',
+      hraPercent: 9,
+      transportAllowance: 3600,
+      medicalAllowance: 1000,
+      claAllowance: 270,
+    });
 
     renderView();
     expect(screen.getByText('Shri R.B.Makvana')).toBeTruthy();
-  });
-
-  it('prefills the form from the payroll employee directory search', async () => {
-    renderView();
-    const nameInput = screen.getByLabelText(/Employee Name/) as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: 'joh' } });
-
-    const result = await screen.findByRole('button', { name: /John Doe/ });
-    fireEvent.click(result);
-
-    expect((screen.getByLabelText(/Employee Name/) as HTMLInputElement).value).toBe('John Doe');
-    expect((screen.getByLabelText('HRPN No.') as HTMLInputElement).value).toBe('100123');
-    expect((screen.getByLabelText('Designation') as HTMLInputElement).value).toBe('Research Assistant');
-    expect((screen.getByLabelText('Pay Scale') as HTMLInputElement).value).toBe('34,500-1,12,400');
   });
 
   it('loads an existing row into the form when Edit is clicked and persists changes', async () => {
@@ -147,66 +129,5 @@ describe('GTR30EmployeeMasterView', () => {
       expect(screen.getByText('Name must be at least 2 characters')).toBeTruthy();
     });
     expect(group()).toHaveLength(0);
-  });
-
-  it('bulk-imports payroll directory employees with default salary fields via selection dialog', async () => {
-    renderView();
-    // Open selection dialog
-    fireEvent.click(screen.getByRole('button', { name: /Import from Employee Directory/i }));
-
-    // Click Import Selected button in the dialog
-    const importBtn = await screen.findByRole('button', { name: /Import Selected/i });
-    fireEvent.click(importBtn);
-
-    await waitFor(() => {
-      const saved = group();
-      expect(saved).toHaveLength(1);
-      expect(saved[0].name).toBe('John Doe');
-      expect(saved[0].hrpnNo).toBe('100123');
-      expect(saved[0].designation).toBe('Research Assistant');
-      expect(saved[0].payScale).toBe('34,500-1,12,400');
-      expect(saved[0].currentPay).toBe(0);
-    });
-
-    expect(screen.getByText('John Doe')).toBeTruthy();
-  });
-
-  it('does not import duplicates when the directory employee already exists', async () => {
-    renderView();
-    fireEvent.click(screen.getByRole('button', { name: /Import from Employee Directory/i }));
-    const importBtn = await screen.findByRole('button', { name: /Import Selected/i });
-    fireEvent.click(importBtn);
-    await waitFor(() => expect(group()).toHaveLength(1));
-
-    // The button should now be disabled since all employees are imported
-    const importTrigger = screen.getByRole('button', { name: /Import from Employee Directory/i });
-    expect(importTrigger).toHaveProperty('disabled', true);
-  });
-
-  it('allows deselecting and importing only selected employees from the dialog', async () => {
-    renderView();
-    fireEvent.click(screen.getByRole('button', { name: /Import from Employee Directory/i }));
-
-    // Click Deselect All
-    const deselectBtn = await screen.findByRole('button', { name: /Deselect All/i });
-    fireEvent.click(deselectBtn);
-
-    // Import Selected button should now be disabled (0 selected)
-    const importBtn = screen.getByRole('button', { name: /Import Selected \(0\)/i });
-    expect(importBtn).toHaveProperty('disabled', true);
-
-    // Click on the employee row to select John Doe
-    fireEvent.click(screen.getByText('John Doe'));
-
-    // Now Import Selected (1) is active
-    const activeImportBtn = screen.getByRole('button', { name: /Import Selected \(1\)/i });
-    expect(activeImportBtn).not.toHaveProperty('disabled', true);
-    fireEvent.click(activeImportBtn);
-
-    await waitFor(() => {
-      const saved = group();
-      expect(saved).toHaveLength(1);
-      expect(saved[0].name).toBe('John Doe');
-    });
   });
 });

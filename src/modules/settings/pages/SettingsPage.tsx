@@ -11,8 +11,8 @@ export function SettingsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <div className="page-header">
-        <h1 className="page-title">Settings</h1>
-        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Manage office details</span>
+        <h1 className="page-title">TDS Settings</h1>
+        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Manage office details & TDS identifiers</span>
       </div>
 
       {/* Tab Content */}

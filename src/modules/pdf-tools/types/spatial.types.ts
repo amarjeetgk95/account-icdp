@@ -84,6 +84,8 @@ export interface NormalizedCellData {
 export interface SpatialCell {
   id: string;
   pageNumber: number;
+  sectionId?: string;
+  sectionTitle?: string;
   rowIndex: number;
   columnIndex: number;
   rowSpan: number;
@@ -112,6 +114,7 @@ export interface SpatialRow {
   isTotal: boolean;
   baselineY: number;
   height: number;
+  sectionId?: string;
 }
 
 export interface SpatialColumn {
@@ -127,6 +130,8 @@ export interface SpatialColumn {
 export interface SpatialTable {
   id: string;
   pageNumber: number;
+  sectionId?: string;
+  sectionTitle?: string;
   bbox: BoundingBox;
   columns: SpatialColumn[];
   rows: SpatialRow[];
@@ -156,6 +161,9 @@ export interface SpatialParagraph {
   blockType?: StructuralBlockType;
   align?: 'left' | 'right' | 'center' | 'justify';
   listNumber?: string;
+  sectionId?: string;
+  sectionTitle?: string;
+  pageNumber?: number;
 }
 
 export type StructuralBlock =
@@ -165,6 +173,8 @@ export type StructuralBlock =
       paragraph: SpatialParagraph;
       readingOrder: number;
       bbox: BoundingBox;
+      sectionId?: string;
+      pageNumber?: number;
     }
   | {
       id: string;
@@ -172,10 +182,47 @@ export type StructuralBlock =
       table: SpatialTable;
       readingOrder: number;
       bbox: BoundingBox;
+      sectionId?: string;
+      pageNumber?: number;
     };
+
+export type DocumentSectionType =
+  | 'technical_evaluation'
+  | 'financial_evaluation'
+  | 'rojkam'
+  | 'order'
+  | 'corrigendum'
+  | 'annexure'
+  | 'general';
+
+export interface DocumentSection {
+  id: string;
+  title: string;
+  docType: DocumentSectionType;
+  startPageNumber: number;
+  endPageNumber: number;
+  pageCount: number;
+  bidNumber?: string;
+  date?: string;
+  referenceOrderNo?: string;
+  pages: SpatialPage[];
+  tables: SpatialTable[];
+  paragraphs: SpatialParagraph[];
+  blocks?: StructuralBlock[];
+  confidence: number;
+  summaryMetrics?: {
+    qualifiedCount?: number;
+    rejectedCount?: number;
+    representationCount?: number;
+    acceptedRepresentationCount?: number;
+    finalCount?: number;
+  };
+}
 
 export interface SpatialPage {
   pageNumber: number;
+  sectionId?: string;
+  sectionTitle?: string;
   width: number;
   height: number;
   dpi: number;
@@ -197,6 +244,7 @@ export interface SpatialDocument {
   fileSizeBytes: number;
   pageCount: number;
   pages: SpatialPage[];
+  sections?: DocumentSection[];
   consolidatedTables: SpatialTable[];
   allText: string;
   overallConfidence: number;
@@ -209,6 +257,8 @@ export interface SpatialDocument {
     creationDate?: string;
     producer?: string;
     version?: string;
+    bidNumber?: string;
+    orderDate?: string;
   };
 }
 

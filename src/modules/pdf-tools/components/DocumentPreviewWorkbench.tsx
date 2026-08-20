@@ -27,6 +27,7 @@ import { pdfToExcelService } from '../services/pdfToExcel.service';
 import { pdfToWordService } from '../services/pdfToWord.service';
 import { EditableGrid } from './EditableGrid';
 import { PdfViewer } from './PdfViewer';
+import { OcrDataEditorModal } from './OcrDataEditorModal';
 import { toast } from '@/shared/components/Toast';
 
 interface DocumentPreviewWorkbenchProps {
@@ -52,6 +53,7 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
   // Active Section: 'word' or 'excel'
   const [activeSection, setActiveSection] = useState<'word' | 'excel'>(initialSection);
   const [showPdfSplit, setShowPdfSplit] = useState(false);
+  const [showOcrModal, setShowOcrModal] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -435,6 +437,17 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
             </button>
           </div>
 
+          {/* Pop-up Full Editor Button */}
+          <button
+            type="button"
+            onClick={() => setShowOcrModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            title="Open full-screen OCR Data Viewer & Editor Popup Screen"
+          >
+            <Maximize2 size={13} />
+            <span>Pop-up Editor</span>
+          </button>
+
           {/* Copy Button */}
           <button
             type="button"
@@ -626,14 +639,49 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
                               </button>
                             </div>
 
+                            {/* Block Type Badge */}
+                            {p.blockType && p.blockType !== 'paragraph' && (
+                              <div className="mb-1">
+                                <span
+                                  className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                                    p.blockType === 'heading'
+                                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                                      : p.blockType === 'list'
+                                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                      : p.blockType === 'signature'
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                      : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                  }`}
+                                >
+                                  {p.blockType === 'heading'
+                                    ? 'Heading'
+                                    : p.blockType === 'list'
+                                    ? 'List / Reference'
+                                    : p.blockType === 'signature'
+                                    ? 'Signature Block'
+                                    : 'Block'}
+                                </span>
+                              </div>
+                            )}
+
                             {/* Editable Paragraph Input */}
-                            {p.isHeading ? (
+                            {p.isHeading || p.blockType === 'heading' ? (
                               <input
                                 type="text"
                                 value={p.text}
                                 onChange={(e) => handleUpdateParagraph(p.id, e.target.value, true)}
                                 placeholder="Heading text..."
-                                className="w-full font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-transparent border-b border-dashed border-indigo-300 dark:border-indigo-700 focus:border-indigo-600 focus:outline-none py-1"
+                                className={`w-full font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-transparent border-b border-dashed border-indigo-300 dark:border-indigo-700 focus:border-indigo-600 focus:outline-none py-1 ${
+                                  p.align === 'center' ? 'text-center' : ''
+                                }`}
+                              />
+                            ) : p.blockType === 'signature' || p.align === 'right' ? (
+                              <textarea
+                                value={p.text}
+                                onChange={(e) => handleUpdateParagraph(p.id, e.target.value, false)}
+                                placeholder="Signature block text..."
+                                rows={Math.max(1, Math.ceil(p.text.length / 60))}
+                                className="w-full text-right font-medium text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 bg-transparent border-0 focus:ring-1 focus:ring-emerald-400 rounded-lg p-1.5 resize-none focus:bg-white dark:focus:bg-slate-800 transition-colors"
                               />
                             ) : (
                               <textarea
@@ -641,7 +689,9 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
                                 onChange={(e) => handleUpdateParagraph(p.id, e.target.value, false)}
                                 placeholder="Paragraph text..."
                                 rows={Math.max(1, Math.ceil(p.text.length / 85))}
-                                className="w-full text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded-lg p-1.5 resize-none focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                                className={`w-full text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded-lg p-1.5 resize-none focus:bg-white dark:focus:bg-slate-800 transition-colors ${
+                                  p.align === 'center' ? 'text-center' : ''
+                                }`}
                               />
                             )}
                           </div>
@@ -753,6 +803,17 @@ export const DocumentPreviewWorkbench: React.FC<DocumentPreviewWorkbenchProps> =
           </div>
         </div>
       </div>
+
+      {/* Pop-up OCR Data Viewer & Editor Modal */}
+      {showOcrModal && (
+        <OcrDataEditorModal
+          isOpen={showOcrModal}
+          onClose={() => setShowOcrModal(false)}
+          document={doc}
+          onSave={(updated) => updateDocument(updated, 'Saved in Pop-up OCR Editor')}
+          initialTab={activeSection === 'excel' ? 'excel' : 'word'}
+        />
+      )}
     </div>
   );
 };

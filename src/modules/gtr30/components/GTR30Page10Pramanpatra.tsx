@@ -99,21 +99,26 @@ export const GTR30Page10Pramanpatra: React.FC<Props> = ({ data }) => {
           </div>
         </div>
 
-        {/* Signature Block */}
+        {/* Signature Block — refined Gujarati */}
         <div
           style={{
-            marginTop: '80px',
+            marginTop: '48px',
             textAlign: 'center',
             fontSize: '9.5pt',
             lineHeight: 1.4,
-            width: '320px',
+            width: '360px',
             marginLeft: 'auto',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            padding: '12px 10px',
+            background: '#f8fafc',
+            fontFamily: "'Noto Serif Gujarati', serif",
           }}
         >
-          <div style={{ fontWeight: 700 }}>({data.drawingOfficerNameGujarati || 'શ્રીમતિ યુ.જે.પટેલ'})</div>
-          <div>{data.drawingOfficerDesignationGujarati || 'મદદનીશ વહીવટી સહ હિસાબી અધિકારી'}</div>
-          <div>{data.drawingOfficerOfficeGujarati || 'ઘ.પ.સુ.યોજના-સુરત'} કાર્ડક્ષ નં:-{data.cardexNo || '૨૨'}</div>
-          <div style={{ fontWeight: 700, marginTop: '2px' }}>
+          <div style={{ fontWeight: 800, fontSize: '10pt' }}>({data.drawingOfficerNameGujarati || 'શ્રીમતિ યુ.જે.પટેલ'})</div>
+          <div style={{ color: '#334155' }}>{data.drawingOfficerDesignationGujarati || 'મદદનીશ વહીવટી સહ હિસાબી અધિકારી'}</div>
+          <div style={{ fontSize: '8.5pt', color: '#64748b' }}>{data.drawingOfficerOfficeGujarati || 'ઘ.પ.સુ.યોજના-સુરત'} · કાર્ડક્ષ નં:-{data.cardexNo || '૨૨'}</div>
+          <div style={{ fontWeight: 700, marginTop: '6px', fontFamily: 'monospace', fontSize: '8pt', background: '#ffffff', display: 'inline-block', padding: '2px 8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
             કોડ.નં:-{data.ddoCode || '૨૯૯'}
           </div>
         </div>

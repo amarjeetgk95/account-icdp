@@ -10,8 +10,10 @@ import {
   RotateCcw,
   Sparkles,
   FileCode,
+  Maximize2,
 } from 'lucide-react';
 import { PdfToolsNavHeader } from '../components/PdfToolsNavHeader';
+import { OcrDataEditorModal } from '../components/OcrDataEditorModal';
 import { hybridPdfExtractorService } from '../services/hybridPdfExtractor.service';
 import {
   SAMPLE_ENGLISH_PAYBILL_DOC,
@@ -23,6 +25,7 @@ import { toast } from '@/shared/components/Toast';
 
 export const PdfTextExtractPage: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [extractedDoc, setExtractedDoc] = useState<ExtractedDocument | null>(null);
+  const [showOcrModal, setShowOcrModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
@@ -265,11 +268,22 @@ export const PdfTextExtractPage: React.FC<{ showHeader?: boolean }> = ({ showHea
                 />
               </div>
 
+              {/* Pop-up Full Editor Button */}
+              <button
+                type="button"
+                onClick={() => setShowOcrModal(true)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                title="View & Edit OCR Data in Pop-up Screen"
+              >
+                <Maximize2 size={13} />
+                <span>Pop-up Editor</span>
+              </button>
+
               {/* Copy */}
               <button
                 type="button"
                 onClick={handleCopyText}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                 <span>{copied ? 'Copied' : 'Copy Text'}</span>
@@ -319,6 +333,17 @@ export const PdfTextExtractPage: React.FC<{ showHeader?: boolean }> = ({ showHea
             ))}
           </div>
         </div>
+      )}
+
+      {/* Standalone OCR Data Editor Popup Modal */}
+      {showOcrModal && extractedDoc && (
+        <OcrDataEditorModal
+          isOpen={showOcrModal}
+          onClose={() => setShowOcrModal(false)}
+          document={extractedDoc}
+          onSave={(updated) => setExtractedDoc(updated)}
+          initialTab="word"
+        />
       )}
     </div>
   );

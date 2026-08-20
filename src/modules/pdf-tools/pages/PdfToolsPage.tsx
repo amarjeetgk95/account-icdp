@@ -9,6 +9,7 @@ import { PdfToolsNavHeader } from '../components/PdfToolsNavHeader';
 import { PdfDropzone } from '../components/PdfDropzone';
 import { ExtractionProgressCard } from '../components/ExtractionProgressCard';
 import { DocumentPreviewWorkbench } from '../components/DocumentPreviewWorkbench';
+import { OcrDataEditorModal } from '../components/OcrDataEditorModal';
 import { hybridPdfExtractorService } from '../services/hybridPdfExtractor.service';
 import {
   SAMPLE_ENGLISH_PAYBILL_DOC,
@@ -29,6 +30,7 @@ export function PdfToolsPage() {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [extractedDoc, setExtractedDoc] = useState<ExtractedDocument | null>(null);
+  const [showOcrModal, setShowOcrModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrLanguage, setOcrLanguage] = useState<'eng+guj' | 'eng' | 'guj'>('eng+guj');
   const [progressState, setProgressState] = useState<OcrProgressState>({
@@ -248,6 +250,17 @@ export function PdfToolsPage() {
           />
         )}
       </div>
+
+      {/* Standalone OCR Data Editor Popup Modal */}
+      {showOcrModal && extractedDoc && (
+        <OcrDataEditorModal
+          isOpen={showOcrModal}
+          onClose={() => setShowOcrModal(false)}
+          document={extractedDoc}
+          onSave={(updated) => setExtractedDoc(updated)}
+          initialTab={activeTab === 'excel' ? 'excel' : 'word'}
+        />
+      )}
     </div>
   );
 }

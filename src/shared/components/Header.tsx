@@ -1,605 +1,801 @@
+/* eslint-disable react-hooks/set-state-in-effect -- intentional reset of open menus on route change */
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { NavLink, Link, useLocation } from 'react-router-dom';
+import {
+  Menu,
+  X,
+  ChevronDown,
+  ChevronRight,
+  Search,
+  Calendar,
+  Moon,
+  Sun,
+  LogOut,
+  ShieldCheck,
+  LayoutDashboard,
+  Receipt,
+  Calculator,
+  FileSpreadsheet,
+  ScanText,
+  Settings as SettingsIcon,
+  Users,
+  CircleDot,
+  FileText,
+  FilePlus,
+  List,
+  Wallet,
+  FileBarChart,
+} from 'lucide-react';
 import { useAuthStore } from '@/core/auth/store';
 import { useUIStore } from '@/core/stores/ui-store';
 import { useOfficeName } from '@/modules/settings/hooks/useOfficeName';
-import { financialYearRepository } from '@/modules/settings/repositories/financialYear.repository';
-import { isAllOfficesMode } from '@/shared/utilities/office';
-import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/core/permissions/hooks';
-import { isModuleEnabled } from '@/core/feature-flags/store';
-import { ModuleIcon, SectionIcon } from '@/shared/icons';
 import type { ModuleDefinition } from '@/shared/types/module';
-import { BranchMenu } from './BranchMenu';
 import {
-  useNavigationModel,
-} from '@/shared/navigation/useNavigationModel';
-import { resolveActiveNavigation, isSectionActive, isBranchActive, type NavSection } from '@/shared/navigation/model';
-import {
-  CalendarDays,
-  ChevronDown,
-  LogOut,
-  Shield,
-  UserCheck,
-  Menu,
-  Building2,
-  Sun,
-  Moon,
-} from 'lucide-react';
-import { ConfirmDialog } from './ConfirmDialog';
-import { toast } from './Toast';
-import { useEffect, useState, useRef, useMemo } from 'react';
+  buildNavigationModel,
+  isBranchActive,
+  isSectionActive,
+  matchesRoute,
+  type NavBranch,
+  type NavSection,
+} from '@/shared/navigation/model';
+
+function getAvailableFinancialYears(activeFY: number): number[] {
+  // Center around the active FY (Indian FY = April-March, stored as start year)
+  // Show 2 behind, current, 2 ahead = 5 options, keeps the current always visible
+  if (!Number.isInteger(activeFY) || activeFY < 2000) {
+    const now = new Date();
+    const fy = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    return [fy - 2, fy - 1, fy, fy + 1, fy + 2];
+  }
+  return [activeFY - 2, activeFY - 1, activeFY, activeFY + 1, activeFY + 2];
+}
+
+const SECTION_SVG_ICONS: Record<string, React.ElementType> = {
+  overview: LayoutDashboard,
+  bills: Receipt,
+  tds: Calculator,
+  'it-employee': FileSpreadsheet,
+  tools: ScanText,
+  settings: SettingsIcon,
+  admin: Users,
+};
+
+const BRANCH_SVG_ICONS: Record<string, React.ElementType> = {
+  dashboard: LayoutDashboard,
+  gtr44: Receipt,
+  gtr30: FileSpreadsheet,
+  parties: Users,
+  payroll: Wallet,
+  reports: FileBarChart,
+  settings: SettingsIcon,
+  paybill: FileSpreadsheet,
+  'pdf-tools': ScanText,
+  tools: ScanText,
+  admin: ShieldCheck,
+  'file-plus': FilePlus,
+  list: List,
+  'file-text': FileText,
+};
+
+function getBranchIcon(key: string, iconName?: string): React.ElementType {
+  if (iconName && BRANCH_SVG_ICONS[iconName]) return BRANCH_SVG_ICONS[iconName];
+  if (BRANCH_SVG_ICONS[key]) return BRANCH_SVG_ICONS[key];
+  return FileText;
+}
 
 interface HeaderProps {
   modules: ModuleDefinition[];
   onOpenCommandPalette?: () => void;
 }
 
-type Align = 'left' | 'right';
-
-export function Header({ modules, onOpenCommandPalette: _onOpenCommandPalette }: HeaderProps) {
-  void _onOpenCommandPalette;
+export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
   const { user, signOut } = useAuthStore();
-  const navigate = useNavigate();
-  const officeName = useOfficeName();
   const { isAdmin, isLoading } = usePermissions();
   const location = useLocation();
+  const officeName = useOfficeName();
+
   const activeFinancialYear = useUIStore((s) => s.activeFinancialYear);
   const setActiveFinancialYear = useUIStore((s) => s.setActiveFinancialYear);
-  const mobileNavOpen = useUIStore((s) => s.mobileNavOpen);
-  const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen);
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
 
-  const { sections } = useNavigationModel(modules);
+  // Dropdown & Cascading Flyout States
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [hoveredBranch, setHoveredBranch] = useState<string | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const [openSection, setOpenSection] = useState<string | null>(null);
-  const [pinnedSection, setPinnedSection] = useState<string | null>(null);
-  const [suppressAutoOpen, setSuppressAutoOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [openMobileSection, setOpenMobileSection] = useState<string | null>(null);
-  const [openMobileBranch, setOpenMobileBranch] = useState<string | null>(null);
-  const [pendingFY, setPendingFY] = useState<number | null>(null);
-  const [switchingFY, setSwitchingFY] = useState(false);
-  const [alignments, setAlignments] = useState<Record<string, Align>>({});
+  // Scroll shadow state
+  const [scrolled, setScrolled] = useState(false);
+
   const navRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const triggerRefs = useRef(new Map<string, HTMLDivElement>());
-  const hoverTimerRef = useRef<number | null>(null);
-  const closeTimerRef = useRef<number | null>(null);
+  const userRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const dropdownCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const branchHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const currentPath = location.pathname + location.search;
-  const currentBasePath = currentPath.split('?')[0];
+  const availableFYs = useMemo(() => getAvailableFinancialYears(activeFinancialYear), [activeFinancialYear]);
 
-  const activeNav = resolveActiveNavigation(sections, currentBasePath);
-
-  const dashboardModule = useMemo(() => {
-    if (isAdmin || isLoading) return null;
-    const m = modules.find((x) => x.id === 'dashboard');
-    if (!m) return null;
-    if (m.featureFlag && !isModuleEnabled(m.featureFlag)) return null;
-    return m;
-  }, [modules, isAdmin, isLoading]);
-
-  /* Keep the branch panel open while the user works inside a module:
-     every navigation (or the model becoming ready) re-anchors it to the
-     section/branch matching the URL, EXCEPT navigations initiated from
-     inside the dropdown (those already close the panel). Rendered as a
-     render-phase adjustment so the panel follows navigation without
-     effect-driven state churn. */
-  const navIdentity = `${currentBasePath}|sections:${sections.length}`;
-  const [lastNavIdentity, setLastNavIdentity] = useState('');
-  if (lastNavIdentity !== navIdentity) {
-    setLastNavIdentity(navIdentity);
-    if (activeNav?.section && !suppressAutoOpen) {
-      setOpenSection(activeNav.section.key);
-      setPinnedSection(activeNav.section.key);
-      const sectionIndex = sections.indexOf(activeNav.section);
-      if (sectionIndex >= 3) {
-        setAlignments((prev) => ({ ...prev, [activeNav.section.key]: 'right' }));
-      }
-    }
-    if (suppressAutoOpen) setSuppressAutoOpen(false);
-  }
-
-  const fyLabel = (y: number) => `FY ${y}-${String(y + 1).slice(-2)}`;
-
-  const nowYear = new Date().getFullYear();
-  const fyOptions: number[] = [];
-  for (let y = nowYear - 4; y <= nowYear + 1; y++) fyOptions.push(y);
-  if (!fyOptions.includes(activeFinancialYear)) {
-    fyOptions.push(activeFinancialYear);
-    fyOptions.sort((a, b) => a - b);
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    financialYearRepository
-      .getCurrent()
-      .then((year) => {
-        if (cancelled) return;
-        if (Number.isInteger(year) && year !== useUIStore.getState().activeFinancialYear) {
-          setActiveFinancialYear(year);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [setActiveFinancialYear]);
-
-  const handleFYChange = async (year: number) => {
-    const previous = useUIStore.getState().activeFinancialYear;
-    setActiveFinancialYear(year);
-    if (isAllOfficesMode()) {
-      toast.info(
-        `Viewing merged data for FY ${fyLabel(year)}. The financial year is saved per office in Admin Settings.`
-      );
-      return;
-    }
-    try {
-      await financialYearRepository.set(year);
-      toast.success(`Financial year changed to ${fyLabel(year)}`);
-    } catch (error) {
-      setActiveFinancialYear(previous);
-      toast.error(error instanceof Error ? error.message : 'Failed to change financial year');
-    }
-  };
-
-  const handleFYSelect = (year: number) => {
-    if (year === activeFinancialYear) return;
-    setPendingFY(year);
-  };
-
-  const confirmFYChange = async () => {
-    if (pendingFY === null) return;
-    setSwitchingFY(true);
-    await handleFYChange(pendingFY);
-    setSwitchingFY(false);
-    setPendingFY(null);
-  };
-
-  const initials = user?.email
-    ? user.email
-        .split('@')[0]
-        .split(/[._-]/)
-        .map((p) => p[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    : '?';
-
-  const clearTimer = (timerRef: { current: number | null }) => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  const openSectionPanel = (sectionKey: string) => {
-    setOpenSection(sectionKey);
-    /* Anchor the panel to its top-nav trigger and mirror it near the
-       right edge of the viewport so the panel never clips. */
-    const el = triggerRefs.current.get(sectionKey);
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      const center = rect.left + rect.width / 2;
-      const align: Align = center > window.innerWidth / 2 ? 'right' : 'left';
-      setAlignments((prev) => (prev[sectionKey] === align ? prev : { ...prev, [sectionKey]: align }));
-    }
-  };
-
-  /* Hovering a top-nav item opens its branch panel (after a short delay
-     when nothing is open, immediately when switching between sections).
-     Clicking pins the panel open so it survives moving the mouse away. */
-  const handleTriggerEnter = (sectionKey: string) => {
-    clearTimer(closeTimerRef);
-    if (pinnedSection !== sectionKey) setPinnedSection(null);
-    if (openSection !== sectionKey) {
-      clearTimer(hoverTimerRef);
-      hoverTimerRef.current = window.setTimeout(() => openSectionPanel(sectionKey), 120);
-    }
-  };
-
-  const handleTriggerLeave = () => {
-    clearTimer(hoverTimerRef);
-  };
-
-  const handleNavEnter = () => {
-    clearTimer(closeTimerRef);
-  };
-
-  const handleNavLeave = () => {
-    clearTimer(hoverTimerRef);
-    if (pinnedSection) return;
-    closeTimerRef.current = window.setTimeout(() => setOpenSection(null), 220);
-  };
-
-  const handleTriggerClick = (sectionKey: string) => {
-    clearTimer(hoverTimerRef);
-    clearTimer(closeTimerRef);
-    if (openSection === sectionKey && pinnedSection === sectionKey) {
-      setPinnedSection(null);
-      setOpenSection(null);
-      return;
-    }
-    setPinnedSection(sectionKey);
-    openSectionPanel(sectionKey);
-  };
-
-  /* Clicking a branch/sub-branch closes the dropdown and suppresses the
-     auto-reopen for the navigation that follows. The timeout clears the
-     suppression in case the navigation went to the current page (no URL
-     change, so the render-phase adjustment never runs). */
-  const closeBranchPanel = () => {
-    clearTimer(hoverTimerRef);
-    clearTimer(closeTimerRef);
-    setPinnedSection(null);
-    setOpenSection(null);
-    setSuppressAutoOpen(true);
-    window.setTimeout(() => setSuppressAutoOpen(false), 0);
-  };
-
-  const handleBranchNavigate = (path: string) => {
-    closeBranchPanel();
-    navigate(path);
-  };
-
-  const closeNavMenus = () => {
-    setMobileNavOpen(false);
-    clearTimer(hoverTimerRef);
-    clearTimer(closeTimerRef);
-    setPinnedSection(null);
-    setOpenSection(null);
-    setMenuOpen(false);
-  };
-
-  const handleMobileToggle = () => {
-    const next = !mobileNavOpen;
-    setMobileNavOpen(next);
-    if (next) {
-      const active = resolveActiveNavigation(sections, currentBasePath);
-      if (active) {
-        setOpenMobileSection(active.section.key);
-        setOpenMobileBranch(active.branch.key);
-      }
-    }
-  };
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) {
-        setPinnedSection(null);
-        setOpenSection(null);
-      }
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  useEffect(() => {
-    const onKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        let closed = false;
-        if (openSection) { setPinnedSection(null); setOpenSection(null); closed = true; }
-        if (menuOpen) { setMenuOpen(false); closed = true; }
-        if (mobileNavOpen) { setMobileNavOpen(false); closed = true; }
-        if (closed) e.preventDefault();
-      }
-    };
-    document.addEventListener('keydown', onKeydown);
-    return () => document.removeEventListener('keydown', onKeydown);
-  }, [openSection, menuOpen, mobileNavOpen, setMobileNavOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (hoverTimerRef.current !== null) window.clearTimeout(hoverTimerRef.current);
-      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-    };
-  }, []);
-
-  const renderBranchPanel = (section: NavSection) => (
-    <BranchMenu
-      section={section}
-      align={alignments[section.key] ?? 'left'}
-      selectedBranchKey={activeNav?.branch.key ?? null}
-      currentBasePath={currentBasePath}
-      onNavigateTo={handleBranchNavigate}
-      onClosePanel={closeBranchPanel}
-    />
+  const navModel = useMemo(
+    () => buildNavigationModel(modules, { isAdmin, isLoading }),
+    [modules, isAdmin, isLoading],
   );
 
-  if (isLoading) {
-    return null;
-  }
+  const clearCloseTimer = useCallback(() => {
+    if (dropdownCloseTimerRef.current) {
+      clearTimeout(dropdownCloseTimerRef.current);
+      dropdownCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const clearBranchTimer = useCallback(() => {
+    if (branchHoverTimerRef.current) {
+      clearTimeout(branchHoverTimerRef.current);
+      branchHoverTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleDropdownClose = useCallback(() => {
+    clearCloseTimer();
+    dropdownCloseTimerRef.current = setTimeout(() => {
+      setOpenDropdown(null);
+      setHoveredBranch(null);
+    }, 220); // grace period prevents collapsing on diagonal cursor motion
+  }, [clearCloseTimer]);
+
+  const handleBranchMouseEnter = useCallback(
+    (branchKey: string) => {
+      clearBranchTimer();
+      setHoveredBranch(branchKey);
+    },
+    [clearBranchTimer],
+  );
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (dropdownCloseTimerRef.current) clearTimeout(dropdownCloseTimerRef.current);
+      if (branchHoverTimerRef.current) clearTimeout(branchHoverTimerRef.current);
+    };
+  }, []);
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+        setOpenDropdown(null);
+        setHoveredBranch(null);
+      }
+      if (userRef.current && !userRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+      // Close mobile drawer when clicking backdrop/header outside
+      if (
+        mobileMenuOpen &&
+        headerRef.current &&
+        !headerRef.current.contains(event.target as Node)
+      ) {
+        const drawer = document.getElementById('mobile-nav-drawer');
+        if (drawer && !drawer.contains(event.target as Node)) {
+          setMobileMenuOpen(false);
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mobileMenuOpen]);
+
+  // Close menus on Escape key + manage body scroll lock for mobile
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setOpenDropdown(null);
+        setHoveredBranch(null);
+        setUserMenuOpen(false);
+        setMobileMenuOpen(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
+  // Close menus on navigation change - reset is intentional when route changes
+  useEffect(() => {
+    setOpenDropdown(null);
+    setHoveredBranch(null);
+    setUserMenuOpen(false);
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Dynamic scroll shadow — listens to the main content area
+  useEffect(() => {
+    const main = document.querySelector('main .app-scroll');
+    if (!main) return;
+    const onScroll = () => setScrolled(main.scrollTop > 4);
+    main.addEventListener('scroll', onScroll);
+    return () => main.removeEventListener('scroll', onScroll);
+  }, []);
+
+  if (isLoading) return null;
 
   return (
-    <>
-      <header className="topnav-header">
-        {/* Left: Brand + Office + Mobile toggle */}
-        <div className="topnav-header-left">
-          <button
-            onClick={handleMobileToggle}
-            className="topnav-mobile-toggle lg:hidden"
-            title="Toggle Navigation Menu"
-            aria-label="Toggle navigation"
-          >
-            <Menu size={19} />
-          </button>
-
-          <Link
-            to="/"
-            onClick={closeNavMenus}
-            className="topnav-brand flex items-center gap-3"
-            title="Go to Home"
-          >
-            <span className="topnav-brand-logo">
-              <img src="/logo.svg" alt="Account Branch Logo" className="topnav-logo-icon" />
-            </span>
-            <span className="topnav-brand-text hidden sm:inline">Account Branch</span>
-          </Link>
-
-          <div className="hidden xl:flex items-center gap-1.5 text-xs text-slate-500">
-            <Building2 size={13} className="text-indigo-500 shrink-0" />
-            <span className="font-medium truncate max-w-[200px]">{officeName || 'ICDP Surat'}</span>
-          </div>
-        </div>
-
-        {/* Center: Primary inline nav (desktop) */}
-        <nav
-          className="topnav-nav"
-          ref={navRef}
-          aria-label="Primary navigation"
-          onMouseEnter={handleNavEnter}
-          onMouseLeave={handleNavLeave}
+    <header
+      ref={headerRef}
+      className={`
+        h-[56px] lg:h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md backdrop-saturate-150
+        border-b border-slate-200/60 dark:border-slate-800/60
+        flex items-center justify-between px-3 sm:px-4 lg:px-6 shrink-0 z-40
+        transition-shadow select-none
+        ${scrolled ? 'shadow-md' : 'shadow-sm'}
+      `}
+    >
+      {/* Left: Department Identity */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
+        {/* Mobile Toggle */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen((prev) => !prev)}
+          className="lg:hidden p-2 -ml-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0"
+          title="Toggle Navigation Menu"
+          aria-label="Toggle navigation"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-nav-drawer"
         >
-          {dashboardModule && (
-            <NavLink
-              to="/dashboard"
-              onClick={closeNavMenus}
-              className={({ isActive }) =>
-                `topnav-nav-trigger ${isActive ? 'topnav-nav-trigger-active' : ''}`
-              }
-            >
-              <SectionIcon id="overview" size={15} />
-              <span>Dashboard</span>
-            </NavLink>
-          )}
-          {sections.map((section) => {
-            const isOpen = openSection === section.key;
-            const isActive = isSectionActive(section, currentBasePath);
-            return (
-              <div
-                key={section.key}
-                ref={(el) => {
-                  if (el) triggerRefs.current.set(section.key, el);
-                  else triggerRefs.current.delete(section.key);
-                }}
-                className="topnav-nav-item"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleTriggerClick(section.key)}
-                  onMouseEnter={() => handleTriggerEnter(section.key)}
-                  onMouseLeave={handleTriggerLeave}
-                  onFocus={() => handleTriggerEnter(section.key)}
-                  aria-haspopup="true"
-                  aria-expanded={isOpen}
-                  className={`topnav-nav-trigger ${isActive ? 'topnav-nav-trigger-active' : ''}`}
-                >
-                  <SectionIcon id={section.icon} size={15} />
-                  <span>{section.label}</span>
-                  <ChevronDown size={13} className={`topnav-nav-chevron ${isOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isOpen && renderBranchPanel(section)}
-              </div>
-            );
-          })}
-        </nav>
+          {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
 
-        {/* Right: Actions */}
-        <div className="topnav-header-actions">
-          <button
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            aria-label="Toggle theme"
-            className="topnav-action-btn"
-          >
-            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-
-          {activeFinancialYear && (
-            <div className="relative inline-flex items-center">
-              <CalendarDays size={13} className="pointer-events-none absolute left-3 text-emerald-600" />
-              <select
-                value={activeFinancialYear}
-                onChange={(e) => handleFYSelect(Number(e.target.value))}
-                className="topnav-fy-select"
-                title="Select active financial year (applies across all modules)"
-              >
-                {fyOptions.map((y) => (
-                  <option key={y} value={y} className="bg-white text-slate-800">
-                    FY {y}-{String(y + 1).slice(-2)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {user?.role === 'admin' && (
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200">
-              <Shield size={11} />
-              Admin
-            </span>
-          )}
-          {user?.role === 'office' && (
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border bg-teal-50 text-teal-700 border-teal-200">
-              <UserCheck size={11} />
-              Office
-            </span>
-          )}
-
-          <div className="relative" ref={menuRef}>
-            <button
-              className="topnav-user-btn"
-              onClick={() => setMenuOpen(!menuOpen)}
-              title={user?.email || ''}
-              aria-label="User menu"
-            >
-              {initials}
-            </button>
-            {menuOpen && (
-              <div className="topnav-user-dropdown">
-                <div className="topnav-user-dropdown-header">
-                  <p className="topnav-user-dropdown-label">Signed in as</p>
-                  <p className="topnav-user-dropdown-email">{user?.email}</p>
-                  <div className="topnav-user-status">
-                    <span className="topnav-user-status-dot" />
-                    <span className="topnav-user-status-text capitalize">{user?.role || 'User'}</span>
-                  </div>
-                </div>
-                <div className="topnav-user-dropdown-body">
-                  <button
-                    onClick={() => { setMenuOpen(false); signOut(); }}
-                    className="topnav-signout-btn"
-                  >
-                    <LogOut size={14} />
-                    Sign Out
-                  </button>
-                </div>
-              </div>
-            )}
+        <Link
+          to={isAdmin ? '/admin' : '/dashboard'}
+          className="flex items-center gap-2 sm:gap-2.5 group min-w-0"
+          title="Home"
+        >
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100/60 dark:from-slate-800 dark:to-slate-800 ring-1 ring-indigo-100/50 dark:ring-slate-700/50 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+            <img
+              src="/logo.svg"
+              alt="Department Emblem Logo"
+              className="w-5 h-5 object-contain transition-transform group-hover:scale-105"
+            />
           </div>
-        </div>
-      </header>
+          <div className="flex flex-col min-w-0 hidden sm:flex">
+            <span className="text-[11px] sm:text-xs font-bold font-heading text-slate-900 dark:text-slate-100 tracking-tight uppercase leading-tight">
+              ACCOUNT BRANCH
+            </span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide truncate max-w-[140px] sm:max-w-none">
+              {officeName || 'ICDP SURAT, GUJARAT'}
+            </span>
+          </div>
+        </Link>
 
-      {/* Mobile Nav Drawer */}
-      <div
-        className={`topnav-mobile-panel ${mobileNavOpen ? 'topnav-mobile-panel-open' : ''}`}
-        onMouseLeave={() => setMobileNavOpen(false)}
-      >
-        <nav className="topnav-mobile-nav">
-          <ul className="topnav-mobile-nav-list">
-            {dashboardModule && (
-              <li>
-                <NavLink to="/dashboard" onClick={closeNavMenus} className="topnav-mobile-subitem">
-                  <span className="topnav-mobile-subitem-icon">
-                    <SectionIcon id="overview" size={14} />
-                  </span>
-                  <span>Dashboard</span>
-                </NavLink>
-              </li>
-            )}
-            {sections.map((section) => {
-              const sectionIsActive = isSectionActive(section, currentBasePath);
-              const isOpen = openMobileSection === section.key;
-              return (
-                <li key={section.key}>
-                  <button
-                    type="button"
-                    onClick={() => setOpenMobileSection(isOpen ? null : section.key)}
-                    className={`topnav-mobile-group ${
-                      sectionIsActive ? 'topnav-mobile-group-active' : ''
-                    }`}
-                  >
-                    <span>{section.label}</span>
-                    <ChevronDown
-                      size={15}
-                      className="transition-transform duration-200"
-                      style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }}
-                    />
-                  </button>
-                  <ul
-                    className={`topnav-mobile-submenu ${!isOpen ? 'topnav-mobile-submenu-closed' : ''}`}
-                  >
-                    {section.branches.map((branch) => {
-                      const branchIsActive = isBranchActive(branch, currentBasePath);
-                      const branchIsOpen = openMobileBranch === branch.key;
-                      const hasChildren = branch.subBranches.length > 0;
-                      return (
-                        <li key={branch.key}>
-                          <button
-                            type="button"
-                            onClick={() => setOpenMobileBranch(branchIsOpen ? null : branch.key)}
-                            className={`topnav-mobile-branch ${
-                              branchIsActive ? 'topnav-mobile-branch-active' : ''
-                            }`}
-                          >
-                            <span className="topnav-mobile-subitem-icon">
-                              <ModuleIcon id={branch.icon || 'dashboard'} size={14} />
-                            </span>
-                            <span>{branch.label}</span>
-                            {hasChildren && (
-                              <ChevronDown
-                                size={14}
-                                className="ml-auto transition-transform duration-200"
-                                style={{ transform: branchIsOpen ? 'rotate(180deg)' : 'none' }}
-                              />
-                            )}
-                          </button>
-                          {hasChildren ? (
-                            <ul
-                              className={`topnav-mobile-submenu topnav-mobile-submenu-level3 ${
-                                !branchIsOpen ? 'topnav-mobile-submenu-closed' : ''
-                              }`}
-                            >
-                              {branch.subBranches.map((subBranch) => (
-                                <li key={subBranch.path}>
-                                  <NavLink
-                                    to={subBranch.path}
-                                    onClick={closeNavMenus}
-                                    className="topnav-mobile-subitem"
-                                  >
-                                    {subBranch.icon && (
-                                      <span className="topnav-mobile-subitem-icon">
-                                        <ModuleIcon id={subBranch.icon} size={14} />
-                                      </span>
-                                    )}
-                                    <span>{subBranch.label}</span>
-                                  </NavLink>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <NavLink
-                              to={branch.defaultPath}
-                              onClick={closeNavMenus}
-                              className="topnav-mobile-subitem"
-                            >
-                              <span className="topnav-mobile-subitem-icon">
-                                <ModuleIcon id={branch.icon || 'dashboard'} size={14} />
-                              </span>
-                              <span>{branch.label}</span>
-                            </NavLink>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        {/* Visual separator between brand and nav */}
+        <div className="hidden lg:block h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 shrink-0" />
       </div>
 
-      <ConfirmDialog
-        open={pendingFY !== null}
-        title="Switch Financial Year"
-        confirmLabel="Switch Year"
-        busy={switchingFY}
-        onConfirm={confirmFYChange}
-        onCancel={() => setPendingFY(null)}
-        message={
-          <>
-            Are you sure you want to switch the active financial year from{' '}
-            <b>{fyLabel(activeFinancialYear)}</b> to <b>{pendingFY != null ? fyLabel(pendingFY) : ''}</b>?
-            <br />
-            <span className="text-slate-500">
-              This applies across all modules (payroll, reports, and vendors).
-            </span>
-          </>
-        }
-      />
-    </>
+      {/* Center: Horizontal Top Navigation with Cascading Flyout Menus */}
+      <nav
+        ref={navRef}
+        aria-label="Primary navigation"
+        className="hidden lg:flex items-center gap-0.5 xl:gap-1 min-w-0 h-full flex-1 justify-center max-w-[640px] xl:max-w-none"
+      >
+        {/* Dashboard Direct Link */}
+        {navModel.dashboardEnabled && (
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) => `
+              relative flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-3.5 h-full text-xs font-semibold transition-colors whitespace-nowrap
+              ${
+                isActive
+                  ? 'text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }
+            `}
+            aria-label="Dashboard"
+          >
+            {({ isActive }) => (
+              <>
+                <LayoutDashboard size={14} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} />
+                <span>Dashboard</span>
+                {isActive && (
+                  <span className="absolute bottom-0 inset-x-2 xl:inset-x-3 h-[2.5px] bg-indigo-600 dark:bg-indigo-400 rounded-full" />
+                )}
+              </>
+            )}
+          </NavLink>
+        )}
+
+        {/* Level 1 Module Sections with Cascading Dropdown */}
+        {navModel.sections.map((section: NavSection) => {
+          const isSectionActiveNow = isSectionActive(section, location.pathname);
+          const isOpen = openDropdown === section.key;
+          const SectionIcon = SECTION_SVG_ICONS[section.key] || SECTION_SVG_ICONS[section.icon] || Calculator;
+
+          // Default hovered branch is the active branch or the first branch
+          const activeBranch = section.branches.find((b) => isBranchActive(b, location.pathname)) || section.branches[0];
+          const currentHoveredBranchKey = hoveredBranch || activeBranch?.key;
+
+          return (
+            <div
+              key={section.key}
+              className="relative h-full flex items-center"
+              onMouseEnter={() => {
+                clearCloseTimer();
+                setOpenDropdown(section.key);
+                setHoveredBranch(activeBranch?.key || null);
+              }}
+              onMouseLeave={scheduleDropdownClose}
+            >
+              {/* Level 1 Trigger Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  clearCloseTimer();
+                  setOpenDropdown((prev) => (prev === section.key ? null : section.key));
+                  setHoveredBranch(activeBranch?.key || null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    clearCloseTimer();
+                    setOpenDropdown(section.key);
+                    setHoveredBranch(activeBranch?.key || null);
+                  }
+                  if (e.key === 'Escape') {
+                    setOpenDropdown(null);
+                    setHoveredBranch(null);
+                  }
+                }}
+                className={`
+                  relative flex items-center gap-1 xl:gap-1.5 px-2.5 xl:px-3.5 h-full text-xs font-semibold transition-colors cursor-pointer select-none whitespace-nowrap
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0 rounded-sm
+                  ${
+                    isSectionActiveNow || isOpen
+                      ? 'text-indigo-600 dark:text-indigo-400'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }
+                `}
+                aria-expanded={isOpen}
+                aria-haspopup="menu"
+                aria-controls={`dropdown-${section.key}`}
+                id={`trigger-${section.key}`}
+              >
+                <SectionIcon
+                  size={14}
+                  className={isSectionActiveNow || isOpen ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}
+                  aria-hidden="true"
+                />
+                <span>{section.label}</span>
+                <ChevronDown
+                  size={13}
+                  className={`transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}
+                  aria-hidden="true"
+                />
+                {isSectionActiveNow && (
+                  <span className="absolute bottom-0 inset-x-2 xl:inset-x-3 h-[2.5px] bg-indigo-600 dark:bg-indigo-400 rounded-full" />
+                )}
+              </button>
+
+              {/* Level 2: Dropdown Menu Card */}
+              {isOpen && (
+                <div
+                  id={`dropdown-${section.key}`}
+                  role="menu"
+                  aria-labelledby={`trigger-${section.key}`}
+                  onMouseEnter={clearCloseTimer}
+                  onMouseLeave={scheduleDropdownClose}
+                  className="absolute left-0 top-full pt-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                >
+                  <div className="w-60 bg-white dark:bg-slate-900 backdrop-blur-xl rounded-xl border border-slate-200 dark:border-slate-700 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.5)] p-1.5">
+                    {/* Dropdown section header */}
+                    <div className="px-3 py-1.5 mb-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {section.label}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      {/* Case A: Single-branch section -> Render sub-items directly with NO 3rd branch */}
+                      {section.branches.length === 1 && section.branches[0].subBranches.length > 0 ? (
+                        section.branches[0].subBranches.map((sub) => {
+                          const isSubActive = matchesRoute(sub.path, location.pathname);
+                          const SubIcon = getBranchIcon(sub.path, sub.icon);
+
+                          return (
+                            <Link
+                              key={sub.path}
+                              to={sub.path}
+                              role="menuitem"
+                              className={`
+                                flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors font-medium select-none
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
+                                ${
+                                  isSubActive
+                                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold'
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }
+                              `}
+                            >
+                              {isSubActive ? (
+                                <CircleDot size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" aria-hidden="true" />
+                              ) : (
+                                <SubIcon size={14} className="text-slate-400 shrink-0" aria-hidden="true" />
+                              )}
+                              <span className="truncate">{sub.label}</span>
+                            </Link>
+                          );
+                        })
+                      ) : (
+                        /* Case B: Multi-branch section -> Render branches with cascading flyouts */
+                        section.branches.map((branch: NavBranch) => {
+                          const isBranchActiveNow = isBranchActive(branch, location.pathname);
+                          const isBranchHovered = currentHoveredBranchKey === branch.key;
+                          const hasSubBranches = branch.subBranches.length > 0;
+                          const BranchIcon = getBranchIcon(branch.key, branch.icon);
+
+                          return (
+                            <div
+                              key={branch.key}
+                              className="relative"
+                              onMouseEnter={() => handleBranchMouseEnter(branch.key)}
+                              onFocus={() => handleBranchMouseEnter(branch.key)}
+                            >
+                              {/* Level 2 Branch Item */}
+                              <Link
+                                to={branch.defaultPath}
+                                role="menuitem"
+                                aria-haspopup={hasSubBranches ? 'menu' : undefined}
+                                aria-expanded={hasSubBranches ? isBranchHovered : undefined}
+                                className={`
+                                  flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs transition-colors font-medium select-none
+                                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
+                                  ${
+                                    isBranchHovered || isBranchActiveNow
+                                      ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold'
+                                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                  }
+                                `}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <BranchIcon
+                                    size={14}
+                                    className={isBranchHovered || isBranchActiveNow ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}
+                                    aria-hidden="true"
+                                  />
+                                  <span className="truncate">{branch.label}</span>
+                                </div>
+                                {hasSubBranches && (
+                                  <ChevronRight
+                                    size={13}
+                                    className={isBranchHovered ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}
+                                    aria-hidden="true"
+                                  />
+                                )}
+                              </Link>
+
+                              {/* Level 3: Nested Cascading Sub-Flyout Card */}
+                              {hasSubBranches && isBranchHovered && (
+                                <div
+                                  role="menu"
+                                  onMouseEnter={clearCloseTimer}
+                                  className="absolute left-full top-0 pl-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 before:absolute before:-left-3 before:inset-y-0 before:w-3 before:content-['']"
+                                >
+                                  <div className="w-52 bg-white dark:bg-slate-900 backdrop-blur-xl rounded-xl border border-slate-200 dark:border-slate-700 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.5)] p-1.5">
+                                    <div className="space-y-0.5">
+                                      {branch.subBranches.map((sub) => {
+                                        const isSubActive = matchesRoute(sub.path, location.pathname);
+                                        const SubIcon = getBranchIcon(sub.path, sub.icon);
+
+                                        return (
+                                          <Link
+                                            key={sub.path}
+                                            to={sub.path}
+                                            role="menuitem"
+                                            className={`
+                                              flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors select-none
+                                              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
+                                              ${
+                                                isSubActive
+                                                  ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/30'
+                                                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 font-medium'
+                                              }
+                                            `}
+                                          >
+                                            {isSubActive ? (
+                                              <CircleDot size={12} className="text-indigo-600 dark:text-indigo-400 shrink-0" aria-hidden="true" />
+                                            ) : (
+                                              <SubIcon size={12} className="text-slate-400 shrink-0 opacity-70" aria-hidden="true" />
+                                            )}
+                                            <span className="truncate">{sub.label}</span>
+                                          </Link>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Right: Search, Financial Year, Theme Switcher, User Account Profile */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* Search Command Palette Trigger — hides text on small to reduce crowding */}
+        {onOpenCommandPalette && (
+          <button
+            type="button"
+            onClick={onOpenCommandPalette}
+            className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
+            title="Search (Ctrl+K)"
+            aria-label="Search - press Ctrl+K"
+            aria-keyshortcuts="Control+K Meta+K"
+          >
+            <Search size={14} aria-hidden="true" />
+            <span className="hidden xl:inline text-slate-500">Search...</span>
+            <kbd className="hidden xl:inline-flex items-center gap-0.5 ml-1.5 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-mono text-slate-400 shadow-xs">
+              Ctrl K
+            </kbd>
+          </button>
+        )}
+
+        {/* Financial Year Selector - FY centered around active FY */}
+        <div className="relative flex items-center shrink-0">
+          <Calendar size={12} className="absolute left-2.5 text-emerald-600/70 dark:text-emerald-400/70 pointer-events-none" aria-hidden="true" />
+          <select
+            value={activeFinancialYear}
+            onChange={(e) => setActiveFinancialYear(Number(e.target.value))}
+            className="cursor-pointer pl-7 pr-7 sm:pr-8 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors appearance-none shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            title="Financial Year"
+            aria-label="Financial Year"
+          >
+            {availableFYs.map((year) => (
+              <option key={year} value={year}>
+                FY {year}-{(year + 1).toString().slice(2)}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={12} className="absolute right-2 text-emerald-600/60 dark:text-emerald-400/60 pointer-events-none" aria-hidden="true" />
+        </div>
+
+        {/* Dark/Light Mode Switcher - hidden on very small, visible sm+ to reduce crowding */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="hidden sm:inline-flex p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          aria-pressed={theme === 'dark'}
+        >
+          {theme === 'dark' ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
+        </button>
+
+        {/* User Account Profile */}
+        <div className="relative" ref={userRef}>
+          <button
+            type="button"
+            onClick={() => setUserMenuOpen((prev) => !prev)}
+            className="flex items-center gap-1.5 sm:gap-2 pl-1 pr-1.5 sm:pr-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shrink-0"
+            title="User menu"
+            aria-expanded={userMenuOpen}
+            aria-haspopup="menu"
+            aria-controls="user-menu"
+          >
+            <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs ring-2 ring-indigo-100/50 dark:ring-slate-700 shrink-0">
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
+              {/* Online status indicator */}
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-900" aria-hidden="true" />
+            </div>
+            <div className="hidden sm:flex flex-col text-left min-w-0">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight truncate max-w-[90px] xl:max-w-[110px]">
+                {user?.email?.split('@')[0] || 'User'}
+              </span>
+              <span className="text-[10px] text-slate-400 capitalize leading-tight">
+                {user?.role || 'Officer'}
+              </span>
+            </div>
+            <ChevronDown size={12} className={`text-slate-400 shrink-0 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+
+          {userMenuOpen && (
+            <div
+              id="user-menu"
+              role="menu"
+              className="absolute right-0 top-[calc(100%+6px)] w-60 bg-white dark:bg-slate-900 backdrop-blur-xl rounded-xl border border-slate-200 dark:border-slate-700 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.5)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+            >
+              <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Signed in as
+                </span>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block mt-0.5">
+                  {user?.email}
+                </span>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 capitalize block mt-0.5">
+                  ● {user?.role || 'Office User'}
+                </span>
+              </div>
+
+              <div className="p-1 space-y-0.5">
+                {isAdmin && (
+                  <Link
+                    to="/admin/overview"
+                    onClick={() => setUserMenuOpen(false)}
+                    role="menuitem"
+                    className="w-full text-left px-2.5 py-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg font-semibold transition-colors flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  >
+                    <ShieldCheck size={13} aria-hidden="true" />
+                    <span>Admin Console</span>
+                  </Link>
+                )}
+
+                {/* Theme toggle inside user menu to reduce header crowding - visible on all, but especially useful on mobile */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    toggleTheme();
+                    // keep menu open to show feedback
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                  {theme === 'dark' ? <Sun size={13} aria-hidden="true" /> : <Moon size={13} aria-hidden="true" />}
+                  <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                </button>
+
+                <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" role="separator" />
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    signOut();
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg font-semibold transition-colors flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                >
+                  <LogOut size={13} aria-hidden="true" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Drawer - with backdrop */}
+      {mobileMenuOpen && (
+        <>
+          <div
+            className="fixed inset-0 top-[56px] lg:top-16 bg-slate-950/20 dark:bg-slate-950/50 backdrop-blur-sm z-40 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            id="mobile-nav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            className="fixed inset-x-0 top-[56px] lg:top-16 bottom-0 z-50 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-4 overflow-y-auto app-scroll scroll-smooth lg:hidden shadow-xl animate-in slide-in-from-top-2 duration-200"
+          >
+            <div className="space-y-4 max-w-md mx-auto">
+              {navModel.dashboardEnabled && (
+                <NavLink
+                  to="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                      isActive ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`
+                  }
+                >
+                  <LayoutDashboard size={16} className="text-indigo-600" aria-hidden="true" />
+                  <span>Dashboard</span>
+                </NavLink>
+              )}
+
+              {navModel.sections.map((section) => (
+                <div key={section.key} className="space-y-1">
+                  <div className="px-3 pt-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    {section.label}
+                  </div>
+                  <div className="pl-2 space-y-0.5">
+                    {section.branches.map((branch) => {
+                      const BranchIcon = getBranchIcon(branch.key, branch.icon);
+                      const isActive = isBranchActive(branch, location.pathname);
+                      return (
+                        <div key={branch.key}>
+                          <Link
+                            to={branch.defaultPath}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                              isActive ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <BranchIcon size={14} className={isActive ? 'text-indigo-600' : 'text-slate-400'} aria-hidden="true" />
+                            <span>{branch.label}</span>
+                          </Link>
+                          {branch.subBranches.length > 0 && (
+                            <div className="ml-5 pl-2 border-l border-slate-200 dark:border-slate-700 space-y-0.5 mt-1">
+                              {branch.subBranches.map((sub) => {
+                                const isSubActive = matchesRoute(sub.path, location.pathname);
+                                return (
+                                  <Link
+                                    key={sub.path}
+                                    to={sub.path}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className={`block px-3 py-1.5 rounded-lg text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                                      isSubActive ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 hover:text-indigo-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                                    }`}
+                                  >
+                                    {sub.label}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {/* Mobile-only FY + Theme in drawer footer for quick access */}
+              <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-800 space-y-3 sm:hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Financial Year</span>
+                  <div className="relative flex items-center">
+                    <Calendar size={12} className="absolute left-2.5 text-emerald-600/70 dark:text-emerald-400/70 pointer-events-none" aria-hidden="true" />
+                    <select
+                      value={activeFinancialYear}
+                      onChange={(e) => setActiveFinancialYear(Number(e.target.value))}
+                      className="cursor-pointer pl-7 pr-7 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg appearance-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      title="Financial Year"
+                      aria-label="Financial Year"
+                    >
+                      {availableFYs.map((year) => (
+                        <option key={year} value={year}>
+                          FY {year}-{(year + 1).toString().slice(2)}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={12} className="absolute right-2 text-emerald-600/60 pointer-events-none" aria-hidden="true" />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    {theme === 'dark' ? <Sun size={14} aria-hidden="true" /> : <Moon size={14} aria-hidden="true" />}
+                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                    {theme}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </header>
   );
 }

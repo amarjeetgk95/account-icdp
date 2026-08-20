@@ -596,8 +596,14 @@ export class SpatialGridService {
       }
     );
 
-    // If explicit single-column table layout requested (minColumns === 1) and no table detected by layout service
-    if (layout.tables.length === 0 && opts.minColumns === 1) {
+    // If no multi-column table detected by layout service, provide inferred grid when requested or for sparse item list
+    if (
+      layout.tables.length === 0 &&
+      (opts.minColumns === 1 ||
+        (elements.length > 0 &&
+          elements.length <= 4 &&
+          layout.paragraphs.every((p) => p.text.length < 40)))
+    ) {
       const fallbackTable = this.inferSpatialGridFromCoordinates(
         elements,
         pageNumber,
@@ -608,7 +614,6 @@ export class SpatialGridService {
     }
 
     return { tables: layout.tables, paragraphs: layout.paragraphs };
-  }
   }
 }
 

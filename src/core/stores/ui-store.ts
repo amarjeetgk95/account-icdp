@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type Theme = 'light' | 'dark';
+export type NavLayout = 'mega-menu' | 'ribbon';
 
 function applyTheme(theme: Theme) {
   if (typeof document === 'undefined') return;
@@ -16,12 +17,17 @@ interface UIState {
   mobileNavOpen: boolean;
   activeNavGroup: string | null;
   theme: Theme;
+  navLayout: NavLayout;
+  sidebarCollapsed: boolean;
   setActiveOfficeId: (id: string | null) => void;
   setActiveFinancialYear: (year: number) => void;
   setMobileNavOpen: (open: boolean) => void;
   toggleMobileNav: () => void;
   setActiveNavGroup: (group: string | null) => void;
   toggleTheme: () => void;
+  setNavLayout: (layout: NavLayout) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebar: () => void;
   initializeOffice: (officeId: string | null) => void;
 }
 
@@ -36,6 +42,8 @@ export const useUIStore = create<UIState>()(
       mobileNavOpen: false,
       activeNavGroup: null,
       theme: 'light',
+      navLayout: 'mega-menu',
+      sidebarCollapsed: false,
       setActiveOfficeId: (id) => set({ activeOfficeId: id }),
       setActiveFinancialYear: (year) => set({ activeFinancialYear: year }),
       setMobileNavOpen: (open) => set({ mobileNavOpen: open }),
@@ -47,6 +55,9 @@ export const useUIStore = create<UIState>()(
           applyTheme(next);
           return { theme: next };
         }),
+      setNavLayout: (layout) => set({ navLayout: layout }),
+      setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       initializeOffice: (officeId) => {
         set({ activeOfficeId: officeId });
       },
@@ -57,6 +68,8 @@ export const useUIStore = create<UIState>()(
          activeFinancialYear: state.activeFinancialYear,
          activeNavGroup: state.activeNavGroup,
          theme: state.theme,
+         navLayout: state.navLayout,
+         sidebarCollapsed: state.sidebarCollapsed,
        }),
       onRehydrateStorage: () => (state) => {
         applyTheme(state?.theme ?? 'light');

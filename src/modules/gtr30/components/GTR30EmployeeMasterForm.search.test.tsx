@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { useState } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -6,22 +6,6 @@ import { GTR30EmployeeMasterForm } from './GTR30EmployeeMasterForm';
 import type { GTR30EmployeeMaster } from '../types';
 import { gtr30EmployeeMasterService } from '../services/gtr30EmployeeMaster.service';
 import { gtr30BillCodeMappingsService } from '../services/gtr30BillCodeMappings.service';
-
-vi.mock('@/modules/payroll/hooks/useEmployees', () => ({
-  useEmployees: () => ({
-    employees: [
-      {
-        id: 1,
-        name: 'John Doe',
-        pan: 'ABCDE1234F',
-        hprn_no: '100123',
-        designation: 'Research Assistant',
-        pay_scale: '34,500-1,12,400',
-      },
-    ],
-    isLoading: false,
-  }),
-}));
 
 const EXISTING: GTR30EmployeeMaster[] = [
   {
@@ -71,19 +55,13 @@ describe('GTR30EmployeeMasterForm name-search dropdown', () => {
     });
   });
 
-  it('prefills from the payroll directory when a directory row is selected', async () => {
-    renderForm();
+  it('does NOT search or map TDS payroll employees into GTR-30', async () => {
+    renderForm(EXISTING);
     const nameInput = screen.getByLabelText(/Employee Name/) as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: 'joh' } });
+    fireEvent.change(nameInput, { target: { value: 'unknown-tds-person' } });
 
-    const result = await screen.findByRole('button', { name: /John Doe/ });
-    fireEvent.click(result);
-
-    expect((screen.getByLabelText(/Employee Name/) as HTMLInputElement).value).toBe('John Doe');
-    expect((screen.getByLabelText('HRPN No.') as HTMLInputElement).value).toBe('100123');
-    expect((screen.getByLabelText('Designation') as HTMLInputElement).value).toBe('Research Assistant');
-    expect((screen.getByLabelText('Pay Scale') as HTMLInputElement).value).toBe('34,500-1,12,400');
-    expect((screen.getByLabelText('Current Pay (₹)') as HTMLInputElement).value).toBe('0');
+    // Should not show dropdown for non-GTR30 records
+    expect(screen.queryByRole('button', { name: /unknown-tds-person/ })).toBeNull();
   });
 
   it('loads the full master record when an existing master row is selected', async () => {
@@ -118,17 +96,5 @@ describe('GTR30EmployeeMasterForm name-search dropdown', () => {
     await waitFor(() =>
       expect((screen.getByLabelText(/Employee Name/) as HTMLInputElement).value).toBe('')
     );
-  });
-
-  it('shows field-level validation errors on invalid submission', async () => {
-    renderForm();
-    const nameInput = screen.getByLabelText(/Employee Name/) as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: 'A' } });
-    fireEvent.click(screen.getByRole('button', { name: /Add Employee/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText('Name must be at least 2 characters')).toBeTruthy();
-    });
-    expect(gtr30EmployeeMasterService.getGroup('July-2026', 'GTR30-SAL')).toHaveLength(0);
   });
 });

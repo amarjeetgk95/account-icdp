@@ -4,20 +4,33 @@ import { useAuthStore } from '@/core/auth/store';
 import { useNavigate } from 'react-router-dom';
 import { useUsers, useOffices, useCreateUser } from '../hooks/useAdmin';
 import { UserList } from '../components/UserList';
-import { CreateUserForm } from '../components/CreateUserForm';
+import {
+  UserManagementModal,
+  type UserFormData,
+  DEFAULT_PERMISSIONS,
+  ADMIN_PERMISSIONS,
+} from '../components/UserManagementModal';
 import { AdminLayout } from '@/shared/components/AdminLayout';
-import { AdminModal } from '@/shared/components/AdminModal';
 import { ErrorBanner } from '@/shared/components/ErrorBanner';
 import { useToast } from '@/hooks/use-toast';
 import { getSectionIcon } from '@/shared/icons';
-import type { CreateUserInput } from '../types';
+import { supabase } from '@/core/supabase/client';
+import type { UserInfo } from '../types';
 
 export function AdminUsersPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { toast } = useToast();
 
-  const [modalOpen, setModalOpen] = useState(false);
+  const [userModal, setUserModal] = useState<{
+    isOpen: boolean;
+    mode: 'add' | 'edit';
+    user: Partial<UserFormData> | null;
+  }>({
+    isOpen: false,
+    mode: 'add',
+    user: null,
+  });
 
   const {
     users,
@@ -93,12 +106,77 @@ export function AdminUsersPage() {
     }
   };
 
-  const handleCreateUser = async (input: CreateUserInput): Promise<string> => {
-    const message = await createUser.mutateAsync(input);
-    toast({ title: 'User created', description: message });
-    setModalOpen(false);
-    return message;
+  const handleOpenAddModal = () => {
+    setUserModal({
+      isOpen: true,
+      mode: 'add',
+      user: null,
+    });
   };
+
+  const handleOpenEditModal = (targetUser: UserInfo) => {
+    const rawUsername = targetUser.email.split('@')[0] || '';
+    setUserModal({
+      isOpen: true,
+      mode: 'edit',
+      user: {
+        id: targetUser.id,
+        fullName: targetUser.email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+        employeeId: `EMP-${targetUser.id.slice(0, 4).toUpperCase()}`,
+        email: targetUser.email,
+        mobile: '',
+        role: targetUser.role === 'admin' ? 'admin' : 'office',
+        department: 'Accounts & Finance',
+        officeId: targetUser.office_id,
+        officeName: targetUser.office_name || '',
+        designation: targetUser.role === 'admin' ? 'System Administrator' : 'Office Operator',
+        username: rawUsername,
+        status: targetUser.suspended ? 'inactive' : 'active',
+        permissions: targetUser.role === 'admin' ? ADMIN_PERMISSIONS : DEFAULT_PERMISSIONS,
+      },
+    });
+  };
+
+  const handleSaveUser = async (data: UserFormData): Promise<string | void> => {
+    if (userModal.mode === 'add') {
+      const message = await createUser.mutateAsync({
+        email: data.email,
+        password: data.password,
+        role: data.role === 'admin' ? 'admin' : 'office',
+        officeName: data.role === 'admin' ? undefined : data.officeName,
+      });
+      return message;
+    } else {
+      if (!data.id) return;
+      const targetRole = data.role === 'admin' ? 'admin' : 'office';
+      await setUserRoleAsync({
+        userId: data.id,
+        role: targetRole,
+        officeId: data.role === 'admin' ? null : data.officeId,
+      });
+      await setUserStatusAsync({
+        userId: data.id,
+        suspended: data.status === 'inactive',
+      });
+      return 'User profile, credentials and permissions updated successfully.';
+    }
+  };
+
+  const handleResetPassword = async (_userId: string, email: string): Promise<void> => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+  };
+
+  const existingUsersList = useMemo(
+    () =>
+      users.map((u) => ({
+        id: u.id,
+        email: u.email,
+        username: u.email.split('@')[0],
+        employeeId: `EMP-${u.id.slice(0, 4).toUpperCase()}`,
+      })),
+    [users]
+  );
 
   return (
     <AdminLayout
@@ -109,7 +187,7 @@ export function AdminUsersPage() {
         {
           label: 'Add User',
           icon: UserPlus,
-          onClick: () => setModalOpen(true),
+          onClick: handleOpenAddModal,
           variant: 'primary',
         },
       ]}
@@ -152,19 +230,26 @@ export function AdminUsersPage() {
               onSetRole={handleSetRole}
               onSetStatus={handleSetStatus}
               onDelete={handleDeleteUser}
+              onEdit={handleOpenEditModal}
               currentUserEmail={user?.email}
             />
           </div>
         </div>
       </div>
 
-      <AdminModal open={modalOpen} onClose={() => setModalOpen(false)} title="Add User" maxWidth="max-w-lg">
-        <CreateUserForm
-          offices={offices ?? []}
-          onSubmit={handleCreateUser}
-          isLoading={createUser.isPending}
-        />
-      </AdminModal>
+      {/* Reusable User Management Modal for Add & Edit */}
+      <UserManagementModal
+        isOpen={userModal.isOpen}
+        onClose={() => setUserModal((prev) => ({ ...prev, isOpen: false }))}
+        mode={userModal.mode}
+        user={userModal.user}
+        existingUsers={existingUsersList}
+        offices={offices ?? []}
+        onSave={handleSaveUser}
+        onResetPassword={handleResetPassword}
+      />
     </AdminLayout>
   );
 }
+
+export default AdminUsersPage;

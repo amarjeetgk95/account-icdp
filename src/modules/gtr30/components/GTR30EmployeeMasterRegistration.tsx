@@ -1,9 +1,17 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Users, UserPlus, Save, RefreshCw } from 'lucide-react';
+import {
+  Users,
+  UserPlus,
+  Save,
+  RefreshCw,
+  FilePlus,
+  CreditCard,
+} from 'lucide-react';
 import { useUIStore } from '@/core/stores/ui-store';
 import {
   useGTR30EmployeeMasterGroups,
@@ -11,7 +19,6 @@ import {
   gtr30GroupKey,
 } from '../hooks/useGTR30EmployeeMaster';
 import { useGTR30BillCodeMappings } from '../hooks/useGTR30BillCodeMappings';
-import { gtr30MonthKeyFor, gtr30MonthOptions, gtr30YearOptions } from '../utils/gtr30MonthKey';
 import { GTR30EmployeeMasterForm } from './GTR30EmployeeMasterForm';
 import { GTR30EmployeeMasterList } from './GTR30EmployeeMasterList';
 import { GTR30EmployeeImport } from './GTR30EmployeeImport';
@@ -19,6 +26,7 @@ import { GTR30SyncStatusBadge } from './GTR30SyncStatusBadge';
 import type { GTR30EmployeeMaster } from '../types';
 
 export function GTR30EmployeeMasterRegistration() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const activeFY = useUIStore((state) => state.activeFinancialYear) ?? 2026;
   const groupsQuery = useGTR30EmployeeMasterGroups();
@@ -28,27 +36,19 @@ export function GTR30EmployeeMasterRegistration() {
   const groups = groupsQuery.data ?? {};
   const mappings = mappingsQuery.data ?? [];
 
-  const [month, setMonth] = useState('July');
-  const [year, setYear] = useState(activeFY);
+  // Default persistent monthKey for registration directory
+  const monthKey = `July-${activeFY}`;
   const [billCode, setBillCode] = useState(() => mappings[0]?.billCode ?? 'GTR30-SAL');
   const [editingEmployee, setEditingEmployee] = useState<GTR30EmployeeMaster | null>(null);
   const [isSavingGroup, setIsSavingGroup] = useState(false);
 
-  const monthKey = gtr30MonthKeyFor(month, year);
-  const employees = groups[gtr30GroupKey(monthKey, billCode)] ?? [];
+  // Match employees for this bill code (fallback across master keys)
+  const groupKey = gtr30GroupKey(monthKey, billCode);
+  const fallbackKey = gtr30GroupKey('master', billCode);
+  const employees = groups[groupKey] ?? groups[fallbackKey] ?? [];
 
   const handleEdit = (employee: GTR30EmployeeMaster) => {
     setEditingEmployee(employee);
-  };
-
-  const changeMonth = (value: string) => {
-    setMonth(value);
-    setEditingEmployee(null);
-  };
-
-  const changeYear = (value: number) => {
-    setYear(value);
-    setEditingEmployee(null);
   };
 
   const changeBillCode = (value: string) => {
@@ -65,8 +65,8 @@ export function GTR30EmployeeMasterRegistration() {
         employees,
       });
       toast({
-        title: 'Master Group Saved',
-        description: `Successfully saved ${employees.length} employee entry/entries for ${monthKey} / ${billCode}.`,
+        title: 'Master Directory Saved',
+        description: `Successfully saved ${employees.length} employee entry/entries for ${billCode}.`,
       });
     } catch (error) {
       toast({
@@ -84,20 +84,21 @@ export function GTR30EmployeeMasterRegistration() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Master Group Selection & Manual Save */}
+      {/* 1. Bill Code Selection & Header Controls */}
       <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-blue-600" />
+            <Users className="h-5 w-5 text-blue-600" />
             <div>
-              <h2 className="font-bold text-md text-slate-900">Employee Master Group</h2>
+              <h2 className="font-bold text-md text-slate-900">Employee Registration Directory</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Choose the bill month, year, and bill code for the master entries.
+                Manage employee salary profiles and master records for GTR-30 Pay Bills.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <GTR30SyncStatusBadge />
+
             <Button
               type="button"
               size="sm"
@@ -115,116 +116,99 @@ export function GTR30EmployeeMasterRegistration() {
               ) : (
                 <>
                   <Save className="h-3.5 w-3.5 mr-1.5" />
-                  Save Group Entries
+                  Save Changes
                 </>
               )}
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <Label className="text-xs">Month</Label>
-            <select value={month} onChange={(e) => changeMonth(e.target.value)} className={selectStyle}>
-              {gtr30MonthOptions().map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label className="text-xs">Year (FY)</Label>
-            <select value={year} onChange={(e) => changeYear(Number(e.target.value))} className={selectStyle}>
-              {gtr30YearOptions(activeFY).map((y) => (
-                <option key={y} value={y}>
-                  {y}-{String(y + 1).slice(-2)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label className="text-xs">Bill Code</Label>
-            <select value={billCode} onChange={(e) => changeBillCode(e.target.value)} className={selectStyle}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex-1 max-w-md">
+            <Label className="text-xs font-semibold text-slate-700">Bill Code / Pay Category</Label>
+            <select value={billCode} onChange={(e) => changeBillCode(e.target.value)} className={`${selectStyle} font-mono font-bold mt-1`}>
               {mappings.map((m) => (
                 <option key={m.id} value={m.billCode}>
-                  {m.billCode} - {m.description}
+                  {m.billCode} — {m.description}
                 </option>
               ))}
             </select>
           </div>
-        </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-          <p>
-            All entries below are saved against <strong>{monthKey}</strong> / <strong>{billCode}</strong>.
-            Change the month or bill code to work on another bill.
-          </p>
-          <span className="font-semibold text-slate-700 dark:text-slate-300">
-            {employees.length} employee{employees.length === 1 ? '' : 's'} registered
-          </span>
-        </div>
-      </Card>
-
-      {/* 2. Add / Edit Single Employee Form */}
-      <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
-            <UserPlus size={16} />
-          </div>
-          <div>
-            <h2 className="font-bold text-md text-slate-900">
-              {editingEmployee ? `Edit Employee — ${editingEmployee.name}` : 'Add New Employee'}
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Search the master or employee directory, then enter salary details.
-            </p>
-          </div>
-        </div>
-        <GTR30EmployeeMasterForm
-          monthKey={monthKey}
-          billCode={billCode}
-          employees={employees}
-          editingEmployee={editingEmployee}
-          onCancelEdit={() => setEditingEmployee(null)}
-          onSaved={() => setEditingEmployee(null)}
-        />
-      </Card>
-
-      {/* 3. Master Directory List & Import */}
-      <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600">
-              <Users size={16} />
-            </div>
-            <div>
-              <h2 className="font-bold text-md text-slate-900">Master Directory</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Employee salary entries for {monthKey} / {billCode}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-2 self-start sm:self-end">
             <Button
               type="button"
               size="sm"
               variant="outline"
-              onClick={handleSaveMasterGroup}
-              disabled={isSavingGroup}
-              className="text-xs h-8"
-              title="Save all current entries in this master list"
+              onClick={() => navigate('/gtr30/employee-master')}
+              className="text-xs h-9 font-medium text-slate-700 border-slate-300"
             >
-              {isSavingGroup ? (
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin text-blue-600" />
-              ) : (
-                <Save className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
-              )}
-              Save Entries
+              <CreditCard className="h-3.5 w-3.5 mr-1 text-blue-600" /> Manage Bill Codes
             </Button>
-            <GTR30EmployeeImport monthKey={monthKey} billCode={billCode} employees={employees} />
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => navigate('/gtr30/create')}
+              className="text-xs h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"
+            >
+              <FilePlus className="h-3.5 w-3.5 mr-1" /> Create Pay Bill
+            </Button>
           </div>
         </div>
+      </Card>
+
+      {/* 2. Employee Add / Edit Form */}
+      <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-blue-600" />
+            <h2 className="font-bold text-md text-slate-900">
+              {editingEmployee ? 'Edit Employee Details' : 'Register New Employee'}
+            </h2>
+          </div>
+          {editingEmployee && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditingEmployee(null)}
+              className="text-xs text-slate-500"
+            >
+              Cancel Edit
+            </Button>
+          )}
+        </div>
+
+        <GTR30EmployeeMasterForm
+          monthKey={monthKey}
+          billCode={billCode}
+          editingEmployee={editingEmployee}
+          onSaved={() => setEditingEmployee(null)}
+          onCancel={() => setEditingEmployee(null)}
+        />
+      </Card>
+
+      {/* 3. Registered Employee List with Quick Grid & CSV Export */}
+      <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-600" />
+            <div>
+              <h2 className="font-bold text-md text-slate-900">
+                Registered Employees ({employees.length})
+              </h2>
+              <p className="text-xs text-slate-500">
+                Active employee records under {billCode}.
+              </p>
+            </div>
+          </div>
+          <GTR30EmployeeImport
+            monthKey={monthKey}
+            billCode={billCode}
+            employees={employees}
+          />
+        </div>
+
         <GTR30EmployeeMasterList
           monthKey={monthKey}
           billCode={billCode}
@@ -232,10 +216,8 @@ export function GTR30EmployeeMasterRegistration() {
           onEdit={handleEdit}
         />
       </Card>
-
-      <p className="text-xs text-slate-500">
-        HRA is auto-calculated as Current Pay × HRA% when a bill is created from this master.
-      </p>
     </div>
   );
 }
+
+export default GTR30EmployeeMasterRegistration;

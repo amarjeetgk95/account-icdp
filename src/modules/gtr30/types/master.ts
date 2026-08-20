@@ -1,6 +1,7 @@
 export interface GTR30EmployeeMaster {
   id: string;
   srNo: number;
+  billCode?: string;
   hrpnNo?: string;
   name: string;
   designation: string;

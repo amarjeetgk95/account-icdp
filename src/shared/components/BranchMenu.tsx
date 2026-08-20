@@ -1,3 +1,9 @@
+/**
+ * @deprecated BranchMenu is legacy - Header.tsx now implements the 3-level
+ * cascading flyout directly with better a11y, memoization and mobile support.
+ * Kept for backwards-compatibility only. New code should use the navigation
+ * model from `@/shared/navigation/model` directly.
+ */
 import { useCallback, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { ModuleIcon } from '@/shared/icons';

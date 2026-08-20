@@ -6,6 +6,7 @@ export const gtr30EmployeeMasterSchema = z
   .object({
     id: z.string().optional(),
     srNo: z.coerce.number().int('Sr. No. must be a whole number').min(0, 'Sr. No. cannot be negative').default(0),
+    billCode: z.string().optional(),
     hrpnNo: z
       .string()
       .optional()

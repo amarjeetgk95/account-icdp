@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -9,152 +8,124 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Download, RefreshCw, Search, CheckSquare, Square, Users, UserCheck } from 'lucide-react';
-import { useEmployees } from '@/modules/payroll/hooks/useEmployees';
+import {
+  Download,
+  FileSpreadsheet,
+  Upload,
+  CheckCircle2,
+} from 'lucide-react';
 import { useSaveGTR30EmployeeGroup } from '../hooks/useGTR30EmployeeMaster';
+import {
+  importMasterFromCsv,
+  generateSampleCsvTemplate,
+  downloadCsvFile,
+} from '../utils/gtr30Csv';
 import type { GTR30EmployeeMaster } from '../types';
 
 interface GTR30EmployeeImportProps {
   monthKey: string;
   billCode: string;
-  employees: GTR30EmployeeMaster[];
+  employees?: GTR30EmployeeMaster[];
 }
 
-export function GTR30EmployeeImport({ monthKey, billCode, employees }: GTR30EmployeeImportProps) {
+export function GTR30EmployeeImport({ monthKey, billCode, employees = [] }: GTR30EmployeeImportProps) {
   const { toast } = useToast();
-  const { employees: payrollEmployees } = useEmployees();
   const saveGroupMutation = useSaveGTR30EmployeeGroup();
-  
+
   const [isOpen, setIsOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [csvEmployees, setCsvEmployees] = useState<Partial<GTR30EmployeeMaster>[]>([]);
+  const [csvFileName, setCsvFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter out employees already present in the current master group
-  const importable = useMemo(() => {
-    return payrollEmployees.filter((emp) => {
-      const hrpn = (emp.hprn_no ?? '').trim().toLowerCase();
-      return !employees.some(
-        (e) =>
-          e.name.trim().toLowerCase() === emp.name.trim().toLowerCase() ||
-          (hrpn.length > 0 && (e.hrpnNo ?? '').trim().toLowerCase() === hrpn)
-      );
-    });
-  }, [payrollEmployees, employees]);
-
-  // Open modal and pre-select all importable employees
   const handleOpenDialog = () => {
-    if (importable.length === 0) return;
-    const allKeys = new Set(
-      importable.map((emp) => String(emp.id ?? emp.hprn_no ?? emp.name))
-    );
-    setSelectedIds(allKeys);
-    setSearchTerm('');
+    setCsvEmployees([]);
+    setCsvFileName('');
     setIsOpen(true);
   };
 
-  // Filtered list based on search query
-  const filteredEmployees = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return importable;
-    return importable.filter((emp) => {
-      const nameMatch = emp.name.toLowerCase().includes(term);
-      const hrpnMatch = (emp.hprn_no ?? '').toLowerCase().includes(term);
-      const desigMatch = (emp.designation ?? '').toLowerCase().includes(term);
-      const payScaleMatch = (emp.pay_scale ?? '').toLowerCase().includes(term);
-      return nameMatch || hrpnMatch || desigMatch || payScaleMatch;
-    });
-  }, [importable, searchTerm]);
+  const handleCsvFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  const toggleSelect = (key: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
+    setCsvFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result;
+      if (typeof text === 'string') {
+        const parsed = importMasterFromCsv(text);
+        if (parsed.length === 0) {
+          toast({
+            title: 'No Rows Found',
+            description: 'Could not find valid employee rows in the CSV file.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        setCsvEmployees(parsed);
+        toast({
+          title: 'CSV File Parsed',
+          description: `Found ${parsed.length} employee record(s) ready to import.`,
+        });
       }
-      return next;
-    });
+    };
+    reader.readAsText(file);
   };
 
-  const selectAll = () => {
-    const all = new Set(
-      filteredEmployees.map((emp) => String(emp.id ?? emp.hprn_no ?? emp.name))
-    );
-    setSelectedIds((prev) => new Set([...prev, ...all]));
-  };
-
-  const deselectAll = () => {
-    const currentKeys = new Set(
-      filteredEmployees.map((emp) => String(emp.id ?? emp.hprn_no ?? emp.name))
-    );
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      for (const k of currentKeys) {
-        next.delete(k);
-      }
-      return next;
-    });
-  };
-
-  const importSelectedEmployees = async () => {
-    const selectedList = importable.filter((emp) =>
-      selectedIds.has(String(emp.id ?? emp.hprn_no ?? emp.name))
-    );
-
-    if (selectedList.length === 0 || isImporting) return;
+  const handleImportFromCsv = async () => {
+    if (csvEmployees.length === 0 || isImporting) return;
 
     try {
       setIsImporting(true);
       const startSrNo = Math.max(0, ...employees.map((e) => e.srNo));
-      const rows: GTR30EmployeeMaster[] = selectedList.map((emp, i) => ({
-        id: '',
-        srNo: startSrNo + i + 1,
-        hrpnNo: emp.hprn_no || undefined,
-        name: emp.name,
+      const fullRows: GTR30EmployeeMaster[] = csvEmployees.map((emp, i) => ({
+        id: emp.id || crypto.randomUUID(),
+        srNo: emp.srNo || startSrNo + i + 1,
+        hrpnNo: emp.hrpnNo,
+        name: emp.name || 'Unnamed',
         designation: emp.designation || '',
-        designationGujarati: '',
-        cadreClass: '૩',
-        payScale: emp.pay_scale || '34,500-1,12,400',
-        gradePay: 'GP:4200',
-        payLevelCell: 'PAY=39900 (LEVEL CELL-7)',
-        ppaNo: 'Applied',
-        currentPay: 0,
-        currentPayDate: '',
-        quarterAddress: 'H-7, Government Quarters, Khatodara, Nr. Sub Jail, Surat',
-        insuranceGroup: 'ખ',
-        insuranceType: 'savings_and_insurance',
-        hraPercent: 0,
-        da: 0,
-        transportAllowance: 3600,
-        medicalAllowance: 1000,
-        claAllowance: 270,
-        rentOfBuilding: 300,
-        professionalTax: 200,
-        gis1981Insurance: 240,
-        gis1981Savings: 560,
-        npsPension: 6105,
-        societyDeduction: 4154,
-        remarks: '',
+        designationGujarati: emp.designationGujarati || '',
+        cadreClass: emp.cadreClass || '૩',
+        payScale: emp.payScale || '34,500-1,12,400',
+        gradePay: emp.gradePay || 'GP:4200',
+        payLevelCell: emp.payLevelCell || '',
+        ppaNo: emp.ppaNo || 'Applied',
+        currentPay: emp.currentPay || 0,
+        currentPayDate: emp.currentPayDate || '',
+        quarterAddress: emp.quarterAddress || '',
+        insuranceGroup: emp.insuranceGroup || 'ખ',
+        insuranceType: emp.insuranceType || 'savings_and_insurance',
+        hraPercent: emp.hraPercent || 0,
+        da: emp.da || 0,
+        transportAllowance: emp.transportAllowance || 0,
+        medicalAllowance: emp.medicalAllowance || 0,
+        claAllowance: emp.claAllowance || 0,
+        rentOfBuilding: emp.rentOfBuilding || 0,
+        professionalTax: emp.professionalTax || 0,
+        gis1981Insurance: emp.gis1981Insurance || 0,
+        gis1981Savings: emp.gis1981Savings || 0,
+        npsPension: emp.npsPension || 0,
+        societyDeduction: emp.societyDeduction || 0,
+        remarks: emp.remarks || '',
+        billCode: emp.billCode || billCode,
       }));
 
       await saveGroupMutation.mutateAsync({
         monthKey,
         billCode,
-        employees: [...employees, ...rows],
+        employees: [...employees, ...fullRows],
       });
 
       toast({
-        title: 'Import Complete',
-        description: `${rows.length} employee(s) imported from the payroll directory for ${monthKey} / ${billCode}.`,
+        title: 'CSV Import Complete',
+        description: `Imported ${fullRows.length} employee(s) into ${monthKey} / ${billCode}.`,
       });
 
       setIsOpen(false);
     } catch (error) {
       toast({
-        title: 'Import Failed',
-        description: error instanceof Error ? error.message : 'Could not import employees.',
+        title: 'CSV Import Failed',
+        description: error instanceof Error ? error.message : 'Could not import CSV records.',
         variant: 'destructive',
       });
     } finally {
@@ -162,192 +133,124 @@ export function GTR30EmployeeImport({ monthKey, billCode, employees }: GTR30Empl
     }
   };
 
-  const selectedCount = useMemo(() => {
-    return importable.filter((emp) =>
-      selectedIds.has(String(emp.id ?? emp.hprn_no ?? emp.name))
-    ).length;
-  }, [importable, selectedIds]);
+  const handleDownloadTemplate = () => {
+    const template = generateSampleCsvTemplate();
+    downloadCsvFile('GTR30_Employee_Master_Template.csv', template);
+    toast({ title: 'Template Downloaded', description: 'Fill and upload this CSV template.' });
+  };
 
   return (
     <>
       <Button
         size="sm"
         variant="outline"
-        disabled={importable.length === 0 || isImporting}
         onClick={handleOpenDialog}
-        title={
-          importable.length === 0
-            ? 'All payroll directory employees are already in this master group'
-            : 'Select and import employees from the payroll employee directory'
-        }
+        title="Import employees via CSV file"
+        className="h-8 text-xs font-medium"
       >
-        {isImporting ? (
-          <RefreshCw className="h-4 w-4 mr-1.5 animate-spin text-blue-600" />
-        ) : (
-          <Download className="h-4 w-4 mr-1.5 text-blue-600" />
-        )}
-        Import from Employee Directory
-        {importable.length > 0 && (
-          <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 text-[11px] font-semibold">
-            {importable.length}
-          </span>
-        )}
+        <Download className="h-4 w-4 mr-1.5 text-blue-600" />
+        Import CSV
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-6 gap-4">
+        <DialogContent className="max-w-xl flex flex-col p-6 gap-4">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                <Users size={18} />
+                <FileSpreadsheet size={18} />
               </div>
               <div>
                 <DialogTitle className="text-base font-semibold text-slate-900">
-                  Select Employees to Import
+                  Import GTR-30 Employee Master CSV
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 mt-0.5">
-                  Choose specific employees to import into <strong>{monthKey}</strong> / <strong>{billCode}</strong>.
+                  Bulk import salary master records for <strong>{monthKey}</strong> / <strong>{billCode}</strong>.
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          {/* Search Bar & Bulk Actions */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Search by name, designation, or HRPN..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-9 text-xs"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 text-xs px-2.5"
-                onClick={selectAll}
-              >
-                <CheckSquare className="h-3.5 w-3.5 mr-1 text-slate-600" />
-                Select All
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 text-xs px-2.5 text-slate-500 hover:text-slate-900"
-                onClick={deselectAll}
-              >
-                <Square className="h-3.5 w-3.5 mr-1" />
-                Deselect All
-              </Button>
-            </div>
-          </div>
-
-          {/* Employee Selection List */}
-          <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg min-h-[220px] max-h-[360px] divide-y divide-slate-100 bg-white">
-            {filteredEmployees.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-xs">
-                {searchTerm
-                  ? `No employees matching "${searchTerm}" found in directory.`
-                  : 'No importable employees available.'}
+          {/* CSV File Upload Section */}
+          <div className="space-y-4 pt-1">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800">CSV Template Format</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Download the official GTR-30 employee master spreadsheet template.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDownloadTemplate}
+                  className="h-8 text-xs font-semibold text-blue-700 border-blue-200 hover:bg-blue-50"
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" /> Template (.csv)
+                </Button>
               </div>
-            ) : (
-              filteredEmployees.map((emp) => {
-                const key = String(emp.id ?? emp.hprn_no ?? emp.name);
-                const isChecked = selectedIds.has(key);
-                return (
-                  <div
-                    key={key}
-                    onClick={() => toggleSelect(key)}
-                    className={`flex items-center justify-between p-3 cursor-pointer transition-colors text-xs select-none hover:bg-slate-50 ${
-                      isChecked ? 'bg-blue-50/70' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleSelect(key);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 truncate flex items-center gap-2">
-                          <span>{emp.name}</span>
-                          {emp.hprn_no && (
-                            <span className="text-[10px] px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded font-mono">
-                              HRPN: {emp.hprn_no}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                          {emp.designation || 'No designation'}
-                          {emp.pay_scale ? ` • Pay Scale: ${emp.pay_scale}` : ''}
-                        </div>
-                      </div>
-                    </div>
+            </div>
 
-                    <div className="flex items-center pl-2">
-                      {isChecked ? (
-                        <span className="text-[10px] font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <UserCheck className="h-3 w-3" /> Selected
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400">Click to select</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+            {/* Drop / Choose File */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-xl p-6 text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-blue-50/30"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleCsvFileUpload}
+                className="hidden"
+              />
+              <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+              <p className="text-xs font-semibold text-slate-700">
+                {csvFileName ? `Selected: ${csvFileName}` : 'Click or drag a .csv file to upload'}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Standard GTR-30 CSV containing employee details, basic pay, and allowances
+              </p>
+            </div>
+
+            {csvEmployees.length > 0 && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-xs text-emerald-800">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span className="font-semibold">
+                    Ready to import {csvEmployees.length} employee record(s)
+                  </span>
+                </div>
+                <span className="text-[11px] text-emerald-600 font-mono">{csvFileName}</span>
+              </div>
             )}
           </div>
 
-          {/* Footer with selection summary and action buttons */}
+          {/* Dialog Actions */}
           <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-            <div className="text-xs text-slate-600">
-              <strong className="text-slate-900">{selectedCount}</strong> of{' '}
-              {importable.length} employee{importable.length === 1 ? '' : 's'} selected
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsOpen(false)}
-                disabled={isImporting}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => void importSelectedEmployees()}
-                disabled={selectedCount === 0 || isImporting}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
-              >
-                {isImporting ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                    Importing...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-1.5" />
-                    Import Selected ({selectedCount})
-                  </>
-                )}
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsOpen(false)}
+              className="text-xs text-slate-600"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={csvEmployees.length === 0 || isImporting}
+              onClick={handleImportFromCsv}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold h-9 px-4"
+            >
+              {isImporting ? 'Importing...' : `Import ${csvEmployees.length} Employees`}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
     </>
   );
 }
+
+export default GTR30EmployeeImport;

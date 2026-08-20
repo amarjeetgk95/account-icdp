@@ -7,13 +7,18 @@ import {
   AlertCircle,
   Users,
   Banknote,
-  Receipt,
-  ClipboardList,
+  ShieldCheck,
+  Clock,
+  Landmark,
+  ListTodo,
 } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
-import { FYRoadmap } from '../components/FYRoadmap';
+import { QuickLaunchDock } from '../components/QuickLaunchDock';
+import { SalaryMatrixQuadrant } from '../components/SalaryMatrixQuadrant';
+import { TreasuryBillsQuadrant } from '../components/TreasuryBillsQuadrant';
+import { VendorTdsQuadrant } from '../components/VendorTdsQuadrant';
+import { ComplianceToolsQuadrant } from '../components/ComplianceToolsQuadrant';
 import { TaskList } from '../components/TaskList';
-import { FVUReadinessWidget } from '../components/FVUReadinessWidget';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { Skeleton, SkeletonCard, SkeletonTable } from '@/shared/components/Skeleton';
 import { EmptyState } from '@/shared/components/EmptyState';
@@ -26,41 +31,19 @@ export function DashboardPage() {
   const fyMonth = ((new Date().getMonth() + 9) % 12) + 1;
   const fyProgress = Math.round((fyMonth / 12) * 100);
 
-  const attentionChips: { label: string; tone: 'amber' | 'rose' | 'indigo'; to: string }[] = [];
-  if ((data?.prevQuarterPending ?? 0) > 0) {
-    attentionChips.push({
-      label: `${data?.prevQuarterPending} prev-quarter entries pending`,
-      tone: 'amber',
-      to: '/payroll',
-    });
-  }
-  if ((data?.zeroTaxEntries?.length ?? 0) > 0) {
-    attentionChips.push({
-      label: `${data?.zeroTaxEntries.length} zero-TDS entries`,
-      tone: 'rose',
-      to: '/payroll?tab=employees',
-    });
-  }
-  if ((data?.missingPANs?.length ?? 0) > 0) {
-    attentionChips.push({
-      label: `${data?.missingPANs.length} missing PAN`,
-      tone: 'rose',
-      to: '/payroll?tab=employees',
-    });
-  }
-
   if (isLoading) {
     return (
-      <div className="h-full overflow-hidden flex flex-col p-4 space-y-3">
+      <div className="h-full overflow-hidden flex flex-col p-4 space-y-4 max-w-7xl mx-auto w-full">
         <Skeleton className="h-12 rounded-xl" />
+        <Skeleton className="h-24 rounded-2xl" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[...Array(4)].map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 flex-1 min-h-0">
-          <SkeletonTable rows={5} cols={4} />
-          <SkeletonTable rows={5} cols={4} />
+          <SkeletonTable rows={5} cols={3} />
+          <SkeletonTable rows={5} cols={3} />
         </div>
       </div>
     );
@@ -86,80 +69,138 @@ export function DashboardPage() {
 
   if (!data) return null;
 
+  // Cross-module total disbursements (Salary + GTR-30 + GTR-44)
+  const totalDisbursements =
+    (data.ytdSalary ?? 0) +
+    (data.treasury?.gtr30GrossTotal ?? 0) +
+    (data.treasury?.gtr44GrossTotal ?? 0);
+
+  const totalTreasuryBills =
+    (data.treasury?.gtr30Count ?? 0) + (data.treasury?.gtr44Count ?? 0);
+  const pendingTreasuryBills =
+    (data.treasury?.gtr30PendingCount ?? 0) + (data.treasury?.gtr44DraftCount ?? 0);
+
+  // Attention Chips
+  const attentionChips: { label: string; tone: 'amber' | 'rose' | 'indigo'; to: string }[] = [];
+  if ((data.prevQuarterPending ?? 0) > 0) {
+    attentionChips.push({
+      label: `${data.prevQuarterPending} prev-quarter entries pending`,
+      tone: 'amber',
+      to: '/payroll',
+    });
+  }
+  if ((data.missingPANs?.length ?? 0) > 0) {
+    attentionChips.push({
+      label: `${data.missingPANs.length} employees missing PAN`,
+      tone: 'rose',
+      to: '/payroll?tab=employees',
+    });
+  }
+  if ((data.zeroTaxEntries?.length ?? 0) > 0) {
+    attentionChips.push({
+      label: `${data.zeroTaxEntries.length} zero-TDS entries`,
+      tone: 'amber',
+      to: '/reports',
+    });
+  }
+  if (pendingTreasuryBills > 0) {
+    attentionChips.push({
+      label: `${pendingTreasuryBills} treasury bills draft/pending`,
+      tone: 'indigo',
+      to: '/gtr30/list',
+    });
+  }
+
   return (
-    <div className="relative h-full overflow-hidden flex flex-col max-w-6xl mx-auto w-full">
-
-
-<div className="px-4 pt-3 shrink-0">
+    <div className="relative h-full overflow-hidden flex flex-col max-w-7xl mx-auto w-full">
+      {/* Workspace Header */}
+      <div className="px-4 pt-3 shrink-0">
         <WorkspaceHeader
-          eyebrow="Operations overview"
+          eyebrow="Integrated Operations Command Center"
           title={officeName || 'Account Branch'}
           context={
-            <span
-              className="inline-flex items-center gap-1.5"
-              title={`Month ${fyMonth} of the financial year (Apr–Mar)`}
-            >
-              <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
-                <span className="block h-full rounded-full bg-slate-700" style={{ width: `${fyProgress}%` }} />
+            <div className="flex flex-wrap items-center gap-3">
+              <span
+                className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"
+                title={`Month ${fyMonth} of the financial year (Apr–Mar)`}
+              >
+                <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                  <span
+                    className="block h-full rounded-full bg-indigo-600 dark:bg-indigo-400"
+                    style={{ width: `${fyProgress}%` }}
+                  />
+                </span>
+                Month {fyMonth}/12 (FY {data.fy}-{(data.fy + 1).toString().slice(-2)})
               </span>
-              Month {fyMonth}/12
-            </span>
+
+              {data.statutoryDeadlines && (
+                <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  <Clock size={11} className="text-indigo-500" />
+                  {data.statutoryDeadlines.nextQuarterName} due {data.statutoryDeadlines.nextQuarterFilingDate}
+                </span>
+              )}
+            </div>
           }
           actions={
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
-            title={data.lastUpdated ? `Last updated ${data.lastUpdated}` : 'Refresh dashboard'}
-          >
-            <RefreshCw size={14} />
-          </button>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+              title={data.lastUpdated ? `Last updated ${data.lastUpdated}` : 'Refresh dashboard'}
+            >
+              <RefreshCw size={14} />
+            </button>
           }
         />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-h-0 px-4 py-4 overflow-y-auto space-y-3">
+      {/* Main Scrollable Content */}
+      <div className="flex-1 min-h-0 px-4 py-4 overflow-y-auto space-y-4">
+        {/* 1. Quick Launchpad */}
+        <QuickLaunchDock />
 
-        {/* KPI Row */}
+        {/* 2. Unified 4-KPI Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in">
+          <StatCard
+            icon={Banknote}
+            tone="emerald"
+            label="Total Disbursements"
+            value={formatCurrency(totalDisbursements)}
+            sub="Salaries + GTR Bills (YTD)"
+            onClick={() => navigate('/payroll')}
+          />
           <StatCard
             icon={Users}
             tone="indigo"
             label="Active Staff"
             value={String(data.activeEmployees ?? 0)}
-            sub={(data.pendingEmployees ?? 0) > 0 ? `${data.pendingEmployees} pending` : 'All updated'}
+            sub={(data.pendingEmployees ?? 0) > 0 ? `${data.pendingEmployees} pending entry` : 'All updated'}
             onClick={() => navigate('/payroll?tab=employees')}
           />
           <StatCard
-            icon={Banknote}
-            tone="emerald"
-            label="Salary (YTD)"
-            value={formatCurrency(data.ytdSalary ?? 0)}
-            sub="Gross + DA"
-            onClick={() => navigate('/payroll')}
-          />
-          <StatCard
-            icon={Receipt}
-            tone="amber"
-            label="TDS (YTD)"
-            value={formatCurrency(data.ytdTax ?? 0)}
-            sub="24Q deductions"
-            onClick={() => navigate('/reports')}
-          />
-          <StatCard
-            icon={ClipboardList}
+            icon={Landmark}
             tone="sky"
-            label="Pending Tasks"
-            value={data.tasks?.length ?? 0}
-            sub={data.pendingEmployees ? `${data.pendingEmployees} to review` : 'Action items'}
-            onClick={() => navigate('/payroll?tab=employees')}
+            label="Treasury Registers"
+            value={`${totalTreasuryBills} Bills`}
+            sub={pendingTreasuryBills > 0 ? `${pendingTreasuryBills} pending/draft` : 'GTR-30 & GTR-44'}
+            onClick={() => navigate('/gtr30/list')}
+          />
+          <StatCard
+            icon={ShieldCheck}
+            tone="amber"
+            label="NSDL FVU Readiness"
+            value={`${data.quarterReadiness?.[(data.currentQuarter as keyof typeof data.quarterReadiness) || 'Q1']?.pct ?? 80}%`}
+            sub={`${data.currentQuarter ?? 'Q1'} Pre-Audit Score`}
+            onClick={() => navigate('/reports')}
           />
         </div>
 
-        {/* Needs-attention chips */}
+        {/* 3. Attention Chips */}
         {attentionChips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 animate-fade-in animate-fade-in-delay-1">
+          <div className="flex flex-wrap items-center gap-2 animate-fade-in">
+            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-1">
+              Alerts:
+            </span>
             {attentionChips.map((chip) => (
               <button
                 key={chip.label}
@@ -180,52 +221,51 @@ export function DashboardPage() {
           </div>
         )}
 
-        {/* Roadmap */}
-        <div className="animate-fade-in animate-fade-in-delay-1">
-          <FYRoadmap data={data.monthlyRoadmap ?? []} />
+        {/* 4. Four Operational Quadrants */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch animate-fade-in animate-fade-in-delay-1">
+          {/* Quadrant 1: Salary TDS & 12-Month IT Matrix */}
+          <SalaryMatrixQuadrant
+            roadmap={data.monthlyRoadmap ?? []}
+            currentMonthName={data.entryMonthName}
+            activeEmployees={data.activeEmployees ?? 0}
+            pendingEmployees={data.pendingEmployees ?? 0}
+          />
+
+          {/* Quadrant 2: Treasury & Bill Registers */}
+          <TreasuryBillsQuadrant
+            treasury={data.treasury}
+            fy={data.fy}
+          />
+
+          {/* Quadrant 3: Vendor TDS (26Q) & GST */}
+          <VendorTdsQuadrant
+            vendorTds={data.vendorTds}
+            fy={data.fy}
+          />
+
+          {/* Quadrant 4: Compliance Audit & Utilities */}
+          <ComplianceToolsQuadrant
+            data={data}
+          />
         </div>
 
-        {/* Action Banner */}
-        {(data.pendingEmployees ?? 0) > 0 && (
-          <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-2 border-l-indigo-500 bg-white dark:bg-slate-900 shadow-sm animate-fade-in animate-fade-in-delay-1">
-            <div>
-              <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                {data.pendingEmployees} records need attention
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Update PAN formats and tax regime before Q{data.currentQuarter?.replace('Q', '')} filing.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate('/payroll?tab=employees')}
-              className="btn btn-primary btn-sm"
-            >
-              Review →
-            </button>
-          </div>
-        )}
-
-        {/* Two-Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start animate-fade-in animate-fade-in-delay-2">
-          <FVUReadinessWidget data={data} />
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm p-5 flex flex-col min-h-[360px]">
-            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+        {/* 5. Unified Bottom Feed: Cross-Module Tasks & Action Queue */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm p-5 animate-fade-in animate-fade-in-delay-2">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <ListTodo size={16} className="text-indigo-600 dark:text-indigo-400" />
               <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                Tasks
+                Action Queue & Open Tasks
               </h3>
-              <span className="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
-                {data.tasks?.length ?? 0}
-              </span>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              <TaskList tasks={data.tasks ?? []} />
-            </div>
+            <span className="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-2 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
+              {data.tasks?.length ?? 0} Items
+            </span>
           </div>
+
+          <TaskList tasks={data.tasks ?? []} />
         </div>
       </div>
-
     </div>
   );
 }

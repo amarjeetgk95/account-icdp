@@ -24,14 +24,16 @@ describe('gtr30 module contract', () => {
     expect(paths).toContain('/gtr30/edit/:id');
     expect(paths).toContain('/gtr30/view/:id');
     expect(paths).toContain('/gtr30/settings');
-    expect(paths).toContain('/gtr30/employee-master');
+    expect(paths).toContain('/gtr30/employee-management');
+    expect(paths).toContain('/gtr30/employee-management/new');
+    expect(paths).toContain('/gtr30/employee-management/edit/:employeeId');
   });
 
   it('declares every route as a sidebar child', () => {
     const childPaths = (moduleDefinition.children ?? []).map((c) => c.path);
     expect(childPaths).toContain('/gtr30/create');
     expect(childPaths).toContain('/gtr30/list');
-    expect(childPaths).toContain('/gtr30/employee-master');
+    expect(childPaths).toContain('/gtr30/employee-management');
     expect(childPaths).toContain('/gtr30/settings');
   });
 

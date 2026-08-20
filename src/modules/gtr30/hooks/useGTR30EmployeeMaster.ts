@@ -109,6 +109,84 @@ export function useRemoveGTR30Employee() {
   });
 }
 
+export function useRemoveGTR30EmployeeAcrossGroups() {
+  const queryClient = useQueryClient();
+  const officeId = useActiveOfficeId();
+
+  return useMutation({
+    mutationFn: (input: { billCode: string; employeeId: string; hrpnNo?: string }) =>
+      Promise.resolve(
+        gtr30EmployeeMasterService.removeEmployeeAcrossGroups(
+          input.employeeId,
+          input.hrpnNo,
+          input.billCode
+        )
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
+      void invalidateGtr30Queries(queryClient);
+    },
+  });
+}
+
+export function useRemoveGTR30EmployeeBatch() {
+  const queryClient = useQueryClient();
+  const officeId = useActiveOfficeId();
+
+  return useMutation({
+    mutationFn: (input: {
+      monthKey: string;
+      items: Array<{ billCode: string; employeeId: string; hrpnNo?: string }>;
+    }) => {
+      let removedCount = 0;
+      for (const item of input.items) {
+        const result = gtr30EmployeeMasterService.removeEmployeeAcrossGroups(
+          item.employeeId,
+          item.hrpnNo,
+          item.billCode
+        );
+        removedCount += result.removedCount;
+      }
+      return Promise.resolve({ removedCount });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
+      void invalidateGtr30Queries(queryClient);
+    },
+  });
+}
+
+export interface CopyEmployeeGroupInput {
+  sourceMonthKey: string;
+  sourceBillCode: string;
+  targetMonthKey: string;
+  targetBillCode: string;
+  options?: { overwrite?: boolean; daPercent?: number };
+}
+
+export function useCopyGTR30EmployeeGroup() {
+  const queryClient = useQueryClient();
+  const officeId = useActiveOfficeId();
+
+  return useMutation({
+    mutationFn: (input: CopyEmployeeGroupInput) =>
+      Promise.resolve(gtr30EmployeeMasterService.copyGroup(
+        input.sourceMonthKey,
+        input.sourceBillCode,
+        input.targetMonthKey,
+        input.targetBillCode,
+        input.options
+      )),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
+      queryClient.invalidateQueries({
+        queryKey: gtr30EmployeeMasterGroupKey(officeId, variables.targetMonthKey, variables.targetBillCode),
+      });
+      void invalidateGtr30Queries(queryClient);
+    },
+  });
+}
+
 export function useHydrateGTR30EmployeeMaster() {
   const queryClient = useQueryClient();
   const officeId = useActiveOfficeId();
@@ -122,3 +200,4 @@ export function useHydrateGTR30EmployeeMaster() {
 }
 
 export { gtr30GroupKey };
+

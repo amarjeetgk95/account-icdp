@@ -2,8 +2,8 @@ import { getDocumentProxy } from 'unpdf';
 import { nativePdfEngine } from './ocr/nativePdf.service';
 import { ocrRegistryService } from './ocr/ocrRegistry.service';
 import { imagePreprocessingService } from './imagePreprocessing.service';
-import { spatialGridService } from './spatialGrid.service';
 import { layoutReconstructionService } from './layoutReconstruction.service';
+import { documentBoundaryService } from './documentBoundary.service';
 import type {
   ExtractedElement,
   ExtractionOptions,
@@ -179,18 +179,23 @@ export class HybridPdfExtractorService {
         currentMessage: `Building 2D spreadsheet layout (Page ${pageNum})...`,
       });
 
-      const { tables, paragraphs } = spatialGridService.reconstructSpatialDocument(
+      const layoutResult = layoutReconstructionService.reconstructPageLayout(
         extractedElements,
         pageNum,
         viewport.width,
         viewport.height,
         {
-          minColumns: options.tableOptions?.minColumns,
+          minColumnsForTable: options.tableOptions?.minColumns,
           yTolerancePx: options.tableOptions?.lineThresholdPx,
           columnGapThresholdPx: options.tableOptions?.columnGapThresholdPx,
           enableMergedHeaderDetection: options.tableOptions?.detectMergedHeaders,
         }
       );
+
+      const tables = layoutResult.tables;
+      const paragraphs = layoutResult.paragraphs;
+      const blocks = layoutResult.blocks;
+      const pageText = layoutResult.rawText || pageRawText;
 
       pages.push({
         pageNumber: pageNum,
@@ -201,13 +206,18 @@ export class HybridPdfExtractorService {
         elements: extractedElements,
         tables,
         paragraphs,
-        rawText: pageRawText,
+        blocks,
+        rawText: pageText,
         confidence: pageConfidence,
         renderingDurationMs: 0,
         ocrDurationMs,
         canvasElement: pageCanvas,
       });
     }
+
+    // Detect document section boundaries and assign provenance
+    const sections = documentBoundaryService.detectSections(pages, fileName);
+    const primarySection = sections[0];
 
     const consolidatedTables: SpatialTable[] = pages.flatMap((p) => p.tables);
     const allText = pages.map((p) => p.rawText).join('\n\n--- Page Break ---\n\n');
@@ -231,6 +241,7 @@ export class HybridPdfExtractorService {
       fileSizeBytes,
       pageCount: totalPages,
       pages,
+      sections,
       consolidatedTables,
       allText,
       overallConfidence,
@@ -239,6 +250,8 @@ export class HybridPdfExtractorService {
       isNativeText: isOverallNative,
       metadata: {
         title: fileName.replace(/\.[^/.]+$/, ''),
+        bidNumber: primarySection?.bidNumber,
+        orderDate: primarySection?.date,
       },
     };
   }
@@ -327,18 +340,23 @@ export class HybridPdfExtractorService {
       currentMessage: 'Reconstructing spreadsheet layout...',
     });
 
-    const { tables, paragraphs } = spatialGridService.reconstructSpatialDocument(
+    const layoutResult = layoutReconstructionService.reconstructPageLayout(
       ocrResult.elements,
       1,
       canvas.width,
       canvas.height,
       {
-        minColumns: options.tableOptions?.minColumns,
+        minColumnsForTable: options.tableOptions?.minColumns,
         yTolerancePx: options.tableOptions?.lineThresholdPx,
         columnGapThresholdPx: options.tableOptions?.columnGapThresholdPx,
         enableMergedHeaderDetection: options.tableOptions?.detectMergedHeaders,
       }
     );
+
+    const tables = layoutResult.tables;
+    const paragraphs = layoutResult.paragraphs;
+    const blocks = layoutResult.blocks;
+    const pageText = layoutResult.rawText || ocrResult.rawText;
 
     const durationMs = Math.round(performance.now() - startTime);
 
@@ -359,18 +377,22 @@ export class HybridPdfExtractorService {
       elements: ocrResult.elements,
       tables,
       paragraphs,
-      rawText: ocrResult.rawText,
+      blocks,
+      rawText: pageText,
       confidence: ocrResult.confidence,
       renderingDurationMs: 0,
       ocrDurationMs,
       canvasElement: canvas,
     };
 
+    const sections = documentBoundaryService.detectSections([page], fileName);
+
     return {
       fileName,
       fileSizeBytes,
       pageCount: 1,
       pages: [page],
+      sections,
       consolidatedTables: tables,
       allText: ocrResult.rawText,
       overallConfidence: ocrResult.confidence,

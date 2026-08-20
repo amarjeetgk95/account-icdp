@@ -3,7 +3,18 @@ import { useUIStore } from '@/core/stores/ui-store';
 import { getOfficeScope } from '@/shared/utilities/office';
 import { MONTHS, QUARTER_MONTHS, type Quarter } from '@/shared/constants';
 import { isActiveInEntryMonth } from '@/modules/payroll/utils/employeeDates';
-import type { DashboardData, MonthlyRoadmapData, Task } from '../types';
+import { gtr30BillRegisterRepository } from '@/modules/gtr30/repositories/billRegister.repository';
+import { gtr44Repository } from '@/modules/gtr44/repositories/gtr44.repository';
+import { paybillRepository } from '@/modules/paybill/repositories/paybill.repository';
+import type {
+  DashboardData,
+  MonthlyRoadmapData,
+  Task,
+  TreasurySummary,
+  VendorTdsSummary,
+  PaybillSummary,
+  StatutoryDeadlineInfo,
+} from '../types';
 
 interface EmployeeRow {
   id: string;
@@ -27,6 +38,21 @@ interface SalaryMap {
   };
 }
 
+interface PartyRow {
+  id: string;
+  name: string;
+  gst_no: string | null;
+  pan_no: string | null;
+}
+
+interface PartyTxRow {
+  id: string;
+  amount: number;
+  income_tax: number;
+  total_gst: number;
+  transaction_date: string;
+}
+
 const PREV_QUARTER: Record<Quarter, Quarter> = { Q1: 'Q4', Q2: 'Q1', Q3: 'Q2', Q4: 'Q3' };
 
 function buildSalaryMap(salaries: SalaryItem[]): SalaryMap {
@@ -48,11 +74,6 @@ function getFinancialYear(): number {
   return useUIStore.getState().activeFinancialYear;
 }
 
-// Salary (work) months processed in a financial year run from March to
-// February: the "April" payroll slot holds March's salary ("March paid in
-// April"), the "May" slot holds April's salary, ... and the "March" slot
-// holds February's salary. So the work-month sequence is MONTHS rotated so
-// March comes first.
 function getWorkMonths(): string[] {
   return [MONTHS[MONTHS.length - 1], ...MONTHS.slice(0, MONTHS.length - 1)];
 }
@@ -62,8 +83,6 @@ const CALENDAR_MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-// The current calendar month processes the PREVIOUS month's salary, so the
-// current work month is the month before today (e.g. in August it is July).
 function getCurrentWorkMonthName(): string {
   const prevCalIdx = (new Date().getMonth() - 1 + 12) % 12;
   return CALENDAR_MONTHS[prevCalIdx];
@@ -77,18 +96,64 @@ function getCurrentQuarter(): Quarter {
   return 'Q4';
 }
 
+function calculateStatutoryDeadlines(fy: number, currentQuarter: Quarter): StatutoryDeadlineInfo {
+  const now = new Date();
+  
+  // Next TDS Deposit: 7th of next month (or 30th April for March)
+  const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 7);
+  const nextTdsDepositDate = nextMonthDate.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  // Quarterly deadlines
+  const deadlineDates: Record<Quarter, { month: number; day: number; yearOffset: number }> = {
+    Q1: { month: 6, day: 31, yearOffset: 0 }, // July 31
+    Q2: { month: 9, day: 31, yearOffset: 0 }, // October 31
+    Q3: { month: 0, day: 31, yearOffset: 1 }, // January 31 of next year
+    Q4: { month: 4, day: 31, yearOffset: 1 }, // May 31 of next year
+  };
+
+  const deadlineConfig = deadlineDates[currentQuarter];
+  const targetYear = fy + deadlineConfig.yearOffset;
+  const filingDeadlineDate = new Date(targetYear, deadlineConfig.month, deadlineConfig.day);
+
+  const diffTime = filingDeadlineDate.getTime() - now.getTime();
+  const daysUntilFiling = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  let currentQuarterStatus: StatutoryDeadlineInfo['currentQuarterStatus'] = 'on-track';
+  if (daysUntilFiling < 0) currentQuarterStatus = 'overdue';
+  else if (daysUntilFiling <= 14) currentQuarterStatus = 'due-soon';
+  else if (daysUntilFiling <= 30) currentQuarterStatus = 'approaching';
+
+  const nextQuarterFilingDate = filingDeadlineDate.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  return {
+    nextTdsDepositDate,
+    nextQuarterFilingDate,
+    nextQuarterName: `Form 24Q/26Q (${currentQuarter})`,
+    daysUntilFiling,
+    currentQuarterStatus,
+  };
+}
+
 export const dashboardRepository = {
   async getSummary(): Promise<DashboardData> {
     const scope = getOfficeScope();
     if (!scope.all && !scope.officeId) throw new Error('No office selected');
     const fy = getFinancialYear();
 
+    // 1. Fetch Primary Payroll Data (Core Requirement)
     let qEmployees = supabase
       .from('employees')
       .select('id, name, pan, join_date, transfer_date');
     if (!scope.all) qEmployees = qEmployees.eq('office_id', scope.officeId!);
     const { data: employees, error: empError } = await qEmployees.order('id');
-
     if (empError) throw empError;
 
     let qSalaries = supabase
@@ -97,9 +162,95 @@ export const dashboardRepository = {
       .eq('financial_year', fy);
     if (!scope.all) qSalaries = qSalaries.eq('office_id', scope.officeId!);
     const { data: salaries, error: salError } = await qSalaries;
-
     if (salError) throw salError;
 
+    // 2. Fetch Cross-Module Data in parallel with graceful fallbacks
+    const [gtr30Result, gtr44Result, partiesResult, partyTxResult, paybillImportsResult] =
+      await Promise.allSettled([
+        gtr30BillRegisterRepository.list(),
+        gtr44Repository.getBills(),
+        (async () => {
+          let q = supabase.from('parties').select('id, name, gst_no, pan_no');
+          if (!scope.all) q = q.eq('office_id', scope.officeId!);
+          const { data } = await q;
+          return (data || []) as PartyRow[];
+        })(),
+        (async () => {
+          let q = supabase
+            .from('party_transactions')
+            .select('id, amount, income_tax, total_gst, transaction_date')
+            .gte('transaction_date', `${fy}-04-01`);
+          if (!scope.all) q = q.eq('office_id', scope.officeId!);
+          const { data } = await q;
+          return (data || []) as PartyTxRow[];
+        })(),
+        paybillRepository.listImports(fy),
+      ]);
+
+    // Parse Treasury summaries
+    let treasury: TreasurySummary = {
+      gtr30Count: 0,
+      gtr30GrossTotal: 0,
+      gtr30NetTotal: 0,
+      gtr30PendingCount: 0,
+      gtr44Count: 0,
+      gtr44GrossTotal: 0,
+      gtr44DraftCount: 0,
+    };
+
+    if (gtr30Result.status === 'fulfilled' && Array.isArray(gtr30Result.value)) {
+      const bills = gtr30Result.value;
+      treasury.gtr30Count = bills.length;
+      treasury.gtr30GrossTotal = money(bills.reduce((sum, b) => sum + (Number(b.grossTotal) || 0), 0));
+      treasury.gtr30NetTotal = money(bills.reduce((sum, b) => sum + (Number(b.netTotal) || 0), 0));
+      treasury.gtr30PendingCount = bills.filter((b) => b.status !== 'passed').length;
+    }
+
+    if (gtr44Result.status === 'fulfilled' && Array.isArray(gtr44Result.value)) {
+      const gtr44Bills = gtr44Result.value;
+      treasury.gtr44Count = gtr44Bills.length;
+      treasury.gtr44GrossTotal = money(gtr44Bills.reduce((sum, b) => sum + (Number(b.grossAmount) || 0), 0));
+      treasury.gtr44DraftCount = gtr44Bills.filter((b) => b.status === 'draft').length;
+    }
+
+    // Parse Vendor TDS summaries
+    let vendorTds: VendorTdsSummary = {
+      activePartiesCount: 0,
+      totalVendorAmount: 0,
+      totalVendorIncomeTax: 0,
+      totalGstTds: 0,
+      transactionCount: 0,
+    };
+
+    if (partiesResult.status === 'fulfilled') {
+      vendorTds.activePartiesCount = partiesResult.value.length;
+    }
+
+    if (partyTxResult.status === 'fulfilled') {
+      const txs = partyTxResult.value;
+      vendorTds.transactionCount = txs.length;
+      vendorTds.totalVendorAmount = money(txs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0));
+      vendorTds.totalVendorIncomeTax = money(txs.reduce((sum, t) => sum + (Number(t.income_tax) || 0), 0));
+      vendorTds.totalGstTds = money(txs.reduce((sum, t) => sum + (Number(t.total_gst) || 0), 0));
+    }
+
+    // Parse Paybill Import summaries
+    let paybillStats: PaybillSummary = {
+      importedBatchesCount: 0,
+      lastImportedMonth: null,
+      totalEarningsRecorded: 0,
+    };
+
+    if (paybillImportsResult.status === 'fulfilled' && Array.isArray(paybillImportsResult.value)) {
+      const imports = paybillImportsResult.value;
+      paybillStats.importedBatchesCount = imports.length;
+      if (imports.length > 0) {
+        paybillStats.lastImportedMonth = imports[0].month;
+        paybillStats.totalEarningsRecorded = imports.reduce((sum, i) => sum + (i.totalRecords || 0), 0);
+      }
+    }
+
+    // 3. Process Payroll & Salary Roster
     const empList = (employees || []) as EmployeeRow[];
     const salMap = buildSalaryMap(salaries || []);
     const workMonths = getWorkMonths();
@@ -156,25 +307,13 @@ export const dashboardRepository = {
       }
       if (hasZeroTax && hasAnyEntry) zeroTaxEntries.push(name);
 
-      // The authoritative "worked in the current slot's work month" check:
-      // employees who join after that work month, transfer before it, or have
-      // a future join date are not expected to have an entry yet, so they are
-      // neither active nor pending for the current month.
       const isActiveCurrentSlot = isActiveInEntryMonth(emp.join_date, emp.transfer_date, fy, currentSlotMonth);
       if (isActiveCurrentSlot) {
         activeEmployees++;
         if (!pan) missingPANs.push(name);
-
         if (!sm[currentSlotMonth]) pendingEmployees++;
       }
 
-      // Roadmap denominator: an employee counts as "active" for a tile only if
-      // they worked during that tile's work month (the month before the payment
-      // month). Reuses the payroll roster rule so the roadmap's
-      // processed/active percentages match the payroll page. Employees without
-      // a PAN can't be on the roster, so they are excluded here too. Remaining
-      // entries are only tracked for the current and past work months: a future
-      // month's salary is paid in the following month, so nothing is due yet.
       let hasPrevQuarterPending = false;
       if (name && pan) {
         MONTHS.forEach((month: string, i) => {
@@ -193,7 +332,7 @@ export const dashboardRepository = {
     });
 
     const monthlyRoadmap: MonthlyRoadmapData[] = workMonths.map((workMonth, i) => {
-      const m = monthlyData[i]; // slot MONTHS[i] holds workMonth's salary
+      const m = monthlyData[i];
       const isCurrent = i === currentWorkIdx;
       const future = i > currentWorkIdx;
       const pct = m.active > 0 ? Math.min(100, Math.round((m.processed / m.active) * 100)) : 0;
@@ -231,33 +370,71 @@ export const dashboardRepository = {
         expected > 0 ? Math.min(100, Math.round((processed / expected) * 100)) : 0;
     });
 
+    // 4. Generate Comprehensive Cross-Module Tasks
     const tasks: Task[] = [];
+    
+    // Payroll tasks
     if (pendingEmployees > 0) {
       tasks.push({
         severity: 'danger',
-        title: `${pendingEmployees} employees pending for ${entryMonthName}`,
-        hint: 'Complete salary entries for the current month',
+        category: 'payroll',
+        title: `${pendingEmployees} salary entries pending for ${entryMonthName}`,
+        hint: `Complete employee payroll roster for ${entryMonthName}`,
         action: '/payroll',
       });
     }
     if (missingPANs.length > 0) {
       tasks.push({
         severity: 'warning',
-        title: `${missingPANs.length} employees missing PAN`,
-        hint: 'Add PAN numbers in Payroll > Employee Registration',
+        category: 'compliance',
+        title: `${missingPANs.length} employees missing valid PAN`,
+        hint: 'Section 206AA requires valid PANs (attracts 20% TDS)',
         action: '/payroll?tab=employees',
       });
     }
     if (prevQuarterPending > 0) {
       tasks.push({
         severity: 'danger',
-        title: `${prevQuarterPending} employees pending for previous quarter`,
-        hint: 'Complete quarter-end verification',
+        category: 'compliance',
+        title: `${prevQuarterPending} entries pending from previous quarter`,
+        hint: 'Reconcile prior quarter to finalize Form 24Q return',
         action: '/reports',
       });
     }
 
+    // Treasury tasks
+    if (treasury.gtr30PendingCount > 0) {
+      tasks.push({
+        severity: 'warning',
+        category: 'treasury',
+        title: `${treasury.gtr30PendingCount} GTR-30 pay bills pending submission`,
+        hint: 'Review and pass registered pay bills in GTR-30 register',
+        action: '/gtr30/list',
+      });
+    }
+    if (treasury.gtr44DraftCount > 0) {
+      tasks.push({
+        severity: 'info',
+        category: 'treasury',
+        title: `${treasury.gtr44DraftCount} GTR-44 DC bills in draft`,
+        hint: 'Finalize contingency bills and generate treasury vouchers',
+        action: '/gtr44/list',
+      });
+    }
+
+    // Vendor / GST tasks
+    if (vendorTds.totalGstTds > 0 && vendorTds.transactionCount > 0) {
+      tasks.push({
+        severity: 'info',
+        category: 'vendor',
+        title: `₹ ${vendorTds.totalGstTds.toLocaleString('en-IN')} GST TDS recorded for ${vendorTds.activePartiesCount} vendors`,
+        hint: 'Generate GST TDS return and commercial bills summary',
+        action: '/parties/gst',
+      });
+    }
+
     const currentQuarterCompletion = quarterReadiness[currentQuarter as keyof typeof quarterReadiness];
+    const statutoryDeadlines = calculateStatutoryDeadlines(fy, currentQuarter);
 
     return {
       fy,
@@ -268,13 +445,17 @@ export const dashboardRepository = {
       ytdTax,
       currentQuarter,
       currentQuarterCompletion: { pct: currentQuarterCompletion.pct },
-      monthlyRoadmap: monthlyRoadmap,
+      monthlyRoadmap,
       tasks,
       quarterReadiness,
       prevQuarterPending,
       zeroTaxEntries,
       missingPANs,
-      entryMonthName: entryMonthName,
+      entryMonthName,
+      treasury,
+      vendorTds,
+      paybillStats,
+      statutoryDeadlines,
     };
   },
 };

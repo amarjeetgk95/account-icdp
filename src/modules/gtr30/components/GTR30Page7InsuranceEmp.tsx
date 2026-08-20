@@ -134,13 +134,13 @@ export const GTR30Page7InsuranceEmp: React.FC<Props> = ({ data }) => {
           Rupees {numberToWords(grandTotal)} Only
         </div>
 
-        {/* Signature Block */}
-        <div style={{ marginTop: '75px', textAlign: 'center', fontSize: '9pt', lineHeight: 1.3, width: '360px', marginLeft: 'auto' }}>
-          <div style={{ fontWeight: 700 }}>({data.drawingOfficerName || 'SMT U.J.PATEL'})</div>
-          <div>{data.drawingOfficerDesignation || 'Assistant Administrative Cum Account Officer'}</div>
-          <div>{data.drawingOfficerOffice || 'Intensive Cattle Development Programme, Surat'}</div>
-          <div style={{ fontWeight: 700, marginTop: '2px' }}>
-            Code No.-{data.ddoCode || '299'} Cardex No.-{data.cardexNo || '22'}
+        {/* Signature Block — refined */}
+        <div style={{ marginTop: '48px', textAlign: 'center', fontSize: '9pt', lineHeight: 1.35, width: '360px', marginLeft: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 10px', background: '#f8fafc' }}>
+          <div style={{ fontWeight: 800, fontSize: '9.5pt' }}>({data.drawingOfficerName || 'SMT U.J.PATEL'})</div>
+          <div style={{ color: '#334155' }}>{data.drawingOfficerDesignation || 'Assistant Administrative Cum Account Officer'}</div>
+          <div style={{ fontSize: '8pt', color: '#64748b' }}>{data.drawingOfficerOffice || 'Intensive Cattle Development Programme, Surat'}</div>
+          <div style={{ fontWeight: 700, marginTop: '6px', fontFamily: 'monospace', fontSize: '8pt', background: '#ffffff', display: 'inline-block', padding: '2px 8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+            CODE No.- {data.ddoCode || '299'} · CARDEX- {data.cardexNo || '22'}
           </div>
         </div>
       </div>

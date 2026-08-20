@@ -1,6 +1,5 @@
 import type {
   BoundingBox,
-  DataType,
   ExtractedElement,
   SpatialCell,
   SpatialColumn,
@@ -8,7 +7,6 @@ import type {
   SpatialRow,
   SpatialTable,
   StructuralBlock,
-  StructuralBlockType,
 } from '../types/spatial.types';
 import { gujaratiUnicodeRecoveryService } from './gujaratiUnicodeRecovery.service';
 import { dataNormalizationService } from './dataNormalization.service';
@@ -55,6 +53,18 @@ export class LayoutReconstructionService {
     enableMergedHeaderDetection: true,
   };
 
+  private getMergedOptions(options?: Partial<LayoutReconstructionOptions>): Required<LayoutReconstructionOptions> {
+    return {
+      minColumnsForTable: options?.minColumnsForTable ?? this.defaultOptions.minColumnsForTable,
+      minRowsForTable: options?.minRowsForTable ?? this.defaultOptions.minRowsForTable,
+      yTolerancePx: options?.yTolerancePx ?? this.defaultOptions.yTolerancePx,
+      charSpacingGapRatio: options?.charSpacingGapRatio ?? this.defaultOptions.charSpacingGapRatio,
+      lineSpacingRatio: options?.lineSpacingRatio ?? this.defaultOptions.lineSpacingRatio,
+      columnGapThresholdPx: options?.columnGapThresholdPx ?? this.defaultOptions.columnGapThresholdPx,
+      enableMergedHeaderDetection: options?.enableMergedHeaderDetection ?? this.defaultOptions.enableMergedHeaderDetection,
+    };
+  }
+
   /**
    * Stage 1: Glyph & Word Reconstruction
    * Stitches fragmented vector text glyphs/syllables into cohesive words.
@@ -66,7 +76,7 @@ export class LayoutReconstructionService {
   ): ExtractedElement[] {
     if (rawElements.length === 0) return [];
 
-    const opts = { ...this.defaultOptions, ...options };
+    const opts = this.getMergedOptions(options);
 
     // Sort elements from top-to-bottom, then left-to-right
     const sorted = [...rawElements].sort((a, b) => {
@@ -194,7 +204,7 @@ export class LayoutReconstructionService {
   ): ReconstructedLine[] {
     if (words.length === 0) return [];
 
-    const opts = { ...this.defaultOptions, ...options };
+    const opts = this.getMergedOptions(options);
 
     // 1. Group words into baseline line buckets
     const lineBuckets: ExtractedElement[][] = [];
@@ -271,6 +281,10 @@ export class LayoutReconstructionService {
         align = 'right';
       }
 
+      // A line with 2+ wide-gutter separated tokens across the page is a multi-column table/header line, not a centered paragraph heading
+      const wordIntervals = this.getLineWordIntervals(lineWords);
+      const isMultiColumnLine = wordIntervals.length >= 2;
+
       // Check Heading
       const isLargeFont = avgFontSize >= avgDocFontSize * 1.15;
       const isTitlePattern =
@@ -278,6 +292,7 @@ export class LayoutReconstructionService {
           lineText
         );
       const isHeading =
+        !isMultiColumnLine &&
         lineText.length < 90 &&
         (isTitlePattern || (isLargeFont && isBold) || (align === 'center' && lineText.length < 60));
 
@@ -304,10 +319,13 @@ export class LayoutReconstructionService {
         );
       const isSignature = (align === 'right' || minX > pageWidth * 0.45) && isSignatureDesignation;
 
-      // Check Form / Key-Value row
+      // Check Form / Key-Value row / Positioned Tender Labels
       const isFormRow =
-        /^(તારીખ|જા\.નં|વંચાણે લીધા|વિષય|સંદર્ભ|D\.D\.O|TAN No|Cardex|Bill No)\s*[:\-]/i.test(
+        /^(તારીખ|જા\.નં|વંચાણે લીધા|વિષય|સંદર્ભ|D\.D\.O|TAN No|Cardex|Bill No|Run L1 Selection|System Selected L1|Bidder Name|L1 Price|Total Marks|Status|Evaluation Result|Round|BID NO|Tender ID)\s*[:\-]/i.test(
           lineText
+        ) ||
+        /^(Run L1 Selection|System Selected L1|L1 Price|Technical Evaluation Status|Bidder Name)/i.test(
+          lineText.trim()
         );
 
       lines.push({
@@ -352,7 +370,7 @@ export class LayoutReconstructionService {
     tables: SpatialTable[];
     tableLineIndices: Set<number>;
   } {
-    const opts = { ...this.defaultOptions, ...options };
+    const opts = this.getMergedOptions(options);
     const tables: SpatialTable[] = [];
     const tableLineIndices = new Set<number>();
 
@@ -390,6 +408,29 @@ export class LayoutReconstructionService {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+
+      // Check if line is a keyword-based spanning header for a table starting immediately below it
+      const isSpanningHeader =
+        (line.words.length === 1 || this.getLineWordIntervals(line.words).length === 1) &&
+        line.text.length < 50 &&
+        /^(ALLOWANCE|DEDUCTION|PARTICULAR|EARNING|STATEMENT|વિગત|ભથ્થાં|કપાત|વિગતવાર|તારીજ|STATEMENT OF)/i.test(
+          line.text.trim()
+        );
+
+      if (isSpanningHeader && i + 1 < lines.length) {
+        const nextLine = lines[i + 1];
+        const nextIntervals = this.getLineWordIntervals(nextLine.words);
+        if (nextIntervals.length >= opts.minColumnsForTable) {
+          if (!currentTableCandidate) {
+            currentTableCandidate = {
+              lineIndices: [i, i + 1],
+              columns: nextIntervals,
+            };
+            i++; // skip nextLine since already included
+            continue;
+          }
+        }
+      }
 
       // Skip lines that are strong headings, short signature blocks, or single-column prose
       if (line.isHeading || line.isSignature || line.words.length < 2) {
@@ -451,7 +492,7 @@ export class LayoutReconstructionService {
       const w = words[i];
       const gap = w.bbox[0] - curX1;
 
-      if (gap < 20) {
+      if (gap < 18) {
         curX1 = Math.max(curX1, w.bbox[2]);
       } else {
         intervals.push({ x0: curX0, x1: curX1 });
@@ -468,7 +509,7 @@ export class LayoutReconstructionService {
     existingCols: Array<{ x0: number; x1: number }>,
     newCols: Array<{ x0: number; x1: number }>
   ): { isCompatible: boolean; mergedColumns: Array<{ x0: number; x1: number }> } {
-    if (Math.abs(existingCols.length - newCols.length) > 1) {
+    if (Math.abs(existingCols.length - newCols.length) > 2) {
       return { isCompatible: false, mergedColumns: existingCols };
     }
 
@@ -479,7 +520,7 @@ export class LayoutReconstructionService {
       const eCol = existingCols[c];
       const matchedNew = newCols.find((nCol) => {
         const overlap = Math.max(0, Math.min(eCol.x1, nCol.x1) - Math.max(eCol.x0, nCol.x0));
-        return overlap > 0 || Math.abs(eCol.x0 - nCol.x0) < 35;
+        return overlap > 0 || Math.abs(eCol.x0 - nCol.x0) < 40 || Math.abs(eCol.x1 - nCol.x1) < 40;
       });
 
       if (matchedNew) {
@@ -494,7 +535,7 @@ export class LayoutReconstructionService {
     }
 
     const ratio = matchCount / Math.max(existingCols.length, newCols.length);
-    const isCompatible = ratio >= 0.6;
+    const isCompatible = ratio >= 0.5;
 
     return { isCompatible, mergedColumns: isCompatible ? merged : existingCols };
   }
@@ -522,25 +563,31 @@ export class LayoutReconstructionService {
           return midX >= colBounds.x0 - 15 && midX < colBounds.x1 + 15;
         });
 
-        const cellText = colElements.map((w) => w.text).join(' ').trim();
+        let cellText = colElements.map((w) => w.text).join(' ').trim();
+        let cellElements = colElements;
+        let colSpan = 1;
+        let isMerged = false;
+
+        if (line.words.length === 1 && columnCount > 1) {
+          if (cIdx === 0) {
+            colSpan = columnCount;
+            isMerged = true;
+            cellText = line.words[0].text;
+            cellElements = line.words;
+          } else {
+            colSpan = 1;
+            isMerged = true;
+            cellText = '';
+            cellElements = [];
+          }
+        }
+
         const confAvg =
-          colElements.length > 0
-            ? colElements.reduce((s, e) => s + e.confidence, 0) / colElements.length
+          cellElements.length > 0
+            ? cellElements.reduce((s, e) => s + e.confidence, 0) / cellElements.length
             : 95;
 
         const normData = dataNormalizationService.normalize(cellText, Math.round(confAvg));
-
-        // Spanning header / merged cell detection
-        let colSpan = 1;
-        if (colElements.length === 1 && columnCount > 1) {
-          const el = colElements[0];
-          const coveringCols = colPartitions.filter(
-            (p) => el.bbox[0] < p.x1 - 10 && el.bbox[2] > p.x0 + 10
-          ).length;
-          if (coveringCols > 1) {
-            colSpan = coveringCols;
-          }
-        }
 
         const cell: SpatialCell = {
           id: `cell-p${pageNumber}-t${tableIndex}-r${rIdx}-c${cIdx}`,
@@ -550,13 +597,13 @@ export class LayoutReconstructionService {
           rowSpan: 1,
           columnSpan: colSpan,
           bbox: [colBounds.x0, rowY0, colBounds.x1, rowY1],
-          elements: colElements,
+          elements: cellElements,
           text: cellText,
           data: normData,
           isHeader: rIdx === 0,
           isSubHeader: false,
           isTotal: false,
-          isMerged: colSpan > 1,
+          isMerged,
           align: normData.type === 'number' || normData.type === 'currency' ? 'right' : 'left',
           confidence: Math.round(confAvg),
         };
@@ -824,6 +871,34 @@ export class LayoutReconstructionService {
         continue;
       }
 
+      // If line is a Form / Key-Value Row (e.g. "Run L1 Selection", "BID NO: ...")
+      if (line.isFormRow) {
+        flushProseParagraph();
+
+        const formPara: SpatialParagraph = {
+          id: `form-p${pageNumber}-${paragraphs.length + 1}`,
+          text: line.text,
+          elements: line.elements,
+          bbox: line.bbox,
+          isHeading: false,
+          confidence: Math.round(
+            line.elements.reduce((s, e) => s + e.confidence, 0) / Math.max(1, line.elements.length)
+          ),
+          blockType: 'form',
+          align: line.align || 'left',
+        };
+
+        paragraphs.push(formPara);
+        blocks.push({
+          id: `block-p${pageNumber}-${blocks.length + 1}`,
+          type: 'form',
+          paragraph: formPara,
+          readingOrder: readingOrder++,
+          bbox: line.bbox,
+        });
+        continue;
+      }
+
       // Continuous Prose paragraph logic
       if (curProseLines.length === 0) {
         curProseLines.push(line);
@@ -872,7 +947,7 @@ export class LayoutReconstructionService {
     rawElements: ExtractedElement[],
     pageNumber = 1,
     pageWidth = 1000,
-    pageHeight = 1000,
+    _pageHeight = 1000,
     options?: Partial<LayoutReconstructionOptions>
   ): {
     tables: SpatialTable[];

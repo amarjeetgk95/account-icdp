@@ -8,6 +8,8 @@ import { isModuleEnabled } from '@/core/feature-flags/store';
  *   Level 3 — Sub-branch (NavSubBranch): child options of a branch
  */
 
+export type ColorFamily = 'blue' | 'emerald' | 'purple' | 'amber' | 'teal' | 'slate';
+
 interface NavSubBranch {
   path: string;
   label: string;
@@ -19,6 +21,7 @@ export interface NavBranch {
   key: string;
   label: string;
   icon?: string;
+  colorFamily?: ColorFamily;
   defaultPath: string;
   routePaths: string[];
   subBranches: NavSubBranch[];
@@ -28,6 +31,7 @@ export interface NavSection {
   key: string;
   label: string;
   icon: string;
+  colorFamily: ColorFamily;
   branches: NavBranch[];
 }
 
@@ -40,18 +44,19 @@ interface NavGroupConfig {
   key: string;
   label: string;
   icon: string;
+  colorFamily: ColorFamily;
   match: (m: ModuleDefinition) => boolean;
 }
 
 const NAV_GROUPS: NavGroupConfig[] = [
-  { key: 'bills', label: 'Bill Creation', icon: 'receipt', match: (m) => m.navGroup === 'bills' },
-  { key: 'tds', label: 'TDS', icon: 'calculator', match: (m) => m.navGroup === 'tds' },
-  { key: 'it-employee', label: 'Employee IT', icon: 'file-spreadsheet', match: (m) => m.navGroup === 'it-employee' },
-  { key: 'tools', label: 'Doc Tools', icon: 'file-text', match: (m) => m.navGroup === 'tools' },
+  { key: 'bills', label: 'Bill Creation', icon: 'receipt', colorFamily: 'emerald', match: (m) => m.navGroup === 'bills' },
+  { key: 'tds', label: 'TDS', icon: 'calculator', colorFamily: 'blue', match: (m) => m.navGroup === 'tds' },
+  { key: 'it-employee', label: 'Employee IT', icon: 'file-spreadsheet', colorFamily: 'purple', match: (m) => m.navGroup === 'it-employee' },
+  { key: 'tools', label: 'Doc Tools', icon: 'file-text', colorFamily: 'teal', match: (m) => m.navGroup === 'tools' },
 ];
 
-const SYSTEM_GROUP: NavGroupConfig = { key: 'system', label: 'System', icon: 'settings', match: () => true };
-const ADMIN_GROUP: NavGroupConfig = { key: 'admin', label: 'Admin Console', icon: 'users', match: () => true };
+const SYSTEM_GROUP: NavGroupConfig = { key: 'system', label: 'System', icon: 'settings', colorFamily: 'slate', match: () => true };
+const ADMIN_GROUP: NavGroupConfig = { key: 'admin', label: 'Admin Console', icon: 'users', colorFamily: 'amber', match: () => true };
 
 export function matchesRoute(routePath: string, currentBasePath: string): boolean {
   if (routePath === currentBasePath) return true;
@@ -100,7 +105,11 @@ export function buildNavigationModel(
     key: group.key,
     label: group.label,
     icon: group.icon,
-    branches: visibleModules.filter(group.match).map(toBranch),
+    colorFamily: group.colorFamily,
+    branches: visibleModules.filter(group.match).map((m) => ({
+      ...toBranch(m),
+      colorFamily: group.colorFamily,
+    })),
   })).filter((section) => section.branches.length > 0);
 
   const systemModules = visibleModules.filter((m) => m.navGroup === 'system');
@@ -109,7 +118,11 @@ export function buildNavigationModel(
       key: SYSTEM_GROUP.key,
       label: SYSTEM_GROUP.label,
       icon: SYSTEM_GROUP.icon,
-      branches: systemModules.map(toBranch),
+      colorFamily: SYSTEM_GROUP.colorFamily,
+      branches: systemModules.map((m) => ({
+        ...toBranch(m),
+        colorFamily: SYSTEM_GROUP.colorFamily,
+      })),
     });
   }
 
@@ -119,7 +132,11 @@ export function buildNavigationModel(
       key: ADMIN_GROUP.key,
       label: ADMIN_GROUP.label,
       icon: ADMIN_GROUP.icon,
-      branches: adminModules.map(toBranch),
+      colorFamily: ADMIN_GROUP.colorFamily,
+      branches: adminModules.map((m) => ({
+        ...toBranch(m),
+        colorFamily: ADMIN_GROUP.colorFamily,
+      })),
     });
   }
 
@@ -160,4 +177,108 @@ export function isBranchActive(branch: NavBranch, currentBasePath: string): bool
 
 export function isSectionActive(section: NavSection, currentBasePath: string): boolean {
   return section.branches.some((b) => isBranchActive(b, currentBasePath));
+}
+
+export interface SubNavTab {
+  path: string;
+  label: string;
+  icon?: string;
+  isActive: boolean;
+}
+
+export function getActiveSubNavTabs(
+  model: NavigationModel,
+  currentPath: string
+): { sectionTitle: string; tabs: SubNavTab[] } | null {
+  const activeNav = resolveActiveNavigation(model.sections, currentPath);
+  if (!activeNav) return null;
+
+  const { section, branch } = activeNav;
+
+  // Case 1: If branch has sub-branches (e.g., GTR-30, GTR-44, Admin, PayBill)
+  if (branch.subBranches && branch.subBranches.length > 1) {
+    return {
+      sectionTitle: branch.label,
+      tabs: branch.subBranches.map((sub) => ({
+        path: sub.path,
+        label: sub.label,
+        icon: sub.icon,
+        isActive: matchesRoute(sub.path, currentPath),
+      })),
+    };
+  }
+
+  // Case 2: If section has multiple branches (e.g., TDS with Payroll, Reports, Settings)
+  if (section.branches && section.branches.length > 1) {
+    return {
+      sectionTitle: section.label,
+      tabs: section.branches.map((b) => ({
+        path: b.defaultPath,
+        label: b.label,
+        icon: b.icon,
+        isActive: isBranchActive(b, currentPath),
+      })),
+    };
+  }
+
+  return null;
+}
+
+export interface BreadcrumbStep {
+  label: string;
+  path: string;
+  icon?: string;
+  colorFamily: ColorFamily;
+  level: 1 | 2 | 3;
+}
+
+export function resolveBreadcrumbTrail(
+  model: NavigationModel,
+  currentPath: string
+): BreadcrumbStep[] {
+  const steps: BreadcrumbStep[] = [];
+
+  if (currentPath === '/dashboard' || currentPath === '/') {
+    return [
+      { label: 'Dashboard', path: '/dashboard', icon: 'dashboard', colorFamily: 'blue', level: 1 },
+    ];
+  }
+
+  const activeNav = resolveActiveNavigation(model.sections, currentPath);
+  if (!activeNav) {
+    return steps;
+  }
+
+  const { section, branch, subBranch } = activeNav;
+
+  // Level 1: Section (Module)
+  steps.push({
+    label: section.label,
+    path: section.branches[0]?.defaultPath ?? branch.defaultPath,
+    icon: section.icon,
+    colorFamily: section.colorFamily || 'blue',
+    level: 1,
+  });
+
+  // Level 2: Primary Branch
+  steps.push({
+    label: branch.label,
+    path: branch.defaultPath,
+    icon: branch.icon,
+    colorFamily: branch.colorFamily || 'emerald',
+    level: 2,
+  });
+
+  // Level 3: Sub-Branch / Specific Action
+  if (subBranch && subBranch.label !== branch.label) {
+    steps.push({
+      label: subBranch.label,
+      path: subBranch.path,
+      icon: subBranch.icon,
+      colorFamily: 'blue',
+      level: 3,
+    });
+  }
+
+  return steps;
 }

@@ -25,16 +25,16 @@ const moduleDefinition: ModuleDefinition = {
       subtitle: 'View, edit, duplicate, and export registered pay bills',
     },
     {
-      path: '/gtr30/employee-master',
-      label: 'Employee Master',
+      path: '/gtr30/employee-management',
+      label: 'Employee Management',
       icon: 'users',
-      subtitle: 'Per-month, per-bill-code employee salary master data',
+      subtitle: 'Manage employee directory, 7th pay scales, allowances, and bill codes',
     },
     {
       path: '/gtr30/settings',
       label: 'Bill Settings',
       icon: 'settings',
-      subtitle: 'Office, treasury, drawing officer, and bill code defaults',
+      subtitle: 'Office, treasury, bill code creation, and reusable defaults',
     },
   ],
 };
