@@ -1,4 +1,5 @@
 import type {
+  GTR30DARateEntry,
   GTR30DefaultSettings,
   GTR30DefaultEmployeeTemplate,
 } from '../types/settings';
@@ -8,12 +9,14 @@ import {
   DEFAULT_GTR30_SETTINGS,
   DEFAULT_GTR30_EMPLOYEE_TEMPLATE,
   freshDefaultPosts,
+  freshDefaultDaRates,
 } from '../constants/settings';
 
 export interface Gtr30SettingsPayload {
   settings: GTR30DefaultSettings;
   employeeTemplate: GTR30DefaultEmployeeTemplate;
   defaultPosts: GTR30PostItem[];
+  daRates: GTR30DARateEntry[];
 }
 
 class Gtr30SettingsLocalStorageRepository {
@@ -28,6 +31,9 @@ class Gtr30SettingsLocalStorageRepository {
         defaultPosts: Array.isArray(parsed.defaultPosts)
           ? parsed.defaultPosts
           : freshDefaultPosts(),
+        daRates: Array.isArray(parsed.daRates)
+          ? (parsed.daRates as GTR30DARateEntry[])
+          : freshDefaultDaRates(),
       };
     } catch {
       return null;

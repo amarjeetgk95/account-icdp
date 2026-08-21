@@ -1,5 +1,13 @@
 import type { GTR30FormData, GTR30Employee } from './bill';
 
+export interface GTR30DARateEntry {
+  id: string;
+  effectiveFrom: string; // ISO date YYYY-MM-DD
+  rate: number; // percent, e.g. 53
+  description?: string;
+  resolutionNo?: string;
+}
+
 export type GTR30DefaultSettings = Pick<
   GTR30FormData,
   | 'officeName'

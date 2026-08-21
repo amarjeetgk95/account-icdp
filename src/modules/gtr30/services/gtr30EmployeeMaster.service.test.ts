@@ -111,10 +111,16 @@ describe('gtr30EmployeeMasterService', () => {
 
   describe('removeEmployeeAcrossGroups', () => {
     it('removes an employee from every month group of the same bill code', () => {
-      gtr30EmployeeMasterService.saveEmployee('July-2026', 'GTR30-SAL', employee('e1', 1, 'Shri A'));
-      gtr30EmployeeMasterService.saveEmployee('August-2026', 'GTR30-SAL', employee('e1-aug', 1, 'Shri A'));
+      gtr30EmployeeMasterService.saveEmployee('July-2026', 'GTR30-SAL', {
+        ...employee('e1', 1, 'Shri A'),
+        hrpnNo: '100123',
+      });
+      gtr30EmployeeMasterService.saveEmployee('August-2026', 'GTR30-SAL', {
+        ...employee('e1-aug', 1, 'Shri A'),
+        hrpnNo: '100123',
+      });
 
-      const result = gtr30EmployeeMasterService.removeEmployeeAcrossGroups('e1', undefined, 'GTR30-SAL');
+      const result = gtr30EmployeeMasterService.removeEmployeeAcrossGroups('e1', '100123', 'GTR30-SAL');
 
       expect(result.removedCount).toBe(2);
       expect(gtr30EmployeeMasterService.getGroup('July-2026', 'GTR30-SAL')).toHaveLength(0);
@@ -133,13 +139,30 @@ describe('gtr30EmployeeMasterService', () => {
       expect(gtr30EmployeeMasterService.getGroup('August-2026', 'GTR30-SAL')).toHaveLength(0);
     });
 
-    it('leaves other bill codes untouched', () => {
+    it('bill code assignment moves the employee out of the previous bill code', () => {
       gtr30EmployeeMasterService.saveEmployee('July-2026', 'GTR30-SAL', employee('e1', 1, 'Shri A'));
+      expect(gtr30EmployeeMasterService.getGroup('July-2026', 'GTR30-SAL')).toHaveLength(1);
+
+      // Re-save under a new bill code -> must leave the old bill code
       gtr30EmployeeMasterService.saveEmployee('July-2026', 'GTR30-DA', employee('e1', 1, 'Shri A'));
 
-      const result = gtr30EmployeeMasterService.removeEmployeeAcrossGroups('e1', undefined, 'GTR30-SAL');
+      expect(gtr30EmployeeMasterService.getGroup('July-2026', 'GTR30-SAL')).toHaveLength(0);
+      expect(gtr30EmployeeMasterService.getGroup('July-2026', 'GTR30-DA')).toHaveLength(1);
 
+      const result = gtr30EmployeeMasterService.removeEmployeeAcrossGroups('e1', undefined, 'GTR30-DA');
       expect(result.removedCount).toBe(1);
+      expect(gtr30EmployeeMasterService.getGroup('July-2026', 'GTR30-DA')).toHaveLength(0);
+    });
+
+    it('assignment move also strips copies matched by HRPN in other bill codes', () => {
+      gtr30EmployeeMasterService.saveEmployee('July-2026', 'GTR30-SAL', {
+        ...employee('e1', 1, 'Shri A'),
+        hrpnNo: '100123',
+      });
+      gtr30EmployeeMasterService.saveEmployee('July-2026', 'GTR30-DA', {
+        ...employee('e1-copy', 1, 'Shri A'),
+        hrpnNo: '100123',
+      });
       expect(gtr30EmployeeMasterService.getGroup('July-2026', 'GTR30-SAL')).toHaveLength(0);
       expect(gtr30EmployeeMasterService.getGroup('July-2026', 'GTR30-DA')).toHaveLength(1);
     });

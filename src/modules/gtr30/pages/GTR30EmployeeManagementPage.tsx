@@ -16,7 +16,7 @@ import {
   Settings,
   TrendingUp,
   TrendingDown,
-  Calendar,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useUIStore } from '@/core/stores/ui-store';
 import {
@@ -30,7 +30,6 @@ import { GTR30EmployeeImport } from '../components/GTR30EmployeeImport';
 import { GTR30SyncStatusBadge } from '../components/GTR30SyncStatusBadge';
 import { exportMasterToCsv, downloadCsvFile } from '../utils/gtr30Csv';
 import { calculateEmployeeSalary } from '../utils/gtr30SalaryCalc';
-import { gtr30MonthOptions, gtr30YearOptions, gtr30MonthKeyFor } from '../utils/gtr30MonthKey';
 import type { GTR30EmployeeMaster } from '../types';
 
 const PAGE_SIZE = 50;
@@ -40,12 +39,9 @@ export function GTR30EmployeeManagementPage() {
   const { toast } = useToast();
   const activeFY = useUIStore((state) => state.activeFinancialYear) ?? 2026;
 
-  // Dynamic month selector state
-  const months = gtr30MonthOptions();
-  const years = gtr30YearOptions(activeFY);
-  const [selectedMonth, setSelectedMonth] = useState('July');
-  const [selectedYear, setSelectedYear] = useState(activeFY);
-  const monthKey = gtr30MonthKeyFor(selectedMonth, selectedYear);
+  // Master directory is month-independent: the pay matrix dates decide monthly pay.
+  // Employees live in a canonical group that every bill month resolves to.
+  const monthKey = `July-${activeFY}`;
 
   const hydrateMaster = useHydrateGTR30EmployeeMaster();
   const hydrateMappings = useHydrateGTR30BillCodeMappings();
@@ -62,8 +58,8 @@ export function GTR30EmployeeManagementPage() {
     void hydrateMappings.mutateAsync().catch(() => {});
   }, [hydrateMaster, hydrateMappings]);
 
-  const groups = groupsQuery.data ?? {};
-  const mappings = mappingsQuery.data ?? [];
+  const groups = useMemo(() => groupsQuery.data ?? {}, [groupsQuery.data]);
+  const mappings = useMemo(() => mappingsQuery.data ?? [], [mappingsQuery.data]);
 
   const [selectedBillCode, setSelectedBillCode] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,6 +67,9 @@ export function GTR30EmployeeManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ employee: GTR30EmployeeMaster; billCode: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
+  const [showPayScaleCol, setShowPayScaleCol] = useState(true);
+  const [showHrpnCol, setShowHrpnCol] = useState(true);
 
   // Multi-selection state
   const [selectedEmployeeKeys, setSelectedEmployeeKeys] = useState<Set<string>>(new Set());
@@ -125,12 +124,7 @@ export function GTR30EmployeeManagementPage() {
     });
   }, [allEmployeesWithBillCode, cadreFilter, searchTerm]);
 
-  // Reset pagination when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, cadreFilter, selectedBillCode]);
-
-  // Pagination
+  // Pagination (page resets whenever a filter changes, via the filter handlers)
   const totalPages = Math.ceil(filteredList.length / PAGE_SIZE);
   const paginatedList = filteredList.slice(
     (currentPage - 1) * PAGE_SIZE,
@@ -196,7 +190,7 @@ export function GTR30EmployeeManagementPage() {
   // SPA navigation instead of window.open
   const handleOpenNewRegistration = () => {
     const code = selectedBillCode !== 'ALL' ? selectedBillCode : mappings[0]?.billCode || 'GTR30-SAL';
-    navigate(`/gtr30/employee-management/new?billCode=${encodeURIComponent(code)}&monthKey=${encodeURIComponent(monthKey)}`);
+    navigate(`/gtr30/employee-management/new?billCode=${encodeURIComponent(code)}`);
   };
 
   // SPA navigation instead of window.open
@@ -204,7 +198,7 @@ export function GTR30EmployeeManagementPage() {
     navigate(
       `/gtr30/employee-management/edit/${encodeURIComponent(emp.id)}?billCode=${encodeURIComponent(
         emp.billCode || billCode
-      )}&monthKey=${encodeURIComponent(monthKey)}`
+      )}`
     );
   };
 
@@ -386,47 +380,23 @@ export function GTR30EmployeeManagementPage() {
         </div>
       </div>
 
-      {/* 3. Search, Filter & Month Selector Bar */}
+      {/* 3. Search & Filter Bar */}
       <Card className="border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
           {/* Search */}
-          <div className="sm:col-span-2 lg:col-span-2">
+          <div className="sm:col-span-2">
             <Label className="text-xs font-semibold text-slate-700">Search Employee</Label>
             <div className="relative mt-1">
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <Input
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Search by Name, HRPN No., or Designation..."
                 className="pl-9 text-xs"
               />
-            </div>
-          </div>
-
-          {/* Month / Year Selector */}
-          <div>
-            <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-              <Calendar className="h-3 w-3" /> Pay Month
-            </Label>
-            <div className="flex gap-1.5 mt-1">
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800"
-              >
-                {months.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="w-20 h-9 rounded-md border border-slate-300 bg-white px-2 text-xs font-mono font-bold text-slate-800"
-              >
-                {years.map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
             </div>
           </div>
 
@@ -435,7 +405,10 @@ export function GTR30EmployeeManagementPage() {
             <Label className="text-xs font-semibold text-slate-700">Bill Code / Category</Label>
             <select
               value={selectedBillCode}
-              onChange={(e) => setSelectedBillCode(e.target.value)}
+              onChange={(e) => {
+                setSelectedBillCode(e.target.value);
+                setCurrentPage(1);
+              }}
               className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-mono font-bold text-slate-800"
             >
               <option value="ALL">All Bill Codes ({allEmployeesWithBillCode.length})</option>
@@ -452,7 +425,10 @@ export function GTR30EmployeeManagementPage() {
             <Label className="text-xs font-semibold text-slate-700">Cadre Class</Label>
             <select
               value={cadreFilter}
-              onChange={(e) => setCadreFilter(e.target.value)}
+              onChange={(e) => {
+                setCadreFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-serif font-bold text-slate-800"
             >
               <option value="ALL">All Cadre Classes</option>
@@ -502,7 +478,7 @@ export function GTR30EmployeeManagementPage() {
 
       {/* 4. Employee Table with Multi-Select, Edit and Delete Options */}
       <Card className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-blue-600" />
             <h2 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -510,7 +486,51 @@ export function GTR30EmployeeManagementPage() {
             </h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Density toggle */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 text-xs">
+              <button
+                type="button"
+                onClick={() => setDensity('comfortable')}
+                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  density === 'comfortable'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                }`}
+                title="Comfortable row spacing"
+              >
+                Comfortable
+              </button>
+              <button
+                type="button"
+                onClick={() => setDensity('compact')}
+                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  density === 'compact'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                }`}
+                title="Compact dense rows"
+              >
+                Compact
+              </button>
+            </div>
+
+            {/* Column Visibility toggle */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowPayScaleCol((v) => !v);
+                setShowHrpnCol((v) => !v);
+              }}
+              className="h-7 text-[11px] font-semibold text-slate-700 dark:text-slate-300 dark:border-slate-700"
+              title="Toggle extra columns (HRPN & Scale)"
+            >
+              <SlidersHorizontal className="h-3 w-3 mr-1" />
+              {showPayScaleCol ? 'Simplify Cols' : 'Show All Cols'}
+            </Button>
+
             <GTR30EmployeeImport
               monthKey={monthKey}
               billCode={selectedBillCode !== 'ALL' ? selectedBillCode : 'GTR30-SAL'}
@@ -541,7 +561,7 @@ export function GTR30EmployeeManagementPage() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider">
-                  <th className="px-3 py-3 w-10 text-center">
+                  <th className={`px-3 ${density === 'compact' ? 'py-1.5' : 'py-3'} w-10 text-center`}>
                     <input
                       type="checkbox"
                       aria-label="Select all employees"
@@ -550,16 +570,16 @@ export function GTR30EmployeeManagementPage() {
                       className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer align-middle"
                     />
                   </th>
-                  <th className="px-3 py-3 w-10 text-center">#</th>
-                  <th className="px-4 py-3 min-w-[200px]">Employee Name</th>
-                  <th className="px-3.5 py-3 min-w-[100px]">HRPN No.</th>
-                  <th className="px-4 py-3 min-w-[140px]">Designation</th>
-                  <th className="px-3 py-3 min-w-[110px]">Bill Code</th>
-                  <th className="px-4 py-3 min-w-[150px]">7th Pay Matrix</th>
-                  <th className="px-4 py-3 min-w-[110px] text-right">Basic Pay</th>
-                  <th className="px-4 py-3 min-w-[110px] text-right">Gross Pay</th>
-                  <th className="px-4 py-3 min-w-[110px] text-right">Take-Home</th>
-                  <th className="px-4 py-3 min-w-[110px] text-center sticky right-0 bg-slate-50 dark:bg-slate-800">
+                  <th className={`px-3 ${density === 'compact' ? 'py-1.5' : 'py-3'} w-10 text-center`}>#</th>
+                  <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[180px]`}>Employee Name</th>
+                  {showHrpnCol && <th className={`px-3.5 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[90px]`}>HRPN No.</th>}
+                  <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[130px]`}>Designation</th>
+                  <th className={`px-3 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[100px]`}>Bill Code</th>
+                  {showPayScaleCol && <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[140px]`}>7th Pay Matrix</th>}
+                  <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[100px] text-right`}>Basic Pay</th>
+                  <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[100px] text-right`}>Gross Pay</th>
+                  <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[100px] text-right`}>Take-Home</th>
+                  <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[90px] text-center sticky right-0 bg-slate-50 dark:bg-slate-800`}>
                     Actions
                   </th>
                 </tr>
@@ -569,6 +589,7 @@ export function GTR30EmployeeManagementPage() {
                   const rowKey = `${employee.id}__${billCode}`;
                   const isSelected = selectedEmployeeKeys.has(rowKey);
                   const salary = calculateEmployeeSalary(employee);
+                  const py = density === 'compact' ? 'py-1.5' : 'py-3';
 
                   return (
                     <tr
@@ -579,7 +600,7 @@ export function GTR30EmployeeManagementPage() {
                           : 'hover:bg-blue-50/40 dark:hover:bg-slate-800/40'
                       }`}
                     >
-                      <td className="px-3 py-3 text-center">
+                      <td className={`px-3 ${py} text-center`}>
                         <input
                           type="checkbox"
                           aria-label={`Select ${employee.name}`}
@@ -589,11 +610,11 @@ export function GTR30EmployeeManagementPage() {
                         />
                       </td>
 
-                      <td className="px-3.5 py-3 text-center font-mono font-medium text-slate-400">
+                      <td className={`px-3.5 ${py} text-center font-mono font-medium text-slate-400`}>
                         {employee.srNo || (currentPage - 1) * PAGE_SIZE + idx + 1}
                       </td>
 
-                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
+                      <td className={`px-4 ${py} font-semibold text-slate-900 dark:text-white`}>
                         <div className="flex items-center gap-2">
                           <span>{employee.name}</span>
                           {employee.cadreClass && (
@@ -609,45 +630,49 @@ export function GTR30EmployeeManagementPage() {
                         )}
                       </td>
 
-                      <td className="px-3.5 py-3 font-mono text-slate-600 dark:text-slate-400 font-medium">
-                        {employee.hrpnNo || '—'}
-                      </td>
+                      {showHrpnCol && (
+                        <td className={`px-3.5 ${py} font-mono text-slate-600 dark:text-slate-400 font-medium`}>
+                          {employee.hrpnNo || '—'}
+                        </td>
+                      )}
 
-                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                      <td className={`px-4 ${py} text-slate-700 dark:text-slate-300`}>
                         {employee.designation || '—'}
                       </td>
 
-                      <td className="px-3 py-3">
+                      <td className={`px-3 ${py}`}>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                           {employee.billCode || billCode}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[160px]">
-                          {employee.payScale || '—'}
-                        </div>
-                        {employee.gradePay && (
-                          <div className="text-[10px] font-mono text-slate-500 font-bold">
-                            {employee.gradePay}
+                      {showPayScaleCol && (
+                        <td className={`px-4 ${py}`}>
+                          <div className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[160px]">
+                            {employee.payScale || '—'}
                           </div>
-                        )}
-                      </td>
+                          {employee.gradePay && (
+                            <div className="text-[10px] font-mono text-slate-500 font-bold">
+                              {employee.gradePay}
+                            </div>
+                          )}
+                        </td>
+                      )}
 
-                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                      <td className={`px-4 ${py} text-right font-mono font-bold text-slate-900 dark:text-white`}>
                         ₹{salary.basic.toLocaleString('en-IN')}
                       </td>
 
-                      <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                      <td className={`px-4 ${py} text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400`}>
                         ₹{salary.grossPay.toLocaleString('en-IN')}
                       </td>
 
-                      <td className="px-4 py-3 text-right font-mono font-bold text-blue-600 dark:text-blue-400">
+                      <td className={`px-4 ${py} text-right font-mono font-bold text-blue-600 dark:text-blue-400`}>
                         ₹{salary.netTakeHome.toLocaleString('en-IN')}
                       </td>
 
                       {/* Rightmost Actions Column: Edit and Delete */}
-                      <td className="px-4 py-3 text-center sticky right-0 bg-white dark:bg-slate-900">
+                      <td className={`px-4 ${py} text-center sticky right-0 bg-white dark:bg-slate-900`}>
                         <div className="flex items-center justify-center gap-1.5">
                           <Button
                             type="button"

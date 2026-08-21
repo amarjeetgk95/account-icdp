@@ -5,6 +5,7 @@ import {
   gtr30EmployeeMasterSchema,
   type GTR30EmployeeMasterInput,
 } from '../validation/gtr30EmployeeMaster.schema';
+import { normalizePayEntries } from '../utils/gtr30PayMatrix';
 import { isAllOfficesMode } from '@/shared/utilities/office';
 
 const SYNC_DEBOUNCE_MS = 600;
@@ -113,9 +114,12 @@ class Gtr30EmployeeMasterService {
       throw new Error(`${field}: ${issue.message}`);
     }
     const d = parsed.data;
+    const payEntries = normalizePayEntries(d.payEntries);
+    const latestEntry = payEntries[payEntries.length - 1] ?? null;
     return {
       id: d.id || crypto.randomUUID(),
       srNo: d.srNo,
+      billCode: d.billCode ? d.billCode.trim().toUpperCase() : undefined,
       hrpnNo: d.hrpnNo || undefined,
       name: d.name,
       designation: d.designation ?? '',
@@ -125,8 +129,9 @@ class Gtr30EmployeeMasterService {
       gradePay: d.gradePay ?? '',
       payLevelCell: d.payLevelCell ?? '',
       ppaNo: d.ppaNo ?? '',
-      currentPay: d.currentPay,
-      currentPayDate: d.currentPayDate ?? '',
+      currentPay: latestEntry ? latestEntry.basicPay : d.currentPay,
+      currentPayDate: latestEntry ? latestEntry.startDate : (d.currentPayDate ?? ''),
+      payEntries,
       quarterAddress: d.quarterAddress ?? '',
       insuranceGroup: d.insuranceGroup ?? '',
       insuranceType: d.insuranceType,
@@ -156,7 +161,33 @@ class Gtr30EmployeeMasterService {
     gtr30EmployeeMasterLocalRepository.saveGroup(monthKey, billCode, next);
     setSyncPhase(gtr30GroupKey(monthKey, billCode), 'pending');
     debounceReplace(monthKey, billCode, next);
+    this.removeEmployeeFromOtherBillCodes(valid, billCode);
     return next;
+  }
+
+  /**
+   * Bill code assignment is a move: after saving an employee under its new bill code,
+   * strip it from every other bill-code group (all months) so it never appears twice.
+   */
+  private removeEmployeeFromOtherBillCodes(
+    employee: GTR30EmployeeMaster,
+    keepBillCode: string
+  ): void {
+    const target = keepBillCode.trim().toLowerCase();
+    const hrpn = employee.hrpnNo?.trim().toLowerCase();
+    const all = gtr30EmployeeMasterLocalRepository.loadAll();
+    for (const [key, group] of Object.entries(all)) {
+      if (group.billCode.trim().toLowerCase() === target) continue;
+      const next = group.employees.filter(
+        (e) =>
+          e.id !== employee.id &&
+          !(hrpn !== undefined && hrpn !== '' && (e.hrpnNo ?? '').trim().toLowerCase() === hrpn)
+      );
+      if (next.length === group.employees.length) continue;
+      gtr30EmployeeMasterLocalRepository.saveGroup(group.monthKey, group.billCode, next);
+      setSyncPhase(key, 'pending');
+      debounceReplace(group.monthKey, group.billCode, next);
+    }
   }
 
   saveGroup(monthKey: string, billCode: string, employees: GTR30EmployeeMasterInput[]): GTR30EmployeeMaster[] {
@@ -227,8 +258,8 @@ class Gtr30EmployeeMasterService {
       if (group.billCode.trim().toLowerCase() !== target) continue;
       const next = group.employees.filter(
         (e) =>
-          e.id === employeeId ||
-          (hrpn !== undefined && hrpn !== '' && (e.hrpnNo ?? '').trim().toLowerCase() === hrpn)
+          e.id !== employeeId &&
+          !(hrpn !== undefined && hrpn !== '' && (e.hrpnNo ?? '').trim().toLowerCase() === hrpn)
       );
       if (next.length === group.employees.length) continue;
       removedCount += group.employees.length - next.length;
@@ -257,10 +288,92 @@ class Gtr30EmployeeMasterService {
     syncPhases.clear();
     for (const listener of syncListeners) listener();
   }
+
+  resolveEmployeesWithFallback(
+    monthKey: string,
+    billCode: string
+  ): GTR30ResolvedEmployees {
+    const map = this.listGroupsAsMap();
+    return gtr30ResolveEmployees(map, monthKey, billCode);
+  }
+
+  getEmployeesForBill(monthKey: string, billCode: string): GTR30EmployeeMaster[] {
+    return this.resolveEmployeesWithFallback(monthKey, billCode).rows;
+  }
 }
 
 export const gtr30EmployeeMasterService = new Gtr30EmployeeMasterService();
 
 export function gtr30GroupKey(monthKey: string, billCode: string): string {
   return `${monthKey.trim().toLowerCase()}|${billCode.trim().toLowerCase()}`;
+}
+
+export interface GTR30ResolvedEmployees {
+  rows: GTR30EmployeeMaster[];
+  sourceKey: string | null;
+  isFallback: boolean;
+  exactKey: string;
+}
+
+/**
+ * Resolve employees for a bill month with fallback:
+ * 1) exact monthKey|billCode
+ * 2) master|billCode
+ * 3) aggregated deduped across all groups for that billCode (most useful for August when only July exists)
+ */
+export function gtr30ResolveEmployees(
+  groups: Record<string, GTR30EmployeeMaster[]>,
+  monthKey: string,
+  billCode: string
+): GTR30ResolvedEmployees {
+  const trimmedMonth = monthKey.trim();
+  const trimmedCode = billCode.trim();
+  const exactKey = gtr30GroupKey(trimmedMonth, trimmedCode);
+
+  if (!trimmedMonth || !trimmedCode) {
+    return { rows: [], sourceKey: null, isFallback: false, exactKey };
+  }
+
+  const exact = groups[exactKey];
+  if (exact && exact.length > 0) {
+    return { rows: exact, sourceKey: exactKey, isFallback: false, exactKey };
+  }
+
+  const masterKey = gtr30GroupKey('master', trimmedCode);
+  const masterRows = groups[masterKey];
+  if (masterRows && masterRows.length > 0) {
+    return { rows: masterRows, sourceKey: masterKey, isFallback: true, exactKey };
+  }
+
+  // Fallback: aggregate deduped employees for this billCode across all months
+  const targetBillLower = trimmedCode.toLowerCase();
+  const aggregated: GTR30EmployeeMaster[] = [];
+  const seen = new Set<string>();
+
+  for (const [key, emps] of Object.entries(groups)) {
+    const sepIdx = key.lastIndexOf('|');
+    if (sepIdx < 0) continue;
+    const keyBill = key.slice(sepIdx + 1).trim().toLowerCase();
+    if (keyBill !== targetBillLower) continue;
+    if (!emps || emps.length === 0) continue;
+    for (const emp of emps) {
+      const hrpn = (emp.hrpnNo ?? '').trim().toLowerCase();
+      const dedupeKey = hrpn ? `hrpn:${hrpn}` : `id:${emp.id}`;
+      const finalKey = `${dedupeKey}|${targetBillLower}`;
+      if (seen.has(finalKey)) continue;
+      seen.add(finalKey);
+      aggregated.push(emp);
+    }
+  }
+
+  if (aggregated.length > 0) {
+    // Use the first found group key as source for display; mark as fallback
+    const firstKey = Object.keys(groups).find((k) => {
+      const bill = k.slice(k.lastIndexOf('|') + 1).trim().toLowerCase();
+      return bill === targetBillLower && (groups[k]?.length ?? 0) > 0;
+    }) ?? null;
+    return { rows: aggregated, sourceKey: firstKey, isFallback: true, exactKey };
+  }
+
+  return { rows: [], sourceKey: null, isFallback: false, exactKey };
 }

@@ -76,4 +76,49 @@ describe('gtr30EmployeeTransform.service', () => {
     const result = gtr30EmployeeTransformService.masterToBillEmployee(zeroHra, 1);
     expect(result.hra).toBe(0);
   });
+
+  it('resolves pay from the pay matrix for a given bill month', () => {
+    const withMatrix: GTR30EmployeeMaster = {
+      ...master,
+      payEntries: [
+        { id: 'a', startDate: '2026-07-01', endDate: '2027-01-30', basicPay: 39900 },
+        { id: 'b', startDate: '2027-02-01', basicPay: 42500 },
+      ],
+    };
+    const july = gtr30EmployeeTransformService.masterToBillEmployee(withMatrix, 1, undefined, {
+      monthKey: 'July-2026',
+    });
+    expect(july.payOfEstablishment).toBe(39900);
+    expect(july.masterId).toBe('m1');
+
+    const feb = gtr30EmployeeTransformService.masterToBillEmployee(withMatrix, 1, undefined, {
+      monthKey: 'February-2027',
+    });
+    expect(feb.payOfEstablishment).toBe(42500);
+  });
+
+  it('day-weights the pay when a change falls mid-month', () => {
+    const withMatrix: GTR30EmployeeMaster = {
+      ...master,
+      payEntries: [
+        { id: 'a', startDate: '2026-07-01', endDate: '2027-01-30', basicPay: 39900 },
+        { id: 'b', startDate: '2027-01-16', basicPay: 42500 },
+      ],
+    };
+    const jan = gtr30EmployeeTransformService.masterToBillEmployee(withMatrix, 1, undefined, {
+      monthKey: 'January-2027',
+    });
+    expect(jan.payOfEstablishment).toBe(41242);
+    expect(jan.da).toBe(Math.round(41242 * 0.53));
+  });
+
+  it('falls back to currentPay when the matrix is empty or no month is given', () => {
+    const withEmptyMatrix: GTR30EmployeeMaster = { ...master, payEntries: [] };
+    const direct = gtr30EmployeeTransformService.masterToBillEmployee(withEmptyMatrix, 1);
+    expect(direct.payOfEstablishment).toBe(40000);
+    const withMonth = gtr30EmployeeTransformService.masterToBillEmployee(withEmptyMatrix, 1, undefined, {
+      monthKey: 'January-2027',
+    });
+    expect(withMonth.payOfEstablishment).toBe(40000);
+  });
 });

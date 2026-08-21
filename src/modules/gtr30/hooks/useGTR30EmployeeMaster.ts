@@ -88,27 +88,6 @@ export function useSaveGTR30EmployeeGroup() {
   });
 }
 
-export function useRemoveGTR30Employee() {
-  const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
-
-  return useMutation({
-    mutationFn: (input: { monthKey: string; billCode: string; employeeId: string }) =>
-      Promise.resolve(gtr30EmployeeMasterService.removeEmployee(
-        input.monthKey,
-        input.billCode,
-        input.employeeId
-      )),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
-      queryClient.invalidateQueries({
-        queryKey: gtr30EmployeeMasterGroupKey(officeId, variables.monthKey, variables.billCode),
-      });
-      void invalidateGtr30Queries(queryClient);
-    },
-  });
-}
-
 export function useRemoveGTR30EmployeeAcrossGroups() {
   const queryClient = useQueryClient();
   const officeId = useActiveOfficeId();
@@ -147,9 +126,9 @@ export function useRemoveGTR30EmployeeBatch() {
         );
         removedCount += result.removedCount;
       }
-      return Promise.resolve({ removedCount });
+return Promise.resolve({ removedCount });
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
       void invalidateGtr30Queries(queryClient);
     },

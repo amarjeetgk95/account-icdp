@@ -315,6 +315,139 @@ export function calculateDA(currentPay: number, daPercent: number = DEFAULT_DA_P
   return Math.round(currentPay * (daPercent / 100));
 }
 
+// ── DA Rate history with effective-from date ────────────────────────────────
+export interface DARateEntry {
+  id: string;
+  effectiveFrom: string; // ISO YYYY-MM-DD
+  rate: number;
+}
+
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const DMY_DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
+const DMY_SLASH_REGEX = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+
+function isValidIsoDate(iso: string): boolean {
+  if (!ISO_DATE_REGEX.test(iso)) return false;
+  const d = new Date(iso);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
+}
+
+export function parseFlexibleDateToISO(input: string): string | null {
+  const trimmed = input.trim();
+  if (isValidIsoDate(trimmed)) return trimmed;
+  let m = DMY_DATE_REGEX.exec(trimmed);
+  if (!m) m = DMY_SLASH_REGEX.exec(trimmed);
+  if (m) {
+    const dd = m[1];
+    const mm = m[2];
+    const yyyy = m[3];
+    const iso = `${yyyy}-${mm}-${dd}`;
+    if (isValidIsoDate(iso)) return iso;
+  }
+  // Also accept YYYY/MM/DD
+  const ymdSlash = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(trimmed);
+  if (ymdSlash) {
+    const iso = `${ymdSlash[1]}-${ymdSlash[2]}-${ymdSlash[3]}`;
+    if (isValidIsoDate(iso)) return iso;
+  }
+  return null;
+}
+
+export function normalizeDARates(rates: DARateEntry[] | null | undefined): DARateEntry[] {
+  const valid = (rates ?? [])
+    .map((r) => {
+      if (!r) return null;
+      const iso = parseFlexibleDateToISO(String(r.effectiveFrom || '').trim());
+      if (!iso) return null;
+      if (typeof r.rate !== 'number' || r.rate < 0 || r.rate > 100) return null;
+      return {
+        id: r.id || crypto.randomUUID(),
+        effectiveFrom: iso,
+        rate: Math.round(r.rate * 100) / 100,
+      };
+    })
+    .filter((r): r is DARateEntry => r !== null)
+    .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom) || a.id.localeCompare(b.id));
+  // Deduplicate by effectiveFrom, keep last
+  const deduped: DARateEntry[] = [];
+  for (const entry of valid) {
+    const last = deduped[deduped.length - 1];
+    if (last && last.effectiveFrom === entry.effectiveFrom) {
+      deduped[deduped.length - 1] = entry;
+    } else {
+      deduped.push(entry);
+    }
+  }
+  return deduped;
+}
+
+/**
+ * Resolve the applicable DA percent for a given ISO date (YYYY-MM-DD).
+ * Returns the rate of the latest entry with effectiveFrom <= targetDate.
+ * If no entry matches (target before all entries), returns the earliest rate or DEFAULT.
+ */
+export function resolveDARateForDate(
+  rates: DARateEntry[] | null | undefined,
+  targetIso: string
+): number {
+  const norm = normalizeDARates(rates);
+  if (norm.length === 0) return DEFAULT_DA_PERCENT;
+  if (!isValidIsoDate(targetIso)) return norm[norm.length - 1].rate;
+  let best: DARateEntry | null = null;
+  for (const entry of norm) {
+    if (entry.effectiveFrom <= targetIso) {
+      if (!best || entry.effectiveFrom >= best.effectiveFrom) best = entry;
+    }
+  }
+  if (best) return best.rate;
+  // Target before earliest entry -> use earliest rate
+  return norm[0].rate;
+}
+
+/**
+ * Resolve DA percent for a month key like "August-2026" or ISO month start "2026-08-01".
+ * Uses monthStartFromKey internally when monthKey format is detected.
+ */
+export function resolveDARateForMonthKey(
+  rates: DARateEntry[] | null | undefined,
+  monthKeyOrIso: string | null | undefined
+): number {
+  if (!monthKeyOrIso || typeof monthKeyOrIso !== 'string') return normalizeDARates(rates)[0]?.rate ?? DEFAULT_DA_PERCENT;
+  const trimmed = monthKeyOrIso.trim();
+  // Try ISO date directly
+  if (isValidIsoDate(trimmed)) return resolveDARateForDate(rates, trimmed);
+  // Try Month-Year format via dynamic import to avoid circular dep - inline parse
+  const match = /^([A-Za-z]+)-(\d{4})$/.exec(trimmed);
+  if (match) {
+    const MONTHS = ['April','May','June','July','August','September','October','November','December','January','February','March'];
+    const name = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+    const idx = MONTHS.indexOf(name);
+    if (idx >= 0) {
+      const year = Number(match[2]);
+      const monthNum = ((idx + 3) % 12) + 1;
+      const iso = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+      return resolveDARateForDate(rates, iso);
+    }
+  }
+  // Fallback: try to parse as month start via split
+  return normalizeDARates(rates)[0]?.rate ?? DEFAULT_DA_PERCENT;
+}
+
+export function getEffectiveDARateOnOrBefore(
+  rates: DARateEntry[] | null | undefined,
+  isoDate: string
+): DARateEntry | null {
+  const norm = normalizeDARates(rates);
+  if (norm.length === 0) return null;
+  let best: DARateEntry | null = null;
+  for (const entry of norm) {
+    if (entry.effectiveFrom <= isoDate && (!best || entry.effectiveFrom > best.effectiveFrom)) {
+      best = entry;
+    }
+  }
+  return best ?? norm[0];
+}
+
 export function calculateNPS(currentPay: number, da: number): number {
   if (!currentPay || currentPay <= 0) return 0;
   return Math.round((currentPay + (da || 0)) * 0.1);

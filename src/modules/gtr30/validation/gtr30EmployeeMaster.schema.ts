@@ -41,6 +41,25 @@ export const gtr30EmployeeMasterSchema = z
       .string()
       .optional()
       .refine((val) => !val || dateRegex.test(val), 'Invalid date format (YYYY-MM-DD)'),
+    payEntries: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          startDate: z
+            .string()
+            .refine((val) => dateRegex.test(val), 'Invalid start date (YYYY-MM-DD)'),
+          endDate: z
+            .string()
+            .optional()
+            .refine((val) => !val || dateRegex.test(val), 'Invalid end date (YYYY-MM-DD)'),
+          basicPay: z.coerce
+            .number()
+            .min(0, 'Basic pay cannot be negative')
+            .max(99_999_999, 'Basic pay is too large')
+            .default(0),
+        })
+      )
+      .optional(),
     quarterAddress: z.string().optional(),
     insuranceGroup: z.string().optional(),
     insuranceType: z

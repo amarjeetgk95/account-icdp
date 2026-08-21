@@ -18,6 +18,9 @@ export interface GTR44ObjectExpenditureItem {
   name: string;
   edpCode: string;
   amount: number | null;
+  nameGu?: string;
+  isActive?: boolean;
+  sortOrder?: number;
 }
 
 export interface GTR44Deductions {
@@ -47,6 +50,12 @@ export interface GTR44BudgetHead {
   minorHead: string;
   subHead: string;
   detailedHead: string;
+  isActive?: boolean;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  grantRef?: string;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface GTR44FormData {
@@ -143,6 +152,16 @@ export interface GTR44FormData {
   agObjectedAmount: number | null;
   agAuditorName: string;
   agSuperintendentName: string;
+
+  // Office & Treasury Master — Phase 1 extension (optional for backward compat with old bills)
+  officeAddress?: string;
+  drawingOfficerName?: string;
+  drawingOfficerDesignation?: string;
+  messengerName?: string;
+  treasuryPayMode?: 'TC' | 'Cheque' | string;
+  defaultMonthOf?: string;
+  auditorName?: string;
+  superintendentName?: string;
 }
 
 // Sub-Vouchers and Deductions for database persistence and hooks
@@ -169,6 +188,21 @@ export interface EDPCode {
   nameEn: string;
   nameGu: string;
   edpNumber?: string;
+}
+
+export interface GTR44EDPCode {
+  code: string;
+  nameEn: string;
+  nameGu: string;
+  type: 'expenditure' | 'deduction';
+  isActive?: boolean;
+}
+
+export interface GTR44DeductionTemplate {
+  code: string;
+  label: string;
+  rateDefault?: number;
+  isGst?: boolean;
 }
 
 export interface GTR44Bill {
@@ -203,5 +237,34 @@ export interface GTR44Bill {
   createdDate: string;
   updatedDate: string;
   formData: GTR44FormData;
+}
+
+export interface GTR44NumberingSettings {
+  billPrefix: string;
+  voucherPrefix: string;
+  financialYearReset: boolean;
+  nextBillSeq: number;
+  nextVoucherSeq: number;
+}
+
+export interface GTR44PrintSettings {
+  cert1Text: string;
+  cert2Text: string;
+  cert3Text: string;
+  cert4Text: string;
+  cert5Text: string;
+  cert6Text: string;
+  cert7Text: string;
+  cert8Text: string;
+  cert9Text: string;
+  showPaperTypos: boolean;
+  signaturePlaceholders: {
+    drawingOfficer: string;
+    messenger: string;
+    countersigning: string;
+  };
+  stampImageUrl?: string;
+  footerNote?: string;
+  gujaratiFontEnabled?: boolean;
 }
 

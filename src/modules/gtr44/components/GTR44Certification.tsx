@@ -1,16 +1,52 @@
 import React from 'react';
 import { GTR44FormData } from '../types';
 import { formatIndianCurrency } from '../utils/gtr44Utils';
+import { useGTR44SettingsStore } from '../store/gtr44SettingsStore';
+import { DEFAULT_GTR44_PRINT_SETTINGS } from '../store/gtr44Defaults';
+
+function usePrintSettingsSafe(): import('../types').GTR44PrintSettings {
+  const print = useGTR44SettingsStore((s) => s.printSettings);
+  return print ?? DEFAULT_GTR44_PRINT_SETTINGS;
+}
+
+function formatDateYearSuffix(dateStr?: string): string {
+  if (!dateStr) return ' 20';
+  // If date already contains a 4-digit year (e.g. 2026-08-21 or 21/08/2026), don't append ' 20'
+  if (/\b20\d{2}\b/.test(dateStr)) return '';
+  return ' 20';
+}
+
+function maybeCorrectTypos(text: string, showPaperTypos: boolean): string {
+  if (showPaperTypos) return text;
+  // Correct known paper typos when toggle is off (best-effort)
+  return text
+    .replace(/registeres/g, 'registers')
+    .replace(/defected/g, 'defaced')
+    .replace(/multilated/g, 'mutilated')
+    .replace(/enterained/g, 'entertained')
+    .replace(/suport/g, 'support')
+    .replace(/Possession/g, 'possession')
+    .replace(/Objeected/g, 'Objected')
+    .replace(/upto/g, 'up to');
+}
 
 interface GTR44CertificationPage3Props {
   data: GTR44FormData;
 }
 
 export const GTR44CertificationPage3: React.FC<GTR44CertificationPage3Props> = ({ data }) => {
+  const print = usePrintSettingsSafe();
+  const showTypos = print.showPaperTypos ?? true;
+  const c1 = maybeCorrectTypos(print.cert1Text || DEFAULT_GTR44_PRINT_SETTINGS.cert1Text, showTypos);
+  const c2 = maybeCorrectTypos(print.cert2Text || DEFAULT_GTR44_PRINT_SETTINGS.cert2Text, showTypos);
+  const c3 = maybeCorrectTypos(print.cert3Text || DEFAULT_GTR44_PRINT_SETTINGS.cert3Text, showTypos);
+  const c4 = maybeCorrectTypos(print.cert4Text || DEFAULT_GTR44_PRINT_SETTINGS.cert4Text, showTypos);
+  const footerNote = print.footerNote;
+  const gujaratiEnabled = print.gujaratiFontEnabled;
   return (
     <div
       style={{
-        fontFamily: "'Times New Roman', Times, serif",
+        fontFamily: gujaratiEnabled ? "'Noto Sans Gujarati', 'Times New Roman', Times, serif" : "'Times New Roman', Times, serif",
         fontSize: '11.5pt',
         lineHeight: 1.42,
         color: '#000',
@@ -23,14 +59,14 @@ export const GTR44CertificationPage3: React.FC<GTR44CertificationPage3Props> = (
       {/* 1 */}
       <div>
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
-          <strong>1.</strong> I certify that the expenditure charged in this Bill could not, with due regard to the interest of the public service be avoided. I certify that, to the best of my knowledge and belief the payments entered in the Bill have been duly made to the parties entitled to receive them, with the exceptions noted below which exceed the balance of the Permanent Advance, and will be paid on receipt of the money drawn on this Bill, Vouchers for all sums above Rs. 1000 in amount are attached to the Bill, save those noted, below, which will be forwarded as soon as the amounts have been paid. I have as far as possible obtained vouchers for others sums, and I am responsible that they have been destroyed or so defected, or multilated that they cannot be used again. All works bills are annexed.
+          <strong>1.</strong> {c1}
         </p>
       </div>
 
       {/* 2 */}
       <div>
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
-          <strong>2.</strong> Certified that I have personally checked the progressive total in the Bill with that in the contingent registeres and found to agree.
+          <strong>2.</strong> {c2}
         </p>
         <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
           G. R. F. D. No. 1722 dated 23-12-1922.
@@ -40,12 +76,24 @@ export const GTR44CertificationPage3: React.FC<GTR44CertificationPage3Props> = (
       {/* 3 */}
       <div>
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
-          <strong>3.</strong> Certified that this bill <span style={{ textDecoration: 'line-through' }}>included charge amounting</span> does not include charges to Rs.&nbsp;
-          <span style={{ display: 'inline-block', minWidth: '110px', borderBottom: '1px solid #000', textAlign: 'center', fontWeight: 700 }}>
-            {data.cert3Amount ? formatIndianCurrency(data.cert3Amount) : ''}
-          </span>
-          &nbsp;on account of Municipal sanitary and water taxes for hired or Government residential quarters which are recoverable from the occupants. The amount so recoverable&nbsp;
-          <span style={{ textDecoration: 'underline' }}>has been</span> / <span style={{ textDecoration: 'line-through' }}>will be</span> recovered by deductions from contingent bill
+          <strong>3.</strong>{' '}
+          {c3.includes('{{amount}}') ? (
+            <>
+              {c3.split('{{amount}}')[0]}
+              <span style={{ display: 'inline-block', minWidth: '110px', borderBottom: '1px solid #000', textAlign: 'center', fontWeight: 700 }}>
+                {data.cert3Amount ? formatIndianCurrency(data.cert3Amount) : ''}
+              </span>
+              {c3.split('{{amount}}')[1] ?? ''}
+            </>
+          ) : (
+            <>
+              <del>included charge amounting</del> does not include charges to Rs.&nbsp;
+              <span style={{ display: 'inline-block', minWidth: '110px', borderBottom: '1px solid #000', textAlign: 'center', fontWeight: 700 }}>
+                {data.cert3Amount ? formatIndianCurrency(data.cert3Amount) : ''}
+              </span>
+              &nbsp;{c3}
+            </>
+          )}
         </p>
         <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
           (A. G.&apos;s Geal. Letter No. 7, (H. A. : 650) dated 28-9-1925 and G. D. No. 6 T. M. 29-C-2679, dated 27-1-33).
@@ -55,12 +103,28 @@ export const GTR44CertificationPage3: React.FC<GTR44CertificationPage3Props> = (
       {/* 4 */}
       <div>
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
-          <strong>4.</strong> I certify that the coolies engaged on manual labour and paid at daily or monthly rate for whom charges have been included in this bill were actually enterained and paid.
+          <strong>4.</strong> {c4}
         </p>
         <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
-          (Item 10 of appendix 13 of audit code Vol. II).
+          (G. R. F. D. No. 2012 dated 9-11-1925 &amp; G. O. F. D. No. 2012 dated 24-2-1926).
+        </p>
+        <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
+          (Note—The work &apos;and that the charges have been properly accounted for&apos; is clause 4 was omitted by G. R. F. D. No. 1722, dated 23-12-1922).
+        </p>
+        <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
+          (G. R. F. D. No. T. M. R. 1060-B, dated 9-12-1960).
+        </p>
+        <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
+          (Audit Code, Vol. II, Chap. 5, Para. 317).
         </p>
       </div>
+
+      {/* Optional footer note */}
+      {footerNote ? (
+        <div style={{ borderTop: '1px dashed #555', paddingTop: '4px', fontSize: '9pt', fontStyle: 'italic', textAlign: 'center' }}>
+          {footerNote}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -70,12 +134,24 @@ interface GTR44CertificationPage4Props {
 }
 
 export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = ({ data }) => {
+  const print = usePrintSettingsSafe();
+  const showTypos = print.showPaperTypos ?? true;
+  const c5 = maybeCorrectTypos(print.cert5Text || DEFAULT_GTR44_PRINT_SETTINGS.cert5Text, showTypos);
+  const c6 = maybeCorrectTypos(print.cert6Text || DEFAULT_GTR44_PRINT_SETTINGS.cert6Text, showTypos);
+  const c7 = maybeCorrectTypos(print.cert7Text || DEFAULT_GTR44_PRINT_SETTINGS.cert7Text, showTypos);
+  const c8 = maybeCorrectTypos(print.cert8Text || DEFAULT_GTR44_PRINT_SETTINGS.cert8Text, showTypos);
+  const c9 = maybeCorrectTypos(print.cert9Text || DEFAULT_GTR44_PRINT_SETTINGS.cert9Text, showTypos);
+  const sig = print.signaturePlaceholders;
+  const stampImageUrl = print.stampImageUrl;
+  const footerNote = print.footerNote;
+  const gujaratiEnabled = print.gujaratiFontEnabled;
+
   return (
     <div
       style={{
-        fontFamily: "'Times New Roman', Times, serif",
+        fontFamily: gujaratiEnabled ? "'Noto Sans Gujarati', 'Times New Roman', Times, serif" : "'Times New Roman', Times, serif",
         fontSize: '11.5pt',
-        lineHeight: 1.4,
+        lineHeight: 1.42,
         color: '#000',
         display: 'flex',
         flexDirection: 'column',
@@ -86,39 +162,39 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
       {/* 5 */}
       <div>
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
-          <strong>5.</strong> I certify that the purchases billed for have been received in good order, that quantities are correct and their quality good that the rates paid are not in excess or the accepted and the market rates and that suitable notes of payment have been recorded against the original indents and invoices concerned to prevent double payments.
-        </p>
-        <p style={{ fontSize: '10.5pt', margin: '3px 0 0 0' }}>
-          (G. R. F. D. No. 6043 dated 9-5-1928)
+          <strong>5.</strong> {c5}
         </p>
       </div>
 
       {/* 6 */}
       <div>
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
-          <strong>6.</strong> Certified that the expenditure on conveyance hire included in this bill was actually incurred was unavoidable and is within the scheduled scale of charges for the conveyance used.
+          <strong>6.</strong> {c6}
+        </p>
+        <p style={{ fontStyle: 'normal', fontSize: '10.5pt', margin: '3px 0 0 0' }}>
+          (G. R. F. D. No. 3436, dated 10-1-1928).
         </p>
       </div>
 
       {/* 7 */}
       <div>
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
-          <strong>7.</strong> Certified that all bhatta to witnesses has been paid strictly in accordance with the scale laid down by Government.
+          <strong>7.</strong> {c7}
         </p>
       </div>
 
       {/* 8 */}
       <div>
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
-          <strong>8.</strong> Certify that the monetary or quantitative limits prescribed by the Government in respect of items of contingencies included in the bill have not been exceeded.
+          <strong>8.</strong> {c8}
         </p>
       </div>
 
-      {/* Pay to and Specimen signature area */}
-      <div style={{ display: 'grid', gridTemplateColumns: '58% 42%', rowGap: '6px', fontSize: '11.5pt' }}>
+      {/* Pay to Name + Specimen Signature */}
+      <div style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '6px 0', fontSize: '11.5pt' }}>
         <div style={{ display: 'flex', alignItems: 'baseline' }}>
           <span>Pay to&nbsp;</span>
-          <span style={{ borderBottom: '1px solid #000', flex: 1, minHeight: '16px', fontWeight: 700, paddingLeft: '4px' }}>
+          <span style={{ borderBottom: '1px solid #000', flex: 1, fontWeight: 700, paddingLeft: '4px' }}>
             {data.payToName}
           </span>
         </div>
@@ -129,19 +205,19 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
 
         <div style={{ paddingTop: '10px' }}>
           <p style={{ margin: '0 0 4px 0' }}>Signature is hereby attested.</p>
-          <p style={{ margin: '18px 0 0 0', fontWeight: 700 }}>Signature of Messenger.</p>
+          <p style={{ margin: '18px 0 0 0', fontWeight: 700 }}>{maybeCorrectTypos(sig.messenger, showTypos)}</p>
         </div>
         <div style={{ textAlign: 'right', paddingTop: '10px' }}>
-          <p style={{ margin: 0, fontWeight: 700 }}>Signature of Drawing Officer,</p>
+          <p style={{ margin: 0, fontWeight: 700 }}>{maybeCorrectTypos(sig.drawingOfficer, showTypos)}</p>
         </div>
       </div>
 
       {/* Drawing Officer and E.E. Received Contents */}
       <div style={{ display: 'grid', gridTemplateColumns: '50% 50%', fontSize: '11.5pt' }}>
         <div>
-          <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>Signature of Drawing Officer,</p>
+          <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>{maybeCorrectTypos(sig.drawingOfficer, showTypos)}</p>
           <p style={{ margin: '18px 0 0 0' }}>
-            Dated <span style={{ display: 'inline-block', borderBottom: '1px solid #000', width: '110px', textAlign: 'center', fontWeight: 700 }}>{data.billDated}</span> 20
+            Dated <span style={{ display: 'inline-block', borderBottom: '1px solid #000', width: '110px', textAlign: 'center', fontWeight: 700 }}>{data.billDated}</span>{formatDateYearSuffix(data.billDated)}
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -171,18 +247,25 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
       {/* 9 */}
       <div>
         <p style={{ textAlign: 'justify', margin: 0, textIndent: '16px' }}>
-          <strong>9.</strong> I certify that in suport of every charges upto Rs. 1000 made in this bill a receipt or other voucher has been given to me and now in my Possession duly cancelled. The receipt and voucher for items in excess of Rs. 1000/- are attached to the bill duly cancelled that they cannot be again used to support claims against the Government. A work bill are also appended.
+          <strong>9.</strong> {c9}
         </p>
       </div>
+
+      {/* Stamp image if provided */}
+      {stampImageUrl ? (
+        <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '6px' }}>
+          <img src={stampImageUrl} alt="Office Stamp" style={{ maxHeight: '80px', maxWidth: '180px', border: '1px dashed #999', padding: '4px' }} />
+        </div>
+      ) : null}
 
       {/* Countersigning signature */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '11.5pt' }}>
         <div style={{ textAlign: 'center', width: '240px' }}>
           <p style={{ margin: '0 0 2px 0', fontWeight: 700 }}>Signature</p>
-          <p style={{ margin: '0 0 2px 0' }}>of countersining officer.</p>
+          <p style={{ margin: '0 0 2px 0' }}>{maybeCorrectTypos(sig.countersigning, showTypos)}</p>
           <p style={{ margin: '0 0 2px 0' }}>(Office) <span style={{ fontWeight: 700 }}>{data.countersigningOffice || ''}</span></p>
           <p style={{ margin: '12px 0 0 0' }}>
-            Dated <span style={{ display: 'inline-block', borderBottom: '1px solid #000', width: '100px', textAlign: 'center' }}>{data.countersigningDate || ''}</span> 20
+            Dated <span style={{ display: 'inline-block', borderBottom: '1px solid #000', width: '100px', textAlign: 'center' }}>{data.countersigningDate || ''}</span>{formatDateYearSuffix(data.countersigningDate)}
           </p>
         </div>
       </div>
@@ -209,7 +292,7 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline' }}>
-              <span style={{ width: '200px' }}>Objeected to Rs.</span>
+              <span style={{ width: '200px' }}>{maybeCorrectTypos('Objeected to Rs.', showTypos)}</span>
               <span style={{ borderBottom: '1px solid #000', flex: 1, fontWeight: 700, paddingLeft: '4px', minHeight: '16px' }}>
                 {data.agObjectedAmount ? formatIndianCurrency(data.agObjectedAmount) : ''}
               </span>
@@ -221,6 +304,11 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
             <span>Auditor</span>
             <span style={{ paddingRight: '40px' }}>Superintendent.</span>
           </div>
+          {footerNote ? (
+            <div style={{ fontSize: '9pt', color: '#555', borderTop: '1px dashed #999', paddingTop: '6px', marginTop: '12px', textAlign: 'center' }}>
+              {footerNote}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

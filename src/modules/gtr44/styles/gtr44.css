@@ -344,7 +344,19 @@
   border-color: #475569;
 }
 
-.dark .gdp44-chip.selected {
+.dark .gtr44-chip.selected {
   background: #3b82f6;
   color: #ffffff;
 }
+
+/* Print mode rules — hide interactive wizard chrome */
+@media print {
+  .gtr44-wizard-tabs,
+  .gtr44-progress,
+  .gtr44-summary-bar,
+  .gtr44-chip,
+  .gtr44-wizard-form > div:not(.gtr44-wizard-page) {
+    display: none !important;
+  }
+}
+

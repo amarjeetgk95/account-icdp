@@ -5,6 +5,7 @@ import { MONTHS, QUARTER_MONTHS, type Quarter } from '@/shared/constants';
 import { isActiveInEntryMonth } from '@/modules/payroll/utils/employeeDates';
 import { gtr30BillRegisterRepository } from '@/modules/gtr30/repositories/billRegister.repository';
 import { gtr44Repository } from '@/modules/gtr44/repositories/gtr44.repository';
+import { gtr44BillsBackendRepository } from '@/modules/gtr44/repositories/gtr44BillsBackend.repository';
 import { paybillRepository } from '@/modules/paybill/repositories/paybill.repository';
 import type {
   DashboardData,
@@ -168,7 +169,15 @@ export const dashboardRepository = {
     const [gtr30Result, gtr44Result, partiesResult, partyTxResult, paybillImportsResult] =
       await Promise.allSettled([
         gtr30BillRegisterRepository.list(),
-        gtr44Repository.getBills(),
+        (async () => {
+          try {
+            const backend = await gtr44BillsBackendRepository.list();
+            if (backend !== null) return backend;
+          } catch {
+            // fallback to local
+          }
+          return gtr44Repository.getBills();
+        })(),
         (async () => {
           let q = supabase.from('parties').select('id, name, gst_no, pan_no');
           if (!scope.all) q = q.eq('office_id', scope.officeId!);

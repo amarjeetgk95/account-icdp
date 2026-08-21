@@ -1,6 +1,7 @@
 import React from 'react';
 import type { GTR30FormData } from '../types';
 import { formatMoney } from '../services/gtr30Calc.service';
+import { RotatedHeader } from './RotatedHeader';
 
 interface Props {
   data: GTR30FormData;
@@ -36,6 +37,7 @@ export const GTR30Page4Inner2: React.FC<Props> = ({ data }) => {
   const totalFestivalAdv = sum((e) => e.festivalAdv);
   const totalFoodGrainAdv = sum((e) => e.foodGrainAdv);
   const totalMotorCarAdv = sum((e) => (e.motorCarAdv || 0) + (e.otherConveyanceAdv || 0));
+  const totalMotor31 = sum((e) => (e.motorCarAdv || 0) + (e.otherConveyanceAdv || 0) + (e.interestOnAdv || 0));
   const totalHba = sum((e) => e.hba);
   const totalFanAdv = sum((e) => (e.fanAdv || 0) + (e.interestOnAdv || 0));
   const totalRecovPayLeave = sum(
@@ -97,7 +99,7 @@ export const GTR30Page4Inner2: React.FC<Props> = ({ data }) => {
   return (
     <div className="gtr30-page gtr30-landscape" id="gtr30-page-4">
       {/* Top spacing to match vertical page alignment */}
-      <div style={{ height: '32px' }}></div>
+      <div style={{ height: '14px' }}></div>
 
       {/* Main Table for Columns 20 to 37 + Society */}
       <table
@@ -112,103 +114,103 @@ export const GTR30Page4Inner2: React.FC<Props> = ({ data }) => {
         <thead>
           <tr style={{ height: '165px', background: '#ffffff' }}>
             {/* 20. Audit */}
-            <th style={{ border: '1px solid #000', width: '38px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">for Audit use only</div>
+            <th style={{ border: '1px solid #000', width: '38px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>for Audit use only</RotatedHeader>
             </th>
 
             {/* 21. Income Tax */}
-            <th style={{ border: '1px solid #000', width: '56px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Income Tax (9510)/ Surcharge on<br />I.T.(9520)/ Housing Fund(9590)</div>
+            <th style={{ border: '1px solid #000', width: '56px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Income Tax (9510)/ Surcharge on<br />I.T.(9520)/ Housing Fund(9590)</RotatedHeader>
             </th>
 
             {/* 22. Rent of Building */}
-            <th style={{ border: '1px solid #000', width: '50px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Rent of Building (9550) (9560)</div>
+            <th style={{ border: '1px solid #000', width: '50px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Rent of Building (9550) (9560)</RotatedHeader>
             </th>
 
             {/* 23. PLI / BSI */}
-            <th style={{ border: '1px solid #000', width: '50px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Postal Life Insurance Premium(9530)<br />B.S.I. Premium(9540)</div>
+            <th style={{ border: '1px solid #000', width: '50px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Postal Life Insurance Premium(9530)<br />B.S.I. Premium(9540)</RotatedHeader>
             </th>
 
             {/* 24. Prof Tax */}
-            <th style={{ border: '1px solid #000', width: '46px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Professional Tax(9570)</div>
+            <th style={{ border: '1px solid #000', width: '46px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Professional Tax(9570)</RotatedHeader>
             </th>
 
             {/* 25. GIS 1979 */}
-            <th style={{ border: '1px solid #000', width: '50px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">State Govt. Employees Group Insurance<br />Scheme 1979 Scheme Insurance Fund (9580)</div>
+            <th style={{ border: '1px solid #000', width: '50px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>State Govt. Employees Group Insurance<br />Scheme 1979 Scheme Insurance Fund (9580)</RotatedHeader>
             </th>
 
             {/* 26. GIS 1981 Ins */}
-            <th style={{ border: '1px solid #000', width: '52px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">State Govt. Employees Insur. Sch. 1981<br />Scheme Insurance Fund (9581)</div>
+            <th style={{ border: '1px solid #000', width: '52px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>State Govt. Employees Insur. Sch. 1981<br />Scheme Insurance Fund (9581)</RotatedHeader>
             </th>
 
             {/* 27. GIS 1981 Sav */}
-            <th style={{ border: '1px solid #000', width: '52px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">State Govt. Employees Insur. Sch. 1981<br />Scheme Savings Fund (9582)</div>
+            <th style={{ border: '1px solid #000', width: '52px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>State Govt. Employees Insur. Sch. 1981<br />Scheme Savings Fund (9582)</RotatedHeader>
             </th>
 
             {/* 28. PF Contribution */}
-            <th style={{ border: '1px solid #000', width: '56px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Provident Fund Contribution (9531)<br />(9532)(9533)(9620)(9670)(9680)(9690)</div>
+            <th style={{ border: '1px solid #000', width: '56px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Provident Fund Contribution (9531)<br />(9532)(9533)(9620)(9670)(9680)(9690)</RotatedHeader>
             </th>
 
             {/* 29. Festival Adv */}
-            <th style={{ border: '1px solid #000', width: '38px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Festival Advance (5701)</div>
+            <th style={{ border: '1px solid #000', width: '38px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Festival Advance (5701)</RotatedHeader>
             </th>
 
             {/* 30. Food Grain Adv */}
-            <th style={{ border: '1px solid #000', width: '38px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Food Grain Advance (5801)</div>
+            <th style={{ border: '1px solid #000', width: '38px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Food Grain Advance (5801)</RotatedHeader>
             </th>
 
             {/* 31. Motor Car Adv */}
-            <th style={{ border: '1px solid #000', width: '54px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Motor Car Adv. Pri./Int.(9592), Other<br />Convey. Adv.(9740), Int. on Adv.(9760)</div>
+            <th style={{ border: '1px solid #000', width: '54px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Motor Car Adv. Pri./Int.(9592), Other<br />Convey. Adv.(9740), Int. on Adv.(9760)</RotatedHeader>
             </th>
 
             {/* 32. HBA */}
-            <th style={{ border: '1px solid #000', width: '46px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">H.B.A. Pri./ Interest on Advance (9591)</div>
+            <th style={{ border: '1px solid #000', width: '46px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>H.B.A. Pri./ Interest on Advance (9591)</RotatedHeader>
             </th>
 
             {/* 33. Fan Adv */}
-            <th style={{ border: '1px solid #000', width: '46px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Fan Adv.(9720)/ Interest on Adv.(9760)</div>
+            <th style={{ border: '1px solid #000', width: '46px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Fan Adv.(9720)/ Interest on Adv.(9760)</RotatedHeader>
             </th>
 
             {/* 34. Recovery of Pay/Leave/Jeep */}
-            <th style={{ border: '1px solid #000', width: '54px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Recov. of Pay/ Leave Salary (9770)/<br />Jeep Car Rent (9780)/ Miscell. Recov.(9910)</div>
+            <th style={{ border: '1px solid #000', width: '54px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Recov. of Pay/ Leave Salary (9770)/<br />Jeep Car Rent (9780)/ Miscell. Recov.(9910)</RotatedHeader>
             </th>
 
             {/* 35. NPS Pension */}
-            <th style={{ border: '1px solid #000', width: '60px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">New Define Contributory pension<br />sch.type govt.Servants (9534)</div>
+            <th style={{ border: '1px solid #000', width: '60px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>New Define Contributory pension<br />sch.type govt.Servants (9534)</RotatedHeader>
             </th>
 
             {/* 36. Total Deductions */}
-            <th style={{ border: '1px solid #000', width: '58px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text font-bold">Total Deductions</div>
+            <th style={{ border: '1px solid #000', width: '58px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader bold>Total Deductions</RotatedHeader>
             </th>
 
             {/* 37. Net Payable */}
-            <th style={{ border: '1px solid #000', width: '58px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text font-bold">Net Payable Amount</div>
+            <th style={{ border: '1px solid #000', width: '58px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader bold>Net Payable Amount</RotatedHeader>
             </th>
 
             {/* 38. Society Deduction */}
-            <th style={{ border: '1px solid #000', width: '56px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">ICDP-Surat Epmloyees Credit and Co<br />Op Society Deduction</div>
+            <th style={{ border: '1px solid #000', width: '56px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>ICDP-Surat Epmloyees Credit and Co<br />Op Society Deduction</RotatedHeader>
             </th>
 
             {/* 39. Net After Society */}
-            <th style={{ border: '1px solid #000', width: '58px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text font-bold">Net Payable Amount after Society<br />Deduction</div>
+            <th style={{ border: '1px solid #000', width: '58px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader bold>Net Payable Amount after Society<br />Deduction</RotatedHeader>
             </th>
           </tr>
 
@@ -307,32 +309,65 @@ export const GTR30Page4Inner2: React.FC<Props> = ({ data }) => {
             const empSociety = emp.societyDeduction || 0;
             const empNetAfter = empNet - empSociety;
 
+            // Per-col aggregates for display (match header col definitions)
+            const col21IncomeTax = (emp.incomeTax || 0) + (emp.surchargeIT || 0) + (emp.housingFund || 0);
+            const col22Rent = (emp.rentOfBuilding || 0) + (emp.policeHousing || 0);
+            const col23PLI = (emp.postalLifeInsurance || 0) + (emp.bsiPremium || 0);
+            const col25GIS1979 = emp.gis1979Insurance || 0;
+            const col28PF = (emp.iasProvidentFund || 0) + (emp.gpfOtherThanClass4 || 0) + (emp.gpfDiviAcct || 0) + (emp.contributoryPF || 0) + (emp.gpfWorkCharged || 0) + (emp.gpfRojamdar || 0);
+            const col29Festival = emp.festivalAdv || 0;
+            const col30FoodGrain = emp.foodGrainAdv || 0;
+            const col31Motor = (emp.motorCarAdv || 0) + (emp.otherConveyanceAdv || 0) + (emp.interestOnAdv || 0);
+            const col32HBA = emp.hba || 0;
+            const col33Fan = (emp.fanAdv || 0) + (emp.interestOnAdv || 0);
+            const col34Recov = (emp.recovPayLeaveSalary || 0) + (emp.jeepRent || 0) + (emp.miscRecoveries || 0);
+
             return (
               <tr key={emp.id || index} style={{ height: '36px', verticalAlign: 'middle' }}>
                 <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 600 }}>
-                  {renderAmount(emp.rentOfBuilding || emp.policeHousing)}
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col21IncomeTax ? 600 : 400 }}>
+                  {renderAmount(col21IncomeTax)}
                 </td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 600 }}>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col22Rent ? 600 : 400 }}>
+                  {renderAmount(col22Rent)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col23PLI ? 600 : 400 }}>
+                  {renderAmount(col23PLI)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: emp.professionalTax ? 600 : 400 }}>
                   {renderAmount(emp.professionalTax)}
                 </td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 600 }}>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col25GIS1979 ? 600 : 400 }}>
+                  {renderAmount(col25GIS1979)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: emp.gis1981Insurance ? 600 : 400 }}>
                   {renderAmount(emp.gis1981Insurance)}
                 </td>
-                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 600 }}>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: emp.gis1981Savings ? 600 : 400 }}>
                   {renderAmount(emp.gis1981Savings)}
                 </td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 600 }}>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col28PF ? 600 : 400 }}>
+                  {renderAmount(col28PF)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col29Festival ? 600 : 400 }}>
+                  {renderAmount(col29Festival)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col30FoodGrain ? 600 : 400 }}>
+                  {renderAmount(col30FoodGrain)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col31Motor ? 600 : 400 }}>
+                  {renderAmount(col31Motor)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col32HBA ? 600 : 400 }}>
+                  {renderAmount(col32HBA)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col33Fan ? 600 : 400 }}>
+                  {renderAmount(col33Fan)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: col34Recov ? 600 : 400 }}>
+                  {renderAmount(col34Recov)}
+                </td>
+                <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: emp.npsPension ? 600 : 400 }}>
                   {renderAmount(emp.npsPension)}
                 </td>
                 <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
@@ -354,29 +389,49 @@ export const GTR30Page4Inner2: React.FC<Props> = ({ data }) => {
           {/* Bottom Total Row */}
           <tr style={{ background: '#ffffff', fontWeight: 700, fontSize: '7pt', height: '32px', verticalAlign: 'middle' }}>
             <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalIncomeTax ? 700 : 400 }}>
+              {renderAmount(totalIncomeTax)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalRent ? 700 : 400 }}>
               {renderAmount(totalRent)}
             </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalPli ? 700 : 400 }}>
+              {renderAmount(totalPli)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalProfTax ? 700 : 400 }}>
               {renderAmount(totalProfTax)}
             </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalGis1979 ? 700 : 400 }}>
+              {renderAmount(totalGis1979)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalGis1981Ins ? 700 : 400 }}>
               {renderAmount(totalGis1981Ins)}
             </td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalGis1981Sav ? 700 : 400 }}>
               {renderAmount(totalGis1981Sav)}
             </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'center' }}>-</td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalPfContrib ? 700 : 400 }}>
+              {renderAmount(totalPfContrib)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalFestivalAdv ? 700 : 400 }}>
+              {renderAmount(totalFestivalAdv)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalFoodGrainAdv ? 700 : 400 }}>
+              {renderAmount(totalFoodGrainAdv)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalMotor31 ? 700 : 400 }}>
+              {renderAmount(totalMotor31)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalHba ? 700 : 400 }}>
+              {renderAmount(totalHba)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalFanAdv ? 700 : 400 }}>
+              {renderAmount(totalFanAdv)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalRecovPayLeave ? 700 : 400 }}>
+              {renderAmount(totalRecovPayLeave)}
+            </td>
+            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: totalNpsPension ? 700 : 400 }}>
               {renderAmount(totalNpsPension)}
             </td>
             <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 800 }}>
@@ -406,7 +461,7 @@ export const GTR30Page4Inner2: React.FC<Props> = ({ data }) => {
           marginLeft: 'auto',
         }}
       >
-        <div style={{ fontWeight: 700 }}>({data.drawingOfficerName || 'SMT U.J.PATEL'})</div>
+        <div style={{ fontWeight: 700 }}>({data.drawingOfficerName || 'Smt. S.V.Solanki.'})</div>
         <div>{data.drawingOfficerDesignation || 'Assistant Administrative Cum Account Officer'}</div>
         <div>{data.drawingOfficerOffice || 'Intensive Cattle Development Programme, Surat.'}</div>
         <div style={{ fontWeight: 700, marginTop: '2px' }}>

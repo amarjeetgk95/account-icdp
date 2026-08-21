@@ -1,4 +1,6 @@
 import { GTR30EmployeeMaster } from '../types/master';
+import { DEFAULT_DA_PERCENT, resolveDARateForMonthKey } from './gtr30GovRules';
+import { gtr30SettingsService } from '../services/gtr30Settings.service';
 
 export interface GTR30SalarySummary {
   basic: number;
@@ -16,9 +18,31 @@ export interface GTR30SalarySummary {
   netTakeHome: number;
 }
 
-export function calculateEmployeeSalary(emp: Partial<GTR30EmployeeMaster>): GTR30SalarySummary {
+export function calculateEmployeeSalary(
+  emp: Partial<GTR30EmployeeMaster>,
+  opts?: { daPercent?: number; monthKey?: string }
+): GTR30SalarySummary {
   const basic = Number(emp.currentPay || 0);
-  const da = emp.da !== undefined && emp.da > 0 ? emp.da : Math.round(basic * 0.53);
+  let effectiveDaPercent = opts?.daPercent;
+  if (effectiveDaPercent === undefined || effectiveDaPercent === null) {
+    if (opts?.monthKey) {
+      try {
+        const rates = gtr30SettingsService.loadSettings().daRates;
+        effectiveDaPercent = resolveDARateForMonthKey(rates, opts.monthKey);
+      } catch {
+        effectiveDaPercent = DEFAULT_DA_PERCENT;
+      }
+    } else {
+      // Fallback to latest DA rate from settings or default
+      try {
+        const rates = gtr30SettingsService.loadSettings().daRates;
+        effectiveDaPercent = resolveDARateForMonthKey(rates, new Date().toISOString().slice(0, 10));
+      } catch {
+        effectiveDaPercent = DEFAULT_DA_PERCENT;
+      }
+    }
+  }
+  const da = emp.da !== undefined && emp.da !== null && Number(emp.da) > 0 ? Number(emp.da) : Math.round(basic * (effectiveDaPercent / 100));
   const hra = Math.round((basic * (emp.hraPercent || 0)) / 100);
   
   const allowances = Number(emp.transportAllowance || 0) + Number(emp.medicalAllowance || 0) + Number(emp.claAllowance || 0);
@@ -52,7 +76,7 @@ export function calculateEmployeeSalary(emp: Partial<GTR30EmployeeMaster>): GTR3
   };
 }
 
-export function calculateGroupTotals(employees: GTR30EmployeeMaster[]): GTR30SalarySummary {
+export function calculateGroupTotals(employees: GTR30EmployeeMaster[], opts?: { daPercent?: number; monthKey?: string }): GTR30SalarySummary {
   const initial: GTR30SalarySummary = {
     basic: 0,
     da: 0,
@@ -70,7 +94,7 @@ export function calculateGroupTotals(employees: GTR30EmployeeMaster[]): GTR30Sal
   };
 
   return employees.reduce((acc, emp) => {
-    const salary = calculateEmployeeSalary(emp);
+    const salary = calculateEmployeeSalary(emp, opts);
     return {
       basic: acc.basic + salary.basic,
       da: acc.da + salary.da,

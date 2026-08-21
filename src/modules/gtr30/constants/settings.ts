@@ -1,4 +1,4 @@
-import type { GTR30DefaultSettings, GTR30DefaultEmployeeTemplate } from '../types/settings';
+import type { GTR30DARateEntry, GTR30DefaultSettings, GTR30DefaultEmployeeTemplate } from '../types/settings';
 import type { GTR30PostItem } from '../types';
 import {
   sampleGTR30FormData,
@@ -60,4 +60,18 @@ const DEFAULT_GTR30_POSTS: GTR30PostItem[] = defaultEstablishmentPosts.map((post
 
 export function freshDefaultPosts(): GTR30PostItem[] {
   return DEFAULT_GTR30_POSTS.map((post) => ({ ...post, id: crypto.randomUUID() }));
+}
+
+export const DEFAULT_GTR30_DA_RATES: GTR30DARateEntry[] = [
+  {
+    id: 'da-2024-12-04',
+    effectiveFrom: '2024-12-04',
+    rate: 53,
+    description: '7th Pay Commission DA 53% (Gujarat GR 04-12-2024)',
+    resolutionNo: 'વલભ-૧૦૨૦૧૬-જીઓઆઈ-૭-ચ તા:૦૪-૧૨-૨૦૨૪',
+  },
+];
+
+export function freshDefaultDaRates(): GTR30DARateEntry[] {
+  return DEFAULT_GTR30_DA_RATES.map((rate) => ({ ...rate }));
 }

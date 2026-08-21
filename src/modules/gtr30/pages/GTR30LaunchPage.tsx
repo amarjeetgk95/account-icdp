@@ -11,10 +11,12 @@ import { gtr30BillFormService } from '../services/gtr30BillForm.service';
 import { gtr30EmployeeTransformService } from '../services/gtr30EmployeeTransform.service';
 import { useGTR30Settings } from '../hooks/useGTR30Settings';
 import { useGTR30BillCodeMappings, useHydrateGTR30BillCodeMappings } from '../hooks/useGTR30BillCodeMappings';
-import { useGTR30EmployeeMasterGroups, gtr30GroupKey, useHydrateGTR30EmployeeMaster } from '../hooks/useGTR30EmployeeMaster';
+import { useGTR30EmployeeMasterGroups, useHydrateGTR30EmployeeMaster } from '../hooks/useGTR30EmployeeMaster';
 import { useGtr30Bills } from '../hooks/useGTR30Bills';
 import { useGtr30SaveBill } from '../hooks/useGTR30BillMutations';
 import { useToast } from '@/hooks/use-toast';
+import { gtr30ResolveEmployees } from '../services/gtr30EmployeeMaster.service';
+import { useEffectiveDARate } from '../hooks/useGTR30Settings';
 
 const INR = (n: number) => '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
@@ -47,6 +49,7 @@ export function GTR30LaunchPage() {
   const [year, setYear] = useState(activeFY);
 
   const monthKey = gtr30MonthKeyFor(month, year);
+  const effectiveDaForMonth = useEffectiveDARate(monthKey);
   const selectStyle =
     'w-full h-9 rounded-md border border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-2 text-sm';
 
@@ -59,11 +62,15 @@ export function GTR30LaunchPage() {
       toast({ title: 'Missing Month', description: 'Enter Month and Year first.' });
       return;
     }
-    const rows =
-      employeeGroups[gtr30GroupKey(month, billCode)] ??
-      employeeGroups[gtr30GroupKey('July-2026', billCode)] ??
-      employeeGroups[gtr30GroupKey('master', billCode)] ??
-      [];
+    const { rows, isFallback, sourceKey } = gtr30ResolveEmployees(employeeGroups, month, billCode);
+    if (rows.length === 0) {
+      toast({
+        title: 'No Master Found',
+        description: `No employees found for ${billCode} · ${month}. Register employees in Employee Management first.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     const bundle = settingsQuery.data;
     const base = bundle
       ? gtr30BillFormService.buildNewBillFormData({
@@ -78,13 +85,21 @@ export function GTR30LaunchPage() {
       billRegisterNo: `${billCode}-${month}-${Date.now().toString().slice(-4)}`,
       monthOf: month,
       billCode,
-      employees: rows.map((master, idx) => gtr30EmployeeTransformService.masterToBillEmployee(master, idx + 1)),
+      employees: rows.map((master, idx) =>
+        gtr30EmployeeTransformService.masterToBillEmployee(master, idx + 1, undefined, {
+          monthKey: month,
+          daRate: effectiveDaForMonth,
+          forceDaRecalc: true,
+        })
+      ),
     };
     try {
       const saved = await saveMutation.mutateAsync({ form: formData, existing: null });
       toast({
         title: 'Bill Created',
-        description: `${rows.length} employee(s) added for ${billCode} · ${month}.`,
+        description: isFallback
+          ? `${rows.length} employee(s) added for ${billCode} · ${month} (fallback from ${sourceKey}).`
+          : `${rows.length} employee(s) added for ${billCode} · ${month}.`,
       });
       navigate(`/gtr30/edit/${saved.id}`);
     } catch (error) {
@@ -108,14 +123,14 @@ export function GTR30LaunchPage() {
         }
       />
 
-      <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+      <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm space-y-4">
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
           <Calendar className="h-5 w-5 text-blue-600" />
-          <h2 className="font-bold text-md text-slate-900">Select Bill Month &amp; Year</h2>
+          <h2 className="font-bold text-md text-slate-900 dark:text-white">Select Bill Month &amp; Year</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
-            <Label className="text-xs">Month</Label>
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Month</Label>
             <select value={month} onChange={(e) => setMonth(e.target.value)} className={selectStyle}>
               {gtr30MonthOptions().map((m) => (
                 <option key={m} value={m}>
@@ -125,7 +140,7 @@ export function GTR30LaunchPage() {
             </select>
           </div>
           <div>
-            <Label className="text-xs">Year (FY)</Label>
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Year (FY)</Label>
             <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={selectStyle}>
               {gtr30YearOptions(activeFY).map((y) => (
                 <option key={y} value={y}>
@@ -134,31 +149,31 @@ export function GTR30LaunchPage() {
               ))}
             </select>
           </div>
-          <div className="text-xs text-slate-500 self-end pb-2">
+          <div className="text-xs text-slate-500 dark:text-slate-400 self-end pb-2">
             Salary entries saved in Employee Master for this month will be picked up automatically.
           </div>
         </div>
       </Card>
 
-      <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+      <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm space-y-4">
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
           <CreditCard className="h-5 w-5 text-blue-600" />
-          <h2 className="font-bold text-md text-slate-900">Bills by Bill Code</h2>
+          <h2 className="font-bold text-md text-slate-900 dark:text-white">Bills by Bill Code</h2>
         </div>
 
-        <div className="bg-slate-50 rounded-lg border overflow-x-auto">
+        <div className="bg-slate-50/70 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
           <table className="w-full text-sm min-w-[760px]">
             <thead>
-              <tr className="bg-slate-100 text-left text-xs uppercase text-slate-600">
-                <th className="px-3 py-2">Bill Code</th>
-                <th className="px-3 py-2">Description</th>
-                <th className="px-3 py-2">Employees in Master</th>
-                <th className="px-3 py-2">Pay Total (₹)</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2 text-right">Action</th>
+              <tr className="bg-slate-100/80 dark:bg-slate-800 text-left text-xs uppercase font-bold text-slate-600 dark:text-slate-400">
+                <th className="px-3.5 py-2.5">Bill Code</th>
+                <th className="px-3.5 py-2.5">Description</th>
+                <th className="px-3.5 py-2.5">Employees in Master</th>
+                <th className="px-3.5 py-2.5">Pay Total (₹)</th>
+                <th className="px-3.5 py-2.5">Status</th>
+                <th className="px-3.5 py-2.5 text-right">Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {billCodeMappings.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-6 text-center text-slate-400">
@@ -167,59 +182,64 @@ export function GTR30LaunchPage() {
                 </tr>
               )}
               {billCodeMappings.map((mapping) => {
-                const monthRows = employeeGroups[gtr30GroupKey(monthKey.trim(), mapping.billCode)] ?? [];
+                const { rows: monthRows, isFallback, sourceKey } = gtr30ResolveEmployees(employeeGroups, monthKey.trim(), mapping.billCode);
                 const payTotal = monthRows.reduce((sum, m) => sum + (m.currentPay || 0), 0);
                 const existing = existingFor(mapping.billCode);
                 return (
-                  <tr key={mapping.id} className="border-t border-slate-200">
-                    <td className="px-3 py-2 font-bold text-blue-700">{mapping.billCode}</td>
-                    <td className="px-3 py-2 text-slate-600">{mapping.description}</td>
-                    <td className="px-3 py-2">
+                  <tr key={mapping.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="px-3.5 py-3 font-bold text-blue-700 dark:text-blue-400 font-mono">{mapping.billCode}</td>
+                    <td className="px-3.5 py-3 text-slate-600 dark:text-slate-300">{mapping.description}</td>
+                    <td className="px-3.5 py-3">
                       {monthRows.length === 0 ? (
                         <span className="text-slate-400 text-xs">No entries in master</span>
                       ) : (
                         <div className="flex items-center gap-1.5">
                           <Users className="h-3.5 w-3.5 text-slate-400" />
-                          <span className="font-medium">{monthRows.length}</span>
+                          <span className="font-semibold text-slate-900 dark:text-white">{monthRows.length}</span>
                           <span className="text-xs text-slate-400 truncate max-w-[220px]">
                             {monthRows.map((e) => e.name || e.hrpnNo || 'Unnamed').join(', ')}
                           </span>
+                          {isFallback && sourceKey && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-medium" title={`Fallback from ${sourceKey}`}>
+                              via {sourceKey.split('|')[0]}
+                            </span>
+                          )}
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-3 font-mono">
                       {monthRows.length === 0 ? (
                         <span className="text-slate-300 text-xs">—</span>
                       ) : (
-                        <span className="text-xs font-semibold text-emerald-600">
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                           {INR(payTotal)}
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-3">
                       {existing ? (
                         <span
-                          className={`text-xs font-semibold uppercase ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                             existing.status === 'passed'
-                              ? 'text-emerald-600'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                               : existing.status === 'submitted'
-                              ? 'text-blue-600'
-                              : 'text-slate-500'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
                           }`}
                         >
                           {existing.status}
                         </span>
                       ) : (
-                        <span className="text-slate-300 text-xs">Not created</span>
+                        <span className="text-slate-400 text-xs">Not created</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3.5 py-3 text-right">
                       {existing ? (
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/gtr30/edit/${existing.id}`)}>
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/gtr30/edit/${existing.id}`)} className="h-8 text-xs font-semibold">
                           <Pencil className="h-3.5 w-3.5 mr-1" /> Edit Bill
                         </Button>
                       ) : (
-                        <Button size="sm" onClick={() => createBill(mapping.billCode)}>
+                        <Button size="sm" onClick={() => createBill(mapping.billCode)} className="h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs">
                           <FilePlus className="h-3.5 w-3.5 mr-1" /> Create Bill
                           <ArrowRight className="h-3.5 w-3.5 ml-1" />
                         </Button>
@@ -231,9 +251,12 @@ export function GTR30LaunchPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           One bill is created per Bill Code for the selected month. Employees entered in Employee
-          Master under the same month + bill code are picked up automatically.
+          Master under the same month + bill code are picked up automatically. If no exact month
+          match exists, the system falls back to
+          <span className="font-semibold"> master</span> or any existing group for that Bill Code and marks it as
+          <span className="font-mono text-amber-700 dark:text-amber-400"> via fallback</span>.
         </p>
       </Card>
     </div>

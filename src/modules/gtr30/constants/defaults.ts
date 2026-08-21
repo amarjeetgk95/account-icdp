@@ -16,12 +16,12 @@ export const createDefaultEmployee = (srNo = 1): GTR30Employee => ({
   insuranceType: 'savings_and_insurance',
 
   payOfOfficer: 0,
-  payOfEstablishment: 39900,
+  payOfEstablishment: 42300,
   nppa: 0,
   leaveSalary: 0,
   leaveEncashment: 0,
   dearnessPay: 0,
-  da: 21147,
+  da: 25380,
   hra: 0,
   cla: 270,
   otherAllowance: 0,
@@ -78,7 +78,7 @@ export const createDefaultEmployee = (srNo = 1): GTR30Employee => ({
   pfAdjustableByAO: 0,
   recovPayLeaveSalary: 0,
   miscRecoveries: 0,
-  npsPension: 6105,
+  npsPension: 6768,
   societyDeduction: 4154,
   remarks: '',
 });
@@ -123,11 +123,11 @@ export const defaultEstablishmentPosts: GTR30PostItem[] = [
 ];
 
 export const sampleGTR30FormData: GTR30FormData = {
-  billRegisterNo: 'GTR30-2024-25/01',
-  billDate: '16-08-2026',
-  monthOf: 'December-2024',
+  billRegisterNo: 'GTR30-2026-27/01',
+  billDate: '21-08-2026',
+  monthOf: 'July-2026',
   billCode: 'GTR30-SAL',
-  monthYearDigits: '1224',
+  monthYearDigits: '0726',
   district: '66',
   branchName: 'એક શાખા',
   officeName: 'Dy. Dir. of A.H., I.C.D.P., Surat',
@@ -151,17 +151,17 @@ export const sampleGTR30FormData: GTR30FormData = {
   minorHead: 'Minor Head-113 Administative Investigation and Statistcs',
   subHead:
     'Sub Head-99 Scheme for Strengthening of Statistical Wing in Directorate of Animal Husbandry (Pay and Allowances for Centrally Sponsored Scheme)',
-  budgetYear: '2024-25',
+  budgetYear: '2026-27',
   budgetAllotment: 0,
   schemeResolutionText:
-    'ગુજરાત સરકારશ્રીના કૃષિ અને ગ્રામ વિકાસ વિભાગ, સચિવાલય, ગાંધીનગરના ઠરાવ ક્રમાંક: એએચએસ-૧૨૮૬-સી-૫૧૨-પી-૨ તા:૧-૧૧-૧૯૮૮ થી યોજનાને કાયમી ધોરણે ચાલુ રાખવાની મંજુરી મળેલ છે.',
+    'કૃષિ,ખેડુત કલ્યાણ અને સહકાર વિભાગના ઠરાવ ક્રમાંક:ACD/MSM/e-file/2/2026/1756/P1 Dt.22-06-2026 થી સદર યોજના તા:૦૧-૦૩-૨૦૨૬ થી તા:૨૮-૦૨-૨૦૨૭ સુધી ચાલુ રાખવાની મંજુરી મળેલ છે.',
   daResolutionText:
-    'સરકારશ્રીના નાણાં વિભાગ, સચિવાલય, ગાંધીનગરના ઠરાવ ક્રમાંક:- વલભ-૧૦૨૦૧૬-જીઓઆઈ-૭-ચ તારીખ:- ૦૪-૧૨-૨૦૨૪ થી સાતમો પગાર પંચ મુજબ ૫૩% ડીએ આકારેલ છે.',
-  drawingOfficerName: 'SMT U.J.PATEL',
-  drawingOfficerNameGujarati: 'શ્રીમતિ યુ.જે.પટેલ',
+    'સરકારશ્રીના નાણાં વિભાગ, સચિવાલય, ગાંધીનગરના ઠરાવ ક્રમાંક:- વલભ-૧૦૨૦૧૬-જીઓઆઈ-૭-ચ તારીખ:- ૦૪-૧૨-૨૦૨૪ થી સાતમો પગાર પંચ મુજબ ૬૦% ડીએ આકારેલ છે.',
+  drawingOfficerName: 'Smt. S.V.Solanki.',
+  drawingOfficerNameGujarati: 'શ્રીમતિ એસ.વી.સોલંકી',
   drawingOfficerDesignation: 'Assistant Administrative Cum Account Officer',
   drawingOfficerDesignationGujarati: 'મદદનીશ વહીવટી સહ હિસાબી અધિકારી',
-  drawingOfficerOffice: 'Intensive Cattle Development Programme, Surat',
+  drawingOfficerOffice: 'Intensive Cattle Development Programme, Surat.',
   drawingOfficerOfficeGujarati: 'ઘ.પ.સુ.યોજના-સુરત',
   messengerName: 'SMT S.K.RANDERI',
   messengerDesignation: 'Junior Clerk',

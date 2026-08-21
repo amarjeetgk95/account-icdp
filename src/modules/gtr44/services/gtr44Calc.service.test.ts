@@ -77,10 +77,10 @@ describe('gtr44Calc.service', () => {
       expect(getTotalDeductions(undefined)).toBe(0);
     });
 
-    it('sums income tax and GST buckets', () => {
+    it('sums income tax and GST buckets (gst + cgst + sgst)', () => {
       expect(
         getTotalDeductions({ incomeTax: 100, gst: 75, gstCgst: 30, gstSgst: 30 })
-      ).toBe(175);
+      ).toBe(235);
     });
 
     it('includes legacy deduction buckets when present', () => {

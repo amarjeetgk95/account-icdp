@@ -1,22 +1,26 @@
 import { GTR44Bill, EDPCode, GTR44FormData } from '../types';
-import { DEFAULT_GTR44_FORM_DATA, DEFAULT_EXPENDITURE_ITEMS } from '../store/gtr44Defaults';
+import { DEFAULT_GTR44_FORM_DATA, DEFAULT_EDP_CODES, DEFAULT_EXPENDITURE_ITEMS } from '../store/gtr44Defaults';
+import { normalizeExpenditureItem } from '../store/gtr44Defaults';
 
 const STORAGE_KEY = 'gtr44-bills-v1';
 
 function normalizeFormData(formData: GTR44FormData): GTR44FormData {
-  const items = (formData.expenditureItems || []).map((item, idx) => {
-    const defaultItem = DEFAULT_EXPENDITURE_ITEMS[idx];
-    if (!defaultItem) return item;
-    return item && item.edpCode
-      ? item
-      : {
-          ...item,
-          code: item?.code || defaultItem.code,
-          name: item?.name || defaultItem.name,
-          edpCode: defaultItem.edpCode,
-        };
+  let items = (formData.expenditureItems || []).map((item, idx) => {
+    const normalized = normalizeExpenditureItem(item as import('../types').GTR44ObjectExpenditureItem, idx);
+    return { ...normalized, amount: item?.amount ?? normalized.amount };
   });
-  return { ...formData, expenditureItems: items };
+  // Fix for old bills created before expenditure master (had 22 empty items with code '' / name '')
+  // If first item's code is empty, the whole array is from the buggy EMPTY template — replace with canonical defaults
+  const hasEmptyTemplate = items.length === 0 || !String(items[0]?.code ?? '').trim() || !String(items[0]?.edpCode ?? '').trim();
+  if (hasEmptyTemplate) {
+    items = DEFAULT_EXPENDITURE_ITEMS.map((def, idx) => ({ ...normalizeExpenditureItem(def, idx), amount: null }));
+  }
+  // Head Chargeable: old bills had 12-digit code (240300102050) — pad to 13-digit canonical form (2403001020500)
+  let headCode = String(formData.headChargeableCode ?? '').trim();
+  if (headCode && /^\d{12}$/.test(headCode)) {
+    headCode = headCode + '0';
+  }
+  return { ...formData, expenditureItems: items, headChargeableCode: headCode || formData.headChargeableCode };
 }
 
 function loadBills(): GTR44Bill[] {
@@ -168,6 +172,31 @@ class GTR44Repository {
   }
 
   async getEDPCodes(): Promise<EDPCode[]> {
+    // S4: Prefer EDP codes from the settings store (persisted & editable) — fallback to hard-coded 10
+    try {
+      // Dynamic import to avoid hard circular at module init; store persists in 'gtr44-settings-v1'
+      const mod = await import('../store/gtr44SettingsStore');
+      const state = (mod as unknown as { useGTR44SettingsStore: { getState: () => { edpCodes?: import('../types').GTR44EDPCode[] } } }).useGTR44SettingsStore?.getState?.();
+      const storeCodes = state?.edpCodes;
+      if (storeCodes && Array.isArray(storeCodes) && storeCodes.length > 0) {
+        const active = storeCodes.filter((c) => c.isActive !== false);
+        if (active.length > 0) {
+          const mapped: EDPCode[] = active.map((c) => ({ code: c.code, nameEn: c.nameEn, nameGu: c.nameGu }));
+          return mapped;
+        }
+      }
+      // Also consider DEFAULT_EDP_CODES as fallback source if store empty but defaults present
+      if (DEFAULT_EDP_CODES && DEFAULT_EDP_CODES.length > 0) {
+        // Use defaults if store returned empty — they are already the 10 hard-coded values
+        // Return mapped defaults as EDPCode for consistency
+        const defaultsMapped: EDPCode[] = DEFAULT_EDP_CODES.map((c) => ({ code: c.code, nameEn: c.nameEn, nameGu: c.nameGu }));
+        if (defaultsMapped.length > 0 && (!storeCodes || storeCodes.length === 0)) {
+          return defaultsMapped;
+        }
+      }
+    } catch {
+      // ignore and fall back to hard-coded list
+    }
     return Promise.resolve([...this.edpCodes]);
   }
 }

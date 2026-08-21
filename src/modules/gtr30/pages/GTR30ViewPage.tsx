@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { GTR30Document } from '../components/GTR30Document';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/shared/components/EmptyState';
-import { ChevronLeft, Edit, FileQuestion, Printer, Download } from 'lucide-react';
+import { ChevronLeft, Edit, FileQuestion, Printer, Download, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useGtr30Bill } from '../hooks/useGTR30Bills';
 import { gtr30BillsService } from '../services/gtr30Bills.service';
@@ -15,7 +15,12 @@ export function GTR30ViewPage() {
   const bill = billQuery.data ?? null;
 
   const handlePrint = () => {
-    window.print();
+    const printBtn = document.querySelector('.gtr30-controls-bar button.bg-slate-900') as HTMLButtonElement | null;
+    if (printBtn) {
+      printBtn.click();
+    } else {
+      window.print();
+    }
   };
 
   const handleExportJSON = () => {
@@ -31,6 +36,33 @@ export function GTR30ViewPage() {
     downloadAnchor.remove();
     toast({ title: 'Export Successful', description: 'Bill exported as JSON.' });
   };
+
+  // Avoid flash of "Not Found" while the bill is still loading from IndexedDB/Supabase
+  if (billQuery.isPending || billQuery.isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto py-16 flex flex-col items-center justify-center gap-3 text-slate-500">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <div className="text-sm font-medium">Loading GTR-30 Pay Bill…</div>
+      </div>
+    );
+  }
+
+  if (billQuery.isError) {
+    return (
+      <div className="max-w-7xl mx-auto py-10">
+        <EmptyState
+          icon={FileQuestion}
+          title="Failed to load GTR-30 Pay Bill"
+          hint={billQuery.error instanceof Error ? billQuery.error.message : 'An error occurred while loading the bill.'}
+          action={
+            <Button variant="outline" onClick={() => navigate('/gtr30/list')}>
+              <ChevronLeft className="h-4 w-4 mr-1" /> Back to Register
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   if (!bill) {
     return (

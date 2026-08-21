@@ -1,3 +1,10 @@
+export interface GTR30PayEntry {
+  id: string;
+  startDate: string;
+  endDate?: string;
+  basicPay: number;
+}
+
 export interface GTR30EmployeeMaster {
   id: string;
   srNo: number;
@@ -13,6 +20,7 @@ export interface GTR30EmployeeMaster {
   ppaNo?: string;
   currentPay: number;
   currentPayDate?: string;
+  payEntries?: GTR30PayEntry[];
   quarterAddress?: string;
   insuranceGroup?: string;
   insuranceType?: 'savings_and_insurance' | 'insurance_only';

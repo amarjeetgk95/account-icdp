@@ -1,6 +1,7 @@
 import React from 'react';
 import type { GTR30FormData } from '../types';
 import { formatMoney } from '../services/gtr30Calc.service';
+import { RotatedHeader } from './RotatedHeader';
 
 interface Props {
   data: GTR30FormData;
@@ -62,21 +63,22 @@ export const GTR30Page3Inner1: React.FC<Props> = ({ data }) => {
 
   return (
     <div className="gtr30-page gtr30-landscape" id="gtr30-page-3">
+
       {/* Top Left Resolution Box */}
-      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '6px' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '4px' }}>
         <div
           style={{
             border: '1px solid #000',
-            padding: '4px 8px',
-            maxWidth: '360px',
-            fontSize: '7pt',
-            lineHeight: 1.35,
+            padding: '3px 6px',
+            maxWidth: '380px',
+            fontSize: '6.8pt',
+            lineHeight: 1.3,
             fontFamily: "'Noto Serif Gujarati', serif",
             backgroundColor: '#ffffff',
           }}
         >
           {data.schemeResolutionText ||
-            'ગુજરાત સરકારશ્રીના કૃષિ અને ગ્રામ વિકાસ વિભાગ, સચિવાલય, ગાંધીનગરના ઠરાવ ક્રમાંક: એએચએસ-૧૨૮૬-સી-૫૧૨-પી-૨ તા:૧-૧૧-૧૯૮૮ થી યોજનાને કાયમી ધોરણે ચાલુ રાખવાની મંજુરી મળેલ છે.'}
+            'કૃષિ,ખેડુત કલ્યાણ અને સહકાર વિભાગના ઠરાવ ક્રમાંક:ACD/MSM/e-file/2/2026/1756/P1 Dt.22-06-2026 થી સદર યોજના તા:૦૧-૦૩-૨૦૨૬ થી તા:૨૮-૦૨-૨૦૨૭ સુધી ચાલુ રાખવાની મંજુરી મળેલ છે.'}
         </div>
       </div>
 
@@ -93,8 +95,8 @@ export const GTR30Page3Inner1: React.FC<Props> = ({ data }) => {
         <thead>
           <tr style={{ height: '165px', background: '#ffffff' }}>
             {/* 1. Sr. No. */}
-            <th style={{ border: '1px solid #000', width: '22px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Sr. No.</div>
+            <th style={{ border: '1px solid #000', width: '22px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Sr. No.</RotatedHeader>
             </th>
 
             {/* 2. Section of Establishment */}
@@ -103,88 +105,88 @@ export const GTR30Page3Inner1: React.FC<Props> = ({ data }) => {
             </th>
 
             {/* 3. Pay of Officers */}
-            <th style={{ border: '1px solid #000', width: '42px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Pay of Officers (0101)<br />Substantive Pay</div>
+            <th style={{ border: '1px solid #000', width: '42px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Pay of Officers (0101)<br />Substantive Pay</RotatedHeader>
             </th>
 
             {/* 4. Pay of Establishment */}
-            <th style={{ border: '1px solid #000', width: '68px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Pay of Establishment (0102)<br />Substantive/ Officiating Pay (0102)</div>
+            <th style={{ border: '1px solid #000', width: '68px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Pay of Establishment (0102)<br />Substantive/ Officiating Pay (0102)</RotatedHeader>
             </th>
 
             {/* 5. N.P.P.A. */}
-            <th style={{ border: '1px solid #000', width: '38px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">N.P.P.A. (0128)</div>
+            <th style={{ border: '1px solid #000', width: '38px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>N.P.P.A. (0128)</RotatedHeader>
             </th>
 
             {/* 6. Leave Salary */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Leave Salary (0102)<br />Leave Encashment (0109)</div>
+            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Leave Salary (0102)<br />Leave Encashment (0109)</RotatedHeader>
             </th>
 
             {/* 7. Dearness Pay */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Dearness Pay (0120)<br />Family Planning</div>
+            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Dearness Pay (0120)<br />Family Planning</RotatedHeader>
             </th>
 
             {/* 8. Dearness Allowance */}
-            <th style={{ border: '1px solid #000', width: '60px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Dearness Allowance (0103)</div>
+            <th style={{ border: '1px solid #000', width: '60px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Dearness Allowance (0103)</RotatedHeader>
             </th>
 
             {/* 9. HRA */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">House Rent Allowance (0110)</div>
+            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>House Rent Allowance (0110)</RotatedHeader>
             </th>
 
             {/* 10. CLA / Other */}
-            <th style={{ border: '1px solid #000', width: '48px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">CLA (0111)/<br />Other Allowance (0104)</div>
+            <th style={{ border: '1px solid #000', width: '48px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>CLA (0111)/<br />Other Allowance (0104)</RotatedHeader>
             </th>
 
             {/* 11. Medical / Bonus */}
-            <th style={{ border: '1px solid #000', width: '52px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Medical Allowance (0107)<br />Bonus (0108)</div>
+            <th style={{ border: '1px solid #000', width: '52px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Medical Allowance (0107)<br />Bonus (0108)</RotatedHeader>
             </th>
 
             {/* 12. PTA */}
-            <th style={{ border: '1px solid #000', width: '48px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">P.T.A. (Travel Expenses) (1101)<br />Payment for Prof. &amp; Spl.Service(2801)</div>
+            <th style={{ border: '1px solid #000', width: '48px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>P.T.A. (Travel Expenses) (1101)<br />Payment for Prof. &amp; Spl.Service(2801)</RotatedHeader>
             </th>
 
             {/* 13. Washing */}
-            <th style={{ border: '1px solid #000', width: '48px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Washing Allowance (1301)<br />Office Expenses/ Other Charges (5006)</div>
+            <th style={{ border: '1px solid #000', width: '48px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Washing Allowance (1301)<br />Office Expenses/ Other Charges (5006)</RotatedHeader>
             </th>
 
             {/* 14. C. A. */}
-            <th style={{ border: '1px solid #000', width: '32px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">C. A.</div>
+            <th style={{ border: '1px solid #000', width: '32px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>C. A.</RotatedHeader>
             </th>
 
             {/* 15. Transport */}
-            <th style={{ border: '1px solid #000', width: '55px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Transport Allowance (0113)</div>
+            <th style={{ border: '1px solid #000', width: '55px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Transport Allowance (0113)</RotatedHeader>
             </th>
 
             {/* 16. Gross */}
-            <th style={{ border: '1px solid #000', width: '62px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text font-bold">Gross Amount</div>
+            <th style={{ border: '1px solid #000', width: '62px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader bold>Gross Amount</RotatedHeader>
             </th>
 
             {/* 17. Recov Festival */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Recov. of Festival Advance<br />(-)(5701)</div>
+            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Recov. of Festival Advance<br />(-)(5701)</RotatedHeader>
             </th>
 
             {/* 18. Recov Food Grain */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text">Recov. of Food Grain Advance<br />(-)(5801)</div>
+            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader>Recov. of Food Grain Advance<br />(-)(5801)</RotatedHeader>
             </th>
 
             {/* 19. Total */}
-            <th style={{ border: '1px solid #000', width: '62px', padding: '2px', verticalAlign: 'bottom' }}>
-              <div className="vertical-header-text font-bold">Total</div>
+            <th style={{ border: '1px solid #000', width: '62px', padding: '0', verticalAlign: 'bottom' }}>
+              <RotatedHeader bold>Total</RotatedHeader>
             </th>
           </tr>
 
@@ -283,10 +285,13 @@ export const GTR30Page3Inner1: React.FC<Props> = ({ data }) => {
                         style={{
                           textAlign: 'right',
                           fontFamily: "'Noto Serif Gujarati', serif",
-                          fontSize: '8pt',
+                          fontSize: '7.5pt',
                           fontWeight: 700,
                           lineHeight: 1.2,
                           paddingLeft: '4px',
+                          maxWidth: '56px',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'normal',
                         }}
                       >
                         <div>{emp.designationGujarati ? emp.designationGujarati.split(' ')[0] : 'સંશોધન'}</div>

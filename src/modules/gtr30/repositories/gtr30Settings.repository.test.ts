@@ -69,6 +69,9 @@ describe('gtr30SettingsLocalStorageRepository', () => {
           total: 1,
         },
       ],
+      daRates: [
+        { id: 'da1', effectiveFrom: '2024-12-04', rate: 53, description: 'Test', resolutionNo: 'GR' },
+      ],
     };
     gtr30SettingsLocalStorageRepository.save(payload);
     const loaded = gtr30SettingsLocalStorageRepository.load();
@@ -129,6 +132,7 @@ describe('gtr30SettingsLocalStorageRepository', () => {
         insuranceType: 'savings_and_insurance',
       },
       defaultPosts: [],
+      daRates: [{ id: 'da1', effectiveFrom: '2024-12-04', rate: 53 }],
     });
     gtr30SettingsLocalStorageRepository.clear();
     expect(gtr30SettingsLocalStorageRepository.load()).toBeNull();

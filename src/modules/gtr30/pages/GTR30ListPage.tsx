@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Copy,
@@ -7,16 +7,21 @@ import {
   Eye,
   FilePlus,
   FileText,
-  Printer,
+  RefreshCw,
   Search,
   Trash2,
   Upload,
+  ArrowRight,
+  Settings,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/utils/cn';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { EmptyState } from '@/shared/components/EmptyState';
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   useGtr30Bills,
@@ -25,6 +30,12 @@ import {
   useGtr30SaveBill,
   gtr30BillsService,
 } from '../hooks';
+import {
+  useGTR30EmployeeMasterGroups,
+  useHydrateGTR30EmployeeMaster,
+} from '../hooks/useGTR30EmployeeMaster';
+import { gtr30ResolveEmployees } from '../services/gtr30EmployeeMaster.service';
+import { gtr30EmployeeTransformService } from '../services/gtr30EmployeeTransform.service';
 import { billTotals, formatMoney } from '../services/gtr30Calc.service';
 import type { GTR30Bill, GTR30FormData } from '../types';
 
@@ -35,7 +46,18 @@ export function GTR30ListPage() {
   const deleteMutation = useGtr30DeleteBill();
   const duplicateMutation = useGtr30DuplicateBill();
   const saveMutation = useGtr30SaveBill();
+  const groupsQuery = useGTR30EmployeeMasterGroups();
+  const hydrateMaster = useHydrateGTR30EmployeeMaster();
   const bills = useMemo(() => billsQuery.data ?? [], [billsQuery.data]);
+  const employeeGroups = groupsQuery.data ?? {};
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    void hydrateMaster.mutateAsync().catch(() => {});
+  }, [hydrateMaster]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -78,6 +100,51 @@ export function GTR30ListPage() {
   const handleDuplicate = async (bill: GTR30Bill) => {
     await duplicateMutation.mutateAsync(bill);
     toast({ title: 'Bill Duplicated', description: 'Created a copy of the bill.' });
+  };
+
+  const handleRefreshFromMaster = async (bill: GTR30Bill) => {
+    const monthKey = (bill.monthOf || '').trim();
+    const billCode = (bill.billCode || '').trim();
+    if (!monthKey || !billCode) {
+      toast({ title: 'Cannot refresh', description: 'Bill is missing month or bill code.', variant: 'destructive' });
+      return;
+    }
+    setRefreshingId(bill.id);
+    try {
+      const { rows, isFallback, sourceKey } = gtr30ResolveEmployees(employeeGroups, monthKey, billCode);
+      if (rows.length === 0) {
+        toast({
+          title: 'No Master Found',
+          description: `No employees found in master for ${billCode} · ${monthKey}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      const refreshedEmployees = rows.map((master, idx) =>
+        gtr30EmployeeTransformService.masterToBillEmployee(master, idx + 1, undefined, {
+          monthKey,
+          forceDaRecalc: true,
+        })
+      );
+      await saveMutation.mutateAsync({
+        form: { ...bill, employees: refreshedEmployees },
+        existing: bill,
+      });
+      toast({
+        title: 'Bill Refreshed',
+        description: isFallback
+          ? `${refreshedEmployees.length} employee(s) re-synced from ${sourceKey ?? 'fallback master'}.`
+          : `${refreshedEmployees.length} employee(s) re-synced from master.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Refresh failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setRefreshingId(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -166,31 +233,31 @@ export function GTR30ListPage() {
 
       {/* KPI Stats Header */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border border-slate-200 p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase text-slate-500">Total Pay Bills</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">{stats.count}</div>
-          <div className="mt-1 text-xs text-slate-500">{stats.totalEmployees} total staff members</div>
+        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Total Pay Bills</div>
+          <div className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stats.count}</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{stats.totalEmployees} total staff members</div>
         </Card>
-        <Card className="border border-slate-200 p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase text-slate-500">Gross Expenditure</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900 font-mono">
+        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Gross Expenditure</div>
+          <div className="mt-2 text-2xl font-bold text-slate-900 dark:text-white font-mono">
             ₹{formatMoney(stats.totalGross)}
           </div>
-          <div className="mt-1 text-xs text-slate-500">Salaries &amp; allowances</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Salaries &amp; allowances</div>
         </Card>
-        <Card className="border border-slate-200 p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase text-slate-500">Total Deductions</div>
-          <div className="mt-2 text-2xl font-bold text-amber-600 font-mono">
+        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase text-rose-600 dark:text-rose-400">Total Deductions</div>
+          <div className="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400 font-mono">
             ₹{formatMoney(stats.totalDeductions)}
           </div>
-          <div className="mt-1 text-xs text-slate-500">NPS, Rent, PT, GIS &amp; Taxes</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">NPS, Rent, PT, GIS &amp; Taxes</div>
         </Card>
-        <Card className="border border-slate-200 p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase text-slate-500">Net Disbursed</div>
-          <div className="mt-2 text-2xl font-bold text-emerald-600 font-mono">
+        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+          <div className="text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400">Net Disbursed</div>
+          <div className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
             ₹{formatMoney(stats.totalNet)}
           </div>
-          <div className="mt-1 text-xs text-slate-500">Cheques / Bank transfers</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Cheques / Bank transfers</div>
         </Card>
       </div>
 
@@ -202,73 +269,148 @@ export function GTR30ListPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by Bill No, Month, Office, or Employee name..."
-            className="pl-9 text-sm"
+            className="pl-9 text-sm bg-white dark:bg-slate-900 dark:border-slate-800"
           />
         </div>
       </div>
 
       {/* Bill List Table */}
       {filteredBills.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title={bills.length === 0 ? 'No GTR-30 Pay Bills yet' : 'No matching bills found'}
-          hint={
-            bills.length === 0
-              ? 'Create your first GTR-30 Pay Bill using the complete 10-page official government format.'
-              : 'Try searching with a different keyword or clear the search filter.'
-          }
-          action={
-            bills.length === 0 ? (
-              <Button onClick={() => navigate('/gtr30/create')}>
-                <FilePlus className="mr-1.5 h-4 w-4" /> Create Pay Bill
-              </Button>
-            ) : (
+        bills.length === 0 ? (
+          /* Guided Onboarding Card for First Time Users */
+          <Card className="border border-blue-200 dark:border-blue-900/60 bg-gradient-to-br from-blue-50/70 via-white to-indigo-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/40 p-8 rounded-2xl shadow-sm text-center">
+            <div className="max-w-xl mx-auto space-y-6">
+              <div className="inline-flex p-3.5 rounded-2xl bg-blue-600/10 text-blue-600 border border-blue-200 dark:border-blue-800">
+                <FileText className="h-8 w-8" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Get Started with GTR-30 Pay Bills</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Follow these 3 quick steps to configure and generate your official 10-page government pay bills.
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-3 text-left">
+                <div
+                  onClick={() => navigate('/gtr30/settings')}
+                  className="p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer group shadow-2xs"
+                >
+                  <div className="flex items-center justify-between text-blue-600 mb-2">
+                    <Settings className="h-5 w-5" />
+                    <span className="text-[10px] font-mono font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">Step 1</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">Bill Settings</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Configure DDO, office, and standard bill codes.</p>
+                </div>
+
+                <div
+                  onClick={() => navigate('/gtr30/employee-management')}
+                  className="p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer group shadow-2xs"
+                >
+                  <div className="flex items-center justify-between text-indigo-600 mb-2">
+                    <Users className="h-5 w-5" />
+                    <span className="text-[10px] font-mono font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded-full">Step 2</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">Employee Directory</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Register staff profiles &amp; 7th Pay Matrix scales.</p>
+                </div>
+
+                <div
+                  onClick={() => navigate('/gtr30/create')}
+                  className="p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all cursor-pointer group shadow-2xs"
+                >
+                  <div className="flex items-center justify-between text-emerald-600 mb-2">
+                    <FilePlus className="h-5 w-5" />
+                    <span className="text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full">Step 3</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">Create Pay Bill</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Auto-calculate DA, generate 10-sheet PDF.</p>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button onClick={() => navigate('/gtr30/create')} className="bg-blue-600 hover:bg-blue-700 font-bold text-xs px-6 shadow-md shadow-blue-600/20">
+                  <FilePlus className="mr-1.5 h-4 w-4" /> Create First GTR-30 Bill <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <EmptyState
+            icon={FileText}
+            title="No matching bills found"
+            hint="Try searching with a different keyword or clear the search filter."
+            action={
               <Button variant="outline" onClick={() => setSearchTerm('')}>
                 Clear Search
               </Button>
-            )
-          }
-        />
+            }
+          />
+        )
       ) : (
-        <Card className="border border-slate-200 shadow-sm overflow-hidden">
+        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden rounded-2xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
+            <table className="w-full text-left text-sm border-collapse" aria-label="GTR-30 Pay Bill Register">
               <thead>
-                <tr className="bg-slate-100/75 border-b border-slate-200 text-xs font-bold uppercase text-slate-600">
-                  <th className="p-3.5">Bill Reg. No.</th>
-                  <th className="p-3.5">Office &amp; Month</th>
-                  <th className="p-3.5 text-center">Staff Count</th>
-                  <th className="p-3.5 text-right">Gross Amount</th>
-                  <th className="p-3.5 text-right">Deductions</th>
-                  <th className="p-3.5 text-right">Net Payable</th>
-                  <th className="p-3.5 text-right">Actions</th>
+                <tr className="bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-bold uppercase text-slate-600 dark:text-slate-400">
+                  <th scope="col" className="p-3.5">Bill Reg. No.</th>
+                  <th scope="col" className="p-3.5">Office &amp; Month</th>
+                  <th scope="col" className="p-3.5 text-center">Status</th>
+                  <th scope="col" className="p-3.5 text-center">Staff Count</th>
+                  <th scope="col" className="p-3.5 text-right">Gross Amount</th>
+                  <th scope="col" className="p-3.5 text-right">Deductions</th>
+                  <th scope="col" className="p-3.5 text-right">Net Payable</th>
+                  <th scope="col" className="p-3.5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredBills.map((bill) => {
                   const t = billTotals(bill);
+                  const status = bill.status || 'draft';
                   return (
-                    <tr key={bill.id} className="hover:bg-slate-50/75 transition-colors">
-                      <td className="p-3.5 font-bold text-slate-900">
+                    <tr key={bill.id} className="hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="p-3.5 font-bold text-slate-900 dark:text-white">
                         <div className="font-mono">{bill.billRegisterNo || 'Draft'}</div>
                         <div className="text-xs font-normal text-slate-400">{bill.billDate || 'No date'}</div>
                       </td>
                       <td className="p-3.5">
-                        <div className="font-medium text-slate-800">{bill.officeName}</div>
-                        <div className="text-xs text-slate-500 font-semibold">{bill.monthOf}</div>
+                        <div className="font-medium text-slate-800 dark:text-slate-200">{bill.officeName}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{bill.monthOf}</div>
                       </td>
                       <td className="p-3.5 text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                            status === 'passed'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                              : status === 'submitted'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              status === 'passed'
+                                ? 'bg-emerald-500'
+                                : status === 'submitted'
+                                ? 'bg-blue-500'
+                                : 'bg-slate-400'
+                            }`}
+                          />
+                          {status}
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-center">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
                           {(bill.employees || []).length} Staff
                         </span>
                       </td>
-                      <td className="p-3.5 text-right font-mono font-medium text-slate-700">
+                      <td className="p-3.5 text-right font-mono font-medium text-slate-700 dark:text-slate-300">
                         ₹{formatMoney(t.gross)}
                       </td>
-                      <td className="p-3.5 text-right font-mono font-medium text-amber-600">
+                      <td className="p-3.5 text-right font-mono font-medium text-rose-600 dark:text-rose-400">
                         ₹{formatMoney(t.deductions)}
                       </td>
-                      <td className="p-3.5 text-right font-mono font-bold text-emerald-700 text-base">
+                      <td className="p-3.5 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400 text-base">
                         ₹{formatMoney(t.net)}
                       </td>
                       <td className="p-3.5 text-right">
@@ -276,8 +418,9 @@ export function GTR30ListPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-600 hover:text-blue-600"
+                            className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                             title="View Full Bill"
+                            aria-label={`View bill ${bill.billRegisterNo || bill.id}`}
                             onClick={() => navigate(`/gtr30/view/${bill.id}`)}
                           >
                             <Eye className="h-4 w-4" />
@@ -285,8 +428,9 @@ export function GTR30ListPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-600 hover:text-blue-600"
+                            className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                             title="Edit Bill"
+                            aria-label={`Edit bill ${bill.billRegisterNo || bill.id}`}
                             onClick={() => navigate(`/gtr30/edit/${bill.id}`)}
                           >
                             <Edit className="h-4 w-4" />
@@ -294,17 +438,20 @@ export function GTR30ListPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-600 hover:text-emerald-600"
-                            title="Print 10-Page Document"
-                            onClick={() => navigate(`/gtr30/view/${bill.id}`)}
+                            className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                            title="Re-sync employees from Master"
+                            aria-label={`Re-sync employees from Master for bill ${bill.billRegisterNo || bill.id}`}
+                            disabled={refreshingId === bill.id}
+                            onClick={() => handleRefreshFromMaster(bill)}
                           >
-                            <Printer className="h-4 w-4" />
+                            <RefreshCw className={`h-4 w-4 ${refreshingId === bill.id ? 'animate-spin' : ''}`} />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-600 hover:text-indigo-600"
+                            className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                             title="Duplicate Bill"
+                            aria-label={`Duplicate bill ${bill.billRegisterNo || bill.id}`}
                             onClick={() => handleDuplicate(bill)}
                           >
                             <Copy className="h-4 w-4" />
@@ -312,8 +459,9 @@ export function GTR30ListPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-400 hover:text-red-600"
+                            className="h-8 w-8 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                             title="Delete Bill"
+                            aria-label={`Delete bill ${bill.billRegisterNo || bill.id}`}
                             onClick={() => setDeleteTarget(bill.id)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -330,24 +478,16 @@ export function GTR30ListPage() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-bold text-slate-900">Confirm Bill Deletion</h3>
-            <p className="text-sm text-slate-600">
-              Are you sure you want to delete this GTR-30 pay bill from the register? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={() => handleDelete(deleteTarget)}>
-                Delete Bill
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Confirm Bill Deletion"
+        message="Are you sure you want to delete this GTR-30 pay bill from the register? This action cannot be undone."
+        confirmLabel="Delete Bill"
+        danger={true}
+        busy={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

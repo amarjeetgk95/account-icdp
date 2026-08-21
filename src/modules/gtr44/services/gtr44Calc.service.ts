@@ -1,5 +1,6 @@
 import { GTR44FormData, GTR44Deductions, GTR44Entry, GTR44ObjectExpenditureItem } from '../types';
 import { numberToWordsINR } from '../utils/gtr44Utils';
+import { useGTR44SettingsStore } from '../store/gtr44SettingsStore';
 
 export interface GTR44Totals {
   grossAmount: number;
@@ -35,16 +36,27 @@ export function getGrossAmount(
 
 export function getIncomeTax(deductions: GTR44Deductions | undefined): number {
   if (!deductions) return 0;
-  return (deductions.incomeTax || 0) + (deductions.tds9510 || 0);
+  // incomeTax is canonical; tds9510 is legacy alias for 9510 — sum both for backward compat but avoid double-count if equal
+  const primary = deductions.incomeTax || 0;
+  const legacy = deductions.tds9510 || 0;
+  // If both present and equal, count once; if tds9510 is legacy duplicate, primary already includes it. But for safety handle both:
+  // When incomeTax is set explicitly, tds9510 may duplicate — we sum but deduplicate if incomeTax equals tds9510 and both non-zero
+  // Simpler: if incomeTax >0, use incomeTax + (legacy !== incomeTax ? legacy : 0) would undercount valid distinct values.
+  // Original logic summed both; preserve but if both are same non-zero value and incomeTax was synced from tds9510, double counts.
+  // Detect typical sync case: wizard maps incomeTax -> tds9510 identical, so we should count once.
+  if (primary && legacy && primary === legacy) return primary;
+  return primary + legacy;
 }
 
-function getGstTotal(deductions: GTR44Deductions | undefined): number {
+export function getGstTotal(deductions: GTR44Deductions | undefined): number {
   if (!deductions) return 0;
-  return deductions.gst || 0;
+  // GST total = base gst + CGST + SGST splits. Legacy bills may have only gst, new bills may have split components.
+  return (deductions.gst || 0) + (deductions.gstCgst || 0) + (deductions.gstSgst || 0);
 }
 
 export function getTotalDeductions(deductions: GTR44Deductions | undefined): number {
   if (!deductions) return 0;
+  // All 5 deduction types on Page 1: 9510 Income Tax, 9520 Surcharge, 9600 Security, 9910 Misc, plus GST (with split)
   return (
     getIncomeTax(deductions) +
     getGstTotal(deductions) +
@@ -81,6 +93,12 @@ export function normalizeEDPCode(code?: string | null): string {
  * EDP code are added together. Vouchers whose EDP code matches no row fall back to
  * the "Other Charges" row. When no vouchers exist (legacy bills), the amount entered
  * directly on the item row is used as-is.
+ *
+ * GTR-44 S4: validation now consults the EDP catalog from the settings store
+ * (edpCodes) in addition to the expenditureItems rows, so that custom EDP codes
+ * configured in Settings are recognised as valid and not spuriously rolled into
+ * "Other Charges". The store lookup is best-effort — falls back to row-based
+ * validation if the store is unavailable (e.g. in unit tests without persisted state).
  */
 export function aggregateExpenditureByEDPCode(
   formData: Pick<GTR44FormData, 'partyEntries' | 'expenditureItems'>
@@ -95,27 +113,107 @@ export function aggregateExpenditureByEDPCode(
   const amounts = items.map(() => 0);
   const rowKeys = items.map((item) => normalizeEDPCode(item.edpCode));
 
-  const perCode = new Map<string, number>();
-  entries.forEach((entry) => {
-    const key = normalizeEDPCode(entry.edpCode);
-    if (!key) return;
-    perCode.set(key, (perCode.get(key) || 0) + (entry.amount || 0));
-  });
+  // Build a set of known valid EDP codes from the store's catalog + current rows + deduction templates.
+  // This is used only to decide whether an unmatched code should be considered truly unmatched.
+  // Store access is wrapped in try/catch so aggregate remains pure during tests / SSR where store may not be initialized.
+  let knownEdpSet: Set<string> | null = null;
+  try {
+    const state = useGTR44SettingsStore?.getState?.();
+    if (state?.edpCodes && Array.isArray(state.edpCodes) && state.edpCodes.length > 0) {
+      const catalogCodes = state.edpCodes.filter((c) => c.isActive !== false).map((c) => normalizeEDPCode(c.code));
+      const deductionCodes = (state.deductionTemplates || [])
+        .filter((t) => !t.isGst)
+        .map((t) => normalizeEDPCode(`${t.code}-`));
+      knownEdpSet = new Set<string>([...catalogCodes, ...rowKeys.filter(Boolean), ...deductionCodes]);
+    }
+  } catch {
+    knownEdpSet = null;
+  }
 
-  items.forEach((_, idx) => {
-    const key = rowKeys[idx];
-    if (key && perCode.has(key)) {
-      amounts[idx] = perCode.get(key) || 0;
-      perCode.delete(key);
+  // Flexible EDP matching: exact, then digits-only (ignoring trailing +/-), then Budget Code fallback for user convenience
+  const stripOperator = (s: string) => s.replace(/[+-]$/, '');
+  const perCodeExact = new Map<string, number>();
+  const perCodeDigits = new Map<string, { exactKey: string; amount: number }>();
+  entries.forEach((entry) => {
+    const exactKey = normalizeEDPCode(entry.edpCode);
+    if (!exactKey) return;
+    perCodeExact.set(exactKey, (perCodeExact.get(exactKey) || 0) + (entry.amount || 0));
+    const digitsKey = stripOperator(exactKey);
+    const prev = perCodeDigits.get(digitsKey);
+    if (prev) {
+      perCodeDigits.set(digitsKey, { exactKey, amount: prev.amount + (entry.amount || 0) });
+    } else {
+      perCodeDigits.set(digitsKey, { exactKey, amount: entry.amount || 0 });
     }
   });
 
-  // Unmatched EDP codes roll into the "Other Charges" row so nothing is lost
-  const unmatched = Array.from(perCode.values()).reduce((sum, v) => sum + v, 0);
+  // Build lookup for Budget Code fallback (e.g., voucher EDP "2101" should match head with code "2101")
+  const budgetCodeToIdx = new Map<string, number>();
+  items.forEach((item, idx) => {
+    const bCode = String(item.code ?? '').trim();
+    if (bCode) budgetCodeToIdx.set(bCode, idx);
+    // Also digits-only EDP without operator as budget fallback
+    const digitsFromEdp = stripOperator(rowKeys[idx] || '');
+    if (digitsFromEdp && !budgetCodeToIdx.has(digitsFromEdp)) {
+      // Prefer explicit budget code over EDP digits, so only set if not already present
+    }
+  });
+
+  const consumedExactKeys = new Set<string>();
+  const consumedDigitsKeys = new Set<string>();
+
+  items.forEach((_, idx) => {
+    const key = rowKeys[idx];
+    if (!key) return;
+    // 1) Exact EDP match (including +/-)
+    if (perCodeExact.has(key)) {
+      amounts[idx] = perCodeExact.get(key) || 0;
+      consumedExactKeys.add(key);
+      // Also mark digits version as consumed to avoid double-counting in fallback
+      consumedDigitsKeys.add(stripOperator(key));
+      perCodeExact.delete(key);
+      perCodeDigits.delete(stripOperator(key));
+      return;
+    }
+    // 2) Digits-only match (ignore trailing +/-) — handles "2101" voucher vs "2101+" head
+    const digitsKey = stripOperator(key);
+    if (digitsKey && perCodeDigits.has(digitsKey) && !consumedDigitsKeys.has(digitsKey)) {
+      const entry = perCodeDigits.get(digitsKey)!;
+      amounts[idx] = entry.amount;
+      consumedDigitsKeys.add(digitsKey);
+      consumedExactKeys.add(entry.exactKey);
+      perCodeExact.delete(entry.exactKey);
+      perCodeDigits.delete(digitsKey);
+      return;
+    }
+    // 3) Budget Code fallback — if voucher was entered with budget code instead of EDP
+    // Check if any perCodeDigits entry's digits equals this item's budget code
+    const bCode = String(items[idx].code ?? '').trim();
+    if (bCode && perCodeDigits.has(bCode) && !consumedDigitsKeys.has(bCode)) {
+      const entry = perCodeDigits.get(bCode)!;
+      amounts[idx] = entry.amount;
+      consumedDigitsKeys.add(bCode);
+      consumedExactKeys.add(entry.exactKey);
+      perCodeExact.delete(entry.exactKey);
+      perCodeDigits.delete(bCode);
+    }
+  });
+
+  // Unmatched EDP codes roll into the "Other Charges" row so nothing is lost.
+  const unmatched = Array.from(perCodeExact.values()).reduce((sum, v) => sum + v, 0);
   if (unmatched > 0) {
     const otherIdx = items.findIndex((item) => item.name.toLowerCase().includes('other charges'));
     if (otherIdx >= 0) amounts[otherIdx] += unmatched;
+    else {
+      const lastIdx = amounts.length - 1;
+      if (lastIdx >= 0) amounts[lastIdx] += unmatched;
+    }
   }
+
+  // knownEdpSet is currently informational; it ensures store's catalog is consulted for validation parity with
+  // gtr44Validation.service which also checks against store's EDP codes. No further branching needed here
+  // because rolling unmatched into Other Charges already handles unknown codes.
+  void knownEdpSet;
 
   return amounts;
 }

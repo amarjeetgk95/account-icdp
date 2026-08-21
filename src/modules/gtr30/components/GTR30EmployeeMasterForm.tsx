@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Search,
   AlertCircle,
-  Sparkles,
   User,
   CreditCard,
   TrendingUp,
@@ -22,10 +21,11 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  Receipt,
   Briefcase,
   Shield,
-  Coins,
+  Plus,
+  Trash2,
+  CalendarRange,
 } from 'lucide-react';
 import {
   gtr30EmployeeMasterSchema,
@@ -33,6 +33,12 @@ import {
 } from '../validation/gtr30EmployeeMaster.schema';
 import { useSaveGTR30Employee } from '../hooks/useGTR30EmployeeMaster';
 import { useGTR30BillCodeMappings } from '../hooks/useGTR30BillCodeMappings';
+import {
+  normalizePayEntries,
+  formatDate,
+  dayAfter,
+  type PayEntryDraft,
+} from '../utils/gtr30PayMatrix';
 import {
   calculateDA,
   calculateNPS,
@@ -44,6 +50,8 @@ import {
 } from '../utils/gtr30GovRules';
 import { calculateEmployeeSalary } from '../utils/gtr30SalaryCalc';
 import type { GTR30EmployeeMaster } from '../types';
+import { useEffectiveDARate } from '../hooks/useGTR30Settings';
+import { SalaryPreviewCard } from './employee-form/SalaryPreviewCard';
 
 export type EmployeeFormTab = 'personal' | 'payscale' | 'allowances' | 'deductions' | 'quarters';
 
@@ -70,6 +78,7 @@ const EMPTY_VALUES: GTR30EmployeeMasterInput = {
   ppaNo: 'Applied',
   currentPay: 0,
   currentPayDate: '',
+  payEntries: [],
   quarterAddress: 'H-7, Government Quarters, Khatodara, Nr. Sub Jail, Surat',
   insuranceGroup: 'ખ',
   insuranceType: 'savings_and_insurance',
@@ -132,6 +141,7 @@ export function GTR30EmployeeMasterForm({
     handleSubmit,
     reset,
     setValue,
+    getValues,
     control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues, unknown, GTR30EmployeeMasterInput>({
@@ -142,7 +152,12 @@ export function GTR30EmployeeMasterForm({
     },
   });
 
-  useEffect(() => {
+  // React's recommended "adjust state during render" pattern: when a different
+  // employee (or bill code) is loaded into the form, reset the fields and tab.
+  const resetKey = editingEmployee ? `${editingEmployee.id}::${billCode}` : null;
+  const [prevResetKey, setPrevResetKey] = useState<string | null>(null);
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey);
     if (editingEmployee) {
       reset({
         id: editingEmployee.id,
@@ -159,6 +174,7 @@ export function GTR30EmployeeMasterForm({
         ppaNo: editingEmployee.ppaNo || '',
         currentPay: editingEmployee.currentPay || 0,
         currentPayDate: editingEmployee.currentPayDate || '',
+        payEntries: (editingEmployee.payEntries ?? []).map((e) => ({ ...e })),
         quarterAddress: editingEmployee.quarterAddress || '',
         insuranceGroup: editingEmployee.insuranceGroup || 'ખ',
         insuranceType: editingEmployee.insuranceType || 'savings_and_insurance',
@@ -177,13 +193,15 @@ export function GTR30EmployeeMasterForm({
       });
       setActiveTab('personal');
     }
-  }, [editingEmployee, billCode, reset]);
+  }
 
   // Watched fields for real-time live salary calculations
   const nameValue = useWatch({ control, name: 'name' });
   const rentValue = useWatch({ control, name: 'rentOfBuilding' });
   const addressValue = useWatch({ control, name: 'quarterAddress' });
   const currentPayValue = useWatch({ control, name: 'currentPay' });
+  const currentPayDateWatched = useWatch({ control, name: 'currentPayDate' });
+  const payEntriesValue = useWatch({ control, name: 'payEntries' }) ?? [];
   const daValue = useWatch({ control, name: 'da' });
   const hraPercentValue = useWatch({ control, name: 'hraPercent' });
   const transportValue = useWatch({ control, name: 'transportAllowance' });
@@ -194,6 +212,8 @@ export function GTR30EmployeeMasterForm({
   const gisInsValue = useWatch({ control, name: 'gis1981Insurance' });
   const gisSavValue = useWatch({ control, name: 'gis1981Savings' });
   const societyValue = useWatch({ control, name: 'societyDeduction' });
+
+  const effectiveDaPercent = useEffectiveDARate(currentPayDateWatched || monthKey);
 
   // Real-time live salary breakdown calculations
   const basic = Number(currentPayValue || 0);
@@ -216,12 +236,9 @@ export function GTR30EmployeeMasterForm({
   const deductionsTotal = salaryPreview.totalDeductions;
   const netTakeHome = salaryPreview.netTakeHome;
 
-  // Auto-calculate DA (53%), NPS (10%), PT and Pay Level Cell when current pay changes
-  const handlePayChange = (payStr: string) => {
-    const pay = parseFloat(payStr) || 0;
-    setValue('currentPay', pay);
+  const applyPayAutoCalc = (pay: number) => {
     if (pay > 0) {
-      const calcDA = calculateDA(pay, 53);
+      const calcDA = calculateDA(pay, effectiveDaPercent);
       const calcNPS = calculateNPS(pay, calcDA);
       const calcPT = calculateGujaratPT(pay);
       setValue('da', calcDA);
@@ -229,6 +246,129 @@ export function GTR30EmployeeMasterForm({
       setValue('professionalTax', calcPT);
       setValue('payLevelCell', `PAY=${pay} (LEVEL CELL-7)`);
     }
+  };
+
+  const syncFromEntries = (entries: PayEntryDraft[]) => {
+    const norm = normalizePayEntries(entries);
+    setValue('payEntries', norm, { shouldValidate: false, shouldDirty: true });
+    const latest = norm[norm.length - 1] ?? null;
+    if (latest) {
+      setValue('currentPay', latest.basicPay, { shouldValidate: false });
+      setValue('currentPayDate', latest.startDate, { shouldValidate: false });
+    }
+    return norm;
+  };
+
+  // Auto-calculate DA (53%), NPS (10%), PT and Pay Level Cell when current pay changes.
+  // The latest pay-matrix entry is kept in sync with the Current Pay fields.
+  const handlePayChange = (payStr: string) => {
+    const pay = parseFloat(payStr) || 0;
+    setValue('currentPay', pay);
+    const dateVal = getValues('currentPayDate') || '';
+    const current = (getValues('payEntries') ?? []).map((e) => ({ ...e }));
+    if (pay > 0 && (current.length > 0 || dateVal)) {
+      const latest = current[current.length - 1] ?? null;
+      const latestOpen = latest && !latest.endDate;
+      if (current.length === 0) {
+        syncFromEntries([{ id: crypto.randomUUID(), startDate: dateVal, basicPay: pay }]);
+      } else if (latestOpen && (dateVal === '' || latest.startDate === dateVal)) {
+        syncFromEntries(
+          current.map((e, i) => (i === current.length - 1 ? { ...e, basicPay: pay } : e))
+        );
+      } else if (dateVal) {
+        syncFromEntries([
+          ...current,
+          { id: crypto.randomUUID(), startDate: dateVal, basicPay: pay },
+        ]);
+      }
+    }
+    applyPayAutoCalc(pay);
+  };
+
+  const handlePayDateChange = (dateStr: string) => {
+    setValue('currentPayDate', dateStr);
+    const pay = Number(getValues('currentPay') || 0);
+    const current = (getValues('payEntries') ?? []).map((e) => ({ ...e }));
+    if (pay > 0 && dateStr) {
+      const latest = current[current.length - 1] ?? null;
+      if (current.length === 0) {
+        syncFromEntries([{ id: crypto.randomUUID(), startDate: dateStr, basicPay: pay }]);
+      } else if (latest && !latest.endDate) {
+        syncFromEntries([...current.slice(0, -1), { ...latest, startDate: dateStr }]);
+      } else {
+        syncFromEntries([
+          ...current,
+          { id: crypto.randomUUID(), startDate: dateStr, basicPay: pay },
+        ]);
+      }
+    }
+  };
+
+  // Pay Matrix history helpers
+  const [showNewPayRow, setShowNewPayRow] = useState(false);
+  const [newPayStart, setNewPayStart] = useState('');
+  const [newPayAmount, setNewPayAmount] = useState('');
+  const [newPayError, setNewPayError] = useState('');
+
+  const openNewPayRow = () => {
+    const norm = normalizePayEntries(getValues('payEntries') ?? []);
+    const latest = norm[norm.length - 1] ?? null;
+    setNewPayStart(latest ? dayAfter(latest.endDate ?? latest.startDate) : '');
+    setNewPayAmount('');
+    setNewPayError('');
+    setShowNewPayRow(true);
+  };
+
+  const updateEntryRaw = (
+    idx: number,
+    field: 'startDate' | 'endDate' | 'basicPay',
+    value: string
+  ) => {
+    const current = (getValues('payEntries') ?? []).map((e) => ({ ...e }));
+    setValue(
+      'payEntries',
+      current.map((e, i) =>
+        i === idx
+          ? { ...e, [field]: field === 'basicPay' ? (Number(value) || 0) : value }
+          : e
+      ),
+      { shouldValidate: false }
+    );
+  };
+
+  const normalizeNow = () => {
+    syncFromEntries(getValues('payEntries') ?? []);
+  };
+
+  const deletePayEntry = (idx: number) => {
+    const next = (getValues('payEntries') ?? []).filter((_, i) => i !== idx);
+    syncFromEntries(next);
+    const latest = normalizePayEntries(next)[normalizePayEntries(next).length - 1] ?? null;
+    applyPayAutoCalc(latest?.basicPay ?? 0);
+  };
+
+  const confirmAddPayEntry = () => {
+    setNewPayError('');
+    const start = newPayStart.trim();
+    const pay = Number(newPayAmount) || 0;
+    if (!start) {
+      setNewPayError('Select the date the new pay becomes effective.');
+      return;
+    }
+    if (pay <= 0) {
+      setNewPayError('Enter a basic pay amount greater than 0.');
+      return;
+    }
+    const current = (getValues('payEntries') ?? []).map((e) => ({ ...e }));
+    if (current.some((e) => e.startDate === start)) {
+      setNewPayError(`An entry already starts on ${formatDate(start)}. Edit that entry instead.`);
+      return;
+    }
+    syncFromEntries([...current, { id: crypto.randomUUID(), startDate: start, basicPay: pay }]);
+    applyPayAutoCalc(pay);
+    setShowNewPayRow(false);
+    setNewPayStart('');
+    setNewPayAmount('');
   };
 
   // Auto-calculate GIS Insurance & Savings amounts when GIS Group changes
@@ -387,83 +527,16 @@ export function GTR30EmployeeMasterForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      {/* 1. Live Salary & Statutory Overview Banner (Robust Enterprise CSS) */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 sm:p-5 shadow-lg border border-slate-700/80">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-500/20 border border-blue-400/30 text-blue-300 shrink-0">
-              <Receipt className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-widest text-blue-300 flex items-center gap-1.5">
-                <Coins className="h-3.5 w-3.5" /> Real-time Salary Overview
-              </div>
-              <h3 className="text-base sm:text-lg font-black text-white tracking-tight mt-0.5 flex items-center gap-2">
-                {nameValue ? (
-                  <span>{nameValue}</span>
-                ) : (
-                  <span className="text-slate-400 font-normal italic">New Employee Profile</span>
-                )}
-                {basic > 0 && (
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/30">
-                    Basic: ₹{basic.toLocaleString('en-IN')}
-                  </span>
-                )}
-              </h3>
-            </div>
-          </div>
-
-          {basic > 0 && (
-            <button
-              type="button"
-              onClick={() => handlePayChange(String(basic))}
-              className="self-start lg:self-auto text-xs font-semibold px-3 py-1.5 rounded-xl bg-indigo-600/60 hover:bg-indigo-600 text-indigo-100 border border-indigo-400/40 shadow-xs transition-all flex items-center gap-1.5"
-              title="Recalculate Gujarat statutory rules: DA 53%, NPS 10%, PT ₹200"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-amber-300" /> Recalculate 7th Pay Rules
-            </button>
-          )}
-        </div>
-
-        {/* Real-time KPI Metric Tiles */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mt-4 pt-3.5 border-t border-slate-700/80">
-          <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-2.5 sm:p-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-              Basic Salary
-            </span>
-            <span className="text-sm sm:text-base font-black font-mono text-white mt-0.5 block">
-              ₹{basic.toLocaleString('en-IN')}
-            </span>
-          </div>
-
-          <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-2.5 sm:p-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block flex items-center justify-between">
-              Gross Earnings <TrendingUp className="h-3 w-3" />
-            </span>
-            <span className="text-sm sm:text-base font-black font-mono text-emerald-300 mt-0.5 block">
-              ₹{grossPay.toLocaleString('en-IN')}
-            </span>
-          </div>
-
-          <div className="bg-rose-950/40 border border-rose-800/50 rounded-xl p-2.5 sm:p-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 block flex items-center justify-between">
-              Deductions <TrendingDown className="h-3 w-3" />
-            </span>
-            <span className="text-sm sm:text-base font-black font-mono text-rose-300 mt-0.5 block">
-              ₹{deductionsTotal.toLocaleString('en-IN')}
-            </span>
-          </div>
-
-          <div className="bg-blue-950/60 border border-blue-700/60 rounded-xl p-2.5 sm:p-3 shadow-inner">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block flex items-center justify-between">
-              Take-Home Net <CheckCircle2 className="h-3 w-3" />
-            </span>
-            <span className="text-sm sm:text-base font-black font-mono text-blue-100 mt-0.5 block">
-              ₹{netTakeHome.toLocaleString('en-IN')}
-            </span>
-          </div>
-        </div>
-      </div>
+      {/* 1. Live Salary & Statutory Overview Banner */}
+      <SalaryPreviewCard
+        employeeName={nameValue}
+        basicPay={basic}
+        grossPay={grossPay}
+        deductionsTotal={deductionsTotal}
+        netTakeHome={netTakeHome}
+        effectiveDaPercent={effectiveDaPercent}
+        onRecalculate={() => handlePayChange(String(basic))}
+      />
 
       {/* 2. Robust Segmented Horizontal Navigation Bar */}
       <div className="bg-slate-100/90 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
@@ -672,12 +745,27 @@ export function GTR30EmployeeMasterForm({
 
         {/* TAB 2: 💼 7th Pay Matrix & Basic Salary */}
         <div className={activeTab === 'payscale' ? 'space-y-4 animate-in fade-in duration-150' : 'hidden'}>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-blue-600" />
               <h3 className="text-sm font-bold text-slate-900">7th Pay Matrix &amp; Basic Pay Configuration</h3>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                {payEntriesValue.length} entr{payEntriesValue.length === 1 ? 'y' : 'ies'}
+              </span>
             </div>
-            <span className="text-[11px] text-slate-400">Step 2 of 5</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-400">Step 2 of 5</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 h-7 text-xs"
+                onClick={openNewPayRow}
+                disabled={showNewPayRow}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> New Pay Entry
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -699,8 +787,18 @@ export function GTR30EmployeeMasterForm({
                 placeholder="39900"
               />
               <p className="text-[11px] text-blue-700 mt-1">
-                Auto-calculates DA (53%), NPS (10%), and Gujarat Professional Tax.
+                Auto-calculates DA ({effectiveDaPercent}%), NPS (10%), and Gujarat Professional Tax.
               </p>
+              {(() => {
+                const latestEntry = payEntriesValue[payEntriesValue.length - 1];
+                if (!latestEntry) return null;
+                return (
+                  <p className="text-[10px] text-blue-800 mt-0.5 font-semibold">
+                    Current in matrix: ₹{(latestEntry.basicPay ?? 0).toLocaleString('en-IN')}
+                    {latestEntry.startDate ? ` since ${formatDate(latestEntry.startDate)}` : ''}
+                  </p>
+                );
+              })()}
               {errors.currentPay && <p className="text-red-500 text-[11px] mt-1">{errors.currentPay.message}</p>}
             </div>
 
@@ -713,6 +811,7 @@ export function GTR30EmployeeMasterForm({
                 id="currentPayDate"
                 type="date"
                 {...register('currentPayDate')}
+                onChange={(e) => handlePayDateChange(e.target.value)}
                 className="mt-1 text-sm font-mono"
               />
               {errors.currentPayDate && (
@@ -781,6 +880,177 @@ export function GTR30EmployeeMasterForm({
               />
             </div>
           </div>
+
+          {/* Integrated Pay Matrix: current entry on top, history below — all editable */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-500">
+                  <th className="px-2 py-2 text-left font-semibold">#</th>
+                  <th className="px-2 py-2 text-left font-semibold">Effective From</th>
+                  <th className="px-2 py-2 text-left font-semibold">Valid Until</th>
+                  <th className="px-2 py-2 text-right font-semibold">Basic Pay (₹)</th>
+                  <th className="px-2 py-2 text-left font-semibold">Status</th>
+                  <th className="px-2 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {showNewPayRow && (
+                  <tr className="bg-indigo-50/70 border-t border-indigo-200">
+                    <td className="px-2 py-2 text-[11px] text-indigo-400 font-mono align-middle">
+                      <Plus className="h-3.5 w-3.5" />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Label htmlFor="newPayStart" className="text-[10px] font-semibold text-indigo-900">
+                        Effective From
+                      </Label>
+                      <Input
+                        id="newPayStart"
+                        type="date"
+                        value={newPayStart}
+                        onChange={(e) => setNewPayStart(e.target.value)}
+                        className="mt-0.5 h-8 text-xs font-mono border-indigo-300 bg-white"
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Label htmlFor="newPayAmount" className="text-[10px] font-semibold text-indigo-900">
+                        New Basic Pay (₹)
+                      </Label>
+                      <Input
+                        id="newPayAmount"
+                        type="number"
+                        step="any"
+                        value={newPayAmount}
+                        onChange={(e) => setNewPayAmount(e.target.value)}
+                        className="mt-0.5 h-8 text-xs font-mono border-indigo-300 bg-white"
+                        placeholder="42500"
+                      />
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      {newPayError && (
+                        <p className="text-red-500 text-[10px] flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" /> {newPayError}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-2 py-2">
+                      <span className="text-[10px] font-semibold text-indigo-500">New</span>
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white h-8 text-xs"
+                          onClick={confirmAddPayEntry}
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 text-xs text-slate-500"
+                          onClick={() => setShowNewPayRow(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {payEntriesValue.length === 0 && !showNewPayRow && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-xs text-slate-400">
+                      No pay entries yet. Enter a pay increment date above, or add your first entry —
+                      the bill generator automatically uses the pay active on the bill month.
+                    </td>
+                  </tr>
+                )}
+
+                {[...payEntriesValue].reverse().map((entry, displayIdx) => {
+                  const actualIdx = payEntriesValue.length - 1 - displayIdx;
+                  const isOpen = !entry.endDate;
+                  const isCurrent = actualIdx === payEntriesValue.length - 1;
+                  return (
+                    <tr
+                      key={entry.id}
+                      className={`border-t border-slate-100 ${
+                        isCurrent ? 'bg-indigo-50/50' : 'bg-white'
+                      }`}
+                    >
+                      <td className="px-2 py-1.5 text-[11px] text-slate-400 font-mono">
+                        {displayIdx + 1}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <Input
+                          type="date"
+                          value={entry.startDate}
+                          onChange={(e) => updateEntryRaw(actualIdx, 'startDate', e.target.value)}
+                          onBlur={normalizeNow}
+                          className="h-8 text-xs font-mono"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <Input
+                          type="date"
+                          value={entry.endDate ?? ''}
+                          onChange={(e) => updateEntryRaw(actualIdx, 'endDate', e.target.value)}
+                          onBlur={normalizeNow}
+                          className="h-8 text-xs font-mono"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <Input
+                          type="number"
+                          step="any"
+                          value={entry.basicPay}
+                          onChange={(e) => updateEntryRaw(actualIdx, 'basicPay', e.target.value)}
+                          onBlur={normalizeNow}
+                          className="h-8 text-xs font-mono text-right"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        {isCurrent ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                            Current
+                          </span>
+                        ) : isOpen ? (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                            Open
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                            History
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => deletePayEntry(actualIdx)}
+                          title="Delete this pay entry"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {payEntriesValue.length > 0 && (
+            <p className="text-[11px] text-slate-400 flex items-center gap-1">
+              <CalendarRange className="h-3 w-3" />
+              The top row is the current pay. Bills use the pay active on the bill month — mid-month
+              changes are split day-by-day (e.g. ₹39,900 until 30-01-2027 → ₹42,500 from 01-02-2027).
+            </p>
+          )}
         </div>
 
         {/* TAB 3: 📈 Allowances & Earnings */}
@@ -798,10 +1068,10 @@ export function GTR30EmployeeMasterForm({
             <div className="p-3.5 rounded-xl bg-emerald-50/50 border border-emerald-200">
               <div className="flex items-center justify-between">
                 <Label htmlFor="da" className="text-xs font-bold text-emerald-900">
-                  Dearness Allowance (DA 53%)
+                  Dearness Allowance (DA {effectiveDaPercent}%)
                 </Label>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                  53% Auto
+                  {effectiveDaPercent}% Auto
                 </span>
               </div>
               <Input

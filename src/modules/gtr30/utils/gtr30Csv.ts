@@ -1,4 +1,6 @@
 import type { GTR30EmployeeMaster } from '../types';
+import { resolveDARateForDate, DEFAULT_DA_PERCENT } from './gtr30GovRules';
+import { gtr30SettingsService } from '../services/gtr30Settings.service';
 
 export const CSV_HEADERS = [
   'Sr No',
@@ -170,7 +172,15 @@ export function importMasterFromCsv(csvText: string): Partial<GTR30EmployeeMaste
     if (!name || name.length < 2) continue;
 
     const currentPay = Number(rowObj['currentpay'] || rowObj['basicpay'] || 0) || 0;
-    const da = rowObj['da'] ? Number(rowObj['da']) : Math.round(currentPay * 0.53);
+    let fallbackDaPercent = DEFAULT_DA_PERCENT;
+    try {
+      const rates = gtr30SettingsService.loadSettings().daRates;
+      const dateForDa = rowObj['payincrementdate'] || rowObj['currentpaydate'] || new Date().toISOString().slice(0, 10);
+      fallbackDaPercent = resolveDARateForDate(rates, dateForDa);
+    } catch {
+      fallbackDaPercent = DEFAULT_DA_PERCENT;
+    }
+    const da = rowObj['da'] ? Number(rowObj['da']) : Math.round(currentPay * (fallbackDaPercent / 100));
     const nps = rowObj['npspension'] ? Number(rowObj['npspension']) : Math.round((currentPay + da) * 0.1);
 
     employees.push({

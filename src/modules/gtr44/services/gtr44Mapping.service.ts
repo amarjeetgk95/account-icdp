@@ -30,15 +30,16 @@ export function subVoucherToEntry(sv: SubVoucher, index: number): GTR44Entry {
   };
 }
 
-export function formDataToBill(formData: GTR44FormData): Partial<GTR44Bill> {
+export function formDataToBill(formData: GTR44FormData, existingStatus?: GTR44Bill['status']): Partial<GTR44Bill> {
   const grossAmount = getGrossAmount(formData);
   const totalDeduction = getTotalDeductions(formData.deductions);
   const netAmount = getNetAmount(grossAmount, totalDeduction);
 
   const d = formData.deductions;
+  const gstTotal = (d?.gst || 0) + (d?.gstCgst || 0) + (d?.gstSgst || 0);
   const deductions = [
     { code: '9510', label: 'Income Tax', amount: getIncomeTax(d) },
-    { code: 'GST', label: 'GST', amount: d?.gst || 0 },
+    { code: 'GST', label: 'GST', amount: gstTotal },
   ];
   if (d?.surcharge9520) deductions.push({ code: '9520', label: 'Surcharge', amount: d.surcharge9520 });
   if (d?.sd9600) deductions.push({ code: '9600', label: 'Security Deposit', amount: d.sd9600 });
@@ -70,7 +71,8 @@ export function formDataToBill(formData: GTR44FormData): Partial<GTR44Bill> {
     grossAmount,
     totalDeduction,
     netAmount,
-    status: 'draft' as const,
+    status: existingStatus || 'draft',
     formData,
   };
 }
+

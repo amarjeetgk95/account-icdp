@@ -19,6 +19,7 @@ import { useHydrateGTR30BillCodeMappings } from '../hooks/useGTR30BillCodeMappin
 import { gtr30ParseMonthKey } from '../utils/gtr30MonthKey';
 import { GTR30EmployeeMasterForm } from '../components/GTR30EmployeeMasterForm';
 import { GTR30SyncStatusBadge } from '../components/GTR30SyncStatusBadge';
+import type { GTR30EmployeeMaster } from '../types';
 
 export function GTR30EmployeeFormPage() {
   const navigate = useNavigate();
@@ -43,23 +44,23 @@ export function GTR30EmployeeFormPage() {
     void hydrateMappings.mutateAsync().catch(() => {});
   }, [hydrateMaster, hydrateMappings]);
 
-  const groups = groupsQuery.data ?? {};
+  const groups = useMemo(() => groupsQuery.data ?? {}, [groupsQuery.data]);
 
   // Find employee across all stored groups if queryId is present
-  const { foundEmployee, foundBillCode } = useMemo(() => {
-    if (!queryId) return { foundEmployee: null, foundBillCode: initialBillCode };
-
+  let foundEmployee: GTR30EmployeeMaster | null = null;
+  let foundBillCode = initialBillCode;
+  if (queryId) {
     for (const [key, emps] of Object.entries(groups)) {
       const match = emps.find((e) => e.id === queryId);
       if (match) {
         // Extract billCode from group key e.g. July-2026|GTR30-SAL
         const parts = key.split('|');
-        const code = parts[1] || match.billCode || initialBillCode;
-        return { foundEmployee: match, foundBillCode: code };
+        foundEmployee = match;
+        foundBillCode = parts[1] || match.billCode || initialBillCode;
+        break;
       }
     }
-    return { foundEmployee: null, foundBillCode: initialBillCode };
-  }, [groups, queryId, initialBillCode]);
+  }
 
   const isEditMode = Boolean(queryId);
   const activeBillCode = foundBillCode || initialBillCode;

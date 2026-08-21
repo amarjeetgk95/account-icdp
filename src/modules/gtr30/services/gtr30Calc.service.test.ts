@@ -16,20 +16,20 @@ describe('GTR-30 calculations & PDF sample checks', () => {
     const deductions = deductionsTotal(employee);
     const net = gross - deductions;
 
-    expect(gross).toBe(65917);
-    expect(deductions).toBe(7405);
-    expect(net).toBe(58512);
+    expect(gross).toBe(72550);
+    expect(deductions).toBe(8068);
+    expect(net).toBe(64482);
   });
 
   it('calculates bill totals across employees', () => {
     const data = gtr30BillFormService.emptyFormData();
     const totals = billTotals(data);
 
-    expect(totals.gross).toBe(65917);
-    expect(totals.deductions).toBe(7405);
-    expect(totals.net).toBe(58512);
+    expect(totals.gross).toBe(72550);
+    expect(totals.deductions).toBe(8068);
+    expect(totals.net).toBe(64482);
     expect(totals.societyTotal).toBe(4154);
-    expect(totals.netAfterSociety).toBe(54358);
+    expect(totals.netAfterSociety).toBe(60328);
     expect(totals.totalRent).toBe(300);
     expect(totals.totalProfTax).toBe(200);
     expect(totals.totalGis).toBe(800);
@@ -48,10 +48,10 @@ describe('GTR-30 calculations & PDF sample checks', () => {
   });
 
   it('converts amounts to words properly (Indian system)', () => {
-    expect(numberToWords(58512)).toBe('FiftyEight Thousand Five Hundred Twelve');
+    expect(numberToWords(64482)).toBe('SixtyFour Thousand Four Hundred EightyTwo');
     expect(numberToWords(300)).toBe('Three Hundred');
     expect(numberToWords(200)).toBe('Two Hundred');
     expect(numberToWords(800)).toBe('Eight Hundred');
-    expect(numberToWords(65917)).toBe('SixtyFive Thousand Nine Hundred Seventeen');
+    expect(numberToWords(72550)).toBe('SeventyTwo Thousand Five Hundred Fifty');
   });
 });

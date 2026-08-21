@@ -202,126 +202,6 @@
     background: #EFF6FF;
     color: #1D4ED8;
   }
-
-  h1, h2, h3, h4, h5, h6 {
-    margin: 0;
-    font-family: 'Outfit', sans-serif;
-    font-weight: 600;
-    line-height: 1.25;
-    letter-spacing: -0.03em;
-  }
-
-  h1 { font-size: 1.75rem; font-weight: 700; }
-  h2 { font-size: 1.5rem; }
-  h3 { font-size: 1.25rem; }
-
-  p {
-    margin: 0;
-  }
-
-  table {
-    border-collapse: collapse;
-    width: 100%;
-  }
-
-  input, select, textarea, button {
-    font-family: inherit;
-    font-size: inherit;
-  }
-
-  /* Neutralize browser autofill yellow background */
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
-  textarea:-webkit-autofill,
-  textarea:-webkit-autofill:hover,
-  textarea:-webkit-autofill:focus,
-  select:-webkit-autofill,
-  select:-webkit-autofill:hover,
-  select:-webkit-autofill:focus {
-    -webkit-text-fill-color: #0f172a;
-    -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
-    box-shadow: 0 0 0 1000px #ffffff inset;
-    caret-color: #0f172a;
-    transition: background-color 9999s ease-out 0s;
-  }
-
-  ::-webkit-scrollbar {
-    width: 14px;
-    height: 14px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #F1F5F9;
-    border-radius: 8px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #94A3B8;
-    border: 3px solid #F1F5F9;
-    border-radius: 8px;
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #64748B;
-  }
-
-  ::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-
-  /* Firefox scrollbar: wider + always-visible colored thumb */
-  * {
-    scrollbar-width: auto;
-    scrollbar-color: #94A3B8 #F1F5F9;
-  }
-
-  /* Main scroll container: plain, dependency-free vertical scrolling */
-  .app-scroll {
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-}
-
-@layer components {
-  /* ============================================================
-     APP HEADER
-     ============================================================ */
-  .app-header {
-    @apply h-16 bg-white/85 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-float grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 shrink-0 z-30 mt-4 mr-4 mb-3 transition-all;
-    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(245, 243, 255, 0.9));
-    will-change: transform;
-    transform: translateZ(0);
-  }
-
-  .app-header-brand {
-    @apply flex items-center gap-3;
-  }
-
-  .app-header-logo {
-    @apply w-10 h-10 rounded-xl object-contain transition-transform hover:scale-105;
-  }
-
-  .app-header-title {
-    @apply font-heading font-bold text-slate-800 dark:text-slate-100 text-[1.1rem] leading-tight tracking-tight;
-  }
-
-  .app-header-subtitle {
-    @apply text-[10px] font-semibold uppercase tracking-wide;
-    color: #94A3B8;
-  }
-
-  .app-header-actions {
-    @apply flex items-center gap-3;
-  }
-
-  .user-avatar {
-    @apply w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-colors;
-    background: #EFF6FF;
-    color: #1D4ED8;
-  }
   .user-avatar:hover {
     background: #DBEAFE;
   }
@@ -1927,6 +1807,37 @@
     .bh-q-band.bh-q2-band { border-left-color: #10b981; }
     .bh-q-band.bh-q3-band { border-left-color: #f59e0b; }
     .bh-q-band.bh-q4-band { border-left-color: #f43f5e; }
+
+  /* ============================================================
+     GTR-30 PRINT TOKENS — dark-mode isolation & Gujarati fonts
+     Ensures prints render in light mode even when app is in dark
+     class. Tailwind tokens: font-guj / font-gujSans / font-plexGu,
+     colors earning/deduction, spacing gtrBox (11px), shadow gtr.
+     ============================================================ */
+  .gtr30-page {
+    color-scheme: light;
+    @apply bg-white text-black;
+  }
+  .gtr30-document-root {
+    color-scheme: light;
+    background: #fff;
+  }
+  :root {
+    --gtr-gu: "Noto Serif Gujarati", Shruti, serif;
+    --gtr-gu-sans: "Noto Sans Gujarati", Shruti, sans-serif;
+    --gtr-plex-gu: "IBM Plex Sans Gujarati", sans-serif;
+    --gtr-box-w: 11px;
+    --gtr-box-h: 14px;
+  }
+  .font-guj {
+    font-family: var(--gtr-gu);
+  }
+  .font-gujSans {
+    font-family: var(--gtr-gu-sans);
+  }
+  .font-plexGu {
+    font-family: var(--gtr-plex-gu);
+  }
 
   /* ============================================================
      PRINT ENGINE

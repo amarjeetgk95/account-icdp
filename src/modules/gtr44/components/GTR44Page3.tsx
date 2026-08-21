@@ -228,7 +228,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
         </table>
 
         {/* Under Rs. line */}
-        <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '14px', fontSize: '11.5pt' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '10px', fontSize: '11.5pt' }}>
           <span style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>Under Rs.&nbsp;</span>
           <span
             style={{
@@ -244,42 +244,44 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
           </span>
         </div>
 
-        {/* GST Deduction Details (checklist on the third page) */}
-        <div
-          style={{
-            border: '1px solid #000',
-            marginBottom: '14px',
-            fontSize: '11pt',
-            padding: '8px 12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontWeight: 700 }}>
-            <span>Deduction on account of GST :&nbsp;</span>
-            <span style={{ fontFamily: "'Courier New', monospace" }}>
-              {data.deductions.gst ? `Rs. ${formatIndianCurrency(data.deductions.gst)}` : ''}
-            </span>
+        {/* GST Deduction Details — shown only when GST data is present; hidden for exact replica of paper form */}
+        {(data.deductions.gst > 0 || data.deductions.gstCgst > 0 || data.deductions.gstSgst > 0 || !!data.deductions.gstNo) && (
+          <div
+            style={{
+              border: '1px solid #000',
+              marginBottom: '10px',
+              fontSize: '10.5pt',
+              padding: '6px 10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontWeight: 700 }}>
+              <span>Deduction on account of GST :&nbsp;</span>
+              <span style={{ fontFamily: "'Courier New', monospace" }}>
+                {data.deductions.gst ? `Rs. ${formatIndianCurrency(data.deductions.gst)}` : ''}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '16px', marginTop: '4px', fontSize: '10pt', flexWrap: 'wrap' }}>
+              <span>
+                CGST&nbsp;
+                <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
+                  {data.deductions.gstCgst ? formatIndianCurrency(data.deductions.gstCgst) : ''}
+                </span>
+              </span>
+              <span>
+                SGST&nbsp;
+                <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
+                  {data.deductions.gstSgst ? formatIndianCurrency(data.deductions.gstSgst) : ''}
+                </span>
+              </span>
+              <span>
+                GSTIN&nbsp;
+                <span style={{ borderBottom: '1px solid #000', minWidth: '140px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
+                  {data.deductions.gstNo || ''}
+                </span>
+              </span>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '24px', marginTop: '6px', fontSize: '10.5pt', flexWrap: 'wrap' }}>
-            <span>
-              CGST&nbsp;
-              <span style={{ borderBottom: '1px solid #000', minWidth: '90px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
-                {data.deductions.gstCgst ? formatIndianCurrency(data.deductions.gstCgst) : ''}
-              </span>
-            </span>
-            <span>
-              SGST&nbsp;
-              <span style={{ borderBottom: '1px solid #000', minWidth: '90px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
-                {data.deductions.gstSgst ? formatIndianCurrency(data.deductions.gstSgst) : ''}
-              </span>
-            </span>
-            <span>
-              GSTIN&nbsp;
-              <span style={{ borderBottom: '1px solid #000', minWidth: '150px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
-                {data.deductions.gstNo || ''}
-              </span>
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Certifications 1, 2, 3, 4 */}
         <div style={{ flex: 1 }}>

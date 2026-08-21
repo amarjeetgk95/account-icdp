@@ -37,8 +37,9 @@ export const GTR44Header: React.FC<GTR44HeaderProps> = ({ data }) => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '34% 20% 20% 26%',
+          gridTemplateColumns: '30% 18% 17% 35%',
           rowGap: '2px',
+          columnGap: '6px',
           marginBottom: '4px',
           fontSize: '10pt',
           alignItems: 'baseline',
@@ -91,16 +92,23 @@ export const GTR44Header: React.FC<GTR44HeaderProps> = ({ data }) => {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
-          <span style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>Bill Register No.&nbsp;</span>
+          <span style={{ whiteSpace: 'nowrap', fontWeight: 600, fontSize: '9pt' }}>Bill Register No.&nbsp;</span>
           <span
             style={{
               borderBottom: '1px solid #000',
-              minWidth: '90px',
+              minWidth: '120px',
+              maxWidth: '150px',
               fontWeight: 700,
               paddingLeft: '2px',
               minHeight: '13px',
               textAlign: 'center',
+              fontSize: '9pt',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              flex: 1,
             }}
+            title={data.billRegisterNo}
           >
             {data.billRegisterNo}
           </span>

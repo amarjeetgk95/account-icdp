@@ -100,6 +100,11 @@ export const GTR44Document: React.FC<GTR44DocumentProps> = ({
             overflow: hidden !important;
           }
 
+          #gtr44-page-4 {
+            page-break-after: auto !important;
+            break-after: auto !important;
+          }
+
           @page {
             size: A4 portrait;
             margin: 0;

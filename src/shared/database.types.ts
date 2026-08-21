@@ -116,6 +116,12 @@ export type Database = {
         Update: { id?: string; office_id?: string; voucher_no?: string; bill_no?: string; month?: string; financial_year?: number; voucher_date?: string; major_head?: string | null; gross_total?: number; basic_pay_total?: number; da_total?: number; hra_total?: number; cla_total?: number; med_total?: number; trans_total?: number; special_pay_total?: number; washing_total?: number; npp_total?: number; gpf_total?: number; nps_total?: number; income_tax_total?: number; pt_total?: number; gis_total?: number; net_total?: number; remarks?: string | null; status?: string; posted_by?: string | null; created_at?: string }
         Relationships: []
       }
+      gtr44_bills: {
+        Row: { id: string; office_id: string; bill_no: string; fy: number | null; month: string | null; status: string; gross_amount: number; net_amount: number; form_data: Json; created_at: string; updated_at: string; created_by: string | null }
+        Insert: { id?: string; office_id: string; bill_no?: string; fy?: number | null; month?: string | null; status?: string; gross_amount?: number; net_amount?: number; form_data: Json; created_at?: string; updated_at?: string; created_by?: string | null }
+        Update: { id?: string; office_id?: string; bill_no?: string; fy?: number | null; month?: string | null; status?: string; gross_amount?: number; net_amount?: number; form_data?: Json; created_at?: string; updated_at?: string; created_by?: string | null }
+        Relationships: []
+      }
       payroll_components: {
         Row: { id: string; component_code: string | null; component_name: string; short_name: string | null; type: string; kind: string; category: string | null; sub_category: string | null; active: boolean; display_order: number; is_mandatory: boolean; is_total_field: boolean; is_system_generated: boolean; validation_rule: Record<string, unknown> | null; notes: string | null; created_at: string; updated_at: string }
         Insert: { id?: string; component_code?: string | null; component_name: string; short_name?: string | null; type: string; kind?: string; category?: string | null; sub_category?: string | null; active?: boolean; display_order?: number; is_mandatory?: boolean; is_total_field?: boolean; is_system_generated?: boolean; validation_rule?: Record<string, unknown> | null; notes?: string | null; created_at?: string; updated_at?: string }
@@ -175,6 +181,10 @@ export type Database = {
       get_gtr30_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
       upsert_gtr30_bill: { Args: { p_office_id: string; p_data: Json }; Returns: Json }
       delete_gtr30_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
+      list_gtr44_bills: { Args: { p_office_id: string }; Returns: Json }
+      get_gtr44_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
+      upsert_gtr44_bill: { Args: { p_office_id: string; p_data: Json }; Returns: Json }
+      delete_gtr44_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
     }
   }
 }

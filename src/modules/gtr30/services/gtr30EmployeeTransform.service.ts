@@ -1,11 +1,15 @@
 import type { GTR30Employee, GTR30EmployeeMaster } from '../types';
 import { createDefaultEmployee } from '../constants';
+import { monthStartFromKey, resolveBasicPayForMonth } from '../utils/gtr30PayMatrix';
+import { resolveDARateForMonthKey, DEFAULT_DA_PERCENT } from '../utils/gtr30GovRules';
+import { gtr30SettingsService } from './gtr30Settings.service';
 
 interface Gtr30EmployeeTransformService {
   masterToBillEmployee(
     master: GTR30EmployeeMaster,
     srNo: number,
-    base?: Partial<GTR30Employee>
+    base?: Partial<GTR30Employee>,
+    opts?: { monthKey?: string; daRate?: number; forceDaRecalc?: boolean }
   ): GTR30Employee;
 }
 
@@ -13,18 +17,38 @@ class Gtr30EmployeeTransformServiceImpl implements Gtr30EmployeeTransformService
   masterToBillEmployee(
     master: GTR30EmployeeMaster,
     srNo: number,
-    base?: Partial<GTR30Employee>
+    base?: Partial<GTR30Employee>,
+    opts?: { monthKey?: string; daRate?: number; forceDaRecalc?: boolean }
   ): GTR30Employee {
-    const currentPay = master.currentPay || 0;
+    const monthStart = opts?.monthKey ? monthStartFromKey(opts.monthKey) : null;
+    const payEntries = master.payEntries ?? [];
+    const resolved = monthStart && payEntries.length > 0
+      ? resolveBasicPayForMonth(payEntries, monthStart)
+      : null;
+    const currentPay = resolved ? resolved.basicPay : master.currentPay || 0;
     const defaultTemplate = createDefaultEmployee(srNo);
 
-    // Calculate DA (53% of Basic Pay by default if not set)
-    const da =
-      master.da !== undefined && master.da > 0
-        ? master.da
-        : currentPay > 0
-        ? Math.round(currentPay * 0.53)
-        : defaultTemplate.da;
+    // Resolve effective DA rate: opts.daRate > settings lookup > default
+    let effectiveDaRate = opts?.daRate;
+    if (effectiveDaRate === undefined || effectiveDaRate === null) {
+      try {
+        const payload = gtr30SettingsService.loadSettings();
+        effectiveDaRate = opts?.monthKey
+          ? resolveDARateForMonthKey(payload.daRates, opts.monthKey)
+          : resolveDARateForMonthKey(payload.daRates, monthStart ?? new Date().toISOString().slice(0, 10));
+      } catch {
+        effectiveDaRate = DEFAULT_DA_PERCENT;
+      }
+      if (!effectiveDaRate) effectiveDaRate = DEFAULT_DA_PERCENT;
+    }
+
+    // Calculate DA: if forceDaRecalc or master DA was auto-calculated at old rate, recompute to current effective rate
+    const autoDaFromRate = currentPay > 0 ? Math.round(currentPay * (effectiveDaRate / 100)) : defaultTemplate.da;
+    const shouldForceRecalc = opts?.forceDaRecalc === true;
+    // Detect if stored DA looks like auto-calculated at a different rate (e.g. 53% vs 60%)
+    // If stored DA equals 53% of pay but effective is 60%, we should update
+    const storedDaIsAuto = master.da !== undefined && master.da > 0 && currentPay > 0 && Math.abs(master.da - Math.round(currentPay * 0.53)) < 2;
+    const da = shouldForceRecalc || storedDaIsAuto || master.da === undefined || master.da === 0 ? autoDaFromRate : master.da;
 
     // Calculate HRA % if provided
     const hra =
@@ -45,6 +69,7 @@ class Gtr30EmployeeTransformServiceImpl implements Gtr30EmployeeTransformService
       ...base,
       id: crypto.randomUUID(),
       srNo,
+      masterId: master.id,
       name: master.name || defaultTemplate.name,
       designation: master.designation || defaultTemplate.designation,
       designationGujarati: master.designationGujarati || defaultTemplate.designationGujarati,

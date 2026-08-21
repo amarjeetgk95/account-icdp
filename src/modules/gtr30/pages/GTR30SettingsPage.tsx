@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { GTR30SettingsView } from '../components/GTR30SettingsView';
+import { GTR30SettingsSyncBadge } from '../components/GTR30SettingsSyncBadge';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Settings } from 'lucide-react';
 
@@ -22,6 +23,7 @@ export function GTR30SettingsPage() {
             </p>
           </div>
         </div>
+        <GTR30SettingsSyncBadge />
       </div>
 
       <div className="max-w-5xl mx-auto">

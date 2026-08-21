@@ -1,8 +1,27 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import type { ReactNode } from 'react';
-import { Edit2, Trash2, Paperclip, Plus, X, ChevronRight, ArrowLeft, Check } from 'lucide-react';
+import {
+  Edit2,
+  Trash2,
+  Paperclip,
+  Plus,
+  ChevronRight,
+  ArrowLeft,
+  Check,
+  ArrowUp,
+  ArrowDown,
+  Calculator,
+} from 'lucide-react';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { formatCurrency } from '@/shared/utilities';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 export interface SubVoucher {
   id: string;
@@ -20,6 +39,7 @@ interface SubVoucherListProps {
   onAdd: (voucher: SubVoucher) => void;
   onEdit: (id: string, voucher: SubVoucher) => void;
   onDelete: (id: string) => void;
+  onReorder?: (subVouchers: SubVoucher[]) => void;
   edpCodeOptions?: string[];
   className?: string;
 }
@@ -29,13 +49,24 @@ export function SubVoucherList({
   onAdd,
   onEdit,
   onDelete,
+  onReorder,
   edpCodeOptions = [],
-  className = ''
+  className = '',
 }: SubVoucherListProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<SubVoucher | null>(null);
   const [formData, setFormData] = useState<Partial<SubVoucher>>({});
   const [reviewMode, setReviewMode] = useState(false);
+
+  // Form field IDs for accessible labels
+  const formIdPrefix = useId();
+  const voucherNoId = `${formIdPrefix}-voucherNo`;
+  const payeeId = `${formIdPrefix}-payee`;
+  const billNoId = `${formIdPrefix}-billNo`;
+  const dateId = `${formIdPrefix}-date`;
+  const detailsId = `${formIdPrefix}-details`;
+  const amountId = `${formIdPrefix}-amount`;
+  const edpCodeId = `${formIdPrefix}-edpCode`;
 
   const STEPS = [
     { id: 'details', label: 'Enter Details' },
@@ -45,7 +76,11 @@ export function SubVoucherList({
 
   const openAddModal = () => {
     setEditingItem(null);
-    setFormData({});
+    setFormData({
+      voucherNo: `SV-${subVouchers.length + 1}`,
+      date: new Date().toISOString().split('T')[0],
+      amount: undefined,
+    });
     setReviewMode(false);
     setIsModalOpen(true);
   };
@@ -64,15 +99,25 @@ export function SubVoucherList({
     setIsModalOpen(true);
   };
 
+  const moveItem = (index: number, direction: 'up' | 'down') => {
+    if (!onReorder) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= subVouchers.length) return;
+    const next = [...subVouchers];
+    const [moved] = next.splice(index, 1);
+    next.splice(targetIndex, 0, moved);
+    onReorder(next);
+  };
+
   const buildVoucher = (): SubVoucher => ({
     id: formData.id || editingItem?.id || crypto.randomUUID(),
-    voucherNo: formData.voucherNo || '',
-    payee: formData.payee || '',
-    billNo: formData.billNo || '',
+    voucherNo: formData.voucherNo?.trim() || '',
+    payee: formData.payee?.trim() || '',
+    billNo: formData.billNo?.trim() || '',
     date: formData.date || '',
-    details: formData.details || '',
-    amount: formData.amount || 0,
-    edpCode: formData.edpCode || '',
+    details: formData.details?.trim() || '',
+    amount: typeof formData.amount === 'number' && !isNaN(formData.amount) ? formData.amount : 0,
+    edpCode: formData.edpCode?.trim() || '',
   });
 
   const commitVoucher = () => {
@@ -88,312 +133,433 @@ export function SubVoucherList({
     !!formData.billNo?.trim() &&
     !!formData.date &&
     !!formData.details?.trim() &&
-    !!formData.amount &&
+    typeof formData.amount === 'number' &&
+    !isNaN(formData.amount) &&
+    formData.amount > 0 &&
     !!formData.edpCode?.trim();
+
+  const totalVoucherAmount = subVouchers.reduce(
+    (acc, sv) => acc + (typeof sv.amount === 'number' ? sv.amount : 0),
+    0
+  );
 
   return (
     <div className={`w-full ${className}`}>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Voucher Entry Details</h3>
-        <button
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Voucher Entry Details</h3>
+          <p className="text-xs text-muted-foreground">
+            {subVouchers.length} sub-voucher{subVouchers.length === 1 ? '' : 's'} recorded
+          </p>
+        </div>
+        <Button
+          type="button"
           onClick={openAddModal}
-          className="btn btn-primary btn-sm"
+          size="sm"
+          className="font-medium gap-1.5"
         >
           <Plus className="w-4 h-4" />
           Add Voucher
-        </button>
+        </Button>
       </div>
 
-      <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="overflow-x-auto border border-border rounded-xl shadow-xs bg-card">
+        <table className="min-w-full divide-y divide-border" aria-label="Sub-vouchers schedule">
+          <thead className="bg-muted/50">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voucher No</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill Number</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
-              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">EDP Code</th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount (₹)</th>
-              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sr.</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Voucher No</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Party Name</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Bill No</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Details</th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">EDP Code</th>
+              <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount (₹)</th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="divide-y divide-border bg-card">
             {subVouchers.length === 0 ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9} className="p-4">
                   <EmptyState
                     icon={Paperclip}
                     title="No vouchers added yet"
                     hint="Add voucher details for each party payment. The EDP code on each voucher decides where its amount appears on Page 1."
                     action={
-                      <button onClick={openAddModal} className="btn btn-primary btn-sm">
-                        <Plus className="w-4 h-4" />
+                      <Button type="button" onClick={openAddModal} size="sm">
+                        <Plus className="w-4 h-4 mr-1.5" />
                         Add your first voucher
-                      </button>
+                      </Button>
                     }
                     compact
                   />
                 </td>
               </tr>
             ) : (
-              subVouchers.map((sv) => (
-                <tr key={sv.id} className="hover:bg-gray-50 transition-colors">
-                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{sv.voucherNo}</td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{sv.payee}</td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sv.billNo || '-'}</td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sv.date || '-'}</td>
-                   <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={sv.details}>{sv.details}</td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-mono font-semibold text-gray-700">{sv.edpCode || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
-                      {formatCurrency(sv.amount)}
-                    </td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                     <div className="flex items-center justify-center space-x-3">
-                       <button
-                         className="text-gray-400 hover:text-blue-600 transition-colors"
-title="Edit"
-                          onClick={() => openEditModal(sv)}
-                        >
-                         <Edit2 className="w-4 h-4" />
-                       </button>
-                       <button className="text-gray-400 hover:text-gray-900 transition-colors" title="View Attachment">
-                         <Paperclip className="w-4 h-4" />
-                       </button>
-                       <button
-                         onClick={() => onDelete(sv.id)}
-                         className="text-gray-400 hover:text-red-600 transition-colors"
-                         title="Delete"
-                       >
-                         <Trash2 className="w-4 h-4" />
-                       </button>
-                     </div>
-                   </td>
+              subVouchers.map((sv, idx) => (
+                <tr key={sv.id} className="hover:bg-muted/40 transition-colors">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground font-mono">
+                    {idx + 1}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-foreground">
+                    {sv.voucherNo}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground font-medium">
+                    {sv.payee}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground font-mono">
+                    {sv.billNo || '—'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    {sv.date || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate" title={sv.details}>
+                    {sv.details || '—'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                    <span className="inline-block px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-muted text-foreground border border-border">
+                      {sv.edpCode || '—'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground text-right font-mono font-semibold">
+                    {formatCurrency(sv.amount)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-center">
+                    <div className="flex items-center justify-center space-x-1">
+                      {onReorder && (
+                        <>
+                          <button
+                            type="button"
+                            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-30"
+                            title="Move Up"
+                            aria-label={`Move voucher ${sv.voucherNo} up`}
+                            onClick={() => moveItem(idx, 'up')}
+                            disabled={idx === 0}
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-30"
+                            title="Move Down"
+                            aria-label={`Move voucher ${sv.voucherNo} down`}
+                            onClick={() => moveItem(idx, 'down')}
+                            disabled={idx === subVouchers.length - 1}
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                        title="Edit Voucher"
+                        aria-label={`Edit voucher ${sv.voucherNo}`}
+                        onClick={() => openEditModal(sv)}
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(sv.id)}
+                        className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+                        title="Delete Voucher"
+                        aria-label={`Delete voucher ${sv.voucherNo}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
+          {subVouchers.length > 0 && (
+            <tfoot className="bg-muted/40 border-t-2 border-border font-semibold text-foreground">
+              <tr>
+                <td colSpan={7} className="px-4 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">
+                  Total Sub-Vouchers ({subVouchers.length}):
+                </td>
+                <td className="px-4 py-3 text-right font-mono text-sm font-bold text-foreground">
+                  {formatCurrency(totalVoucherAmount)}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <Calculator className="w-4 h-4 inline-block text-muted-foreground" />
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-5xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-auto">
-            {/* Modal Header */}
-            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${editingItem ? 'from-amber-500 to-orange-600' : 'from-blue-600 to-indigo-600'} text-white flex items-center justify-center shadow-md`}>
-                  {editingItem ? <Edit2 size={18} /> : <Plus size={20} />}
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    {editingItem ? 'Edit Voucher' : 'Add New Voucher'}
-                    <span className={`text-[0.68rem] font-semibold px-2 py-0.5 rounded-full ${editingItem ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                      {editingItem ? 'Editing' : 'New'}
+      {/* Accessible Radix Dialog Modal */}
+      <Dialog open={isModalOpen} onOpenChange={(open) => { if (!open) closeModal(); }}>
+        <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden border border-border shadow-2xl">
+          <DialogHeader className="px-6 py-4 bg-muted/50 border-b border-border text-left">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-xl bg-gradient-to-br ${
+                  editingItem ? 'from-amber-500 to-orange-600' : 'from-primary to-primary/80'
+                } text-primary-foreground flex items-center justify-center shadow-xs shrink-0`}
+              >
+                {editingItem ? <Edit2 size={18} /> : <Plus size={20} />}
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                  {editingItem ? 'Edit Voucher' : 'Add New Voucher'}
+                  <span
+                    className={`text-[0.68rem] font-semibold px-2 py-0.5 rounded-full ${
+                      editingItem
+                        ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                        : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                    }`}
+                  >
+                    {editingItem ? 'Editing' : 'New'}
+                  </span>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Capture voucher details for each party payment. EDP Code determines placement on Page 1.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* Step Indicator */}
+          <div className="px-6 py-2.5 border-b border-border bg-card">
+            <div className="flex items-center">
+              {STEPS.map((s, idx) => (
+                <div key={s.id} className="flex items-center">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                        idx <= currentStep
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {idx < currentStep ? <Check className="w-3 h-3" /> : idx + 1}
+                    </div>
+                    <span
+                      className={`text-xs font-medium ${
+                        idx <= currentStep ? 'text-foreground font-semibold' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {s.label}
                     </span>
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Capture voucher details for each party payment. EDP Code decides placement on Page 1.</p>
+                  </div>
+                  {idx < STEPS.length - 1 && (
+                    <div
+                      className={`w-10 h-0.5 mx-2 ${
+                        idx < currentStep ? 'bg-primary' : 'bg-border'
+                      }`}
+                    />
+                  )}
                 </div>
-              </div>
-              <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-                <X size={20} />
-              </button>
+              ))}
             </div>
+          </div>
 
-            {/* Step Indicator */}
-            <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-              <div className="flex items-center">
-                {STEPS.map((s, idx) => (
-                  <div key={s.id} className="flex items-center">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                        idx <= currentStep ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
-                      }`}>
-                        {idx < currentStep ? <Check className="w-3.5 h-3.5" /> : idx + 1}
-                      </div>
-                      <span className={`text-xs font-medium ${idx <= currentStep ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}>{s.label}</span>
-                    </div>
-                    {idx < STEPS.length - 1 && (
-                      <div className={`w-12 h-0.5 mx-2 ${idx < currentStep ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0 app-scroll">
-              {reviewMode ? (
-                <div className="mx-auto max-w-3xl animate-in fade-in">
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="px-5 py-3 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                      <div>
-                        <div className="text-xs text-slate-500 uppercase tracking-wide">Voucher Summary</div>
-                        <div className="font-bold text-slate-900 dark:text-slate-100">
-                          {formData.voucherNo} <span className="text-slate-400">·</span> {formData.payee}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-slate-500">Amount</div>
-                        <div className="font-mono font-bold text-lg text-slate-900 dark:text-slate-100">{formatCurrency(formData.amount || 0)}</div>
+          {/* Modal Body */}
+          <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+            {reviewMode ? (
+              <div className="space-y-4">
+                <div className="bg-muted/40 rounded-xl border border-border overflow-hidden">
+                  <div className="px-4 py-3 bg-card border-b border-border flex items-center justify-between">
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide">Voucher Summary</div>
+                      <div className="font-bold text-foreground">
+                        {formData.voucherNo} <span className="text-muted-foreground">·</span> {formData.payee}
                       </div>
                     </div>
-                    <dl className="divide-y divide-slate-200 dark:divide-slate-700">
-                      {([
-                        ['Bill Number', formData.billNo],
-                        ['Date', formData.date],
-                        ['Details', formData.details],
-                        ['EDP Code', <span key="edp" className="font-mono uppercase">{formData.edpCode}</span>],
-                      ] as [string, ReactNode][]).map(([label, value]) => (
-                        <div key={label} className="px-5 py-3 grid grid-cols-3 gap-4">
-                          <dt className="text-sm text-slate-500 col-span-1">{label}</dt>
-                          <dd className="text-sm font-medium text-slate-900 dark:text-slate-100 col-span-2">{value || '-'}</dd>
-                        </div>
-                      ))}
-                    </dl>
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground">Amount</div>
+                      <div className="font-mono font-bold text-lg text-foreground">
+                        {formatCurrency(formData.amount || 0)}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-4">
-                    The voucher amount is placed on Page 1 under this EDP Code. Vouchers with the
-                    same EDP Code are added together. Confirm the details above before saving.
-                  </p>
+                  <dl className="divide-y divide-border">
+                    {([
+                      ['Bill Number', formData.billNo],
+                      ['Date', formData.date],
+                      ['Details', formData.details],
+                      ['EDP Code', <span key="edp" className="font-mono font-bold uppercase">{formData.edpCode}</span>],
+                    ] as [string, ReactNode][]).map(([label, value]) => (
+                      <div key={label} className="px-4 py-2.5 grid grid-cols-3 gap-4">
+                        <dt className="text-xs font-medium text-muted-foreground col-span-1">{label}</dt>
+                        <dd className="text-xs font-medium text-foreground col-span-2">{value || '—'}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Voucher No <span className="text-rose-500">*</span></label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="e.g. SV-2023-001"
-                        value={formData.voucherNo || ''}
-                        onChange={e => setFormData({...formData, voucherNo: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Party Name <span className="text-rose-500">*</span></label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="Vendor Name"
-                        value={formData.payee || ''}
-                        onChange={e => setFormData({...formData, payee: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bill Number <span className="text-rose-500">*</span></label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="e.g. 3003436383"
-                        value={formData.billNo || ''}
-                        onChange={e => setFormData({...formData, billNo: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date <span className="text-rose-500">*</span></label>
-                      <input
-                        type="date"
-                        className="input"
-                        value={formData.date || ''}
-                        onChange={e => setFormData({...formData, date: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
+                <p className="text-xs text-muted-foreground">
+                  The voucher amount is placed on Page 1 under EDP code{' '}
+                  <strong className="text-foreground font-mono">{formData.edpCode}</strong>.
+                  Vouchers sharing the same EDP code are aggregated automatically.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Details <span className="text-rose-500">*</span></label>
-                    <textarea
+                    <label htmlFor={voucherNoId} className="block text-xs font-medium text-foreground mb-1">
+                      Voucher No <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      id={voucherNoId}
+                      type="text"
                       className="input"
-                      rows={2}
-                      placeholder="Brief description of charge..."
-                      value={formData.details || ''}
-                      onChange={e => setFormData({...formData, details: e.target.value})}
+                      placeholder="e.g. SV-1"
+                      value={formData.voucherNo || ''}
+                      onChange={(e) => setFormData({ ...formData, voucherNo: e.target.value })}
+                      autoFocus
                     />
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (₹) <span className="text-rose-500">*</span></label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="input"
-                        placeholder="0.00"
-                        value={formData.amount ?? ''}
-                        onChange={e => setFormData({...formData, amount: parseFloat(e.target.value)})}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                        EDP Code <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        list="gtr44-edp-code-options"
-                        className="input font-mono uppercase"
-                        placeholder="e.g. 1304+"
-                        value={formData.edpCode || ''}
-                        onChange={e => setFormData({...formData, edpCode: e.target.value})}
-                      />
-                      <datalist id="gtr44-edp-code-options">
-                        {edpCodeOptions.map((code) => (
-                          <option key={code} value={code} />
-                        ))}
-                      </datalist>
-                    </div>
+                  <div>
+                    <label htmlFor={payeeId} className="block text-xs font-medium text-foreground mb-1">
+                      Party Name <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      id={payeeId}
+                      type="text"
+                      className="input"
+                      placeholder="Vendor / Payee Name"
+                      value={formData.payee || ''}
+                      onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
+                    />
                   </div>
+                </div>
 
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    The voucher amount is placed on Page 1 under this EDP Code. Vouchers with the
-                    same EDP Code are added together.
-                  </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor={billNoId} className="block text-xs font-medium text-foreground mb-1">
+                      Bill Number <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      id={billNoId}
+                      type="text"
+                      className="input font-mono"
+                      placeholder="e.g. INV-2026-001"
+                      value={formData.billNo || ''}
+                      onChange={(e) => setFormData({ ...formData, billNo: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={dateId} className="block text-xs font-medium text-foreground mb-1">
+                      Date <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      id={dateId}
+                      type="date"
+                      className="input"
+                      value={formData.date || ''}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor={detailsId} className="block text-xs font-medium text-foreground mb-1">
+                    Details / Purpose <span className="text-destructive">*</span>
+                  </label>
+                  <textarea
+                    id={detailsId}
+                    className="input"
+                    rows={2}
+                    placeholder="Brief description of contingency charge..."
+                    value={formData.details || ''}
+                    onChange={(e) => setFormData({ ...formData, details: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor={amountId} className="block text-xs font-medium text-foreground mb-1">
+                      Amount (₹) <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      id={amountId}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="input font-mono font-semibold"
+                      placeholder="0.00"
+                      value={formData.amount !== undefined ? formData.amount : ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          setFormData({ ...formData, amount: undefined });
+                        } else {
+                          const parsed = parseFloat(val);
+                          setFormData({ ...formData, amount: isNaN(parsed) ? 0 : parsed });
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={edpCodeId} className="block text-xs font-medium text-foreground mb-1">
+                      EDP Code <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      id={edpCodeId}
+                      type="text"
+                      list={`${formIdPrefix}-edp-options`}
+                      className="input font-mono uppercase font-bold"
+                      placeholder="e.g. 1304+"
+                      value={formData.edpCode || ''}
+                      onChange={(e) => setFormData({ ...formData, edpCode: e.target.value })}
+                    />
+                    <datalist id={`${formIdPrefix}-edp-options`}>
+                      {edpCodeOptions.map((code) => (
+                        <option key={code} value={code} />
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Modal Footer */}
+          <div className="px-6 py-3.5 bg-muted/40 border-t border-border flex items-center justify-between gap-3">
+            <div className="text-xs text-muted-foreground">
+              {reviewMode
+                ? 'Confirm details before saving.'
+                : isFormValid
+                ? 'All fields valid — ready to review.'
+                : 'Fill all required (*) fields to continue.'}
+            </div>
+            <div className="flex items-center gap-2">
+              {reviewMode ? (
+                <>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setReviewMode(false)}>
+                    <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back
+                  </Button>
+                  <Button type="button" size="sm" onClick={commitVoucher} className="font-semibold gap-1">
+                    <Check className="w-3.5 h-3.5" /> {editingItem ? 'Save Changes' : 'Save Voucher'}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button type="button" variant="ghost" size="sm" onClick={closeModal}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setReviewMode(true)}
+                    disabled={!isFormValid}
+                    className="font-semibold gap-1"
+                  >
+                    Review &amp; Save <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
                 </>
               )}
             </div>
-
-            {/* Sticky Footer */}
-            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
-              <div className="text-xs text-slate-500">
-                {reviewMode
-                  ? 'Review the voucher details and confirm to save'
-                  : isFormValid
-                    ? 'All required fields completed — ready to review'
-                    : 'Fill all required (*) fields to continue'}
-              </div>
-              <div className="flex items-center gap-3">
-                {reviewMode ? (
-                  <>
-                    <button onClick={() => setReviewMode(false)} className="btn btn-secondary">
-                      <ArrowLeft className="w-4 h-4" /> Back
-                    </button>
-                    <button onClick={commitVoucher} className="btn btn-primary">
-                      <Check className="w-4 h-4" /> {editingItem ? 'Save Changes' : 'Save Voucher'}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={closeModal} className="btn btn-secondary">
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => setReviewMode(true)}
-                      disabled={!isFormValid}
-                      className="btn btn-primary"
-                    >
-                      Review &amp; Save <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

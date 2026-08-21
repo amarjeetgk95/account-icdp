@@ -19,6 +19,7 @@ export interface GTR30TransitItem {
 export interface GTR30Employee {
   id: string;
   srNo: number;
+  masterId?: string;
   name: string;
   designation: string;
   designationGujarati?: string;
@@ -125,6 +126,7 @@ export interface GTR30FormData {
   sector: string;
   demandNoLabel: string;
   majorHead: string;
+  subMajorHead?: string;
   minorHead: string;
   subHead: string;
   budgetYear: string;

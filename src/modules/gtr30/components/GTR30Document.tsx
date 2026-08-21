@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import type { GTR30FormData } from '../types';
 import { GTR30Page1Outer } from './GTR30Page1Outer';
-import { GTR30Page2Certificate } from './GTR30Page2Certificate';
 import { GTR30Page3Inner1 } from './GTR30Page3Inner1';
 import { GTR30Page4Inner2 } from './GTR30Page4Inner2';
-import { GTR30Page5Rent } from './GTR30Page5Rent';
-import { GTR30Page6ProfTax } from './GTR30Page6ProfTax';
-import { GTR30Page7InsuranceEmp } from './GTR30Page7InsuranceEmp';
-import { GTR30Page8InsuranceGroup } from './GTR30Page8InsuranceGroup';
-import { GTR30Page9Establishment } from './GTR30Page9Establishment';
-import { GTR30Page10Pramanpatra } from './GTR30Page10Pramanpatra';
+import { GTR30Page5Certificate } from './GTR30Page5Certificate';
+import { GTR30Page5Rent as GTR30Page6Rent } from './GTR30Page5Rent';
+import { GTR30Page6ProfTax as GTR30Page7ProfTax } from './GTR30Page6ProfTax';
+import { GTR30Page7InsuranceEmp as GTR30Page8InsuranceEmp } from './GTR30Page7InsuranceEmp';
+import { GTR30Page8InsuranceGroup as GTR30Page9InsuranceGroup } from './GTR30Page8InsuranceGroup';
+import { GTR30Page9Establishment as GTR30Page10Establishment } from './GTR30Page9Establishment';
+import { GTR30Page10Pramanpatra as GTR30Page11Pramanpatra } from './GTR30Page10Pramanpatra';
 import { Button } from '@/components/ui/button';
 import { Printer, ZoomIn, ZoomOut, RotateCcw, Layers, FileText } from 'lucide-react';
+import { cn } from '@/utils/cn';
 
 type GTR30PageView =
   | 'all'
@@ -41,22 +44,106 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
 }) => {
   const [activePage, setActivePage] = useState<GTR30PageView>(defaultViewPage);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [isPrinting, setIsPrinting] = useState(false);
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    // Single page: use native print with correct @page orientation
+    if (activePage !== 'all') {
+      window.print();
+      return;
+    }
+
+    // All 10 pages: generate PDF with mixed orientation
+    // P1: Landscape (Combined Outer 272)
+    // P2, P3: Landscape (Page 274, 275) — rendered as gtr30-page-3 / gtr30-page-4
+    // P4 to P10: Portrait (Page 276 + Schedules)
+    // Note: gtr30-page-2 (legacy Treasury Certificate 269-line deduction table) was removed as dead code
+    // on 2026-08-21; deductions are rendered via P2/P3 inner tables + P4 certificate. See git history
+    // for GTR30Page2Certificate.tsx if treasury re-certification is required.
+    try {
+      setIsPrinting(true);
+      if (document.fonts) {
+        await document.fonts.ready;
+      }
+      await new Promise((r) => setTimeout(r, 200));
+
+      const pageIds = [
+        'gtr30-page-1',
+        'gtr30-page-3',
+        'gtr30-page-4',
+        'gtr30-page-5-cert',
+        'gtr30-page-5',
+        'gtr30-page-6',
+        'gtr30-page-7',
+        'gtr30-page-8',
+        'gtr30-page-9',
+        'gtr30-page-10',
+      ];
+
+      const isLandscapePage = (id: string) => ['gtr30-page-1', 'gtr30-page-3', 'gtr30-page-4'].includes(id);
+
+      let pdf: jsPDF | null = null;
+
+      for (let i = 0; i < pageIds.length; i++) {
+        const id = pageIds[i];
+        const el = document.getElementById(id) as HTMLElement | null;
+        if (!el) continue;
+
+        const canvas = await html2canvas(el, {
+          scale: 2.5,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          allowTaint: true,
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const orientation = isLandscapePage(id) ? 'landscape' : 'portrait';
+
+        if (!pdf) {
+          pdf = new jsPDF({ orientation, unit: 'mm', format: 'a4', compress: true });
+        } else {
+          pdf.addPage('a4', orientation);
+        }
+
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 1;
+        const imgProps = { w: canvas.width, h: canvas.height };
+        const ratio = Math.min((pageW - margin * 2) / (imgProps.w * 0.264583), (pageH - margin * 2) / (imgProps.h * 0.264583));
+        const w = imgProps.w * 0.264583 * ratio;
+        const h = imgProps.h * 0.264583 * ratio;
+        const x = (pageW - w) / 2;
+        const y = (pageH - h) / 2;
+
+        pdf.addImage(imgData, 'PNG', x, y, w, h, undefined, 'FAST');
+      }
+
+      if (pdf) {
+        const fileName = `GTR30_${data.billRegisterNo || data.monthOf || 'PayBill'}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        pdf.save(fileName);
+      } else {
+        window.print();
+      }
+    } catch (e) {
+      console.error('GTR30 PDF print failed, falling back to window.print', e);
+      window.print();
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   const pageTabs: { key: GTR30PageView; label: string; sub?: string }[] = [
     { key: 'all', label: 'All 10 Pages', sub: 'Full bill' },
-    { key: 'p1', label: 'P1', sub: 'Outer Cover' },
-    { key: 'p2', label: 'P2', sub: 'Certificate' },
-    { key: 'p3', label: 'P3', sub: 'Pay 1-19' },
-    { key: 'p4', label: 'P4', sub: 'Ded. 20-37' },
-    { key: 'p5', label: 'P5', sub: 'Rent' },
-    { key: 'p6', label: 'P6', sub: 'Prof Tax' },
-    { key: 'p7', label: 'P7', sub: 'GIS Emp' },
+    { key: 'p1', label: 'P1', sub: 'Outer (૨૭૨)' },
+    { key: 'p2', label: 'P2', sub: 'Inner Pay (૨૭૪)' },
+    { key: 'p3', label: 'P3', sub: 'Inner Ded (૨૭૫)' },
+    { key: 'p4', label: 'P4', sub: 'Certificate (૨૭૬)' },
+    { key: 'p5', label: 'P5', sub: 'Rent (ઘરભાડા)' },
+    { key: 'p6', label: 'P6', sub: 'Prof Tax (વેરો)' },
+    { key: 'p7', label: 'P7', sub: 'GIS Emp (જૂથ વીમા)' },
     { key: 'p8', label: 'P8', sub: 'GIS Group' },
-    { key: 'p9', label: 'P9', sub: 'Posts' },
+    { key: 'p9', label: 'P9', sub: 'Posts (મહેકમ)' },
     { key: 'p10', label: 'P10', sub: 'Pramanpatra' },
   ];
 
@@ -65,82 +152,20 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
   return (
     <div id={containerId} className="gtr30-document-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Gujarati:wght@400;600;700;800&family=Noto+Sans+Gujarati:wght@400;600;700&family=IBM+Plex+Sans+Gujarati:wght@400;500;600&display=swap');
-
         .gtr30-document-root {
           font-family: 'Times New Roman', Times, serif;
           color: #0f172a;
+          background: #fff;
+          color-scheme: light;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           box-sizing: border-box;
           --gtr-gu: 'Noto Serif Gujarati', 'Shruti', serif;
           --gtr-gu-sans: 'Noto Sans Gujarati', 'Shruti', sans-serif;
-        }
-
-        .gtr30-controls-bar {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 10px 12px;
-          margin-bottom: 16px;
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.06);
-          position: sticky;
-          top: 8px;
-          z-index: 20;
-        }
-
-        .gtr30-page-tabs {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 4px;
-          max-width: 100%;
-        }
-
-        .gtr30-page-tab-btn {
-          font-size: 11px;
-          padding: 6px 10px;
-          border-radius: 8px;
-          border: 1px solid #e2e8f0;
-          background: #f8fafc;
-          color: #334155;
-          cursor: pointer;
-          font-weight: 600;
-          transition: all 0.15s ease;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          line-height: 1;
-          white-space: nowrap;
-        }
-
-        .gtr30-page-tab-btn:hover {
-          background: #f1f5f9;
-          border-color: #cbd5e1;
-          color: #0f172a;
-          transform: translateY(-1px);
-        }
-
-        .gtr30-page-tab-btn.active {
-          background: #2563eb;
-          color: #ffffff;
-          border-color: #2563eb;
-          font-weight: 700;
-          box-shadow: 0 2px 8px rgba(37,99,235,0.25);
-        }
-
-        .gtr30-page-tab-sub {
-          font-size: 9px;
-          font-weight: 500;
-          opacity: 0.85;
-          display: none;
-        }
-        @media (min-width: 1024px) {
-          .gtr30-page-tab-sub { display: inline; }
+          --gtr-box-w: 11px;
+          --gtr-box-h: 14px;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
 
         .gtr30-page {
@@ -173,23 +198,6 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
           flex-direction: column;
           gap: 24px;
           align-items: center;
-        }
-
-        .vertical-header-text {
-          writing-mode: vertical-rl;
-          transform: rotate(180deg);
-          white-space: nowrap;
-          font-size: 6.7pt;
-          font-family: Arial, Helvetica, sans-serif;
-          letter-spacing: -0.15px;
-          line-height: 1.1;
-          text-align: left;
-          height: 152px;
-          margin: 0 auto;
-          display: flex;
-          align-items: center;
-          justify-content: flex-start;
-          font-weight: 600;
         }
 
         .vertical-header {
@@ -237,11 +245,33 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
           font-family: var(--gtr-gu), 'Noto Serif Gujarati', serif;
           line-height: 1.7;
         }
-        /* Inner pay tables (P3/P4) header height consistency */
+        /* P3/P4 body cells - prevent bleed */
+        #gtr30-page-3 tbody td,
+        #gtr30-page-4 tbody td {
+          font-size: 6.5pt;
+          line-height: 1.1;
+          overflow: hidden;
+          word-break: break-word;
+        }
+        /* Inner pay tables (P3/P4) - allow wrap to 3rd line instead of clipping */
         #gtr30-page-3 thead tr:first-child th,
         #gtr30-page-4 thead tr:first-child th {
           background: #ffffff;
-          border-bottom: 1.5px solid #0f172a;
+          border-bottom: 1.5px solid #000;
+          overflow: visible;
+          padding: 1px !important;
+          vertical-align: bottom;
+        }
+        #gtr30-page-3 table,
+        #gtr30-page-4 table {
+          table-layout: fixed;
+          width: 100%;
+          max-width: 100%;
+        }
+        #gtr30-page-3 th,
+        #gtr30-page-4 th {
+          overflow: visible;
+          word-break: break-word;
         }
         /* Outer page classification boxes */
         #gtr30-page-1 table thead th {
@@ -256,16 +286,13 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
             color: #000000 !important;
             width: auto !important;
             height: auto !important;
+            overflow: visible !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
 
-          body * {
-            visibility: hidden;
-          }
-
-          .gtr30-document-root, .gtr30-document-root * {
-            visibility: visible;
+          .no-print {
+            display: none !important;
           }
 
           .gtr30-document-root {
@@ -277,22 +304,26 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
             padding: 0 !important;
           }
 
-          .gtr30-controls-bar, .no-print, .no-print * {
+          .gtr30-controls-bar {
             display: none !important;
           }
 
           .gtr30-pages-wrapper {
+            display: block !important;
             gap: 0 !important;
             transform: none !important;
           }
 
           .gtr30-page {
+            display: block !important;
             box-shadow: none !important;
             border: 1px solid #000 !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             page-break-after: always !important;
             page-break-inside: avoid !important;
             break-after: page !important;
+            float: none !important;
+            clear: both !important;
           }
 
           .gtr30-page:last-child {
@@ -301,44 +332,76 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
           }
 
           .gtr30-landscape {
+            /* Strict single A4 landscape sheet (297 x 210mm): fixed height so a
+               form page can never spill onto a second sheet mid-row. */
             width: 297mm !important;
-            min-height: 205mm !important;
+            height: 209mm !important;
+            min-height: 0 !important;
             padding: 5mm 6mm !important;
           }
 
           .gtr30-portrait {
+            /* Strict single A4 portrait sheet (210 x 297mm) */
             width: 210mm !important;
-            min-height: 290mm !important;
+            height: 296mm !important;
+            min-height: 0 !important;
             padding: 8mm 10mm !important;
           }
 
+          /* Never split a table/row across sheets — keeps each form on one A4 */
+          .gtr30-page table,
+          .gtr30-page tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* Screen-only page label chip must not appear on printed forms */
+          .gtr30-page::after {
+            display: none !important;
+          }
+
           @page {
+            size: A4;
+            margin: 0;
+          }
+          @page gtr-landscape {
             size: A4 landscape;
             margin: 0;
           }
-          /* Portrait pages need portrait orientation - handled via page size auto */
-          .gtr30-portrait {
-            page: auto;
+          @page gtr-portrait {
+            size: A4 portrait;
+            margin: 0;
+          }
+          .gtr30-page.gtr30-landscape {
+            page: gtr-landscape;
+          }
+          .gtr30-page.gtr30-portrait {
+            page: gtr-portrait;
           }
         }
       `}</style>
 
       {showControls && (
-        <div className="gtr30-controls-bar no-print">
-          <div className="gtr30-page-tabs" role="tablist" aria-label="GTR-30 page navigation">
+        <div className="no-print sticky top-2 z-20 bg-white border border-slate-200 rounded-xl p-2.5 shadow-float flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap gap-1 max-w-full" role="tablist" aria-label="GTR-30 page navigation">
             {pageTabs.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
                 role="tab"
                 aria-selected={activePage === tab.key}
-                className={`gtr30-page-tab-btn ${activePage === tab.key ? 'active' : ''}`}
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all duration-150 whitespace-nowrap leading-none',
+                  activePage === tab.key
+                    ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-sm shadow-blue-600/20'
+                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 hover:text-slate-900 hover:-translate-y-px'
+                )}
                 onClick={() => setActivePage(tab.key)}
                 title={tab.sub ? `${tab.label}: ${tab.sub}` : tab.label}
               >
                 {tab.key === 'all' ? <Layers size={12} aria-hidden="true" /> : <FileText size={11} aria-hidden="true" />}
                 <span>{tab.label}</span>
-                {tab.sub && <span className="gtr30-page-tab-sub">· {tab.sub}</span>}
+                {tab.sub && <span className="hidden lg:inline text-[9px] font-medium opacity-85">· {tab.sub}</span>}
               </button>
             ))}
           </div>
@@ -354,7 +417,7 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-7 w-7 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 title="Zoom Out (Ctrl -)"
                 aria-label="Zoom out"
                 onClick={() => setZoomLevel((z) => Math.max(0.6, Number((z - 0.1).toFixed(1))))}
@@ -368,7 +431,7 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-7 w-7 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 title="Zoom In (Ctrl +)"
                 aria-label="Zoom in"
                 onClick={() => setZoomLevel((z) => Math.min(1.5, Number((z + 0.1).toFixed(1))))}
@@ -380,7 +443,7 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-7 w-7 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 title="Reset Zoom"
                 aria-label="Reset zoom to 100%"
                 onClick={() => setZoomLevel(1)}
@@ -393,37 +456,40 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
               type="button"
               size="sm"
               onClick={handlePrint}
-              className="h-8 font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
+              disabled={isPrinting}
+              className="h-8 font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-sm disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              <Printer className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" /> Print
+              <Printer className={`h-3.5 w-3.5 mr-1.5 ${isPrinting ? 'animate-spin' : ''}`} aria-hidden="true" /> {isPrinting ? 'Generating PDF…' : activePage === 'all' ? 'Print All (PDF)' : 'Print'}
             </Button>
           </div>
         </div>
       )}
 
-      <div
-        className="gtr30-pages-wrapper"
-        style={{
-          transform: zoomLevel !== 1 ? `scale(${zoomLevel})` : undefined,
-          transformOrigin: 'top center',
-          transition: 'transform 0.18s cubic-bezier(0.16,1,0.3,1)',
-        }}
-      >
-        {(activePage === 'all' || activePage === 'p1') && <div data-page-label="GTR-30 · P1 Outer · FORM G.T.R. 30"><GTR30Page1Outer data={data} /></div>}
-        {(activePage === 'all' || activePage === 'p2') && <div data-page-label="GTR-30 · P2 Certificate"><GTR30Page2Certificate data={data} /></div>}
-        {(activePage === 'all' || activePage === 'p3') && <div data-page-label="GTR-30 · P3 Inner-1 (Col 1-19)"><GTR30Page3Inner1 data={data} /></div>}
-        {(activePage === 'all' || activePage === 'p4') && <div data-page-label="GTR-30 · P4 Inner-2 (Col 20-39)"><GTR30Page4Inner2 data={data} /></div>}
-        {(activePage === 'all' || activePage === 'p5') && <div data-page-label="GTR-30 · P5 Rent Schedule (घરભાડા)"><GTR30Page5Rent data={data} /></div>}
-        {(activePage === 'all' || activePage === 'p6') && <div data-page-label="GTR-30 · P6 Prof Tax (વ્યવસાય વેરા)"><GTR30Page6ProfTax data={data} /></div>}
-        {(activePage === 'all' || activePage === 'p7') && <div data-page-label="GTR-30 · P7 GIS Emp (જૂથ વીમા)"><GTR30Page7InsuranceEmp data={data} /></div>}
-        {(activePage === 'all' || activePage === 'p8') && <div data-page-label="GTR-30 · P8 GIS Group (જૂથ વાઈઝ)"><GTR30Page8InsuranceGroup data={data} /></div>}
-        {(activePage === 'all' || activePage === 'p9') && <div data-page-label="GTR-30 · P9 Establishment (મહેકમ)"><GTR30Page9Establishment data={data} /></div>}
-        {(activePage === 'all' || activePage === 'p10') && <div data-page-label="GTR-30 · P10 Pramanpatra (પ્રમાણપત્ર)"><GTR30Page10Pramanpatra data={data} /></div>}
+      <div className="gtr30-pages-wrapper-wrapper overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-4">
+        <div
+          className="gtr30-pages-wrapper flex flex-col gap-6 items-center min-w-[320px] will-change-transform"
+          style={{
+            transform: !isPrinting && zoomLevel !== 1 ? `scale(${zoomLevel})` : undefined,
+            transformOrigin: 'top center',
+            transition: 'transform 0.18s cubic-bezier(0.16,1,0.3,1)',
+          }}
+        >
+          {(activePage === 'all' || activePage === 'p1') && <div data-page-label="GTR-30 · P1 Outer (૨૭૨)"><GTR30Page1Outer data={data} /></div>}
+          {(activePage === 'all' || activePage === 'p2') && <div data-page-label="GTR-30 · P2 Inner Pay 1-19 (૨૭૪)"><GTR30Page3Inner1 data={data} /></div>}
+          {(activePage === 'all' || activePage === 'p3') && <div data-page-label="GTR-30 · P3 Inner Ded 20-39 (૨૭૫)"><GTR30Page4Inner2 data={data} /></div>}
+          {(activePage === 'all' || activePage === 'p4') && <div data-page-label="GTR-30 · P4 Certificate Bilingual (૨૭૬)"><GTR30Page5Certificate data={data} /></div>}
+          {(activePage === 'all' || activePage === 'p5') && <div data-page-label="GTR-30 · P5 Rent Schedule (ઘરભાડા)"><GTR30Page6Rent data={data} /></div>}
+          {(activePage === 'all' || activePage === 'p6') && <div data-page-label="GTR-30 · P6 Prof Tax (વ્યવસાય વેરા)"><GTR30Page7ProfTax data={data} /></div>}
+          {(activePage === 'all' || activePage === 'p7') && <div data-page-label="GTR-30 · P7 GIS Emp (જૂથ વીમા કર્મચારી)"><GTR30Page8InsuranceEmp data={data} /></div>}
+          {(activePage === 'all' || activePage === 'p8') && <div data-page-label="GTR-30 · P8 GIS Group (જૂથ વાઈઝ)"><GTR30Page9InsuranceGroup data={data} /></div>}
+          {(activePage === 'all' || activePage === 'p9') && <div data-page-label="GTR-30 · P9 Establishment (મહેકમ)"><GTR30Page10Establishment data={data} /></div>}
+          {(activePage === 'all' || activePage === 'p10') && <div data-page-label="GTR-30 · P10 Pramanpatra (પ્રમાણપત્ર)"><GTR30Page11Pramanpatra data={data} /></div>}
+        </div>
       </div>
 
       {showControls && activePage === 'all' && (
         <div className="no-print mt-4 text-center text-[11px] text-slate-400">
-          Showing all 10 pages · Use tabs to focus on a single page · <span className="font-mono">Ctrl+P</span> prints the visible pages
+          Showing all 10 pages · P1-P4 landscape, P5-P10 portrait · {`Print All generates mixed-orientation PDF (avoids landscape-default mesh)`} · Single tab uses native print
         </div>
       )}
     </div>

@@ -93,16 +93,16 @@ describe('gtr44Mapping.service', () => {
       expect(bill.formData).toBe(DEFAULT_GTR44_FORM_DATA);
     });
 
-    it('reflects income tax and GST deductions in net amount', () => {
+    it('reflects income tax and GST deductions in net amount (gst + cgst + sgst)', () => {
       const form = {
         ...DEFAULT_GTR44_FORM_DATA,
         deductions: { incomeTax: 320, gst: 180, gstCgst: 90, gstSgst: 90 },
       };
       const bill = formDataToBill(form);
-      expect(bill.totalDeduction).toBe(500);
-      expect(bill.netAmount).toBe(6820);
+      expect(bill.totalDeduction).toBe(680);
+      expect(bill.netAmount).toBe(6640);
       expect(bill.deductions?.[0]).toEqual({ code: '9510', label: 'Income Tax', amount: 320 });
-      expect(bill.deductions?.[1]).toEqual({ code: 'GST', label: 'GST', amount: 180 });
+      expect(bill.deductions?.[1]).toEqual({ code: 'GST', label: 'GST', amount: 360 });
     });
   });
 });
