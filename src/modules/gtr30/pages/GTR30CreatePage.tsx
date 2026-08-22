@@ -328,17 +328,17 @@ export function GTR30CreatePage() {
       <div className={isSplitView ? 'grid grid-cols-1 xl:grid-cols-12 gap-6 items-start' : ''}>
         <div className={isSplitView ? 'xl:col-span-7' : ''}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-              <TabsTrigger value="employees" className="text-xs font-semibold py-2 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
+            <TabsList className="workspace-tabs grid w-full grid-cols-4">
+              <TabsTrigger value="employees" className="workspace-tab data-[state=active]:workspace-tab-active focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
                 1. Employees &amp; Pay ({data.employees.length})
               </TabsTrigger>
-              <TabsTrigger value="office" className="text-xs font-semibold py-2 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
+              <TabsTrigger value="office" className="workspace-tab data-[state=active]:workspace-tab-active focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
                 2. Office &amp; Treasury
               </TabsTrigger>
-              <TabsTrigger value="establishment" className="text-xs font-semibold py-2 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
+              <TabsTrigger value="establishment" className="workspace-tab data-[state=active]:workspace-tab-active focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
                 3. Posts &amp; Resolutions
               </TabsTrigger>
-              <TabsTrigger value="preview" className="text-xs font-semibold py-2 text-blue-700 dark:text-blue-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
+              <TabsTrigger value="preview" className="workspace-tab data-[state=active]:workspace-tab-active focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
                 4. 10-Page Preview
               </TabsTrigger>
             </TabsList>
@@ -517,8 +517,8 @@ export function GTR30CreatePage() {
                   </div>
                 </div>
 
-                {/* Earnings & Allowances */}
-                <div className="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200 border-l-4 border-l-emerald-600 shadow-2xs space-y-2">
+                {/* Earnings & Allowances — token: bg-earning-light / border-earning-border / border-l-earning */}
+                <div className="bg-earning-light p-3.5 rounded-xl border border-earning-border border-l-4 border-l-earning shadow-2xs space-y-2">
                   <div className="text-xs font-bold uppercase text-emerald-900 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <TrendingUp className="h-4 w-4 text-emerald-600" /> Earnings &amp; Allowances (₹)
@@ -614,8 +614,8 @@ export function GTR30CreatePage() {
                   </div>
                 </div>
 
-                {/* Schedule Deductions - Core (P4 col 22,24,26,27,35,39) */}
-                <div className="bg-rose-50/60 p-3.5 rounded-xl border border-rose-200 border-l-4 border-l-rose-500 shadow-2xs space-y-2">
+                {/* Schedule Deductions - Core (P4 col 22,24,26,27,35,39) — token: bg-deduction-light / border-deduction-border / border-l-deduction */}
+                <div className="bg-deduction-light p-3.5 rounded-xl border border-deduction-border border-l-4 border-l-deduction shadow-2xs space-y-2">
                   <div className="text-xs font-bold uppercase text-rose-900 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <TrendingDown className="h-4 w-4 text-rose-600" /> Schedule Deductions (₹) — Core

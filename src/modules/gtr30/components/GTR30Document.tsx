@@ -200,6 +200,28 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
           align-items: center;
         }
 
+        .vertical-header-text {
+          writing-mode: vertical-rl;
+          transform: rotate(180deg);
+          white-space: normal;
+          word-break: break-word;
+          font-size: 6.7pt;
+          font-family: Arial, Helvetica, sans-serif;
+          letter-spacing: -0.15px;
+          line-height: 1.1;
+          text-align: left;
+          height: 152px;
+          max-height: 152px;
+          overflow: visible;
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          font-weight: 600;
+          flex-wrap: wrap;
+          align-content: flex-start;
+        }
+
         .vertical-header {
           display: inline-block;
           font-size: 5.5pt;

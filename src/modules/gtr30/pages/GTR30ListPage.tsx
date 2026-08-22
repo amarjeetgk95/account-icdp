@@ -231,33 +231,27 @@ export function GTR30ListPage() {
         }
       />
 
-      {/* KPI Stats Header */}
+      {/* KPI Stats Header — uses global stat-tile / card tokens + stat-label/value/sub */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Total Pay Bills</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stats.count}</div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{stats.totalEmployees} total staff members</div>
+        <Card className={cn('stat-tile p-4')}>
+          <div className="stat-label">Total Pay Bills</div>
+          <div className="stat-value">{stats.count}</div>
+          <div className="stat-sub">{stats.totalEmployees} total staff members</div>
         </Card>
-        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Gross Expenditure</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900 dark:text-white font-mono">
-            ₹{formatMoney(stats.totalGross)}
-          </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Salaries &amp; allowances</div>
+        <Card className={cn('stat-tile p-4')}>
+          <div className="stat-label">Gross Expenditure</div>
+          <div className="stat-value text-money">₹{formatMoney(stats.totalGross)}</div>
+          <div className="stat-sub">Salaries &amp; allowances</div>
         </Card>
-        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase text-rose-600 dark:text-rose-400">Total Deductions</div>
-          <div className="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400 font-mono">
-            ₹{formatMoney(stats.totalDeductions)}
-          </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">NPS, Rent, PT, GIS &amp; Taxes</div>
+        <Card className={cn('stat-tile stat-tile-accent border-l-rose-500 p-4')}>
+          <div className="stat-label text-rose-600">Total Deductions</div>
+          <div className="stat-value text-money text-rose-600">₹{formatMoney(stats.totalDeductions)}</div>
+          <div className="stat-sub">NPS, Rent, PT, GIS &amp; Taxes</div>
         </Card>
-        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
-          <div className="text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400">Net Disbursed</div>
-          <div className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-            ₹{formatMoney(stats.totalNet)}
-          </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Cheques / Bank transfers</div>
+        <Card className={cn('stat-tile stat-tile-accent border-l-emerald-500 p-4')}>
+          <div className="stat-label text-emerald-600">Net Disbursed</div>
+          <div className="stat-value text-money text-emerald-600">₹{formatMoney(stats.totalNet)}</div>
+          <div className="stat-sub">Cheques / Bank transfers</div>
         </Card>
       </div>
 
@@ -350,20 +344,20 @@ export function GTR30ListPage() {
       ) : (
         <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden rounded-2xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse" aria-label="GTR-30 Pay Bill Register">
+            <table className="table" aria-label="GTR-30 Pay Bill Register">
               <thead>
-                <tr className="bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-bold uppercase text-slate-600 dark:text-slate-400">
-                  <th scope="col" className="p-3.5">Bill Reg. No.</th>
-                  <th scope="col" className="p-3.5">Office &amp; Month</th>
-                  <th scope="col" className="p-3.5 text-center">Status</th>
-                  <th scope="col" className="p-3.5 text-center">Staff Count</th>
-                  <th scope="col" className="p-3.5 text-right">Gross Amount</th>
-                  <th scope="col" className="p-3.5 text-right">Deductions</th>
-                  <th scope="col" className="p-3.5 text-right">Net Payable</th>
-                  <th scope="col" className="p-3.5 text-right">Actions</th>
+                <tr>
+                  <th scope="col">Bill Reg. No.</th>
+                  <th scope="col">Office &amp; Month</th>
+                  <th scope="col" className="text-center">Status</th>
+                  <th scope="col" className="text-center">Staff Count</th>
+                  <th scope="col" className="text-right">Gross Amount</th>
+                  <th scope="col" className="text-right">Deductions</th>
+                  <th scope="col" className="text-right">Net Payable</th>
+                  <th scope="col" className="text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody>
                 {filteredBills.map((bill) => {
                   const t = billTotals(bill);
                   const status = bill.status || 'draft';
@@ -404,13 +398,13 @@ export function GTR30ListPage() {
                           {(bill.employees || []).length} Staff
                         </span>
                       </td>
-                      <td className="p-3.5 text-right font-mono font-medium text-slate-700 dark:text-slate-300">
+                      <td className="p-3.5 text-right text-money font-medium text-slate-700 dark:text-slate-300">
                         ₹{formatMoney(t.gross)}
                       </td>
-                      <td className="p-3.5 text-right font-mono font-medium text-rose-600 dark:text-rose-400">
+                      <td className="p-3.5 text-right text-money font-medium text-rose-600 dark:text-rose-400">
                         ₹{formatMoney(t.deductions)}
                       </td>
-                      <td className="p-3.5 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400 text-base">
+                      <td className="p-3.5 text-right text-money font-bold text-emerald-700 dark:text-emerald-400 text-base">
                         ₹{formatMoney(t.net)}
                       </td>
                       <td className="p-3.5 text-right">
