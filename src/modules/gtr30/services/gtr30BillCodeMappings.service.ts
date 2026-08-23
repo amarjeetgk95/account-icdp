@@ -3,7 +3,30 @@ import { gtr30BillCodeMappingsLocalRepository } from '../repositories/gtr30BillC
 import { gtr30BillCodeMappingsBackendRepository } from '../repositories/gtr30BillCodeMappingsBackend.repository';
 
 const SYNC_DEBOUNCE_MS = 600;
+
+export type Gtr30BillCodeMappingsSyncPhase = 'idle' | 'pending' | 'syncing' | 'synced' | 'error';
+
+let billCodeMappingsSyncPhase: Gtr30BillCodeMappingsSyncPhase = 'idle';
+const billCodeMappingsSyncListeners = new Set<() => void>();
+
+function setBillCodeMappingsSyncPhase(phase: Gtr30BillCodeMappingsSyncPhase): void {
+  billCodeMappingsSyncPhase = phase;
+  for (const listener of billCodeMappingsSyncListeners) listener();
+}
+
+export function getGtr30BillCodeMappingsSyncStatus(): Gtr30BillCodeMappingsSyncPhase {
+  return billCodeMappingsSyncPhase;
+}
+
+export function subscribeGtr30BillCodeMappingsSync(listener: () => void): () => void {
+  billCodeMappingsSyncListeners.add(listener);
+  return () => {
+    billCodeMappingsSyncListeners.delete(listener);
+  };
+}
+
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+let backendWriteChain: Promise<void> = Promise.resolve();
 
 function debounceReplace(mappings: GTR30BillCodeMapping[]): void {
   const key = 'all';
@@ -13,11 +36,28 @@ function debounceReplace(mappings: GTR30BillCodeMapping[]): void {
     key,
     setTimeout(() => {
       pendingTimers.delete(key);
-      void gtr30BillCodeMappingsBackendRepository
-        .replaceAll(mappings)
-        .catch(() => undefined);
+      void runBackendWrite(mappings);
     }, SYNC_DEBOUNCE_MS)
   );
+}
+
+async function runBackendWrite(mappings: GTR30BillCodeMapping[]): Promise<void> {
+  const write = async (): Promise<void> => {
+    setBillCodeMappingsSyncPhase('syncing');
+    try {
+      await gtr30BillCodeMappingsBackendRepository.replaceAll(mappings);
+      setBillCodeMappingsSyncPhase('synced');
+    } catch (err) {
+      setBillCodeMappingsSyncPhase('error');
+      throw err;
+    }
+  };
+  const chained = backendWriteChain.then(write, write);
+  backendWriteChain = chained.then(
+    () => undefined,
+    () => undefined
+  );
+  return chained;
 }
 
 class Gtr30BillCodeMappingsService {
@@ -45,16 +85,44 @@ class Gtr30BillCodeMappingsService {
   async hydrateFromBackend(): Promise<void> {
     const remote = await gtr30BillCodeMappingsBackendRepository.list();
     if (remote === null) return;
+
     const local = this.list();
-    if (local.length > 0) return;
-    if (remote.length === 0) return;
-    gtr30BillCodeMappingsLocalRepository.saveAll(remote);
+    const phase = getGtr30BillCodeMappingsSyncStatus();
+
+    if (phase === 'pending' || phase === 'syncing' || phase === 'error') {
+      return;
+    }
+
+    const localById = new Map(local.map((m) => [m.id, m]));
+    const remoteById = new Map(remote.map((m) => [m.id, m]));
+    const merged: GTR30BillCodeMapping[] = [];
+
+    for (const remoteItem of remote) {
+      const localItem = localById.get(remoteItem.id);
+      if (!localItem) {
+        merged.push(remoteItem);
+      } else {
+        merged.push(localItem);
+      }
+    }
+
+    for (const localItem of local) {
+      if (!remoteById.has(localItem.id)) {
+        merged.push(localItem);
+      }
+    }
+
+    if (merged.length !== local.length ||
+        merged.some((m, i) => m.id !== local[i]?.id)) {
+      gtr30BillCodeMappingsLocalRepository.saveAll(merged);
+    }
   }
 
   reset(): void {
     gtr30BillCodeMappingsLocalRepository.clear();
     for (const timer of pendingTimers.values()) clearTimeout(timer);
     pendingTimers.clear();
+    setBillCodeMappingsSyncPhase('idle');
   }
 }
 

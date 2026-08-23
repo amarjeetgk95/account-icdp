@@ -188,20 +188,20 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
               {renderBoxes(effectiveData.headChargeableCode ? String(effectiveData.headChargeableCode).slice(0, 13) : '2403001020000', 13, 12)}
             </div>
 
-            {/* Indented Classification Breakdown — grid for perfect label/value alignment */}
-            <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', rowGap: '1px', columnGap: '8px', paddingLeft: '16px', paddingRight: '4px', fontSize: '9pt', lineHeight: 1.3, marginBottom: '6px' }}>
-              <span style={{ whiteSpace: 'nowrap' }}>Sector</span>
-              <strong style={{ textAlign: 'right', wordBreak: 'break-word', fontWeight: 700 }}>{effectiveData.sector}</strong>
-              <span style={{ whiteSpace: 'nowrap' }}>Demand No.</span>
-              <strong style={{ textAlign: 'right', wordBreak: 'break-word', fontWeight: 700 }}>{effectiveData.demandNoLabel}</strong>
-              <span style={{ whiteSpace: 'nowrap' }}>Major Head</span>
-              <strong style={{ textAlign: 'right', wordBreak: 'break-word', fontWeight: 700 }}>{effectiveData.majorHead}</strong>
-              <span style={{ whiteSpace: 'nowrap' }}>Sub-Major Head</span>
-              <strong style={{ textAlign: 'right', wordBreak: 'break-word', fontWeight: 700 }}>{effectiveData.subMajorHead}</strong>
-              <span style={{ whiteSpace: 'nowrap' }}>Minor Head</span>
-              <strong style={{ textAlign: 'right', fontWeight: 700, wordBreak: 'break-word' }}>{effectiveData.minorHead}</strong>
-              <span style={{ whiteSpace: 'nowrap' }}>Sub Head</span>
-              <strong style={{ textAlign: 'right', fontWeight: 700, wordBreak: 'break-word' }}>{effectiveData.subHead}</strong>
+            {/* Indented Classification Breakdown — grid for perfect label/value alignment with colons */}
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', rowGap: '1px', columnGap: '8px', paddingLeft: '16px', paddingRight: '4px', fontSize: '9pt', lineHeight: 1.3, marginBottom: '6px', fontFamily: "'Courier New', monospace" }}>
+              <span style={{ whiteSpace: 'nowrap', textAlign: 'right', display: 'block' }}>Sector          :</span>
+              <strong style={{ textAlign: 'left', wordBreak: 'break-word', fontWeight: 700 }}>{effectiveData.sector}</strong>
+              <span style={{ whiteSpace: 'nowrap', textAlign: 'right', display: 'block' }}>Demand No.      :</span>
+              <strong style={{ textAlign: 'left', wordBreak: 'break-word', fontWeight: 700 }}>{effectiveData.demandNoLabel}</strong>
+              <span style={{ whiteSpace: 'nowrap', textAlign: 'right', display: 'block' }}>Major Head      :</span>
+              <strong style={{ textAlign: 'left', wordBreak: 'break-word', fontWeight: 700 }}>{effectiveData.majorHead}</strong>
+              <span style={{ whiteSpace: 'nowrap', textAlign: 'right', display: 'block' }}>Sub-Major Head  :</span>
+              <strong style={{ textAlign: 'left', wordBreak: 'break-word', fontWeight: 700 }}>{effectiveData.subMajorHead}</strong>
+              <span style={{ whiteSpace: 'nowrap', textAlign: 'right', display: 'block' }}>Minor Head      :</span>
+              <strong style={{ textAlign: 'left', fontWeight: 700, wordBreak: 'break-word' }}>{effectiveData.minorHead}</strong>
+              <span style={{ whiteSpace: 'nowrap', textAlign: 'right', display: 'block' }}>Sub Head        :</span>
+              <strong style={{ textAlign: 'left', fontWeight: 700, wordBreak: 'break-word' }}>{effectiveData.subHead}</strong>
             </div>
 
             {/* Detailed Head — boxes left-aligned */}

@@ -1,3 +1,24 @@
+export const GTR30_INSURANCE_GROUPS = ['ક', 'ખ', 'ગ', 'ઘ', 'A', 'B', 'C', 'D', ''] as const;
+
+export type GTR30InsuranceGroup = (typeof GTR30_INSURANCE_GROUPS)[number];
+
+const GUJARATI_INSURANCE_GROUPS = ['ક', 'ખ', 'ગ', 'ઘ'] as const;
+
+const LATIN_TO_GUJARATI_INSURANCE_GROUP: Record<string, GTR30InsuranceGroup> = {
+  A: 'ક',
+  B: 'ખ',
+  C: 'ગ',
+  D: 'ઘ',
+};
+
+export function normalizeInsuranceGroup(raw: string | null | undefined): GTR30InsuranceGroup {
+  const value = (raw ?? '').trim().toUpperCase();
+  if ((GUJARATI_INSURANCE_GROUPS as readonly string[]).includes(value)) {
+    return value as GTR30InsuranceGroup;
+  }
+  return LATIN_TO_GUJARATI_INSURANCE_GROUP[value] ?? '';
+}
+
 export interface GTR30PostItem {
   id: string;
   srNo: number | string;
@@ -21,15 +42,18 @@ export interface GTR30Employee {
   srNo: number;
   masterId?: string;
   name: string;
+  hrpnNo?: string;
   designation: string;
   designationGujarati?: string;
   cadreClass?: string;
   payScale: string;
   gradePay: string;
-  payLevelCell: string;
+    payLevelCell: string;
   ppaNo: string;
+  ph?: string;
+  slo?: string;
   quarterAddress: string;
-  insuranceGroup: 'ક' | 'ખ' | 'ગ' | 'ઘ' | string;
+  insuranceGroup: GTR30InsuranceGroup;
   insuranceType: 'savings_and_insurance' | 'insurance_only';
 
   payOfOfficer: number;
@@ -105,6 +129,8 @@ export interface GTR30FormData {
   billDate: string;
   monthOf: string;
   billCode: string;
+  // Budget Head explicitly chosen for this bill (overrides the bill code's default)
+  budgetHeadId?: string;
   monthYearDigits: string;
   district: string;
   branchName: string;
@@ -146,6 +172,10 @@ export interface GTR30FormData {
   employees: GTR30Employee[];
 }
 
+export const GTR30_BILL_STATUSES = ['draft', 'submitted', 'passed', 'rejected'] as const;
+
+export type GTR30BillStatus = (typeof GTR30_BILL_STATUSES)[number];
+
 export interface GTR30Bill extends GTR30FormData {
   id: string;
   createdDate: string;
@@ -153,5 +183,5 @@ export interface GTR30Bill extends GTR30FormData {
   grossTotal: number;
   deductionsTotal: number;
   netTotal: number;
-  status: 'draft' | 'submitted' | 'passed';
+  status: GTR30BillStatus;
 }

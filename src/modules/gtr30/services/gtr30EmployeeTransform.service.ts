@@ -1,7 +1,8 @@
 import type { GTR30Employee, GTR30EmployeeMaster } from '../types';
+import { normalizeInsuranceGroup } from '../types/bill';
 import { createDefaultEmployee } from '../constants';
 import { monthStartFromKey, resolveBasicPayForMonth } from '../utils/gtr30PayMatrix';
-import { resolveDARateForMonthKey, DEFAULT_DA_PERCENT } from '../utils/gtr30GovRules';
+import { resolveDARateForMonthKey, calculateDA, calculateNPS, DEFAULT_DA_PERCENT } from '../utils/gtr30GovRules';
 import { gtr30SettingsService } from './gtr30Settings.service';
 
 interface Gtr30EmployeeTransformService {
@@ -28,7 +29,6 @@ class Gtr30EmployeeTransformServiceImpl implements Gtr30EmployeeTransformService
     const currentPay = resolved ? resolved.basicPay : master.currentPay || 0;
     const defaultTemplate = createDefaultEmployee(srNo);
 
-    // Resolve effective DA rate: opts.daRate > settings lookup > default
     let effectiveDaRate = opts?.daRate;
     if (effectiveDaRate === undefined || effectiveDaRate === null) {
       try {
@@ -42,27 +42,20 @@ class Gtr30EmployeeTransformServiceImpl implements Gtr30EmployeeTransformService
       if (!effectiveDaRate) effectiveDaRate = DEFAULT_DA_PERCENT;
     }
 
-    // Calculate DA: if forceDaRecalc or master DA was auto-calculated at old rate, recompute to current effective rate
-    const autoDaFromRate = currentPay > 0 ? Math.round(currentPay * (effectiveDaRate / 100)) : defaultTemplate.da;
+    const autoDaFromRate = calculateDA(currentPay, effectiveDaRate);
     const shouldForceRecalc = opts?.forceDaRecalc === true;
-    // Detect if stored DA looks like auto-calculated at a different rate (e.g. 53% vs 60%)
-    // If stored DA equals 53% of pay but effective is 60%, we should update
     const storedDaIsAuto = master.da !== undefined && master.da > 0 && currentPay > 0 && Math.abs(master.da - Math.round(currentPay * 0.53)) < 2;
-    const da = shouldForceRecalc || storedDaIsAuto || master.da === undefined || master.da === 0 ? autoDaFromRate : master.da;
+    const da = shouldForceRecalc || storedDaIsAuto || master.da === undefined || master.da === null ? autoDaFromRate : master.da;
 
-    // Calculate HRA % if provided
     const hra =
       master.hraPercent !== undefined && master.hraPercent > 0
         ? Math.round((currentPay * master.hraPercent) / 100)
         : defaultTemplate.hra;
 
-    // Calculate NPS (10% of Basic + DA if not explicitly provided)
     const npsPension =
       master.npsPension !== undefined && master.npsPension > 0
         ? master.npsPension
-        : currentPay > 0
-        ? Math.round((currentPay + da) * 0.1)
-        : defaultTemplate.npsPension;
+        : calculateNPS(currentPay, da);
 
     return {
       ...defaultTemplate,
@@ -71,6 +64,7 @@ class Gtr30EmployeeTransformServiceImpl implements Gtr30EmployeeTransformService
       srNo,
       masterId: master.id,
       name: master.name || defaultTemplate.name,
+      hrpnNo: master.hrpnNo || defaultTemplate.hrpnNo,
       designation: master.designation || defaultTemplate.designation,
       designationGujarati: master.designationGujarati || defaultTemplate.designationGujarati,
       cadreClass: master.cadreClass || defaultTemplate.cadreClass,
@@ -79,7 +73,7 @@ class Gtr30EmployeeTransformServiceImpl implements Gtr30EmployeeTransformService
       payLevelCell: master.payLevelCell || defaultTemplate.payLevelCell || `PAY=${currentPay} (LEVEL CELL-7)`,
       ppaNo: master.ppaNo || defaultTemplate.ppaNo,
       quarterAddress: master.quarterAddress || defaultTemplate.quarterAddress,
-      insuranceGroup: master.insuranceGroup || defaultTemplate.insuranceGroup,
+      insuranceGroup: normalizeInsuranceGroup(master.insuranceGroup || defaultTemplate.insuranceGroup),
       insuranceType: master.insuranceType || defaultTemplate.insuranceType,
 
       payOfEstablishment: currentPay > 0 ? currentPay : defaultTemplate.payOfEstablishment,

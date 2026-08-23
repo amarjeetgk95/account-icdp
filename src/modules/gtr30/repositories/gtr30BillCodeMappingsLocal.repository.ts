@@ -5,6 +5,11 @@ import { getOfficeScope, type OfficeScope } from '@/shared/utilities/office';
 const STORAGE_KEY_PREFIX = 'gtr30-employee-master-v3-mappings';
 const LEGACY_STORAGE_KEY = 'gtr30-employee-master-v3-mappings';
 
+interface StoredMappings {
+  configured: boolean;
+  items: GTR30BillCodeMapping[];
+}
+
 function gtr30BillCodeMappingsStorageKey(scope: OfficeScope): string {
   const suffix = scope.all ? 'all' : scope.officeId ?? 'default';
   return `${STORAGE_KEY_PREFIX}-${suffix}`;
@@ -23,7 +28,15 @@ function readFrom(key: string): GTR30BillCodeMapping[] | null {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    if (!Array.isArray(parsed)) {
+      if (parsed && typeof parsed === 'object' && 'configured' in parsed && 'items' in parsed) {
+        const stored = parsed as StoredMappings;
+        if (!stored.configured) return null;
+        return Array.isArray(stored.items) ? stored.items : [];
+      }
+      return null;
+    }
+    if (parsed.length === 0) return [];
     return parsed as GTR30BillCodeMapping[];
   } catch {
     return null;
@@ -32,9 +45,24 @@ function readFrom(key: string): GTR30BillCodeMapping[] | null {
 
 function writeTo(key: string, mappings: GTR30BillCodeMapping[]): void {
   try {
-    localStorage.setItem(key, JSON.stringify(mappings));
+    const wrapper: StoredMappings = { configured: true, items: mappings };
+    localStorage.setItem(key, JSON.stringify(wrapper));
   } catch {
     return;
+  }
+}
+
+function isKeyConfigured(key: string): boolean {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return parsed && typeof parsed === 'object' && parsed.configured === true;
+    }
+    return parsed.length > 0;
+  } catch {
+    return false;
   }
 }
 
@@ -50,7 +78,7 @@ class Gtr30BillCodeMappingsLocalRepository {
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed) || parsed.length === 0) return;
-      if (!readFrom(key)) {
+      if (!isKeyConfigured(key)) {
         writeTo(key, parsed);
       }
       localStorage.removeItem(LEGACY_STORAGE_KEY);
@@ -65,7 +93,14 @@ class Gtr30BillCodeMappingsLocalRepository {
     if (scope) {
       this.migrateLegacyIfNeeded(key);
     }
-    return readFrom(key) ?? [...DEFAULT_BILL_CODE_MAPPINGS];
+    const stored = readFrom(key);
+    if (stored !== null) {
+      return stored;
+    }
+    if (isKeyConfigured(key)) {
+      return [];
+    }
+    return [...DEFAULT_BILL_CODE_MAPPINGS];
   }
 
   saveAll(mappings: GTR30BillCodeMapping[]): void {

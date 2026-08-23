@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Plus, Printer, Save, Settings, Trash2, Users, Calculator, History, TrendingUp, TrendingDown, Columns, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Plus, Printer, Save, Settings, Trash2, Users, Calculator, History, TrendingUp, TrendingDown, Columns, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
-import { createDefaultEmployee } from '../constants';
+import { createBlankEmployee } from '../constants';
 import { gtr30BillFormService } from '../services/gtr30BillForm.service';
 import { gtr30EmployeeTransformService } from '../services/gtr30EmployeeTransform.service';
 import { useGTR30Settings, useEffectiveDARate } from '../hooks/useGTR30Settings';
 import { useGTR30BillCodeMappings } from '../hooks/useGTR30BillCodeMappings';
+import { useGTR30BudgetHeads } from '../hooks/useGTR30BudgetHeads';
 import { useGTR30EmployeeMasterGroups } from '../hooks/useGTR30EmployeeMaster';
 import { useGtr30Bill } from '../hooks/useGTR30Bills';
 import { useGtr30SaveBill } from '../hooks/useGTR30BillMutations';
@@ -24,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { gtr30ResolveEmployees } from '../services/gtr30EmployeeMaster.service';
 import { validateGTR30BillData } from '../validation/gtr30Bill.schema';
 import { validateGTR30CrossPages } from '../utils/gtr30BillValidation';
+import { GTR30_SETTINGS_STORAGE_KEY } from '../constants/settings';
 
 export function GTR30CreatePage() {
   const { id } = useParams<{ id: string }>();
@@ -47,20 +49,92 @@ export function GTR30CreatePage() {
         })
       : gtr30BillFormService.emptyFormData())
   );
+  const isEditMode = !!id;
   const hasSyncedExistingRef = useRef(false);
+  const hasSyncedSettingsRef = useRef(false);
   useEffect(() => {
     if (existing && !hasSyncedExistingRef.current) {
       hasSyncedExistingRef.current = true;
-      setData(existing);
+      const s = settingsQuery.data?.settings;
+      setData({
+        ...existing,
+        officeName: existing.officeName || s?.officeName || '',
+        officeFullName: existing.officeFullName || s?.officeFullName || existing.officeName || '',
+        branchName: existing.branchName || s?.branchName || '',
+        treasuryName: existing.treasuryName || s?.treasuryName || '',
+        phoneNo: existing.phoneNo || s?.phoneNo || '',
+        district: existing.district || s?.district || '',
+        station: existing.station || s?.station || '',
+        cardexNo: existing.cardexNo || s?.cardexNo || '',
+        ddoCode: existing.ddoCode || s?.ddoCode || '',
+        controllingOfficer: existing.controllingOfficer || s?.controllingOfficer || '',
+        classOfExpenditure: existing.classOfExpenditure || s?.classOfExpenditure || '',
+        fund: existing.fund || s?.fund || '',
+        drawingOfficer: existing.drawingOfficer || s?.drawingOfficer || '',
+        demandNo: existing.demandNo || s?.demandNo || '',
+        typeOfBudget: existing.typeOfBudget || s?.typeOfBudget || '',
+        schemeNo: existing.schemeNo || s?.schemeNo || '',
+        headChargeable: existing.headChargeable || s?.headChargeable || '',
+        sector: existing.sector || s?.sector || '',
+        majorHead: existing.majorHead || s?.majorHead || '',
+        subHead: existing.subHead || s?.subHead || '',
+        minorHead: existing.minorHead || s?.minorHead || '',
+        budgetYear: existing.budgetYear || s?.budgetYear || '',
+        drawingOfficerName: existing.drawingOfficerName || s?.drawingOfficerName || '',
+        drawingOfficerDesignation: existing.drawingOfficerDesignation || s?.drawingOfficerDesignation || '',
+        drawingOfficerOffice: existing.drawingOfficerOffice || s?.drawingOfficerOffice || '',
+      });
     }
-  }, [existing]);
-  const isEditMode = !!id;
+  }, [existing, settingsQuery.data?.settings]);
+
+  useEffect(() => {
+    if (!isEditMode && settingsQuery.data?.settings && !hasSyncedSettingsRef.current) {
+      hasSyncedSettingsRef.current = true;
+      const s = settingsQuery.data.settings;
+      setData((prev) => ({
+        ...prev,
+        officeName: s.officeName || prev.officeName,
+        officeFullName: s.officeFullName || prev.officeFullName,
+        branchName: s.branchName || prev.branchName,
+        treasuryName: s.treasuryName || prev.treasuryName,
+        phoneNo: s.phoneNo || prev.phoneNo,
+        district: s.district || prev.district,
+        station: s.station || prev.station,
+        cardexNo: s.cardexNo || prev.cardexNo,
+        ddoCode: s.ddoCode || prev.ddoCode,
+        controllingOfficer: s.controllingOfficer || prev.controllingOfficer,
+        classOfExpenditure: s.classOfExpenditure || prev.classOfExpenditure,
+        fund: s.fund || prev.fund,
+        drawingOfficer: s.drawingOfficer || prev.drawingOfficer,
+        demandNo: s.demandNo || prev.demandNo,
+        typeOfBudget: s.typeOfBudget || prev.typeOfBudget,
+        schemeNo: s.schemeNo || prev.schemeNo,
+        headChargeable: s.headChargeable || prev.headChargeable,
+        sector: s.sector || prev.sector,
+        majorHead: s.majorHead || prev.majorHead,
+        minorHead: s.minorHead || prev.minorHead,
+        subHead: s.subHead || prev.subHead,
+        budgetYear: s.budgetYear || prev.budgetYear,
+        schemeResolutionText: s.schemeResolutionText || prev.schemeResolutionText,
+        daResolutionText: s.daResolutionText || prev.daResolutionText,
+        drawingOfficerName: s.drawingOfficerName || prev.drawingOfficerName,
+        drawingOfficerNameGujarati: s.drawingOfficerNameGujarati || prev.drawingOfficerNameGujarati,
+        drawingOfficerDesignation: s.drawingOfficerDesignation || prev.drawingOfficerDesignation,
+        drawingOfficerDesignationGujarati: s.drawingOfficerDesignationGujarati || prev.drawingOfficerDesignationGujarati,
+        drawingOfficerOffice: s.drawingOfficerOffice || prev.drawingOfficerOffice,
+        drawingOfficerOfficeGujarati: s.drawingOfficerOfficeGujarati || prev.drawingOfficerOfficeGujarati,
+        messengerName: s.messengerName || prev.messengerName,
+        messengerDesignation: s.messengerDesignation || prev.messengerDesignation,
+      }));
+    }
+  }, [isEditMode, settingsQuery.data]);
   const [activeTab, setActiveTab] = useState('employees');
   const [isSplitView, setIsSplitView] = useState(false);
   const [advancedEarningsOpen, setAdvancedEarningsOpen] = useState<Record<string, boolean>>({});
   const [advancedDeductionsOpen, setAdvancedDeductionsOpen] = useState<Record<string, boolean>>({});
 
   const billCodeOptions = mappingsQuery.data ?? [];
+  const budgetHeadOptions = useGTR30BudgetHeads().data ?? [];
   const effectiveDaPercent = useEffectiveDARate(data.monthOf);
 
   const loadEmployeesFromMaster = () => {
@@ -149,6 +223,20 @@ export function GTR30CreatePage() {
     );
   }
 
+  if (!isEditMode && settingsQuery.isPending && !settingsQuery.data) {
+    return (
+      <div className="max-w-7xl mx-auto py-16 flex flex-col items-center justify-center gap-4 text-slate-500">
+        <div className="h-10 w-10 animate-spin rounded-full border-3 border-blue-600 border-t-transparent" />
+        <div className="text-sm font-medium text-slate-700">Loading settings…</div>
+        <div className="text-xs text-slate-500 max-w-md text-center">
+          Configure settings first to generate a blank bill with your office defaults.
+        </div>
+      </div>
+    );
+  }
+
+  const settingsConfigured = !isEditMode && typeof window !== 'undefined' && localStorage.getItem(GTR30_SETTINGS_STORAGE_KEY) !== null;
+
   const setField = (field: keyof GTR30FormData, value: string | number) =>
     setData((current) => ({ ...current, [field]: value }));
 
@@ -199,7 +287,7 @@ export function GTR30CreatePage() {
       ...current,
       employees: [
         ...current.employees,
-        createDefaultEmployee(nextSr),
+        createBlankEmployee(nextSr),
       ],
     }));
   };
@@ -324,6 +412,23 @@ export function GTR30CreatePage() {
           </div>
         }
       />
+
+      {!settingsConfigured && !isEditMode && (
+        <div className="border border-amber-200 bg-amber-50 dark:bg-amber-950/50 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+              Office settings not configured
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+              Configure settings first to generate a blank bill with your office defaults.
+              <Button variant="link" size="sm" className="ml-2 p-0 h-auto text-amber-800 dark:text-amber-200 hover:underline" onClick={() => navigate('/gtr30/settings')}>
+                Open Settings
+              </Button>
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className={isSplitView ? 'grid grid-cols-1 xl:grid-cols-12 gap-6 items-start' : ''}>
         <div className={isSplitView ? 'xl:col-span-7' : ''}>
@@ -819,13 +924,80 @@ export function GTR30CreatePage() {
                 <Label className="text-xs">Bill Code</Label>
                 <select
                   value={data.billCode}
-                  onChange={(e) => setField('billCode', e.target.value)}
-                  className="w-full h-9 rounded-md border border-slate-300 px-2 text-sm"
+                  onChange={(e) => {
+                    const nextCode = e.target.value;
+                    const matched = billCodeOptions.find((m) => m.billCode === nextCode);
+                    if (matched) {
+                      setData((prev) => ({
+                        ...prev,
+                        billCode: nextCode,
+                        controllingOfficer: matched.controllingOfficer || prev.controllingOfficer,
+                        classOfExpenditure: matched.classOfExpenditure || prev.classOfExpenditure,
+                        fund: matched.fund || prev.fund,
+                        drawingOfficer: matched.drawingOfficer || prev.drawingOfficer,
+                        demandNo: matched.demandNo || prev.demandNo,
+                        demandNoLabel: matched.demandNo ? `Demand No. ${matched.demandNo}` : prev.demandNoLabel,
+                        typeOfBudget: matched.typeOfBudget || prev.typeOfBudget,
+                        schemeNo: matched.schemeNo || prev.schemeNo,
+                        headChargeable: matched.headChargeable || prev.headChargeable,
+                        sector: matched.sector || prev.sector,
+                        majorHead: matched.majorHead || prev.majorHead,
+                        subMajorHead: matched.subMajorHead || prev.subMajorHead,
+                        minorHead: matched.minorHead || prev.minorHead,
+                        subHead: matched.subHead || prev.subHead,
+                        budgetYear: matched.budgetYear || prev.budgetYear,
+                      }));
+                    } else {
+                      setField('billCode', nextCode);
+                    }
+                  }}
+                  className="w-full h-9 rounded-md border border-slate-300 px-2 text-sm font-medium"
                 >
                   <option value="">Select Bill Code</option>
                   {billCodeOptions.map((opt) => (
                     <option key={opt.id} value={opt.billCode}>
                       {opt.billCode} - {opt.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs">Budget Head</Label>
+                <select
+                  value={data.budgetHeadId ?? ''}
+                  onChange={(e) => {
+                    const head = budgetHeadOptions.find((h) => h.id === e.target.value);
+                    if (!head) {
+                      setField('budgetHeadId', '');
+                      return;
+                    }
+                    setData((prev) => ({
+                      ...prev,
+                      budgetHeadId: head.id,
+                      controllingOfficer: head.controllingOfficer || prev.controllingOfficer,
+                      classOfExpenditure: head.classOfExpenditure || prev.classOfExpenditure,
+                      fund: head.fund || prev.fund,
+                      drawingOfficer: head.drawingOfficer || prev.drawingOfficer,
+                      demandNo: head.demandNo || prev.demandNo,
+                      demandNoLabel: head.demandNo ? `Demand No. ${head.demandNo}` : prev.demandNoLabel,
+                      typeOfBudget: head.typeOfBudget || prev.typeOfBudget,
+                      schemeNo: head.schemeNo || prev.schemeNo,
+                      headChargeable: head.headChargeable || prev.headChargeable,
+                      sector: head.sector || prev.sector,
+                      majorHead: head.majorHead || prev.majorHead,
+                      subMajorHead: head.subMajorHead || prev.subMajorHead,
+                      minorHead: head.minorHead || prev.minorHead,
+                      subHead: head.subHead || prev.subHead,
+                      budgetYear: head.budgetYear || prev.budgetYear,
+                    }));
+                  }}
+                  className="w-full h-9 rounded-md border border-slate-300 px-2 text-sm font-medium"
+                  title="Overrides the bill code's configured budget head"
+                >
+                  <option value="">Bill code&apos;s own head</option>
+                  {budgetHeadOptions.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name} {h.headChargeable ? `(${h.headChargeable})` : ''}
                     </option>
                   ))}
                 </select>
@@ -862,8 +1034,53 @@ export function GTR30CreatePage() {
           </Card>
 
           <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold uppercase text-slate-800">Budget Classification &amp; Heads</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+              <h2 className="text-sm font-bold uppercase text-slate-800">Budget Classification &amp; Heads</h2>
+              {billCodeOptions.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Select Budget Head Option:</span>
+                  <select
+                    className="h-8 rounded-md border border-blue-300 px-2 text-xs bg-blue-50/70 font-semibold text-blue-800"
+                    onChange={(e) => {
+                      const matched = billCodeOptions.find((m) => m.billCode === e.target.value);
+                      if (matched) {
+                        setData((prev) => ({
+                          ...prev,
+                          controllingOfficer: matched.controllingOfficer || prev.controllingOfficer,
+                          classOfExpenditure: matched.classOfExpenditure || prev.classOfExpenditure,
+                          fund: matched.fund || prev.fund,
+                          drawingOfficer: matched.drawingOfficer || prev.drawingOfficer,
+                          demandNo: matched.demandNo || prev.demandNo,
+                          demandNoLabel: matched.demandNo ? `Demand No. ${matched.demandNo}` : prev.demandNoLabel,
+                          typeOfBudget: matched.typeOfBudget || prev.typeOfBudget,
+                          schemeNo: matched.schemeNo || prev.schemeNo,
+                          headChargeable: matched.headChargeable || prev.headChargeable,
+                          sector: matched.sector || prev.sector,
+                          majorHead: matched.majorHead || prev.majorHead,
+                          subMajorHead: matched.subMajorHead || prev.subMajorHead,
+                          minorHead: matched.minorHead || prev.minorHead,
+                          subHead: matched.subHead || prev.subHead,
+                          budgetYear: matched.budgetYear || prev.budgetYear,
+                        }));
+                      }
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Choose Budget Head Option...</option>
+                    {billCodeOptions.map((opt) => (
+                      <option key={opt.id} value={opt.billCode}>
+                        {opt.billCode} — {opt.headChargeable ? `${opt.headChargeable} (${opt.demandNo || '004'})` : opt.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <Label className="text-xs">Controlling Officer Code (Field 4)</Label>
+                <Input value={data.controllingOfficer} onChange={(e) => setField('controllingOfficer', e.target.value)} />
+              </div>
               <div>
                 <Label className="text-xs">Class of Expenditure</Label>
                 <Input value={data.classOfExpenditure} onChange={(e) => setField('classOfExpenditure', e.target.value)} />

@@ -29,4 +29,10 @@ export {
 } from './useGTR30EmployeeMaster';
 
 export { useGTR30BillCodeMappings, useHydrateGTR30BillCodeMappings } from './useGTR30BillCodeMappings';
+export {
+  useGTR30BudgetHeads,
+  useSaveGTR30BudgetHead,
+  useRemoveGTR30BudgetHead,
+  useHydrateGTR30BudgetHeads,
+} from './useGTR30BudgetHeads';
 export { useGTR30EmployeeMasterSyncStatus } from './useGTR30EmployeeMasterSync';

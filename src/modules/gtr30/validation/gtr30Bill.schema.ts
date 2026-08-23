@@ -1,16 +1,20 @@
 import { z } from 'zod';
+import { GTR30_BILL_STATUSES } from '../types/bill';
 
 export const gtr30EmployeeSchema = z.object({
   id: z.string().min(1, 'Employee ID is required'),
   srNo: z.coerce.number().min(1, 'Sr No must be positive'),
   name: z.string().min(1, 'Employee name is required'),
+  hrpnNo: z.string().optional().default(''),
   designation: z.string().optional().default(''),
   designationGujarati: z.string().optional().default(''),
   cadreClass: z.string().optional().default(''),
   payScale: z.string().optional().default(''),
   gradePay: z.string().optional().default(''),
   payLevelCell: z.string().optional().default(''),
-  ppaNo: z.string().optional().default(''),
+    ppaNo: z.string().optional().default(''),
+  ph: z.string().optional().default(''),
+  slo: z.string().optional().default(''),
   quarterAddress: z.string().optional().default(''),
   insuranceGroup: z.string().optional().default(''),
   payOfEstablishment: z.coerce.number().min(0, 'Pay cannot be negative').default(0),
@@ -51,7 +55,7 @@ export const gtr30BillSchema = z.object({
   drawingOfficer: z.string().optional().default(''),
   drawingOfficerName: z.string().optional().default(''),
   drawingOfficerDesignation: z.string().optional().default(''),
-  status: z.enum(['draft', 'submitted', 'passed', 'rejected']).optional().default('draft'),
+  status: z.enum(GTR30_BILL_STATUSES).optional().default('draft'),
   employees: z.array(gtr30EmployeeSchema).min(1, 'Bill must contain at least one employee'),
   establishmentPosts: z.array(gtr30PostItemSchema).optional().default([]),
   schemeResolutionText: z.string().optional().default(''),

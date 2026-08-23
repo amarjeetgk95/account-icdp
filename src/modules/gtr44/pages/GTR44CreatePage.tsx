@@ -41,8 +41,9 @@ export function GTR44CreatePage() {
         toast({ title: 'Success', description: 'Bill created successfully.' });
       }
       navigate('/gtr44/list');
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save bill.', variant: 'destructive' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save bill.';
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
     }
   };
 

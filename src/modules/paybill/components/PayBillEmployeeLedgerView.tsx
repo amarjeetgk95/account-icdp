@@ -17,6 +17,7 @@ import {
 import { EmptyState } from '@/shared/components/EmptyState';
 import { StatCard } from '@/shared/components/StatCard';
 import { PbButton, PbChip, PbPanel } from './ui';
+import { popupNativePrint } from '@/shared/utilities/nativePrint';
 import type {
   PayBillStoredEarning,
   PayBillStoredDeduction,
@@ -419,7 +420,17 @@ export function PayBillEmployeeLedgerView({
   };
 
   const handlePrint = () => {
-    window.print();
+    const ledgerEl = document.querySelector('.space-y-4') as HTMLElement | null;
+    if (ledgerEl) {
+      popupNativePrint({
+        elements: [ledgerEl],
+        title: `Employee_Ledger_${selectedHrpn}_${fyLabel}`,
+        pageSize: 'A4',
+        orientation: 'landscape',
+      });
+    } else {
+      window.print();
+    }
   };
 
   const hasEmployeeData =

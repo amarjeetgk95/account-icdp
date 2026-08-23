@@ -1,26 +1,36 @@
 import { supabase } from '@/core/supabase/client';
-import { useAuthStore } from '@/core/auth/store';
-import {
-  getOfficeId,
-  isAllOfficesMode,
-  resolveOfficeIdForUser,
-} from '@/shared/utilities/office';
 import type { Json } from '@/shared/json.types';
 import type { GTR30EmployeeMaster, GTR30MasterGroup } from '../types';
+import { resolveOfficeIdStrict } from './officeScope';
+import { gtr30EmployeeMasterDbSchema } from '../validation/gtr30EmployeeMaster.schema';
+import { z } from 'zod';
 
-async function resolveOfficeId(): Promise<string | null> {
-  if (isAllOfficesMode()) return null;
-  const existing = getOfficeId();
-  if (existing) return existing;
+function validateEmployeeMasterArray(raw: unknown): GTR30EmployeeMaster[] | null {
+  const result = z.array(gtr30EmployeeMasterDbSchema).safeParse(raw);
+  if (!result.success) {
+    console.warn('[GTR30EmployeeMasterBackend] validation failed:', result.error.flatten());
+    return null;
+  }
+  return result.data;
+}
 
-  const userId = useAuthStore.getState().user?.id;
-  if (!userId) return null;
-  return resolveOfficeIdForUser(userId);
+function validateMasterGroupArray(raw: unknown): GTR30MasterGroup[] | null {
+  const groupSchema = z.object({
+    monthKey: z.string(),
+    billCode: z.string(),
+    employees: z.array(gtr30EmployeeMasterDbSchema),
+  });
+  const result = z.array(groupSchema).safeParse(raw);
+  if (!result.success) {
+    console.warn('[GTR30EmployeeMasterBackend] group validation failed:', result.error.flatten());
+    return null;
+  }
+  return result.data;
 }
 
 class Gtr30EmployeeMasterBackendRepository {
   async listGroups(): Promise<GTR30MasterGroup[] | null> {
-    const officeId = await resolveOfficeId();
+    const officeId = await resolveOfficeIdStrict();
     if (!officeId) return null;
 
     const { data, error } = await supabase.rpc('list_gtr30_employee_master', {
@@ -31,14 +41,14 @@ class Gtr30EmployeeMasterBackendRepository {
       return null;
     }
     if (!Array.isArray(data)) return null;
-    return data as unknown as GTR30MasterGroup[];
+    return validateMasterGroupArray(data);
   }
 
   async getGroup(
     monthKey: string,
     billCode: string
   ): Promise<GTR30EmployeeMaster[] | null> {
-    const officeId = await resolveOfficeId();
+    const officeId = await resolveOfficeIdStrict();
     if (!officeId) return null;
 
     const { data, error } = await supabase.rpc('get_gtr30_employee_master', {
@@ -51,7 +61,7 @@ class Gtr30EmployeeMasterBackendRepository {
       return null;
     }
     if (!Array.isArray(data)) return null;
-    return data as unknown as GTR30EmployeeMaster[];
+    return validateEmployeeMasterArray(data);
   }
 
   async replaceGroup(
@@ -59,7 +69,7 @@ class Gtr30EmployeeMasterBackendRepository {
     billCode: string,
     employees: GTR30EmployeeMaster[]
   ): Promise<GTR30EmployeeMaster[] | null> {
-    const officeId = await resolveOfficeId();
+    const officeId = await resolveOfficeIdStrict();
     if (!officeId) return null;
 
     const { data, error } = await supabase.rpc('upsert_gtr30_employee_master', {
@@ -73,7 +83,7 @@ class Gtr30EmployeeMasterBackendRepository {
       return null;
     }
     if (!Array.isArray(data)) return null;
-    return data as unknown as GTR30EmployeeMaster[];
+    return validateEmployeeMasterArray(data);
   }
 }
 

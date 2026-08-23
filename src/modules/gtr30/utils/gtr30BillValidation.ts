@@ -1,13 +1,11 @@
 import type { GTR30FormData } from '../types';
-import { billTotals, deductionsTotal, earningsTotal } from '../services/gtr30Calc.service';
+import { billTotals, earningsTotal, groupInsuranceBreakdown } from '../services/gtr30Calc.service';
 
 /**
  * Cross-page validation for GTR-30.
- * P3 Gross (col16) must equal sum earningsTotal per employee.
- * P4 Total Deductions (col36) must equal sum deductionsTotal.
  * P5 Rent schedule total must equal sum rentOfBuilding where >0.
  * P6 Prof Tax total must equal sum professionalTax where >0.
- * P7/P8 GIS totals must reconcile.
+ * P7/P8 GIS totals must reconcile: groupInsuranceBreakdown sums vs billTotals.
  * Returns warnings that can be shown in CreatePage split-view or before save.
  */
 export interface GTR30ValidationWarning {
@@ -21,16 +19,6 @@ export function validateGTR30CrossPages(data: GTR30FormData): GTR30ValidationWar
   const warnings: GTR30ValidationWarning[] = [];
   const employees = data.employees || [];
   const totals = billTotals(data);
-
-  // P3/P4 vs billTotals consistency
-  const sumGross = employees.reduce((s, e) => s + earningsTotal(e), 0);
-  const sumDed = employees.reduce((s, e) => s + deductionsTotal(e), 0);
-  if (Math.abs(sumGross - totals.gross) > 0.01) {
-    warnings.push({ field: 'gross', message: `P3 Gross total mismatch: calc ${sumGross} vs billTotals ${totals.gross}`, severity: 'error', page: 'P3' });
-  }
-  if (Math.abs(sumDed - totals.deductions) > 0.01) {
-    warnings.push({ field: 'deductions', message: `P4 Deductions mismatch: calc ${sumDed} vs billTotals ${totals.deductions}`, severity: 'error', page: 'P4' });
-  }
 
   // Rent schedule: P5 filters rent>0
   const rentOnly = employees.filter((e) => (e.rentOfBuilding || 0) > 0);
@@ -52,6 +40,36 @@ export function validateGTR30CrossPages(data: GTR30FormData): GTR30ValidationWar
     if (gross >= 12000 && pt === 0) {
       warnings.push({ field: `professionalTax:${e.id}`, message: `${e.name}: gross ₹${gross} >= 12k but PT 0 (expected 200)`, severity: 'warning', page: 'P6' });
     }
+  }
+
+  // GIS: P7/P8 reconciliation - groupInsuranceBreakdown sum vs billTotals
+  const gisBreakdown = groupInsuranceBreakdown(employees);
+  const gisBreakdownTotal = gisBreakdown.reduce((sum, g) => sum + g.total, 0);
+  if (Math.abs(gisBreakdownTotal - totals.totalGis) > 0.01) {
+    warnings.push({
+      field: 'gisTotal',
+      message: `P7/P8 GIS schedule total ${gisBreakdownTotal} differs from bill total GIS ${totals.totalGis} (employees outside Gujarati groups may be excluded)`,
+      severity: 'warning',
+      page: 'P7',
+    });
+  }
+  const gisInsuranceBreakdown = gisBreakdown.reduce((sum, g) => sum + g.insFund, 0);
+  if (Math.abs(gisInsuranceBreakdown - totals.totalGisInsurance) > 0.01) {
+    warnings.push({
+      field: 'gisInsurance',
+      message: `P7 GIS Insurance breakdown ${gisInsuranceBreakdown} differs from bill total GIS Insurance ${totals.totalGisInsurance}`,
+      severity: 'warning',
+      page: 'P7',
+    });
+  }
+  const gisSavingsBreakdown = gisBreakdown.reduce((sum, g) => sum + g.savingsFund, 0);
+  if (Math.abs(gisSavingsBreakdown - totals.totalGisSavings) > 0.01) {
+    warnings.push({
+      field: 'gisSavings',
+      message: `P8 GIS Savings breakdown ${gisSavingsBreakdown} differs from bill total GIS Savings ${totals.totalGisSavings}`,
+      severity: 'warning',
+      page: 'P8',
+    });
   }
 
   // GIS: insuranceGroup must be one of ક/ખ/ગ/ઘ or A-D

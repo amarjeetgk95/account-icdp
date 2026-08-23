@@ -4,6 +4,7 @@ import {
   sampleGTR30FormData,
   defaultEstablishmentPosts,
 } from './defaults';
+import { DEFAULT_DA_PERCENT } from '../utils/gtr30GovRules';
 
 export const GTR30_SETTINGS_STORAGE_KEY = 'gtr30-settings-v1';
 
@@ -17,6 +18,7 @@ export const DEFAULT_GTR30_SETTINGS: GTR30DefaultSettings = {
   station: sampleGTR30FormData.station,
   cardexNo: sampleGTR30FormData.cardexNo,
   ddoCode: sampleGTR30FormData.ddoCode,
+  controllingOfficer: sampleGTR30FormData.controllingOfficer,
   classOfExpenditure: sampleGTR30FormData.classOfExpenditure,
   fund: sampleGTR30FormData.fund,
   drawingOfficer: sampleGTR30FormData.drawingOfficer,
@@ -66,9 +68,9 @@ export const DEFAULT_GTR30_DA_RATES: GTR30DARateEntry[] = [
   {
     id: 'da-2024-12-04',
     effectiveFrom: '2024-12-04',
-    rate: 53,
-    description: '7th Pay Commission DA 53% (Gujarat GR 04-12-2024)',
-    resolutionNo: 'વલભ-૧૦૨૦૧૬-જીઓઆઈ-૭-ચ તા:૦૪-૧૨-૨૦૨૪',
+    rate: DEFAULT_DA_PERCENT,
+    description: `7th Pay Commission DA ${DEFAULT_DA_PERCENT}% (Gujarat GR 04-12-2024)`,
+    resolutionNo: 'વલભ-૧૦૨૦૧૬-જíosઆઈ-૭-ચ તા:૦૪-૧૨-૨૦૨૪',
   },
 ];
 

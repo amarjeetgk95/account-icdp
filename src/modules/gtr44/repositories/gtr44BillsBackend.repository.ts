@@ -108,54 +108,57 @@ class Gtr44BillsBackendRepository {
 
   async get(id: string): Promise<GTR44Bill | null> {
     const officeId = await resolveOfficeId();
-    if (!officeId) return null;
+    if (!officeId) throw new Error('No office selected');
     const { data, error } = await supabase.rpc('get_gtr44_bill' as any, {
       p_office_id: officeId,
       p_bill_id: id,
     } as unknown as Record<string, unknown>);
     if (error) {
-      console.warn('[GTR44BillsBackend] get_gtr44_bill failed:', error);
-      return null;
+      console.error('[GTR44BillsBackend] get_gtr44_bill failed:', error);
+      throw new Error(error.message || 'Database error while fetching bill');
     }
     if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-    // Check for error object from RPC
     if ((data as Record<string, unknown>).error) {
-      console.warn('[GTR44BillsBackend] get_gtr44_bill error:', (data as Record<string, unknown>).error);
-      return null;
+      const rpcError = (data as Record<string, unknown>).error;
+      console.error('[GTR44BillsBackend] get_gtr44_bill error:', rpcError);
+      throw new Error(String(rpcError));
     }
     return rowToBill(data as unknown as BillRow);
   }
 
   async save(bill: GTR44Bill): Promise<GTR44Bill | null> {
     const officeId = await resolveOfficeId();
-    if (!officeId) return null;
+    if (!officeId) throw new Error('No office selected. Please select an office to save bills.');
     const payload = billToPayload(bill);
     const { data, error } = await supabase.rpc('upsert_gtr44_bill' as any, {
       p_office_id: officeId,
       p_data: payload as unknown as Json,
     } as unknown as Record<string, unknown>);
     if (error) {
-      console.warn('[GTR44BillsBackend] upsert_gtr44_bill failed:', error);
-      return null;
+      console.error('[GTR44BillsBackend] upsert_gtr44_bill failed:', error);
+      throw new Error(error.message || 'Database error while saving bill');
     }
-    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('Invalid response from server');
+    }
     if ((data as Record<string, unknown>).error) {
-      console.warn('[GTR44BillsBackend] upsert error:', (data as Record<string, unknown>).error);
-      return null;
+      const rpcError = (data as Record<string, unknown>).error;
+      console.error('[GTR44BillsBackend] upsert error:', rpcError);
+      throw new Error(String(rpcError));
     }
     return rowToBill(data as unknown as BillRow);
   }
 
   async delete(id: string): Promise<boolean | null> {
     const officeId = await resolveOfficeId();
-    if (!officeId) return null;
+    if (!officeId) throw new Error('No office selected');
     const { data, error } = await supabase.rpc('delete_gtr44_bill' as any, {
       p_office_id: officeId,
       p_bill_id: id,
     } as unknown as Record<string, unknown>);
     if (error) {
-      console.warn('[GTR44BillsBackend] delete_gtr44_bill failed:', error);
-      return null;
+      console.error('[GTR44BillsBackend] delete_gtr44_bill failed:', error);
+      throw new Error(error.message || 'Database error while deleting bill');
     }
     if (!data || typeof data !== 'object') return false;
     return !!(data as Record<string, unknown>).deleted;

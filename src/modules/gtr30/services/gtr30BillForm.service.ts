@@ -6,7 +6,9 @@ import {
   DEFAULT_GTR30_EMPLOYEE_TEMPLATE,
   freshDefaultPosts,
 } from '../constants';
-import { createDefaultEmployee } from '../constants';
+import {
+  createBlankEmployee,
+} from '../constants';
 
 interface BuildNewBillInput {
   settings?: Partial<typeof DEFAULT_GTR30_SETTINGS>;
@@ -45,7 +47,7 @@ class Gtr30BillFormService {
       monthYearDigits: '',
       employees: [
         {
-          ...createDefaultEmployee(1),
+          ...createBlankEmployee(1),
           ...employeeTemplate,
           id: crypto.randomUUID(),
           srNo: 1,

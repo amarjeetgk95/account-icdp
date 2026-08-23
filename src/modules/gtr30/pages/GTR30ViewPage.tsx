@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { GTR30Document } from '../components/GTR30Document';
 import { Button } from '@/components/ui/button';
@@ -5,21 +6,53 @@ import { EmptyState } from '@/shared/components/EmptyState';
 import { ChevronLeft, Edit, FileQuestion, Printer, Download, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useGtr30Bill } from '../hooks/useGTR30Bills';
+import { useGTR30Settings } from '../hooks/useGTR30Settings';
 import { gtr30BillsService } from '../services/gtr30Bills.service';
+import { popupNativePrint } from '@/shared/utilities/nativePrint';
 
 export function GTR30ViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const billQuery = useGtr30Bill(id ?? null);
+  const settingsQuery = useGTR30Settings();
   const bill = billQuery.data ?? null;
 
+  const mergedBill = useMemo(() => {
+    if (!bill) return null;
+    const s = settingsQuery.data?.settings;
+    return {
+      ...bill,
+      officeName: bill.officeName || s?.officeName || '',
+      officeFullName: bill.officeFullName || s?.officeFullName || bill.officeName || '',
+      branchName: bill.branchName || s?.branchName || '',
+      treasuryName: bill.treasuryName || s?.treasuryName || '',
+      controllingOfficer: bill.controllingOfficer || s?.controllingOfficer || '',
+      drawingOfficerName: bill.drawingOfficerName || s?.drawingOfficerName || '',
+      drawingOfficerNameGujarati: bill.drawingOfficerNameGujarati || s?.drawingOfficerNameGujarati || '',
+      drawingOfficerDesignation: bill.drawingOfficerDesignation || s?.drawingOfficerDesignation || '',
+      drawingOfficerDesignationGujarati: bill.drawingOfficerDesignationGujarati || s?.drawingOfficerDesignationGujarati || '',
+      drawingOfficerOffice: bill.drawingOfficerOffice || s?.drawingOfficerOffice || '',
+      drawingOfficerOfficeGujarati: bill.drawingOfficerOfficeGujarati || s?.drawingOfficerOfficeGujarati || '',
+      messengerName: bill.messengerName || s?.messengerName || '',
+      messengerDesignation: bill.messengerDesignation || s?.messengerDesignation || '',
+      cardexNo: bill.cardexNo || s?.cardexNo || '',
+      ddoCode: bill.ddoCode || s?.ddoCode || '',
+      station: bill.station || s?.station || '',
+    };
+  }, [bill, settingsQuery.data?.settings]);
+
   const handlePrint = () => {
-    const printBtn = document.querySelector('.gtr30-controls-bar button.bg-slate-900') as HTMLButtonElement | null;
+    const printBtn = document.querySelector('[data-gtr30-print="trigger"]') as HTMLButtonElement | null;
     if (printBtn) {
       printBtn.click();
     } else {
-      window.print();
+      popupNativePrint({
+        viewId: 'gtr30-view-document',
+        title: `GTR30_${bill?.billRegisterNo || 'PayBill'}`,
+        pageSize: 'A4',
+        pageContainerSelector: '.gtr30-page',
+      });
     }
   };
 
@@ -105,14 +138,14 @@ export function GTR30ViewPage() {
           <Button variant="outline" size="sm" onClick={() => navigate(`/gtr30/edit/${bill.id}`)}>
             <Edit className="mr-1 h-4 w-4" /> Edit Bill
           </Button>
-          <Button size="sm" onClick={handlePrint} className="font-bold">
-            <Printer className="mr-1 h-4 w-4" /> Print PDF
+          <Button size="sm" onClick={handlePrint} className="font-bold" data-gtr30-print="trigger">
+            <Printer className="mr-1 h-4 w-4" /> Print
           </Button>
         </div>
       </div>
 
       <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 overflow-auto print:bg-transparent print:p-0 print:border-none">
-        <GTR30Document data={bill} containerId="gtr30-view-document" />
+        <GTR30Document data={mergedBill || bill} containerId="gtr30-view-document" />
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import { paybillPdfService } from '../services/paybillPdf.service';
 import { paybillRepository } from '../repositories/paybill.repository';
 import { orderItems } from '../utils/columnOrder';
 import { PbButton, PbPanel } from './ui';
+import { popupNativePrint } from '@/shared/utilities/nativePrint';
 import type { PayBillMonthlyEmployeeMatrixReport, PayBillMonthlyMatrixColumn } from '../types';
 
 interface PayBillAllowanceMatrixReportProps {
@@ -191,7 +192,17 @@ export function PayBillAllowanceMatrixReport({
   };
 
   const handlePrint = () => {
-    window.print();
+    const tableEl = document.querySelector('.space-y-4') as HTMLElement | null;
+    if (tableEl) {
+      popupNativePrint({
+        elements: [tableEl],
+        title: `PayBill_Matrix_${selectedMonth}_${financialYear}`,
+        pageSize: 'A4',
+        orientation: 'landscape',
+      });
+    } else {
+      window.print();
+    }
   };
 
   const fyLabel = `${financialYear}-${String(financialYear + 1).slice(-2)}`;

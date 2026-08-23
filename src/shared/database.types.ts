@@ -177,6 +177,8 @@ export type Database = {
       upsert_gtr30_employee_master: { Args: { p_office_id: string; p_month_key: string; p_bill_code: string; p_employees: Json }; Returns: Json }
       get_gtr30_bill_code_mappings: { Args: { p_office_id: string }; Returns: Json }
       upsert_gtr30_bill_code_mappings: { Args: { p_office_id: string; p_mappings: Json }; Returns: Json }
+      get_gtr30_budget_heads: { Args: { p_office_id: string }; Returns: Json }
+      upsert_gtr30_budget_heads: { Args: { p_office_id: string; p_heads: Json }; Returns: Json }
       list_gtr30_bills: { Args: { p_office_id: string }; Returns: Json }
       get_gtr30_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
       upsert_gtr30_bill: { Args: { p_office_id: string; p_data: Json }; Returns: Json }

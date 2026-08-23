@@ -53,19 +53,28 @@ export function GTR30EmployeeImport({ monthKey, billCode, employees = [] }: GTR3
     reader.onload = (e) => {
       const text = e.target?.result;
       if (typeof text === 'string') {
-        const parsed = importMasterFromCsv(text);
+        const result = importMasterFromCsv(text, monthKey);
+        const parsed = result.employees;
         if (parsed.length === 0) {
+          let desc = 'Could not find valid employee rows in the CSV file.';
+          if (result.skippedRows > 0 || result.errors.length > 0) {
+            desc = `Skipped ${result.skippedRows} row(s). Errors: ${result.errors.slice(0, 3).join('; ')}${result.errors.length > 3 ? '...' : ''}`;
+          }
           toast({
             title: 'No Rows Found',
-            description: 'Could not find valid employee rows in the CSV file.',
+            description: desc,
             variant: 'destructive',
           });
           return;
         }
         setCsvEmployees(parsed);
+        let desc = `Found ${parsed.length} employee record(s) ready to import.`;
+        if (result.skippedRows > 0) {
+          desc += ` Skipped ${result.skippedRows} invalid row(s).`;
+        }
         toast({
           title: 'CSV File Parsed',
-          description: `Found ${parsed.length} employee record(s) ready to import.`,
+          description: desc,
         });
       }
     };

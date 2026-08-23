@@ -20,7 +20,7 @@
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS public.gtr44_bills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  office_id UUID NOT NULL REFERENCES public.offices(id) ON DELETE CASCADE,
+  office_id BIGINT NOT NULL REFERENCES public.offices(id) ON DELETE CASCADE,
   bill_no TEXT NOT NULL DEFAULT '',
   fy INTEGER,
   month TEXT,
@@ -66,13 +66,17 @@ CREATE POLICY "Admins can manage all gtr44 bills"
 -- =====================================================================
 -- 3. Backend functions (RPC)
 -- =====================================================================
+DROP FUNCTION IF EXISTS public.list_gtr44_bills(BIGINT);
+DROP FUNCTION IF EXISTS public.get_gtr44_bill(BIGINT, UUID);
+DROP FUNCTION IF EXISTS public.upsert_gtr44_bill(BIGINT, JSONB);
+DROP FUNCTION IF EXISTS public.delete_gtr44_bill(BIGINT, UUID);
 DROP FUNCTION IF EXISTS public.list_gtr44_bills(UUID);
 DROP FUNCTION IF EXISTS public.get_gtr44_bill(UUID, UUID);
 DROP FUNCTION IF EXISTS public.upsert_gtr44_bill(UUID, JSONB);
 DROP FUNCTION IF EXISTS public.delete_gtr44_bill(UUID, UUID);
 
 -- 3.1 List all bills for an office
-CREATE OR REPLACE FUNCTION public.list_gtr44_bills(p_office_id UUID)
+CREATE OR REPLACE FUNCTION public.list_gtr44_bills(p_office_id BIGINT)
 RETURNS JSON AS $$
 DECLARE
   v_result JSON;
@@ -103,7 +107,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- 3.2 Get one bill by id
 CREATE OR REPLACE FUNCTION public.get_gtr44_bill(
-  p_office_id UUID,
+  p_office_id BIGINT,
   p_bill_id UUID
 )
 RETURNS JSON AS $$
@@ -136,7 +140,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- 3.3 Upsert a single bill (insert or update by data.id)
 CREATE OR REPLACE FUNCTION public.upsert_gtr44_bill(
-  p_office_id UUID,
+  p_office_id BIGINT,
   p_data JSONB
 )
 RETURNS JSON AS $$
@@ -221,7 +225,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- 3.4 Delete one bill
 CREATE OR REPLACE FUNCTION public.delete_gtr44_bill(
-  p_office_id UUID,
+  p_office_id BIGINT,
   p_bill_id UUID
 )
 RETURNS JSON AS $$

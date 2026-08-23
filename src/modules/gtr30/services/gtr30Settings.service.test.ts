@@ -124,6 +124,13 @@ describe('gtr30Settings.service', () => {
       expect(getGtr30SettingsSyncStatus()).toBe('error');
     });
 
+    it('sets the sync phase to error when the backend push rejects', async () => {
+      vi.mocked(gtr30SettingsBackendRepository.save).mockRejectedValue(new Error('network down'));
+      gtr30SettingsService.saveSettings(payload);
+      await gtr30SettingsService.flushPendingSave();
+      expect(getGtr30SettingsSyncStatus()).toBe('error');
+    });
+
     it('marks the phase synced and notifies listeners', async () => {
       vi.mocked(gtr30SettingsBackendRepository.save).mockResolvedValue(true);
       const phases: string[] = [];
@@ -137,6 +144,67 @@ describe('gtr30Settings.service', () => {
       expect(phases).toContain('syncing');
       expect(phases).toContain('synced');
     });
+  });
+
+  describe('flushPendingSave', () => {
+    it('collapses rapid successive saves into exactly one backend write carrying the latest payload', async () => {
+      vi.mocked(gtr30SettingsBackendRepository.save).mockResolvedValue(true);
+      gtr30SettingsService.saveSettings({
+        ...payload,
+        settings: { ...payload.settings, officeName: 'First Office' },
+      });
+      gtr30SettingsService.saveSettings({
+        ...payload,
+        settings: { ...payload.settings, officeName: 'Second Office' },
+      });
+      gtr30SettingsService.saveSettings({
+        ...payload,
+        settings: { ...payload.settings, officeName: 'Latest Office' },
+      });
+      await gtr30SettingsService.flushPendingSave();
+      expect(gtr30SettingsBackendRepository.save).toHaveBeenCalledTimes(1);
+      expect(gtr30SettingsBackendRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ settings: expect.objectContaining({ officeName: 'Latest Office' }) })
+      );
+      expect(getGtr30SettingsSyncStatus()).toBe('synced');
+    });
+
+    it('resolves only after the backend write completes', async () => {
+      let defer!: { resolve: (value: boolean) => void };
+      vi.mocked(gtr30SettingsBackendRepository.save).mockImplementation(
+        () =>
+          new Promise<boolean>((resolve) => {
+            defer = { resolve };
+          })
+      );
+      gtr30SettingsService.saveSettings(payload);
+      const flushed = gtr30SettingsService.flushPendingSave();
+      let settled = false;
+      void flushed.then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(gtr30SettingsBackendRepository.save).toHaveBeenCalledTimes(1);
+      expect(getGtr30SettingsSyncStatus()).toBe('syncing');
+      expect(settled).toBe(false);
+      defer.resolve(true);
+      await flushed;
+      expect(settled).toBe(true);
+      expect(getGtr30SettingsSyncStatus()).toBe('synced');
+    });
+  });
+
+  it('cancels a pending debounced push when resetting so cleared settings are not resurrected', async () => {
+    vi.mocked(gtr30SettingsBackendRepository.save).mockResolvedValue(true);
+    vi.mocked(gtr30SettingsBackendRepository.clear).mockResolvedValue(undefined);
+    gtr30SettingsService.saveSettings(payload);
+    gtr30SettingsService.resetSettings();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(gtr30SettingsBackendRepository.save).not.toHaveBeenCalled();
+    expect(gtr30SettingsService.loadSettings().settings.officeName).toBe(
+      DEFAULT_GTR30_SETTINGS.officeName
+    );
+    expect(getGtr30SettingsSyncStatus()).toBe('idle');
   });
 
   describe('hydrateFromBackend', () => {
@@ -163,6 +231,37 @@ describe('gtr30Settings.service', () => {
       await gtr30SettingsService.hydrateFromBackend();
       const loaded = gtr30SettingsService.loadSettings();
       expect(loaded.settings).toEqual(DEFAULT_GTR30_SETTINGS);
+    });
+
+    it('shares a single backend load across concurrent hydrate calls', async () => {
+      vi.mocked(gtr30SettingsBackendRepository.load).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            queueMicrotask(() =>
+              resolve({
+                settings: { ...DEFAULT_GTR30_SETTINGS, officeName: 'Remote Office' },
+                employeeTemplate: { ...DEFAULT_GTR30_EMPLOYEE_TEMPLATE },
+                defaultPosts: [],
+                daRates: [{ id: 'da1', effectiveFrom: '2024-12-04', rate: 53 }],
+              })
+            );
+          })
+      );
+      const [a, b] = await Promise.all([
+        gtr30SettingsService.hydrateFromBackend(),
+        gtr30SettingsService.hydrateFromBackend(),
+      ]);
+      expect(gtr30SettingsBackendRepository.load).toHaveBeenCalledTimes(1);
+      expect(a).toBe(true);
+      expect(b).toBe(true);
+      const loaded = gtr30SettingsService.loadSettings();
+      expect(loaded.settings.officeName).toBe('Remote Office');
+    });
+
+    it('sets the sync phase to error when the backend load fails', async () => {
+      vi.mocked(gtr30SettingsBackendRepository.load).mockRejectedValue(new Error('boom'));
+      await gtr30SettingsService.hydrateFromBackend();
+      expect(getGtr30SettingsSyncStatus()).toBe('error');
     });
   });
 });

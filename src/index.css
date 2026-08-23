@@ -1839,6 +1839,138 @@
     font-family: var(--gtr-plex-gu);
   }
 
+  /* Fixed A4 landscape geometry taken from the supplied inner-sheet render. */
+  .gtr30-inner-sheet-page {
+    position: relative;
+    width: 297mm;
+    height: 210mm;
+    min-height: 210mm;
+    max-height: 210mm;
+    padding: 0 !important;
+    overflow: hidden;
+  }
+  .gtr30-inner-sheet-table {
+    position: absolute;
+    left: 4mm;
+    top: 12mm;
+    width: 289mm;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: 0.35mm solid #111;
+    background: #fff;
+    color: #111;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 6.5pt;
+  }
+  .gtr30-inner-sheet-table th,
+  .gtr30-inner-sheet-table td {
+    border: 0.18mm solid #111;
+    overflow: visible;
+    box-sizing: border-box;
+  }
+  .gtr30-inner-sheet-table th {
+    padding: 0.6mm 0.4mm;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .gtr30-inner-col-sr { width: 3.7mm; }
+  .gtr30-inner-col-profile { width: 38mm; }
+  .gtr30-inner-col-designation { width: 16mm; }
+  .gtr30-inner-earnings-table col:nth-child(n + 4) { width: 13.606mm; }
+  .gtr30-inner-deductions-table col:nth-child(n + 4) { width: 14.456mm; }
+  .gtr30-inner-header-row { height: 28mm; }
+  .gtr30-inner-header-row th { height: 28mm; }
+  .gtr30-inner-header-blank { background: #fff; }
+  .gtr30-inner-vertical-label {
+    display: flex;
+    width: 100%;
+    height: 26.5mm;
+    align-items: center;
+    justify-content: center;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-align: center;
+    font-size: 5.6pt;
+    line-height: 1.08;
+    white-space: normal;
+    word-break: normal;
+    overflow: visible;
+  }
+  .gtr30-inner-vertical-label br { display: block; content: ''; margin-bottom: 0.8mm; }
+  .gtr30-inner-resolution-cell {
+    padding: 1.4mm 1.8mm !important;
+    font-family: var(--gtr-gu-sans), Arial, sans-serif;
+    font-size: 6.4pt;
+    line-height: 1.2;
+    text-align: left;
+    vertical-align: top !important;
+  }
+  .gtr30-inner-code-row { height: 3mm; }
+  .gtr30-inner-code-row th {
+    height: 3mm;
+    padding: 0.3mm 0.4mm;
+    font-size: 5.5pt;
+    line-height: 1;
+    text-align: center;
+  }
+  .gtr30-inner-band-row { height: 7.5mm; }
+  .gtr30-inner-band-row td {
+    height: 7.5mm;
+    padding: 0.5mm 0.8mm;
+    background: #fff;
+    color: #111;
+    text-align: center;
+    line-height: 1.08;
+    vertical-align: middle;
+  }
+  .gtr30-inner-band-row td:nth-child(2),
+  .gtr30-inner-band-row td:nth-child(3) {
+    background: #4a4a4a;
+    color: #fff;
+  }
+  .gtr30-inner-band-row strong { font-size: 6.7pt; }
+  .gtr30-inner-detail-row { height: 10.5mm; }
+  .gtr30-inner-cell {
+    height: 10.5mm;
+    padding: 0.7mm 0.8mm;
+    text-align: right;
+    line-height: 1.05;
+    white-space: nowrap;
+    vertical-align: middle;
+    font-variant-numeric: tabular-nums;
+  }
+  .gtr30-inner-sr-cell { text-align: center; }
+  .gtr30-inner-profile-cell,
+  .gtr30-inner-designation-cell {
+    height: 10.5mm;
+    padding: 0.7mm 0.8mm;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1.1;
+  }
+  .gtr30-inner-profile-cell strong,
+  .gtr30-inner-profile-cell span { display: block; }
+  .gtr30-inner-profile-cell strong:first-child { font-size: 6.8pt; }
+  .gtr30-inner-profile-cell span { font-size: 5.5pt; }
+  .gtr30-inner-number-cell { font-size: 6.5pt; }
+  .gtr30-inner-designation-cell strong { text-decoration: underline; }
+  .gtr30-inner-alt-row td { background: #f0f0f0; }
+  .gtr30-inner-alt-row .gtr30-inner-profile-cell,
+  .gtr30-inner-alt-row .gtr30-inner-designation-cell { background: #f0f0f0; }
+  .gtr30-inner-emphasis-cell { font-weight: 700; }
+  .gtr30-inner-total-row { height: 4.3mm; }
+  .gtr30-inner-total-row td {
+    height: 4.3mm;
+    padding: 0.5mm 0.8mm;
+    background: #eee;
+    font-weight: 700;
+  }
+  .gtr30-inner-total-row td:nth-child(n + 4) { text-align: right; }
+
+  @media screen {
+    .gtr30-inner-sheet-table { transform-origin: top left; }
+  }
+
   /* ============================================================
      PRINT ENGINE
      Prints ONLY the active report (.report-print-area). All app
@@ -1904,10 +2036,20 @@
       transform: none !important;
     }
 
-    /* Reveal only the report area */
+    /* Reveal printable areas */
     .report-print-area,
-    .report-print-area * {
-      visibility: visible;
+    .report-print-area *,
+    .gtr30-document-root,
+    .gtr30-document-root *,
+    .gtr30-page,
+    .gtr30-page *,
+    .gtr44-document-root,
+    .gtr44-document-root *,
+    .gtr-page,
+    .gtr-page *,
+    .page-container,
+    .page-container * {
+      visibility: visible !important;
     }
 
     .report-print-area {

@@ -38,12 +38,12 @@ export const GTR44Document: React.FC<GTR44DocumentProps> = ({
           height: 297mm;
           min-height: 297mm;
           max-height: 297mm;
-          padding: 8mm 12mm;
+          padding: 12mm;
           margin: 0 auto 24px auto;
           background: #ffffff;
-          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
           box-sizing: border-box;
-          border: 1px solid #d1d5db;
+          border: none;
           position: relative;
           overflow: hidden;
           page-break-after: always;
@@ -89,7 +89,7 @@ export const GTR44Document: React.FC<GTR44DocumentProps> = ({
             box-shadow: none !important;
             border: none !important;
             margin: 0 !important;
-            padding: 8mm 12mm !important;
+            padding: 12mm !important;
             page-break-after: always !important;
             page-break-inside: avoid !important;
             break-after: page !important;

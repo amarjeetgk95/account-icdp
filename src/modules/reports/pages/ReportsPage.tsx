@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFinancialYears, useYearlyReport } from '../hooks/useReports';
 import type { YearlyReport } from '../types';
-import { formatCurrency, export26QExcel, exportGSTExcel } from '@/shared/utilities';
+import { formatCurrency, export26QExcel, exportGSTExcel, popupNativePrint } from '@/shared/utilities';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { SkeletonTable } from '@/shared/components/Skeleton';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
-import { FileSpreadsheet, Users, Store, CalendarDays, Receipt } from 'lucide-react';
+import { FileSpreadsheet, Users, Store, CalendarDays, Receipt, Printer } from 'lucide-react';
 
 type ReportTab = '24q' | '26q' | 'gst';
 
@@ -54,73 +54,94 @@ export function ReportsPage() {
         eyebrow="Reporting & returns"
         title="Annual reports"
         context={<><CalendarDays size={13} /> FY {activeFY}-{String(activeFY + 1).slice(-2)}</>}
-        actions={<div className="flex items-center gap-2">
-          <select value={activeFY || ''} onChange={handleFYChange} className="input w-36">
-            {fyOptions.map((y) => (
-              <option key={y} value={y}>{y}-{String(y + 1).slice(-2)}</option>
-            ))}
-          </select>
-          <button
-            onClick={() => {
-              if (!report) return;
-              if (activeTab === '26q') {
-                export26QExcel(
-                  {
-                    fy: report.fy,
-                    quarter: 'Annual',
-                    rows: report.vendors.map((v) => ({
-                      partyName: v.name,
-                      panNo: v.panNo || '-',
-                      billNo: '-',
-                      date: '',
-                      amount: v.totalAmount,
-                      incomeTax: v.totalIncomeTax,
-                    })),
-                    totals: {
-                      amount: report.summary.totalVendorAmount,
-                      incomeTax: report.summary.totalIncomeTax,
+        actions={
+          <div className="flex items-center gap-2">
+            <select value={activeFY || ''} onChange={handleFYChange} className="input w-36">
+              {fyOptions.map((y) => (
+                <option key={y} value={y}>{y}-{String(y + 1).slice(-2)}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                if (!report) return;
+                if (activeTab === '26q') {
+                  export26QExcel(
+                    {
+                      fy: report.fy,
+                      quarter: 'Annual',
+                      rows: report.vendors.map((v) => ({
+                        partyName: v.name,
+                        panNo: v.panNo || '-',
+                        billNo: '-',
+                        date: '',
+                        amount: v.totalAmount,
+                        incomeTax: v.totalIncomeTax,
+                      })),
+                      totals: {
+                        amount: report.summary.totalVendorAmount,
+                        incomeTax: report.summary.totalIncomeTax,
+                      },
                     },
-                  },
-                  office
-                );
-              } else if (activeTab === 'gst') {
-                exportGSTExcel(
-                  {
-                    fy: report.fy,
-                    quarter: 'Annual',
-                    rows: report.vendors.map((v) => ({
-                      partyName: v.name,
-                      gstNo: v.gstNo || '-',
-                      cpinNo: '-',
-                      billNo: '-',
-                      date: '',
-                      amount: v.totalAmount,
-                      cgst: v.totalCgst,
-                      sgst: v.totalSgst,
-                      igst: v.totalIgst,
-                      totalGst: v.totalGst,
-                    })),
-                    totals: {
-                      amount: report.summary.totalVendorAmount,
-                      cgst: report.summary.totalCgst,
-                      sgst: report.summary.totalSgst,
-                      igst: report.summary.totalIgst,
-                      totalGst: report.summary.totalGst,
+                    office
+                  );
+                } else if (activeTab === 'gst') {
+                  exportGSTExcel(
+                    {
+                      fy: report.fy,
+                      quarter: 'Annual',
+                      rows: report.vendors.map((v) => ({
+                        partyName: v.name,
+                        gstNo: v.gstNo || '-',
+                        cpinNo: '-',
+                        billNo: '-',
+                        date: '',
+                        amount: v.totalAmount,
+                        cgst: v.totalCgst,
+                        sgst: v.totalSgst,
+                        igst: v.totalIgst,
+                        totalGst: v.totalGst,
+                      })),
+                      totals: {
+                        amount: report.summary.totalVendorAmount,
+                        cgst: report.summary.totalCgst,
+                        sgst: report.summary.totalSgst,
+                        igst: report.summary.totalIgst,
+                        totalGst: report.summary.totalGst,
+                      },
                     },
-                  },
-                  office
-                );
-              }
-            }}
-            disabled={activeTab === '24q'}
-            title={activeTab === '24q' ? 'Export 24Q from the Payroll module (per quarter)' : 'Download formatted Excel'}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            Export Excel
-          </button>
-          <button onClick={() => window.print()} className="btn btn-secondary btn-sm">Print</button>
-        </div>}
+                    office
+                  );
+                }
+              }}
+              disabled={activeTab === '24q'}
+              title={activeTab === '24q' ? 'Export 24Q from the Payroll module (per quarter)' : 'Download formatted Excel'}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Export Excel
+            </button>
+            <button
+              onClick={() => {
+                const el = document.querySelector('.report-print-area') as HTMLElement | null;
+                if (el) {
+                  popupNativePrint({
+                    elements: [el],
+                    title: `${activeTab.toUpperCase()}_Report_${activeFY}`,
+                    pageSize: 'A4',
+                    orientation: activeTab === '24q' ? 'landscape' : 'portrait',
+                    pageContainerSelector: '.report-print-area',
+                  });
+                } else {
+                  window.print();
+                }
+              }}
+              className="btn btn-secondary btn-sm inline-flex items-center gap-1.5"
+            >
+              <Printer className="w-4 h-4" />
+              Print
+            </button>
+          </div>
+        }
       />
 
       {report && (

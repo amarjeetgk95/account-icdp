@@ -1,417 +1,126 @@
 import React from 'react';
-import type { GTR30FormData } from '../types';
+import type { GTR30Employee, GTR30FormData } from '../types';
 import { formatMoney } from '../services/gtr30Calc.service';
-import { RotatedHeader } from './RotatedHeader';
 
-interface Props {
-  data: GTR30FormData;
-}
+interface Props { data: GTR30FormData }
 
-const renderAmount = (val: number | undefined | null) => {
-  const num = Number(val) || 0;
-  return num > 0 ? formatMoney(num) : '-';
+const number = (value: number | undefined) => Number(value) || 0;
+const money = (value: number) => value ? formatMoney(value) : '-';
+
+const headerColumns = [
+  ['Pay of Officers (0101) Substantive Pay', ''],
+  ['Pay of Establishment (0102) Substantive/Officiating Pay (0102)', ''],
+  ['Special Additional Pay (0101)(0102)', ''],
+  ['N.P.P.A. (0128)', ''],
+  ['Dearness Allowance (0103)', ''],
+  ['Medical Allowance (0107) Bonus (0108)', ''],
+  ['Leave Salary (0102) Leave Encashment (0109)', ''],
+  ['House Rent Allowance (0110)', ''],
+  ['CLA (0111) Other Allowance (0104)', ''],
+  ['Transport Allowance (0113)', ''],
+  ['Washing Allowance (0132)', ''],
+  ['Dearness Pay (0119)', ''],
+  ['Dearness Pay (0120)', ''],
+  ['Gross Amount', ''],
+  ['Recov. of Festival Advance (-)(5701)', ''],
+  ['Recov. of Food Grain Advance (-)(5801)', ''],
+  ['Total', ''],
+] as const;
+
+const codes = ['3', '4', '7', '5', '8', '11', '6', '9', '10', '15', '13', '7', '7', '16', '17', '18', '19'];
+
+const earningValues = (employee: GTR30Employee) => {
+  const values = [
+    number(employee.payOfOfficer),
+    number(employee.payOfEstablishment),
+    number(employee.pta) + number(employee.profSplService),
+    number(employee.nppa),
+    number(employee.da),
+    number(employee.medicalAllowance) + number(employee.bonus),
+    number(employee.leaveSalary) + number(employee.leaveEncashment),
+    number(employee.hra),
+    number(employee.cla) + number(employee.otherAllowance),
+    number(employee.transportAllowance),
+    number(employee.washingAllowance),
+    number(employee.dpGaz),
+    number(employee.dpNonGaz),
+  ];
+  const gross = values.reduce((sum, value) => sum + value, 0);
+  const festival = number(employee.recovFestivalAdv);
+  const foodGrain = number(employee.recovFoodGrainAdv);
+  return [...values, gross, festival, foodGrain, gross - festival - foodGrain];
 };
+
+const profileCells = (employee: GTR30Employee, index: number) => (
+  <>
+    <td className="gtr30-inner-cell gtr30-inner-sr-cell">{index + 1}</td>
+    <td className="gtr30-inner-profile-cell">
+      <strong>{employee.name || ''}</strong>
+      <span>HRPN No. : {employee.hrpnNo || ''}</span>
+      <span>PPAN/GPF No. : {employee.ppaNo || ''}</span>
+    </td>
+    <td className="gtr30-inner-designation-cell"><strong>{employee.designation || ''}</strong></td>
+  </>
+);
 
 export const GTR30Page3Inner1: React.FC<Props> = ({ data }) => {
   const employees = data.employees || [];
-
-  const sum = (fn: (e: (typeof employees)[0]) => number) =>
-    employees.reduce((acc, e) => acc + (fn(e) || 0), 0);
-
-  const totalPayEstablishment = sum((e) => e.payOfEstablishment || e.payOfOfficer || 0);
-  const totalNppa = sum((e) => e.nppa);
-  const totalLeaveSalary = sum((e) => (e.leaveSalary || 0) + (e.leaveEncashment || 0));
-  const totalDearnessPay = sum((e) => e.dearnessPay);
-  const totalDa = sum((e) => e.da);
-  const totalHra = sum((e) => e.hra);
-  const totalCla = sum((e) => (e.cla || 0) + (e.otherAllowance || 0));
-  const totalMedical = sum((e) => (e.medicalAllowance || 0) + (e.bonus || 0));
-  const totalPta = sum((e) => (e.pta || 0) + (e.profSplService || 0));
-  const totalWashing = sum((e) => (e.washingAllowance || 0) + (e.officeExpenseOther || 0));
-  const totalCa = sum((e) => e.ca);
-  const totalTransport = sum((e) => e.transportAllowance);
-
-  const totalGrossAmount = sum(
-    (e) =>
-      (e.payOfOfficer || 0) +
-      (e.payOfEstablishment || 0) +
-      (e.nppa || 0) +
-      (e.leaveSalary || 0) +
-      (e.leaveEncashment || 0) +
-      (e.dearnessPay || 0) +
-      (e.da || 0) +
-      (e.hra || 0) +
-      (e.cla || 0) +
-      (e.otherAllowance || 0) +
-      (e.medicalAllowance || 0) +
-      (e.bonus || 0) +
-      (e.pta || 0) +
-      (e.profSplService || 0) +
-      (e.washingAllowance || 0) +
-      (e.officeExpenseOther || 0) +
-      (e.ca || 0) +
-      (e.transportAllowance || 0) +
-      (e.ropArrearsGaz || 0) +
-      (e.ropArrearsNonGaz || 0) +
-      (e.dpGaz || 0) +
-      (e.dpNonGaz || 0)
-  );
-
-  const totalRecovFestival = sum((e) => e.recovFestivalAdv);
-  const totalRecovFoodGrain = sum((e) => e.recovFoodGrainAdv);
-  const totalCol19 = totalGrossAmount - totalRecovFestival - totalRecovFoodGrain;
+  const rows = employees.map(earningValues);
+  const totals = rows.reduce<number[]>((sum, row) => sum.map((value, index) => value + row[index]), Array(headerColumns.length).fill(0));
 
   return (
-    <div className="gtr30-page gtr30-landscape" id="gtr30-page-3">
-
-      {/* Top Left Resolution Box */}
-      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '4px' }}>
-        <div
-          style={{
-            border: '1px solid #000',
-            padding: '3px 6px',
-            maxWidth: '380px',
-            fontSize: '6.8pt',
-            lineHeight: 1.3,
-            fontFamily: "'Noto Serif Gujarati', serif",
-            backgroundColor: '#ffffff',
-          }}
-        >
-          {data.schemeResolutionText ||
-            'કૃષિ,ખેડુત કલ્યાણ અને સહકાર વિભાગના ઠરાવ ક્રમાંક:ACD/MSM/e-file/2/2026/1756/P1 Dt.22-06-2026 થી સદર યોજના તા:૦૧-૦૩-૨૦૨૬ થી તા:૨૮-૦૨-૨૦૨૭ સુધી ચાલુ રાખવાની મંજુરી મળેલ છે.'}
-        </div>
-      </div>
-
-      {/* Main Table for Columns 1 to 19 */}
-      <table
-        style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          border: '1.5px solid #000',
-          fontFamily: 'Arial, Helvetica, sans-serif',
-          fontSize: '7pt',
-        }}
-      >
+    <div className="gtr30-page gtr30-landscape gtr30-inner-sheet-page bg-white" id="gtr30-page-3">
+      <table className="gtr30-inner-sheet-table gtr30-inner-earnings-table">
+        <colgroup>
+          <col className="gtr30-inner-col-sr" />
+          <col className="gtr30-inner-col-profile" />
+          <col className="gtr30-inner-col-designation" />
+          {headerColumns.map(([title, code]) => <col key={title + code} />)}
+        </colgroup>
         <thead>
-          <tr style={{ height: '165px', background: '#ffffff' }}>
-            {/* 1. Sr. No. */}
-            <th style={{ border: '1px solid #000', width: '22px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Sr. No.</RotatedHeader>
-            </th>
-
-            {/* 2. Section of Establishment */}
-            <th style={{ border: '1px solid #000', width: '210px', padding: '6px 4px', verticalAlign: 'bottom', textAlign: 'center', fontSize: '7.5pt', fontWeight: 600 }}>
-              Section of Establishment and name of Incumbent
-            </th>
-
-            {/* 3. Pay of Officers */}
-            <th style={{ border: '1px solid #000', width: '42px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Pay of Officers (0101)<br />Substantive Pay</RotatedHeader>
-            </th>
-
-            {/* 4. Pay of Establishment */}
-            <th style={{ border: '1px solid #000', width: '68px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Pay of Establishment (0102)<br />Substantive/ Officiating Pay (0102)</RotatedHeader>
-            </th>
-
-            {/* 5. N.P.P.A. */}
-            <th style={{ border: '1px solid #000', width: '38px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>N.P.P.A. (0128)</RotatedHeader>
-            </th>
-
-            {/* 6. Leave Salary */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Leave Salary (0102)<br />Leave Encashment (0109)</RotatedHeader>
-            </th>
-
-            {/* 7. Dearness Pay */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Dearness Pay (0120)<br />Family Planning</RotatedHeader>
-            </th>
-
-            {/* 8. Dearness Allowance */}
-            <th style={{ border: '1px solid #000', width: '60px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Dearness Allowance (0103)</RotatedHeader>
-            </th>
-
-            {/* 9. HRA */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>House Rent Allowance (0110)</RotatedHeader>
-            </th>
-
-            {/* 10. CLA / Other */}
-            <th style={{ border: '1px solid #000', width: '48px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>CLA (0111)/<br />Other Allowance (0104)</RotatedHeader>
-            </th>
-
-            {/* 11. Medical / Bonus */}
-            <th style={{ border: '1px solid #000', width: '52px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Medical Allowance (0107)<br />Bonus (0108)</RotatedHeader>
-            </th>
-
-            {/* 12. PTA */}
-            <th style={{ border: '1px solid #000', width: '48px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>P.T.A. (Travel Expenses) (1101)<br />Payment for Prof. &amp; Spl.Service(2801)</RotatedHeader>
-            </th>
-
-            {/* 13. Washing */}
-            <th style={{ border: '1px solid #000', width: '48px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Washing Allowance (1301)<br />Office Expenses/ Other Charges (5006)</RotatedHeader>
-            </th>
-
-            {/* 14. C. A. */}
-            <th style={{ border: '1px solid #000', width: '32px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>C. A.</RotatedHeader>
-            </th>
-
-            {/* 15. Transport */}
-            <th style={{ border: '1px solid #000', width: '55px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Transport Allowance (0113)</RotatedHeader>
-            </th>
-
-            {/* 16. Gross */}
-            <th style={{ border: '1px solid #000', width: '62px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader bold>Gross Amount</RotatedHeader>
-            </th>
-
-            {/* 17. Recov Festival */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Recov. of Festival Advance<br />(-)(5701)</RotatedHeader>
-            </th>
-
-            {/* 18. Recov Food Grain */}
-            <th style={{ border: '1px solid #000', width: '45px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader>Recov. of Food Grain Advance<br />(-)(5801)</RotatedHeader>
-            </th>
-
-            {/* 19. Total */}
-            <th style={{ border: '1px solid #000', width: '62px', padding: '0', verticalAlign: 'bottom' }}>
-              <RotatedHeader bold>Total</RotatedHeader>
-            </th>
+          <tr className="gtr30-inner-header-row">
+            <th className="gtr30-inner-header-blank" />
+            <th colSpan={2} className="gtr30-inner-resolution-cell">{data.schemeResolutionText || ''}</th>
+            {headerColumns.map(([title, code]) => (
+              <th key={title + code}><span className="gtr30-inner-vertical-label">{title}{code && <><br />{code}</>}</span></th>
+            ))}
           </tr>
-
-          {/* Numbering Row 1 to 19 */}
-          <tr style={{ background: '#ffffff', textAlign: 'center', fontWeight: 600, fontSize: '6.5pt' }}>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>1</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>2</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>3</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>4</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>5</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>6</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>7</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>8</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>9</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>10</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>11</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>12</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>13</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>14</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>15</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>16</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>17</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>18</th>
-            <th style={{ border: '1px solid #000', padding: '1px' }}>19</th>
+          <tr className="gtr30-inner-code-row">
+            <th>1</th>
+            <th colSpan={2}>Section of Establishment and name of Incumbent</th>
+            {codes.map((code, index) => <th key={index}>{code}</th>)}
           </tr>
         </thead>
-
         <tbody>
-          {employees.map((emp, index) => {
-            const empGross =
-              (emp.payOfOfficer || 0) +
-              (emp.payOfEstablishment || 0) +
-              (emp.nppa || 0) +
-              (emp.leaveSalary || 0) +
-              (emp.leaveEncashment || 0) +
-              (emp.dearnessPay || 0) +
-              (emp.da || 0) +
-              (emp.hra || 0) +
-              (emp.cla || 0) +
-              (emp.otherAllowance || 0) +
-              (emp.medicalAllowance || 0) +
-              (emp.bonus || 0) +
-              (emp.pta || 0) +
-              (emp.profSplService || 0) +
-              (emp.washingAllowance || 0) +
-              (emp.officeExpenseOther || 0) +
-              (emp.ca || 0) +
-              (emp.transportAllowance || 0) +
-              (emp.ropArrearsGaz || 0) +
-              (emp.ropArrearsNonGaz || 0) +
-              (emp.dpGaz || 0) +
-              (emp.dpNonGaz || 0);
-
-            const empCol19 = empGross - (emp.recovFestivalAdv || 0) - (emp.recovFoodGrainAdv || 0);
-
+          {employees.map((employee, index) => {
+            const values = rows[index];
             return (
-              <React.Fragment key={emp.id || index}>
-                {/* 7th Pay Matrix Banner Sub-row */}
-                <tr style={{ background: '#ffffff', fontSize: '6.5pt' }}>
-                  <td style={{ border: '1px solid #000' }}></td>
-                  <td style={{ border: '1px solid #000', padding: '2px 6px', background: '#e5e7eb' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700 }}>
-                        7th Pay Matrix Pay Band
-                      </span>
-                      <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                        {emp.payScale || '34,500-1,12,400'}
-                      </span>
-                      <span style={{ fontWeight: 700 }}>
-                        {emp.gradePay || 'GP:4200'}
-                      </span>
-                    </div>
-                  </td>
-                  <td colSpan={17} style={{ border: '1px solid #000' }}></td>
+              <React.Fragment key={employee.id || index}>
+                <tr className="gtr30-inner-band-row">
+                  <td className="gtr30-inner-band-blank" />
+                  <td>7th Pay Matrix Pay Band<br /><strong>{employee.payScale || ''}</strong></td>
+                  <td><strong>GP:{employee.gradePay || ''}</strong></td>
+                  <td colSpan={headerColumns.length} />
                 </tr>
-
-                {/* Main Employee Row */}
-                <tr style={{ verticalAlign: 'top', minHeight: '44px' }}>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px', fontWeight: 600 }}>
-                    {emp.srNo || index + 1}
-                  </td>
-                  <td style={{ border: '1px solid #000', padding: '4px 6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '7.5pt' }}>
-                          {emp.name || 'Shri R.B.Makvana'}
-                        </div>
-                        <div style={{ fontSize: '6.5pt', fontFamily: 'monospace', marginTop: '2px' }}>
-                          {emp.payLevelCell || 'PAY=39900 (LEVEL CELL-7)'}
-                        </div>
-                        <div style={{ fontSize: '6.5pt', color: '#333', marginTop: '1px' }}>
-                          PPA NO: {emp.ppaNo || 'Applied'}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          textAlign: 'right',
-                          fontFamily: "'Noto Serif Gujarati', serif",
-                          fontSize: '7.5pt',
-                          fontWeight: 700,
-                          lineHeight: 1.2,
-                          paddingLeft: '4px',
-                          maxWidth: '56px',
-                          wordBreak: 'break-word',
-                          whiteSpace: 'normal',
-                        }}
-                      >
-                        <div>{emp.designationGujarati ? emp.designationGujarati.split(' ')[0] : 'સંશોધન'}</div>
-                        <div>{emp.designationGujarati ? emp.designationGujarati.split(' ').slice(1).join(' ') : 'મદદનીશ'}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'right', padding: '6px 2px' }}>
-                    {emp.payOfOfficer ? formatMoney(emp.payOfOfficer) : ''}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'right', padding: '6px 2px', fontWeight: 600 }}>
-                    {renderAmount(emp.payOfEstablishment)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px' }}>
-                    {renderAmount(emp.nppa)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px' }}>
-                    {renderAmount((emp.leaveSalary || 0) + (emp.leaveEncashment || 0))}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px' }}>
-                    {renderAmount(emp.dearnessPay)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'right', padding: '6px 2px', fontWeight: 600 }}>
-                    {renderAmount(emp.da)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px' }}>
-                    {renderAmount(emp.hra)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'right', padding: '6px 2px', fontWeight: 600 }}>
-                    {renderAmount((emp.cla || 0) + (emp.otherAllowance || 0))}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'right', padding: '6px 2px', fontWeight: 600 }}>
-                    {renderAmount((emp.medicalAllowance || 0) + (emp.bonus || 0))}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px' }}>
-                    {renderAmount((emp.pta || 0) + (emp.profSplService || 0))}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px' }}>
-                    {renderAmount((emp.washingAllowance || 0) + (emp.officeExpenseOther || 0))}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px' }}>
-                    {renderAmount(emp.ca)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'right', padding: '6px 2px', fontWeight: 600 }}>
-                    {renderAmount(emp.transportAllowance)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'right', padding: '6px 2px', fontWeight: 700 }}>
-                    {renderAmount(empGross)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px' }}>
-                    {renderAmount(emp.recovFestivalAdv)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'center', padding: '6px 2px' }}>
-                    {renderAmount(emp.recovFoodGrainAdv)}
-                  </td>
-                  <td style={{ border: '1px solid #000', textAlign: 'right', padding: '6px 2px', fontWeight: 700 }}>
-                    {renderAmount(empCol19)}
-                  </td>
+                <tr className={index % 2 ? 'gtr30-inner-detail-row gtr30-inner-alt-row' : 'gtr30-inner-detail-row'}>
+                  {profileCells(employee, index)}
+                  {values.map((value, valueIndex) => (
+                    <td key={valueIndex} className={`gtr30-inner-cell gtr30-inner-number-cell ${valueIndex === 13 || valueIndex === 16 ? 'gtr30-inner-emphasis-cell' : ''}`}>
+                      {money(value)}
+                    </td>
+                  ))}
                 </tr>
               </React.Fragment>
             );
           })}
-
-          {/* Bottom Total Row */}
-          <tr style={{ background: '#ffffff', fontWeight: 700, fontSize: '7pt' }}>
-            <td style={{ border: '1px solid #000' }}></td>
-            <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', fontWeight: 800 }}>
-              Total
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px' }}></td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
-              {renderAmount(totalPayEstablishment)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center', padding: '4px 2px' }}>
-              {renderAmount(totalNppa)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center', padding: '4px 2px' }}>
-              {renderAmount(totalLeaveSalary)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center', padding: '4px 2px' }}>
-              {renderAmount(totalDearnessPay)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
-              {renderAmount(totalDa)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center', padding: '4px 2px' }}>
-              {renderAmount(totalHra)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
-              {renderAmount(totalCla)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
-              {renderAmount(totalMedical)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center', padding: '4px 2px' }}>
-              {renderAmount(totalPta)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center', padding: '4px 2px' }}>
-              {renderAmount(totalWashing)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center', padding: '4px 2px' }}>
-              {renderAmount(totalCa)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 700 }}>
-              {renderAmount(totalTransport)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 800 }}>
-              {renderAmount(totalGrossAmount)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center', padding: '4px 2px' }}>
-              {renderAmount(totalRecovFestival)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'center', padding: '4px 2px' }}>
-              {renderAmount(totalRecovFoodGrain)}
-            </td>
-            <td style={{ border: '1px solid #000', textAlign: 'right', padding: '4px 2px', fontWeight: 800 }}>
-              {renderAmount(totalCol19)}
-            </td>
-          </tr>
         </tbody>
+        <tfoot>
+          <tr className="gtr30-inner-total-row">
+            <td />
+            <td colSpan={2}>Total</td>
+            {totals.map((value, index) => <td key={index} className={`gtr30-inner-cell gtr30-inner-number-cell ${index === 13 || index === 16 ? 'gtr30-inner-emphasis-cell' : ''}`}>{money(value)}</td>)}
+          </tr>
+        </tfoot>
       </table>
     </div>
   );

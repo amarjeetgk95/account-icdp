@@ -137,4 +137,6 @@ export function downloadCsv(filename: string, headers: string[], rows: Array<Arr
 
 export * from './excelExport';
 export * from './rpc';
+export * from './nativePrint';
+export * from './gujaratiFormat';
 

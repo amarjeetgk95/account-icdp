@@ -1,4 +1,4 @@
-import type { GTR30EmployeeMaster } from '../types';
+import type { GTR30EmployeeMaster, GTR30MasterGroup } from '../types';
 import { gtr30EmployeeMasterLocalRepository } from '../repositories/gtr30EmployeeMasterLocal.repository';
 import { gtr30EmployeeMasterBackendRepository } from '../repositories/gtr30EmployeeMasterBackend.repository';
 import {
@@ -174,15 +174,10 @@ class Gtr30EmployeeMasterService {
     keepBillCode: string
   ): void {
     const target = keepBillCode.trim().toLowerCase();
-    const hrpn = employee.hrpnNo?.trim().toLowerCase();
     const all = gtr30EmployeeMasterLocalRepository.loadAll();
     for (const [key, group] of Object.entries(all)) {
       if (group.billCode.trim().toLowerCase() === target) continue;
-      const next = group.employees.filter(
-        (e) =>
-          e.id !== employee.id &&
-          !(hrpn !== undefined && hrpn !== '' && (e.hrpnNo ?? '').trim().toLowerCase() === hrpn)
-      );
+      const next = group.employees.filter((e) => e.id !== employee.id);
       if (next.length === group.employees.length) continue;
       gtr30EmployeeMasterLocalRepository.saveGroup(group.monthKey, group.billCode, next);
       setSyncPhase(key, 'pending');
@@ -245,22 +240,21 @@ class Gtr30EmployeeMasterService {
     return next;
   }
 
+  /**
+   * Removal is scoped to the exact employee id. The hrpnNo argument is kept for
+   * backward compatibility with existing callers and is ignored.
+   */
   removeEmployeeAcrossGroups(
     employeeId: string,
-    hrpnNo: string | undefined,
+    _hrpnNo: string | undefined,
     billCode: string
   ): { removedCount: number } {
     const all = gtr30EmployeeMasterLocalRepository.loadAll();
     const target = billCode.trim().toLowerCase();
-    const hrpn = hrpnNo?.trim().toLowerCase();
     let removedCount = 0;
     for (const [key, group] of Object.entries(all)) {
       if (group.billCode.trim().toLowerCase() !== target) continue;
-      const next = group.employees.filter(
-        (e) =>
-          e.id !== employeeId &&
-          !(hrpn !== undefined && hrpn !== '' && (e.hrpnNo ?? '').trim().toLowerCase() === hrpn)
-      );
+      const next = group.employees.filter((e) => e.id !== employeeId);
       if (next.length === group.employees.length) continue;
       removedCount += group.employees.length - next.length;
       gtr30EmployeeMasterLocalRepository.saveGroup(group.monthKey, group.billCode, next);
@@ -271,13 +265,36 @@ class Gtr30EmployeeMasterService {
   }
 
   async hydrateFromBackend(): Promise<void> {
-    const groups = await gtr30EmployeeMasterBackendRepository.listGroups();
-    if (groups === null) return;
-    const localKeys = Object.keys(gtr30EmployeeMasterLocalRepository.loadAll());
-    if (localKeys.length > 0) return;
-    if (groups.length === 0) return;
+    const remoteGroups = await gtr30EmployeeMasterBackendRepository.listGroups();
+    if (remoteGroups === null) {
+      let allOffices = false;
+      try {
+        allOffices = isAllOfficesMode();
+      } catch {
+        // store unavailable
+      }
+      if (!allOffices) {
+        for (const key of Object.keys(gtr30EmployeeMasterLocalRepository.loadAll())) {
+          setSyncPhase(key, 'error');
+        }
+      }
+      return;
+    }
+    const local = gtr30EmployeeMasterLocalRepository.loadAll();
+    const isDirty = (key: string): boolean => {
+      const phase = syncPhases.get(key);
+      return phase === 'pending' || phase === 'syncing' || phase === 'error';
+    };
+    const { groups, addedKeys } = reconcileGroups(local, remoteGroups, isDirty);
     for (const group of groups) {
-      gtr30EmployeeMasterLocalRepository.saveGroup(group.monthKey, group.billCode, group.employees);
+      const key = gtr30GroupKey(group.monthKey, group.billCode);
+      const current = local[key];
+      if (!current || !sameGroupEmployees(current.employees, group.employees)) {
+        gtr30EmployeeMasterLocalRepository.saveGroup(group.monthKey, group.billCode, group.employees);
+      }
+    }
+    for (const key of addedKeys) {
+      setSyncPhase(key, 'synced');
     }
   }
 
@@ -376,4 +393,69 @@ export function gtr30ResolveEmployees(
   }
 
   return { rows: [], sourceKey: null, isFallback: false, exactKey };
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(',')}]`;
+  }
+  if (value !== null && typeof value === 'object') {
+    const keys = Object.keys(value).sort();
+    const parts = keys.map((k) => `${JSON.stringify(k)}:${canonicalJson((value as Record<string, unknown>)[k])}`);
+    return `{${parts.join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+function sameGroupEmployees(a: GTR30EmployeeMaster[], b: GTR30EmployeeMaster[]): boolean {
+  return canonicalJson(a) === canonicalJson(b);
+}
+
+export interface Gtr30ReconcileResult {
+  groups: GTR30MasterGroup[];
+  addedKeys: string[];
+}
+
+/**
+ * Merge backend groups into local state without losing unsynced local work.
+ * - remote group missing locally -> inserted (reported in addedKeys)
+ * - local group dirty (pending/syncing/error) -> local version wins
+ * - local group clean and identical -> kept untouched
+ * - local group clean but different -> replaced with the backend version
+ * - local groups absent from the backend -> preserved (offline-created data)
+ */
+export function reconcileGroups(
+  local: Record<string, GTR30MasterGroup>,
+  remote: GTR30MasterGroup[],
+  isDirty: (key: string) => boolean
+): Gtr30ReconcileResult {
+  const groups: GTR30MasterGroup[] = [];
+  const addedKeys: string[] = [];
+  const matched = new Set<string>();
+
+  for (const remoteGroup of remote) {
+    const key = gtr30GroupKey(remoteGroup.monthKey, remoteGroup.billCode);
+    matched.add(key);
+    const localGroup = local[key];
+    if (!localGroup) {
+      addedKeys.push(key);
+      groups.push({ monthKey: remoteGroup.monthKey, billCode: remoteGroup.billCode, employees: remoteGroup.employees });
+      continue;
+    }
+    if (isDirty(key)) {
+      groups.push(localGroup);
+      continue;
+    }
+    if (sameGroupEmployees(localGroup.employees, remoteGroup.employees)) {
+      groups.push(localGroup);
+    } else {
+      groups.push({ monthKey: remoteGroup.monthKey, billCode: remoteGroup.billCode, employees: remoteGroup.employees });
+    }
+  }
+
+  for (const [key, localGroup] of Object.entries(local)) {
+    if (!matched.has(key)) groups.push(localGroup);
+  }
+
+  return { groups, addedKeys };
 }

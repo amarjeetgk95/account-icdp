@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import type { GTR30FormData } from '../types';
 import { GTR30Page1Outer } from './GTR30Page1Outer';
 import { GTR30Page3Inner1 } from './GTR30Page3Inner1';
@@ -15,6 +13,7 @@ import { GTR30Page10Pramanpatra as GTR30Page11Pramanpatra } from './GTR30Page10P
 import { Button } from '@/components/ui/button';
 import { Printer, ZoomIn, ZoomOut, RotateCcw, Layers, FileText } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { popupNativePrint } from '@/shared/utilities/nativePrint';
 
 type GTR30PageView =
   | 'all'
@@ -36,6 +35,31 @@ interface GTR30DocumentProps {
   showControls?: boolean;
 }
 
+const GTR30_PAGE_IDS_MAP: Record<GTR30PageView, string[]> = {
+  all: [
+    'gtr30-page-1',
+    'gtr30-page-3',
+    'gtr30-page-4',
+    'gtr30-page-5-cert',
+    'gtr30-page-5',
+    'gtr30-page-6',
+    'gtr30-page-7',
+    'gtr30-page-8',
+    'gtr30-page-9',
+    'gtr30-page-10',
+  ],
+  p1: ['gtr30-page-1'],
+  p2: ['gtr30-page-3'],
+  p3: ['gtr30-page-4'],
+  p4: ['gtr30-page-5-cert'],
+  p5: ['gtr30-page-5'],
+  p6: ['gtr30-page-6'],
+  p7: ['gtr30-page-7'],
+  p8: ['gtr30-page-8'],
+  p9: ['gtr30-page-9'],
+  p10: ['gtr30-page-10'],
+};
+
 export const GTR30Document: React.FC<GTR30DocumentProps> = ({
   data,
   defaultViewPage = 'all',
@@ -46,87 +70,127 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  const handlePrint = async () => {
-    // Single page: use native print with correct @page orientation
-    if (activePage !== 'all') {
-      window.print();
-      return;
-    }
-
-    // All 10 pages: generate PDF with mixed orientation
-    // P1: Landscape (Combined Outer 272)
-    // P2, P3: Landscape (Page 274, 275) — rendered as gtr30-page-3 / gtr30-page-4
-    // P4 to P10: Portrait (Page 276 + Schedules)
-    // Note: gtr30-page-2 (legacy Treasury Certificate 269-line deduction table) was removed as dead code
-    // on 2026-08-21; deductions are rendered via P2/P3 inner tables + P4 certificate. See git history
-    // for GTR30Page2Certificate.tsx if treasury re-certification is required.
+  const handlePrint = () => {
+    setIsPrinting(true);
     try {
-      setIsPrinting(true);
-      if (document.fonts) {
-        await document.fonts.ready;
-      }
-      await new Promise((r) => setTimeout(r, 200));
+      const pageIds = GTR30_PAGE_IDS_MAP[activePage] || GTR30_PAGE_IDS_MAP.all;
+      const isLandscape = ['p1', 'p2', 'p3', 'p4'].includes(activePage);
 
-      const pageIds = [
-        'gtr30-page-1',
-        'gtr30-page-3',
-        'gtr30-page-4',
-        'gtr30-page-5-cert',
-        'gtr30-page-5',
-        'gtr30-page-6',
-        'gtr30-page-7',
-        'gtr30-page-8',
-        'gtr30-page-9',
-        'gtr30-page-10',
-      ];
-
-      const isLandscapePage = (id: string) => ['gtr30-page-1', 'gtr30-page-3', 'gtr30-page-4'].includes(id);
-
-      let pdf: jsPDF | null = null;
-
-      for (let i = 0; i < pageIds.length; i++) {
-        const id = pageIds[i];
-        const el = document.getElementById(id) as HTMLElement | null;
-        if (!el) continue;
-
-        const canvas = await html2canvas(el, {
-          scale: 2.5,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          logging: false,
-          allowTaint: true,
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        const orientation = isLandscapePage(id) ? 'landscape' : 'portrait';
-
-        if (!pdf) {
-          pdf = new jsPDF({ orientation, unit: 'mm', format: 'a4', compress: true });
-        } else {
-          pdf.addPage('a4', orientation);
+      const customStyles = `
+        @page {
+          size: A4;
+          margin: 0mm !important;
         }
+        @page landscape-page {
+          size: A4 landscape !important;
+          margin: 0mm !important;
+        }
+        @page portrait-page {
+          size: A4 portrait !important;
+          margin: 0mm !important;
+        }
+        .gtr30-page {
+          margin: 0 auto !important;
+          border: none !important;
+          box-shadow: none !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+          background: #ffffff !important;
+        }
+        .gtr30-landscape {
+          page: landscape-page !important;
+          width: 297mm !important;
+          height: 210mm !important;
+          min-height: 210mm !important;
+          max-height: 210mm !important;
+          padding: 12mm !important;
+          page-break-after: always !important;
+          break-after: page !important;
+        }
+        .gtr30-inner-sheet-page {
+          padding: 0 !important;
+          width: 297mm !important;
+          height: 210mm !important;
+          min-height: 210mm !important;
+          max-height: 210mm !important;
+        }
+        .gtr30-inner-sheet-page .gtr30-inner-sheet-table {
+          position: absolute !important;
+          left: 4mm !important;
+          top: 12mm !important;
+          width: 289mm !important;
+          min-width: 0 !important;
+          max-width: none !important;
+        }
+        .gtr30-inner-sheet-page .gtr30-inner-sheet-table tbody td {
+          overflow: visible !important;
+          word-break: normal !important;
+        }
+        .gtr30-portrait {
+          page: portrait-page !important;
+          width: 210mm !important;
+          height: 297mm !important;
+          min-height: 297mm !important;
+          max-height: 297mm !important;
+          padding: 12mm !important;
+          page-break-after: always !important;
+          break-after: page !important;
+        }
+        .gtr30-page-inner {
+          position: relative !important;
+          width: 100% !important;
+          height: 100% !important;
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+          grid-template-rows: minmax(0, 1fr) !important;
+          column-gap: 7mm !important;
+          align-items: stretch !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+        }
+        .gtr30-half {
+          position: relative !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+        }
+        .gtr30-half-content {
+          position: relative !important;
+          width: 100% !important;
+          height: 100% !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          overflow: hidden !important;
+        .gtr30-front-half > *,
+        .gtr30-back-half > * {
+          max-width: 100% !important;
+          max-height: 100% !important;
+        }
+        .gtr30-front-half .gtr30-single-form,
+        .gtr30-back-half .gtr30-deductions-outer-back {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+        }
+      `;
 
-        const pageW = pdf.internal.pageSize.getWidth();
-        const pageH = pdf.internal.pageSize.getHeight();
-        const margin = 1;
-        const imgProps = { w: canvas.width, h: canvas.height };
-        const ratio = Math.min((pageW - margin * 2) / (imgProps.w * 0.264583), (pageH - margin * 2) / (imgProps.h * 0.264583));
-        const w = imgProps.w * 0.264583 * ratio;
-        const h = imgProps.h * 0.264583 * ratio;
-        const x = (pageW - w) / 2;
-        const y = (pageH - h) / 2;
-
-        pdf.addImage(imgData, 'PNG', x, y, w, h, undefined, 'FAST');
-      }
-
-      if (pdf) {
-        const fileName = `GTR30_${data.billRegisterNo || data.monthOf || 'PayBill'}_${new Date().toISOString().slice(0, 10)}.pdf`;
-        pdf.save(fileName);
-      } else {
-        window.print();
-      }
+      popupNativePrint({
+        elements: pageIds,
+        title: `GTR30_${data.billRegisterNo || data.monthOf || 'PayBill'}`,
+        pageSize: 'A4',
+        pageMargin: '0mm',
+        orientation: isLandscape ? 'landscape' : 'portrait',
+        pageContainerSelector: '.gtr30-page',
+        customStyles,
+      });
     } catch (e) {
-      console.error('GTR30 PDF print failed, falling back to window.print', e);
+      console.error('GTR30 Native print failed, falling back to window.print', e);
       window.print();
     } finally {
       setIsPrinting(false);
@@ -170,10 +234,10 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
 
         .gtr30-page {
           background: #ffffff;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.08);
-          margin: 0 auto 24px auto;
+          margin: 0 auto 28px auto;
           box-sizing: border-box;
-          border: 1.2px solid #000;
+          border: none;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
           position: relative;
           color: #000000;
           page-break-after: always;
@@ -183,14 +247,18 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
 
         .gtr30-landscape {
           width: 297mm;
-          min-height: 205mm;
-          padding: 6mm 8mm;
+          height: 210mm;
+          min-height: 210mm;
+          max-height: 210mm;
+          padding: 12mm;
         }
 
         .gtr30-portrait {
           width: 210mm;
-          min-height: 292mm;
-          padding: 10mm 12mm;
+          height: 297mm;
+          min-height: 297mm;
+          max-height: 297mm;
+          padding: 12mm;
         }
 
         .gtr30-pages-wrapper {
@@ -232,9 +300,9 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
         .gtr30-page::after {
           content: attr(data-page-label);
           position: absolute;
-          bottom: 4mm;
-          right: 8mm;
-          font-size: 6.5pt;
+          bottom: 2mm;
+          right: 4mm;
+          font-size: 5.8pt;
           color: #94a3b8;
           font-family: Arial, sans-serif;
           letter-spacing: 0.3px;
@@ -295,9 +363,84 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
           overflow: visible;
           word-break: break-word;
         }
-        /* Outer page classification boxes */
+        .gtr30-inner-sheet-page {
+          padding: 0 !important;
+          width: 297mm !important;
+          height: 210mm !important;
+          min-height: 210mm !important;
+          max-height: 210mm !important;
+        }
+        .gtr30-inner-sheet-page .gtr30-inner-sheet-table {
+          position: absolute !important;
+          left: 4mm !important;
+          top: 12mm !important;
+          width: 289mm !important;
+          min-width: 0 !important;
+          max-width: none !important;
+        }
+        .gtr30-inner-sheet-page .gtr30-inner-sheet-table th,
+        .gtr30-inner-sheet-page .gtr30-inner-sheet-table td {
+          box-sizing: border-box !important;
+        }
+        .gtr30-inner-sheet-page .gtr30-inner-vertical-label {
+          height: 26.5mm !important;
+          max-height: none !important;
+          overflow: visible !important;
+          word-break: normal !important;
+        }
+        .gtr30-inner-sheet-page .gtr30-inner-sheet-table tbody td {
+          overflow: visible !important;
+          word-break: normal !important;
+        }
+        /* Outer page side-by-side GTR-30 layout */
         #gtr30-page-1 table thead th {
-          background: #f1f5f9;
+          background: #ffffff;
+        }
+
+        .gtr30-page-inner {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr);
+          column-gap: 7mm;
+          align-items: stretch;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        .gtr30-half {
+          position: relative;
+          min-width: 0;
+          min-height: 0;
+          width: 100%;
+          height: 100%;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        .gtr30-half-content {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          min-width: 0;
+          min-height: 0;
+          overflow: hidden;
+        .gtr30-front-half > *,
+        .gtr30-back-half > * {
+          max-width: 100%;
+          max-height: 100%;
+        }
+
+        .gtr30-front-half .gtr30-single-form,
+        .gtr30-back-half .gtr30-deductions-outer-back {
+          width: 100%;
+          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
+          box-sizing: border-box;
+          overflow: hidden;
         }
 
         @media print {
@@ -306,8 +449,8 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
             padding: 0 !important;
             background: #ffffff !important;
             color: #000000 !important;
-            width: auto !important;
-            height: auto !important;
+            width: 100% !important;
+            height: 100% !important;
             overflow: visible !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
@@ -318,9 +461,6 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
           }
 
           .gtr30-document-root {
-            position: absolute;
-            left: 0;
-            top: 0;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -328,6 +468,12 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
 
           .gtr30-controls-bar {
             display: none !important;
+          }
+
+          .gtr30-pages-wrapper-wrapper {
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
 
           .gtr30-pages-wrapper {
@@ -339,13 +485,16 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
           .gtr30-page {
             display: block !important;
             box-shadow: none !important;
-            border: 1px solid #000 !important;
+            border: none !important;
             margin: 0 auto !important;
             page-break-after: always !important;
             page-break-inside: avoid !important;
             break-after: page !important;
             float: none !important;
             clear: both !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
           }
 
           .gtr30-page:last-child {
@@ -354,20 +503,25 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
           }
 
           .gtr30-landscape {
-            /* Strict single A4 landscape sheet (297 x 210mm): fixed height so a
-               form page can never spill onto a second sheet mid-row. */
+            page: landscape-page !important;
             width: 297mm !important;
-            height: 209mm !important;
-            min-height: 0 !important;
-            padding: 5mm 6mm !important;
+            height: 210mm !important;
+            min-height: 210mm !important;
+            max-height: 210mm !important;
+            padding: 12mm !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
           }
 
           .gtr30-portrait {
-            /* Strict single A4 portrait sheet (210 x 297mm) */
+            page: portrait-page !important;
             width: 210mm !important;
-            height: 296mm !important;
-            min-height: 0 !important;
-            padding: 8mm 10mm !important;
+            height: 297mm !important;
+            min-height: 297mm !important;
+            max-height: 297mm !important;
+            padding: 12mm !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
           }
 
           /* Never split a table/row across sheets — keeps each form on one A4 */
@@ -481,10 +635,32 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
               disabled={isPrinting}
               className="h-8 font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-sm disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              <Printer className={`h-3.5 w-3.5 mr-1.5 ${isPrinting ? 'animate-spin' : ''}`} aria-hidden="true" /> {isPrinting ? 'Generating PDF…' : activePage === 'all' ? 'Print All (PDF)' : 'Print'}
+              <Printer className={`h-3.5 w-3.5 mr-1.5 ${isPrinting ? 'animate-spin' : ''}`} aria-hidden="true" /> {isPrinting ? 'Preparing Print…' : activePage === 'all' ? 'Print All (10 Pages)' : 'Print'}
             </Button>
           </div>
         </div>
+      )}
+
+      {['p1', 'p2', 'p3', 'p4'].includes(activePage) && (
+        <style>{`
+          @media print {
+            @page {
+              size: A4 landscape !important;
+              margin: 0 !important;
+            }
+          }
+        `}</style>
+      )}
+
+      {['p5', 'p6', 'p7', 'p8', 'p9', 'p10'].includes(activePage) && (
+        <style>{`
+          @media print {
+            @page {
+              size: A4 portrait !important;
+              margin: 0 !important;
+            }
+          }
+        `}</style>
       )}
 
       <div className="gtr30-pages-wrapper-wrapper overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-4">

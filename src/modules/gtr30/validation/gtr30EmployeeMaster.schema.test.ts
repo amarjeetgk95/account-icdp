@@ -53,6 +53,21 @@ describe('gtr30EmployeeMasterSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects an impossible calendar date (2026-02-30)', () => {
+    const result = gtr30EmployeeMasterSchema.safeParse({ ...validInput, currentPayDate: '2026-02-30' });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a real leap-day (2024-02-29)', () => {
+    const result = gtr30EmployeeMasterSchema.safeParse({ ...validInput, currentPayDate: '2024-02-29' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects non-date garbage in the pay date field', () => {
+    const result = gtr30EmployeeMasterSchema.safeParse({ ...validInput, currentPayDate: 'not-a-date' });
+    expect(result.success).toBe(false);
+  });
+
   it('requires a pay date when current pay is entered', () => {
     const result = gtr30EmployeeMasterSchema.safeParse({ ...validInput, currentPayDate: undefined });
     expect(result.success).toBe(false);

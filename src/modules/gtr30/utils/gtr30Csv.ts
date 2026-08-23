@@ -1,6 +1,7 @@
 import type { GTR30EmployeeMaster } from '../types';
-import { resolveDARateForDate, DEFAULT_DA_PERCENT } from './gtr30GovRules';
+import { resolveDARateForMonthKey } from './gtr30GovRules';
 import { gtr30SettingsService } from '../services/gtr30Settings.service';
+import { gtr30EmployeeMasterSchema } from '../validation/gtr30EmployeeMaster.schema';
 
 export const CSV_HEADERS = [
   'Sr No',
@@ -89,27 +90,27 @@ export function generateSampleCsvTemplate(): string {
       name: 'Shri R.B. Makvana',
       designation: 'Research Assistant',
       designationGujarati: 'સંશોધન મદદનીશ',
-      cadreClass: '૩',
-      payScale: '34,500-1,12,400',
-      gradePay: 'GP:4200',
-      payLevelCell: 'PAY=39900 (LEVEL CELL-7)',
-      ppaNo: 'Applied',
+      cadreClass: '',
+      payScale: '',
+      gradePay: '',
+      payLevelCell: '',
+      ppaNo: '',
       currentPay: 39900,
       currentPayDate: '2026-07-01',
       quarterAddress: 'H-7, Government Quarters, Khatodara, Surat',
-      insuranceGroup: 'ખ',
+      insuranceGroup: '',
       insuranceType: 'savings_and_insurance',
       hraPercent: 0,
-      da: 21147,
-      transportAllowance: 3600,
-      medicalAllowance: 1000,
-      claAllowance: 270,
-      rentOfBuilding: 300,
-      professionalTax: 200,
-      gis1981Insurance: 240,
-      gis1981Savings: 560,
-      npsPension: 6105,
-      societyDeduction: 4154,
+      da: 0,
+      transportAllowance: 0,
+      medicalAllowance: 0,
+      claAllowance: 0,
+      rentOfBuilding: 0,
+      professionalTax: 0,
+      gis1981Insurance: 0,
+      gis1981Savings: 0,
+      npsPension: 0,
+      societyDeduction: 0,
       remarks: '',
     },
   ];
@@ -117,49 +118,132 @@ export function generateSampleCsvTemplate(): string {
   return exportMasterToCsv(sampleRows as GTR30EmployeeMaster[]);
 }
 
-export function parseCsvLine(text: string): string[] {
-  const result: string[] = [];
-  let curr = '';
+export interface CsvImportResult {
+  employees: GTR30EmployeeMaster[];
+  skippedRows: number;
+  errors: string[];
+}
+
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentField = '';
   let inQuotes = false;
 
   for (let i = 0; i < text.length; i++) {
-    const c = text[i];
+    const char = text[i];
+    const nextChar = text[i + 1];
+
     if (inQuotes) {
-      if (c === '"') {
-        if (i + 1 < text.length && text[i + 1] === '"') {
-          curr += '"';
+      if (char === '"') {
+        if (nextChar === '"') {
+          currentField += '"';
           i++;
         } else {
           inQuotes = false;
         }
       } else {
-        curr += c;
+        currentField += char;
       }
     } else {
-      if (c === '"') {
+      if (char === '"') {
         inQuotes = true;
-      } else if (c === ',') {
-        result.push(curr.trim());
-        curr = '';
+      } else if (char === ',') {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if (char === '\n' || char === '\r') {
+        if (char === '\r' && nextChar === '\n') {
+          i++;
+        }
+        currentRow.push(currentField.trim());
+        rows.push(currentRow);
+        currentRow = [];
+        currentField = '';
       } else {
-        curr += c;
+        currentField += char;
       }
     }
   }
-  result.push(curr.trim());
+
+  if (currentField.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentField.trim());
+    rows.push(currentRow);
+  }
+
+  return rows.filter((row) => row.some((field) => field.length > 0));
+}
+
+export function parseCsvLine(text: string): string[] {
+  const result: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (nextChar === '"') {
+          currentField += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentField += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        result.push(currentField.trim());
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+  }
+
+  result.push(currentField.trim());
   return result;
 }
 
-export function importMasterFromCsv(csvText: string): Partial<GTR30EmployeeMaster>[] {
-  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (lines.length <= 1) return [];
+function normalizeHeader(header: string): string {
+  return header.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
 
-  const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
-  const employees: Partial<GTR30EmployeeMaster>[] = [];
+function getField(rowObj: Record<string, string>, keys: string[]): string {
+  for (const key of keys) {
+    if (rowObj[key] !== undefined && rowObj[key] !== '') {
+      return rowObj[key];
+    }
+  }
+  return '';
+}
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCsvLine(lines[i]);
-    if (cols.length === 0 || !cols.some(Boolean)) continue;
+export function importMasterFromCsv(csvText: string, monthKey?: string): CsvImportResult {
+  const rows = parseCsv(csvText);
+  const result: CsvImportResult = {
+    employees: [],
+    skippedRows: 0,
+    errors: [],
+  };
+
+  if (rows.length <= 1) {
+    return result;
+  }
+
+  const headers = rows[0].map(normalizeHeader);
+  const settings = gtr30SettingsService.loadSettings();
+  const daRates = settings.daRates;
+
+  for (let i = 1; i < rows.length; i++) {
+    const cols = rows[i];
+    if (cols.length === 0 || !cols.some(Boolean)) {
+      result.skippedRows++;
+      continue;
+    }
 
     const rowObj: Record<string, string> = {};
     headers.forEach((h, idx) => {
@@ -168,37 +252,35 @@ export function importMasterFromCsv(csvText: string): Partial<GTR30EmployeeMaste
       }
     });
 
-    const name = rowObj['employeename'] || rowObj['name'] || '';
-    if (!name || name.length < 2) continue;
-
-    const currentPay = Number(rowObj['currentpay'] || rowObj['basicpay'] || 0) || 0;
-    let fallbackDaPercent = DEFAULT_DA_PERCENT;
-    try {
-      const rates = gtr30SettingsService.loadSettings().daRates;
-      const dateForDa = rowObj['payincrementdate'] || rowObj['currentpaydate'] || new Date().toISOString().slice(0, 10);
-      fallbackDaPercent = resolveDARateForDate(rates, dateForDa);
-    } catch {
-      fallbackDaPercent = DEFAULT_DA_PERCENT;
+    const name = getField(rowObj, ['employeename', 'name']);
+    if (!name || name.length < 2) {
+      result.skippedRows++;
+      result.errors.push(`Row ${i + 1}: Skipped - employee name missing or too short`);
+      continue;
     }
-    const da = rowObj['da'] ? Number(rowObj['da']) : Math.round(currentPay * (fallbackDaPercent / 100));
+
+    const currentPay = Number(getField(rowObj, ['currentpay', 'basicpay'])) || 0;
+    const currentPayDate = getField(rowObj, ['payincrementdate', 'currentpaydate']);
+    const daPercent = resolveDARateForMonthKey(daRates, monthKey);
+    const da = rowObj['da'] ? Number(rowObj['da']) : Math.round(currentPay * (daPercent / 100));
     const nps = rowObj['npspension'] ? Number(rowObj['npspension']) : Math.round((currentPay + da) * 0.1);
 
-    employees.push({
+    const partialEmployee: Partial<GTR30EmployeeMaster> = {
       srNo: Number(rowObj['srno']) || i,
-      hrpnNo: rowObj['hrpnno'] || rowObj['hrpn'] || undefined,
+      hrpnNo: getField(rowObj, ['hrpnno', 'hrpn']) || undefined,
       name,
-      designation: rowObj['designation'] || '',
-      designationGujarati: rowObj['designationgujarati'] || '',
-      cadreClass: rowObj['cadreclass'] || '૩',
-      payScale: rowObj['payscale'] || '34,500-1,12,400',
-      gradePay: rowObj['gradepay'] || 'GP:4200',
-      payLevelCell: rowObj['paylevelcell'] || (currentPay > 0 ? `PAY=${currentPay} (LEVEL CELL-7)` : ''),
-      ppaNo: rowObj['ppano'] || 'Applied',
+      designation: getField(rowObj, ['designation']),
+      designationGujarati: getField(rowObj, ['designationgujarati']),
+      cadreClass: getField(rowObj, ['cadreclass']),
+      payScale: getField(rowObj, ['payscale']),
+      gradePay: getField(rowObj, ['gradepay']),
+      payLevelCell: getField(rowObj, ['paylevelcell']),
+      ppaNo: getField(rowObj, ['ppano']),
       currentPay,
-      currentPayDate: rowObj['payincrementdate'] || rowObj['currentpaydate'] || '',
-      quarterAddress: rowObj['quarteraddress'] || '',
-      insuranceGroup: rowObj['insurancegroup'] || 'ખ',
-      insuranceType: (rowObj['insurancetype'] === 'insurance_only' ? 'insurance_only' : 'savings_and_insurance'),
+      currentPayDate,
+      quarterAddress: getField(rowObj, ['quarteraddress']),
+      insuranceGroup: getField(rowObj, ['gisgroup', 'insurancegroup']),
+      insuranceType: getField(rowObj, ['insurancetype']) === 'insurance_only' ? 'insurance_only' : 'savings_and_insurance',
       hraPercent: Number(rowObj['hrapercent']) || 0,
       da,
       transportAllowance: Number(rowObj['transportallowance']) || 0,
@@ -206,19 +288,30 @@ export function importMasterFromCsv(csvText: string): Partial<GTR30EmployeeMaste
       claAllowance: Number(rowObj['claallowance']) || 0,
       rentOfBuilding: Number(rowObj['rentofbuilding']) || 0,
       professionalTax: Number(rowObj['professionaltax']) || 0,
-      gis1981Insurance: Number(rowObj['gisinsurancefund'] || rowObj['gis1981insurance']) || 0,
-      gis1981Savings: Number(rowObj['gissavingsfund'] || rowObj['gis1981savings']) || 0,
+      gis1981Insurance: Number(getField(rowObj, ['gisinsurancefund', 'gis1981insurance'])) || 0,
+      gis1981Savings: Number(getField(rowObj, ['gissavingsfund', 'gis1981savings'])) || 0,
       npsPension: nps,
       societyDeduction: Number(rowObj['societydeduction']) || 0,
-      remarks: rowObj['remarks'] || '',
-    });
+      remarks: getField(rowObj, ['remarks']),
+    };
+
+    const parseResult = gtr30EmployeeMasterSchema.safeParse(partialEmployee);
+    if (!parseResult.success) {
+      result.skippedRows++;
+      const errorMessages = parseResult.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
+      result.errors.push(`Row ${i + 1}: ${errorMessages}`);
+      continue;
+    }
+
+    result.employees.push(parseResult.data as GTR30EmployeeMaster);
   }
 
-  return employees;
+  return result;
 }
 
 export function downloadCsvFile(filename: string, csvContent: string): void {
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);

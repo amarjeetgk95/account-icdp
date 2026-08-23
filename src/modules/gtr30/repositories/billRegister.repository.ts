@@ -1,22 +1,8 @@
 import { supabase } from '@/core/supabase/client';
-import { useAuthStore } from '@/core/auth/store';
-import {
-  getOfficeId,
-  isAllOfficesMode,
-  resolveOfficeIdForUser,
-} from '@/shared/utilities/office';
 import type { Json } from '@/shared/json.types';
-import type { GTR30Bill } from '../types';
-
-async function resolveOfficeId(): Promise<string | null> {
-  if (isAllOfficesMode()) return null;
-  const existing = getOfficeId();
-  if (existing) return existing;
-
-  const userId = useAuthStore.getState().user?.id;
-  if (!userId) return null;
-  return resolveOfficeIdForUser(userId);
-}
+import type { GTR30Bill, GTR30BillStatus, GTR30FormData } from '../types';
+import { resolveOfficeIdStrict } from './officeScope';
+import { z } from 'zod';
 
 interface BillRow {
   id: string;
@@ -24,19 +10,24 @@ interface BillRow {
   billDate: string | null;
   monthOf: string | null;
   billCode: string | null;
-  status: 'draft' | 'submitted' | 'passed';
+  status: GTR30BillStatus;
   grossTotal: number;
   deductionsTotal: number;
   netTotal: number;
   createdDate: string;
   updatedDate: string;
-  data: GTR30Bill;
+  data: GTR30FormData;
 }
 
 function rowToBill(row: BillRow): GTR30Bill {
+  // Strip the nested `data` column: spreading `...row` used to re-embed the
+  // whole form payload under `bill.data`, which was then persisted back into
+  // the JSONB column on every edit-save (roughly doubling stored size).
+  const { data: _column, ...rowScalars } = row;
+  void _column;
   const bill: GTR30Bill = {
     ...row.data,
-    ...row,
+    ...rowScalars,
     billDate: row.billDate ?? '',
     monthOf: row.monthOf ?? '',
     billCode: row.billCode ?? '',
@@ -52,27 +43,61 @@ function billToRowPayload(bill: GTR30Bill): Record<string, unknown> {
   void grossTotal;
   void deductionsTotal;
   void netTotal;
-  return formData as Record<string, unknown>;
+  // Defensively drop a legacy nested `data` key (bills loaded before the
+  // rowToBill fix carried a duplicate copy of the form payload).
+  const { data: _legacyData, ...cleanFormData } = formData as Record<string, unknown>;
+  void _legacyData;
+  return cleanFormData;
+}
+
+const billRowSchema = z.object({
+  id: z.string(),
+  billRegisterNo: z.string(),
+  billDate: z.string().nullable(),
+  monthOf: z.string().nullable(),
+  billCode: z.string().nullable(),
+  status: z.enum(['draft', 'submitted', 'passed', 'rejected']),
+  grossTotal: z.number(),
+  deductionsTotal: z.number(),
+  netTotal: z.number(),
+  createdDate: z.string(),
+  updatedDate: z.string(),
+  data: z.record(z.unknown()),
+});
+
+function validateBillRow(raw: unknown): BillRow | null {
+  const result = billRowSchema.safeParse(raw);
+  if (!result.success) {
+    console.warn('[GTR30BillRegister] validation failed:', result.error.flatten());
+    return null;
+  }
+  const validated = result.data;
+  return {
+    ...validated,
+    data: validated.data as unknown as GTR30FormData,
+  };
 }
 
 class Gtr30BillRegisterRepository {
   async list(): Promise<GTR30Bill[]> {
-    const officeId = await resolveOfficeId();
-    if (!officeId) return [];
+    const officeId = await resolveOfficeIdStrict();
 
     const { data, error } = await supabase.rpc('list_gtr30_bills', {
-      p_office_id: officeId,
+      p_office_id: officeId as unknown as string,
     });
     if (error) {
       console.warn('[GTR30BillRegister] list_gtr30_bills failed:', error);
       throw new Error(error.message);
     }
     if (!Array.isArray(data)) return [];
-    return (data as unknown as BillRow[]).map(rowToBill);
+    return (data as unknown as BillRow[])
+      .map(validateBillRow)
+      .filter((b): b is BillRow => b !== null)
+      .map(rowToBill);
   }
 
   async get(id: string): Promise<GTR30Bill | null> {
-    const officeId = await resolveOfficeId();
+    const officeId = await resolveOfficeIdStrict();
     if (!officeId) return null;
 
     const { data, error } = await supabase.rpc('get_gtr30_bill', {
@@ -84,11 +109,13 @@ class Gtr30BillRegisterRepository {
       throw new Error(error.message);
     }
     if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-    return rowToBill(data as unknown as BillRow);
+    const validated = validateBillRow(data);
+    if (!validated) return null;
+    return rowToBill(validated);
   }
 
   async save(bill: GTR30Bill): Promise<GTR30Bill> {
-    const officeId = await resolveOfficeId();
+    const officeId = await resolveOfficeIdStrict();
     if (!officeId) {
       throw new Error('Office session required to save a GTR-30 bill.');
     }
@@ -105,11 +132,13 @@ class Gtr30BillRegisterRepository {
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
       throw new Error('Bill save returned an invalid response.');
     }
-    return rowToBill(data as unknown as BillRow);
+    const validated = validateBillRow(data);
+    if (!validated) throw new Error('Bill save returned invalid data.');
+    return rowToBill(validated);
   }
 
   async delete(id: string): Promise<void> {
-    const officeId = await resolveOfficeId();
+    const officeId = await resolveOfficeIdStrict();
     if (!officeId) {
       throw new Error('Office session required to delete a GTR-30 bill.');
     }

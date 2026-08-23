@@ -36,8 +36,15 @@ import {
   useResetGTR30Settings,
 } from '../hooks/useGTR30Settings';
 import type { GTR30DARateEntry, GTR30DefaultSettings, GTR30DefaultEmployeeTemplate } from '../types/settings';
-import type { GTR30PostItem } from '../types';
+import type { GTR30PostItem, GTR30BudgetHead } from '../types';
+import { normalizeInsuranceGroup } from '../types/bill';
 import { GTR30BillCodeMappingView } from './GTR30BillCodeMappingView';
+import {
+  useGTR30BudgetHeads,
+  useSaveGTR30BudgetHead,
+  useRemoveGTR30BudgetHead,
+} from '../hooks/useGTR30BudgetHeads';
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { normalizeDARates, DEFAULT_DA_PERCENT, parseFlexibleDateToISO } from '../utils/gtr30GovRules';
 
 const EMPTY_POST: GTR30PostItem = {
@@ -61,6 +68,24 @@ const ASCII_TO_GUJARATI: Record<string, string> = {
 const toGujaratiCadre = (value: string) => ASCII_TO_GUJARATI[value] ?? value;
 
 const GIS_GROUP_OPTIONS = ['ક', 'ખ', 'ગ', 'ઘ'];
+
+const EMPTY_HEAD_FORM: Omit<GTR30BudgetHead, 'id'> = {
+  name: '',
+  headChargeable: '',
+  controllingOfficer: '',
+  classOfExpenditure: '1',
+  fund: '3',
+  drawingOfficer: '299',
+  demandNo: '',
+  typeOfBudget: '1',
+  schemeNo: '0000000',
+  sector: 'Sector-C-Economic Service',
+  majorHead: '',
+  subMajorHead: '-',
+  minorHead: '',
+  subHead: '',
+  budgetYear: '2026-27',
+};
 
 type TabId = 'office' | 'drawing' | 'budget' | 'template' | 'posts' | 'daRates' | 'resolutions';
 
@@ -187,6 +212,70 @@ export function GTR30SettingsView() {
   const saveMutation = useSaveGTR30Settings();
   const resetMutation = useResetGTR30Settings();
 
+  // ----- Saved Budget Heads master (dropdown + edit rights) -----
+  const headsQuery = useGTR30BudgetHeads();
+  const budgetHeads = headsQuery.data ?? [];
+  const saveHeadMutation = useSaveGTR30BudgetHead();
+  const removeHeadMutation = useRemoveGTR30BudgetHead();
+  const [selectedHeadId, setSelectedHeadId] = useState('');
+  const [headForm, setHeadForm] = useState<GTR30BudgetHead>(() => ({ id: '', ...EMPTY_HEAD_FORM }));
+  const [headDeleteOpen, setHeadDeleteOpen] = useState(false);
+
+  const handleSelectSavedHead = (id: string) => {
+    setSelectedHeadId(id);
+    const head = budgetHeads.find((h) => h.id === id);
+    setHeadForm(head ? { ...head } : { id: '', ...EMPTY_HEAD_FORM });
+  };
+
+  const startNewHead = () => {
+    setSelectedHeadId('');
+    setHeadForm({ id: '', ...EMPTY_HEAD_FORM });
+  };
+
+  const handleHeadField = (field: keyof Omit<GTR30BudgetHead, 'id'>, value: string) =>
+    setHeadForm((f) => ({ ...f, [field]: value }));
+
+  const handleSaveHead = async () => {
+    if (!headForm.name.trim()) {
+      toast({
+        title: 'Name required',
+        description: 'Give this budget head a name before saving.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      const id = headForm.id || crypto.randomUUID();
+      const saved = await saveHeadMutation.mutateAsync({
+        ...headForm,
+        id,
+        name: headForm.name.trim(),
+      });
+      setHeadForm({ ...saved });
+      setSelectedHeadId(id);
+      toast({
+        title: selectedHeadId ? 'Budget Head Updated' : 'Budget Head Saved',
+        description: saved.name,
+      });
+    } catch (error) {
+      toast({
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteHead = async () => {
+    if (!selectedHeadId) return;
+    try {
+      await removeHeadMutation.mutateAsync(selectedHeadId);
+      toast({ title: 'Budget Head Deleted', description: headForm.name || 'Removed from the master list.' });
+      startNewHead();
+    } finally {
+      setHeadDeleteOpen(false);
+    }
+  };
   const initial = settingsQuery.data;
 
   const [activeTab, setActiveTab] = useState<TabId>('office');
@@ -376,7 +465,7 @@ export function GTR30SettingsView() {
   }, [localTemplate.insuranceGroup]);
 
   const completeness = useMemo(() => {
-    let total = 6;
+    const total = 6;
     let filled = 0;
     if (localSettings.officeName.trim()) filled++;
     if (localSettings.officeFullName.trim()) filled++;
@@ -484,11 +573,14 @@ export function GTR30SettingsView() {
                 className={inputClass(Boolean(errors.officeFullName))}
               />
             </SettingsField>
-            <SettingsField label="Branch Name (Gujarati)">
+            <SettingsField
+              label="Establishment / Branch Name"
+              hint="Printed under 'Pay Bill for the Establishment'"
+            >
               <Input
                 value={localSettings.branchName}
                 onChange={(e) => handleSettingChange('branchName', e.target.value)}
-                className={`font-serif ${inputClass()}`}
+                className={inputClass()}
               />
             </SettingsField>
             <SettingsField label="Treasury Name" required error={errors.treasuryName}>
@@ -623,8 +715,138 @@ export function GTR30SettingsView() {
         </Card>
       )}
 
-      {/* Budget Classification */}
+      {/* Budget Heads */}
       {activeTab === 'budget' && (
+        <>
+        {/* Saved Budget Heads master — dropdown + full edit rights */}
+        <Card className="border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4 bg-white dark:bg-slate-900">
+          <SectionHeader
+            icon={TreePine}
+            title="Saved Budget Heads"
+            subtitle="Select a head to view or edit it, or create a new one"
+          />
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                All Saved Budget Heads ({budgetHeads.length})
+              </Label>
+              <select
+                value={selectedHeadId}
+                onChange={(e) => handleSelectSavedHead(e.target.value)}
+                className={`mt-1 ${selectClass()}`}
+              >
+                <option value="">— Select a budget head (or click New) —</option>
+                {budgetHeads.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name} {h.headChargeable ? `(${h.headChargeable})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2 pb-0.5">
+              <Button variant="outline" size="sm" onClick={startNewHead} className="text-xs font-semibold h-9">
+                <Plus className="h-4 w-4 mr-1" /> New
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!selectedHeadId}
+                onClick={() => setHeadDeleteOpen(true)}
+                className="text-xs font-semibold h-9 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+              >
+                <Trash2 className="h-4 w-4 mr-1" /> Delete
+              </Button>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-200 dark:border-slate-800 pt-4 space-y-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {selectedHeadId
+                ? <>Editing saved head: <span className="font-semibold text-slate-700 dark:text-slate-200">{headForm.name}</span></>
+                : 'Creating a new budget head — fill the fields and click Save.'}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 pt-1">
+              <SettingsField label="Name" required className="sm:col-span-2 lg:col-span-3">
+                <Input
+                  value={headForm.name}
+                  onChange={(e) => handleHeadField('name', e.target.value)}
+                  placeholder='e.g. "Statistical Wing CSS - Pay & Allowances"'
+                  className={inputClass()}
+                />
+              </SettingsField>
+              <SettingsField label="Head Chargeable (13 Digits)" hint="Digits must total 13">
+                <Input
+                  value={headForm.headChargeable ?? ''}
+                  onChange={(e) => handleHeadField('headChargeable', e.target.value)}
+                  className={`font-mono ${inputClass()}`}
+                />
+              </SettingsField>
+              <SettingsField label="Demand No.">
+                <Input
+                  value={headForm.demandNo ?? ''}
+                  onChange={(e) => handleHeadField('demandNo', e.target.value)}
+                  className={inputClass()}
+                />
+              </SettingsField>
+              <SettingsField label="Controlling Officer Code">
+                <Input
+                  value={headForm.controllingOfficer ?? ''}
+                  onChange={(e) => handleHeadField('controllingOfficer', e.target.value)}
+                  className={inputClass()}
+                />
+              </SettingsField>
+              <SettingsField label="Major Head">
+                <Input
+                  value={headForm.majorHead ?? ''}
+                  onChange={(e) => handleHeadField('majorHead', e.target.value)}
+                  className={inputClass()}
+                />
+              </SettingsField>
+              <SettingsField label="Minor Head">
+                <Input
+                  value={headForm.minorHead ?? ''}
+                  onChange={(e) => handleHeadField('minorHead', e.target.value)}
+                  className={inputClass()}
+                />
+              </SettingsField>
+              <SettingsField label="Sub Head">
+                <Input
+                  value={headForm.subHead ?? ''}
+                  onChange={(e) => handleHeadField('subHead', e.target.value)}
+                  className={inputClass()}
+                />
+              </SettingsField>
+              <SettingsField label="Sector">
+                <Input
+                  value={headForm.sector ?? ''}
+                  onChange={(e) => handleHeadField('sector', e.target.value)}
+                  className={inputClass()}
+                />
+              </SettingsField>
+              <SettingsField label="Budget Year">
+                <Input
+                  value={headForm.budgetYear ?? ''}
+                  onChange={(e) => handleHeadField('budgetYear', e.target.value)}
+                  className={inputClass()}
+                />
+              </SettingsField>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <Button
+              size="sm"
+              onClick={() => void handleSaveHead()}
+              disabled={saveHeadMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            >
+              <Save className="h-4 w-4 mr-1.5" />
+              {selectedHeadId ? 'Update Budget Head' : 'Save Budget Head'}
+            </Button>
+          </div>
+        </Card>
+
+        {/* Default classification fields */}
         <Card className="border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4 bg-white dark:bg-slate-900">
           <SectionHeader
             icon={TreePine}
@@ -632,6 +854,13 @@ export function GTR30SettingsView() {
             subtitle="Head of account block of the bill"
           />
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <SettingsField label="Controlling Officer Code" hint="4-digit CO Code (Field 4)">
+              <Input
+                value={localSettings.controllingOfficer || ''}
+                onChange={(e) => handleSettingChange('controllingOfficer', e.target.value)}
+                className={inputClass()}
+              />
+            </SettingsField>
             <SettingsField label="Class of Expenditure" hint="e.g. Charged / Voted">
               <Input
                 value={localSettings.classOfExpenditure}
@@ -717,7 +946,19 @@ export function GTR30SettingsView() {
             </SettingsField>
           </div>
         </Card>
+        </>
       )}
+
+      {/* Confirm deleting a saved budget head */}
+      <ConfirmDialog
+        open={headDeleteOpen}
+        title="Delete Budget Head"
+        message={`Are you sure you want to delete "${headForm.name}"? Bill codes already using it keep their copied values but will show as Custom until another head is selected.`}
+        confirmLabel="Delete Head"
+        danger
+        onConfirm={() => void handleDeleteHead()}
+        onCancel={() => setHeadDeleteOpen(false)}
+      />
 
       {/* Employee Template */}
       {activeTab === 'template' && (
@@ -786,7 +1027,7 @@ export function GTR30SettingsView() {
             <SettingsField label="GIS Group" hint="ક / ખ / ગ / ઘ">
               <select
                 value={localTemplate.insuranceGroup}
-                onChange={(e) => handleTemplateChange('insuranceGroup', e.target.value)}
+                onChange={(e) => handleTemplateChange('insuranceGroup', normalizeInsuranceGroup(e.target.value))}
                 className={`font-serif ${selectClass()}`}
               >
                 {gisOptions.map((option) => (

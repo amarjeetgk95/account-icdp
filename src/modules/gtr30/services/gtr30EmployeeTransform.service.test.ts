@@ -29,6 +29,7 @@ describe('gtr30EmployeeTransform.service', () => {
   it('maps a master row to a bill employee with derived HRA, DA 53%, NPS and carryover fields', () => {
     const result = gtr30EmployeeTransformService.masterToBillEmployee(master, 1);
     expect(result.name).toBe('Shri X');
+    expect(result.hrpnNo).toBe('HRPN-1');
     expect(result.designation).toBe('Officer');
     expect(result.designationGujarati).toBe('સંશોધન મદદનીશ');
     expect(result.payScale).toBe('50000-100000');
@@ -53,6 +54,26 @@ describe('gtr30EmployeeTransform.service', () => {
   it('keeps the srNo passed in', () => {
     const result = gtr30EmployeeTransformService.masterToBillEmployee(master, 7);
     expect(result.srNo).toBe(7);
+  });
+
+  it('normalizes legacy insurance group strings to the canonical union', () => {
+    const latin = gtr30EmployeeTransformService.masterToBillEmployee(
+      { ...master, insuranceGroup: 'b' },
+      1
+    );
+    expect(latin.insuranceGroup).toBe('ખ');
+
+    const gujarati = gtr30EmployeeTransformService.masterToBillEmployee(
+      { ...master, insuranceGroup: ' ગ ' },
+      1
+    );
+    expect(gujarati.insuranceGroup).toBe('ગ');
+
+    const unknown = gtr30EmployeeTransformService.masterToBillEmployee(
+      { ...master, insuranceGroup: 'XYZ' },
+      1
+    );
+    expect(unknown.insuranceGroup).toBe('');
   });
 
   it('master fields win over base overrides (master is authoritative)', () => {

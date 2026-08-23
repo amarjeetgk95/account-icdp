@@ -31,10 +31,26 @@ class Gtr30BillsService {
   async duplicateBill(source: GTR30Bill): Promise<GTR30Bill> {
     const copy = JSON.parse(JSON.stringify(source)) as GTR30Bill;
     const now = new Date().toISOString();
+    
+    const baseNo = source.billRegisterNo || 'GTR30';
+    const existingBills = await gtr30BillRegisterRepository.list();
+    const sameOfficeMonth = existingBills.filter(
+      (b) => b.officeName === source.officeName && b.monthOf === source.monthOf
+    );
+    const copyNumbers = sameOfficeMonth
+      .map((b) => {
+        const match = b.billRegisterNo?.match(new RegExp(`^${baseNo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:-COPY(?: (\\d+))?)?$`));
+        if (match) return match[1] ? parseInt(match[1], 10) : 1;
+        return null;
+      })
+      .filter((n): n is number => n !== null);
+    const nextCopyNum = copyNumbers.length > 0 ? Math.max(...copyNumbers) + 1 : 1;
+    const copySuffix = nextCopyNum === 1 ? '-COPY' : `-COPY ${nextCopyNum}`;
+
     const draftCopy: GTR30Bill = {
       ...copy,
       id: crypto.randomUUID(),
-      billRegisterNo: `${source.billRegisterNo || 'GTR30'}-COPY`,
+      billRegisterNo: `${baseNo}${copySuffix}`,
       status: 'draft',
       createdDate: now,
       updatedDate: now,
@@ -65,10 +81,12 @@ class Gtr30BillsService {
     const valid: GTR30Bill[] = [];
     for (const item of list) {
       if (!isBillLike(item)) continue;
+      // Flatten nested `data` (legacy shape) without leaving a `data` key behind.
+      const { data, ...rest } = item;
+      void data;
       valid.push({
-        ...item.data,
-        ...item,
-        data: undefined,
+        ...data,
+        ...rest,
       } as unknown as GTR30Bill);
     }
     return valid;

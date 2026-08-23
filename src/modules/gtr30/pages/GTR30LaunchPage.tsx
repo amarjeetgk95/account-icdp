@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, ChevronLeft, CreditCard, FilePlus, Pencil, ArrowRight, Users } from 'lucide-react';
+import { Calendar, ChevronLeft, CreditCard, FilePlus, Pencil, ArrowRight, Users, Info, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
@@ -14,9 +14,11 @@ import { useGTR30BillCodeMappings, useHydrateGTR30BillCodeMappings } from '../ho
 import { useGTR30EmployeeMasterGroups, useHydrateGTR30EmployeeMaster } from '../hooks/useGTR30EmployeeMaster';
 import { useGtr30Bills } from '../hooks/useGTR30Bills';
 import { useGtr30SaveBill } from '../hooks/useGTR30BillMutations';
+import { useGTR30BudgetHeads } from '../hooks/useGTR30BudgetHeads';
 import { useToast } from '@/hooks/use-toast';
 import { gtr30ResolveEmployees } from '../services/gtr30EmployeeMaster.service';
 import { useEffectiveDARate } from '../hooks/useGTR30Settings';
+import { GTR30_SETTINGS_STORAGE_KEY } from '../constants/settings';
 
 const INR = (n: number) => '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
@@ -32,8 +34,6 @@ export function GTR30LaunchPage() {
   const hydrateMappings = useHydrateGTR30BillCodeMappings();
   const hydrateMaster = useHydrateGTR30EmployeeMaster();
 
-  const bills = billsQuery.data ?? [];
-
   const hydrated = useRef(false);
   useEffect(() => {
     if (hydrated.current) return;
@@ -42,14 +42,39 @@ export function GTR30LaunchPage() {
     void hydrateMaster.mutateAsync().catch(() => {});
   }, [hydrateMappings, hydrateMaster]);
 
+  const bills = billsQuery.data ?? [];
   const billCodeMappings = mappingsQuery.data ?? [];
   const employeeGroups = groupsQuery.data ?? {};
 
-  const [month, setMonth] = useState('July');
+  // Default to the current calendar month instead of a hardcoded value
+  const [month, setMonth] = useState(
+    // eslint-disable-next-line react-hooks/purity -- reads today's date for the initial default only
+    new Date().toLocaleString('en-US', { month: 'long' })
+  );
   const [year, setYear] = useState(activeFY);
+
+  // Optional Budget Head override for the bills created on this screen
+  const headsQuery = useGTR30BudgetHeads();
+  const budgetHeads = headsQuery.data ?? [];
+  const [budgetHeadId, setBudgetHeadId] = useState('');
+  const selectedHead = budgetHeadId ? budgetHeads.find((h) => h.id === budgetHeadId) : undefined;
 
   const monthKey = gtr30MonthKeyFor(month, year);
   const effectiveDaForMonth = useEffectiveDARate(monthKey);
+
+  const settingsConfigured = typeof window !== 'undefined' && localStorage.getItem(GTR30_SETTINGS_STORAGE_KEY) !== null;
+
+  if (settingsQuery.isPending && !settingsQuery.data) {
+    return (
+      <div className="max-w-5xl mx-auto py-16 flex flex-col items-center justify-center gap-4 text-slate-500">
+        <div className="h-10 w-10 animate-spin rounded-full border-3 border-blue-600 border-t-transparent" />
+        <div className="text-sm font-medium text-slate-700">Loading settings…</div>
+        <div className="text-xs text-slate-500 max-w-md text-center">
+          Configure settings first to generate a blank bill with your office defaults.
+        </div>
+      </div>
+    );
+  }
   const selectStyle =
     'w-full h-9 rounded-md border border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-2 text-sm';
 
@@ -79,12 +104,49 @@ export function GTR30LaunchPage() {
           defaultPosts: bundle.defaultPosts,
         })
       : gtr30BillFormService.emptyFormData();
+    const matchedMapping = mappingsQuery.data?.find((m) => m.billCode === billCode);
     const formData = {
       ...base,
-      // eslint-disable-next-line react-hooks/purity -- Date.now() runs in an onClick handler, not during render
-      billRegisterNo: `${billCode}-${month}-${Date.now().toString().slice(-4)}`,
+      // eslint-disable-next-line react-hooks/purity -- crypto.randomUUID() runs in an onClick handler, not during render
+      billRegisterNo: `${billCode}-${month}-${crypto.randomUUID().slice(0, 8)}`,
       monthOf: month,
       billCode,
+      controllingOfficer: matchedMapping?.controllingOfficer || base.controllingOfficer,
+      classOfExpenditure: matchedMapping?.classOfExpenditure || base.classOfExpenditure,
+      fund: matchedMapping?.fund || base.fund,
+      drawingOfficer: matchedMapping?.drawingOfficer || base.drawingOfficer,
+      demandNo: matchedMapping?.demandNo || base.demandNo,
+      demandNoLabel: matchedMapping?.demandNo ? `Demand No. ${matchedMapping.demandNo}` : base.demandNoLabel,
+      typeOfBudget: matchedMapping?.typeOfBudget || base.typeOfBudget,
+      schemeNo: matchedMapping?.schemeNo || base.schemeNo,
+      headChargeable: matchedMapping?.headChargeable || base.headChargeable,
+      sector: matchedMapping?.sector || base.sector,
+      majorHead: matchedMapping?.majorHead || base.majorHead,
+      subMajorHead: matchedMapping?.subMajorHead || base.subMajorHead,
+      minorHead: matchedMapping?.minorHead || base.minorHead,
+      subHead: matchedMapping?.subHead || base.subHead,
+      budgetYear: matchedMapping?.budgetYear || base.budgetYear,
+      // Budget Head explicitly selected on this screen overrides bill code defaults
+      ...(selectedHead
+        ? {
+            budgetHeadId: selectedHead.id,
+            headChargeable: selectedHead.headChargeable || base.headChargeable,
+            controllingOfficer: selectedHead.controllingOfficer || base.controllingOfficer,
+            classOfExpenditure: selectedHead.classOfExpenditure || base.classOfExpenditure,
+            fund: selectedHead.fund || base.fund,
+            drawingOfficer: selectedHead.drawingOfficer || base.drawingOfficer,
+            demandNo: selectedHead.demandNo || base.demandNo,
+            demandNoLabel: selectedHead.demandNo ? `Demand No. ${selectedHead.demandNo}` : base.demandNoLabel,
+            typeOfBudget: selectedHead.typeOfBudget || base.typeOfBudget,
+            schemeNo: selectedHead.schemeNo || base.schemeNo,
+            sector: selectedHead.sector || base.sector,
+            majorHead: selectedHead.majorHead || base.majorHead,
+            subMajorHead: selectedHead.subMajorHead || base.subMajorHead,
+            minorHead: selectedHead.minorHead || base.minorHead,
+            subHead: selectedHead.subHead || base.subHead,
+            budgetYear: selectedHead.budgetYear || base.budgetYear,
+          }
+        : {}),
       employees: rows.map((master, idx) =>
         gtr30EmployeeTransformService.masterToBillEmployee(master, idx + 1, undefined, {
           monthKey: month,
@@ -123,13 +185,30 @@ export function GTR30LaunchPage() {
         }
       />
 
+      {!settingsConfigured && (
+        <div className="border border-amber-200 bg-amber-50 dark:bg-amber-950/50 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+              Office settings not configured
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+              Configure settings first to generate a blank bill with your office defaults.
+              <Button variant="link" size="sm" className="ml-2 p-0 h-auto text-amber-800 dark:text-amber-200 hover:underline" onClick={() => navigate('/gtr30/settings')}>
+                Open Settings
+              </Button>
+            </p>
+          </div>
+        </div>
+      )}
+
       <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm space-y-4">
         <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
           <Calendar className="h-5 w-5 text-blue-600" />
-          <h2 className="font-bold text-md text-slate-900 dark:text-white">Select Bill Month &amp; Year</h2>
+          <h2 className="font-bold text-md text-slate-900 dark:text-white">Select Bill Month, Year &amp; Budget Head</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
+        <div className="grid gap-4 sm:grid-cols-3 items-start">
+          <div className="flex flex-col gap-1">
             <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Month</Label>
             <select value={month} onChange={(e) => setMonth(e.target.value)} className={selectStyle}>
               {gtr30MonthOptions().map((m) => (
@@ -139,7 +218,7 @@ export function GTR30LaunchPage() {
               ))}
             </select>
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Year (FY)</Label>
             <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={selectStyle}>
               {gtr30YearOptions(activeFY).map((y) => (
@@ -149,9 +228,32 @@ export function GTR30LaunchPage() {
               ))}
             </select>
           </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 self-end pb-2">
-            Salary entries saved in Employee Master for this month will be picked up automatically.
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300" title="Optional — overrides the bill code's configured budget head">
+              Budget Head
+            </Label>
+            <select
+              value={budgetHeadId}
+              onChange={(e) => setBudgetHeadId(e.target.value)}
+              className={selectStyle}
+              title="Optional — overrides the bill code's configured budget head for bills created here"
+            >
+              <option value="">Bill code&apos;s own head</option>
+              {budgetHeads.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name}
+                  {h.headChargeable ? ` (${h.headChargeable})` : ''}
+                </option>
+              ))}
+            </select>
           </div>
+        </div>
+        <div className="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-blue-500" />
+          <span>
+            Salary entries saved in Employee Master for this month will be picked up automatically.
+            Selecting a Budget Head overrides the bill code&apos;s configured head for bills created here.
+          </span>
         </div>
       </Card>
 

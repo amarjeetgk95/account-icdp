@@ -19,6 +19,7 @@ export type GTR30DefaultSettings = Pick<
   | 'station'
   | 'cardexNo'
   | 'ddoCode'
+  | 'controllingOfficer'
   | 'classOfExpenditure'
   | 'fund'
   | 'drawingOfficer'

@@ -40,32 +40,63 @@ export function subscribeGtr30SettingsSync(listener: () => void): () => void {
   };
 }
 
+function isInAllOfficesMode(): boolean {
+  try {
+    return isAllOfficesMode();
+  } catch {
+    return false;
+  }
+}
+
 let settingsSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingPushPayload: Gtr30SettingsPayload | null = null;
+let backendWriteChain: Promise<void> = Promise.resolve();
+let hydrateInFlight: Promise<boolean> | null = null;
+
+function cancelPendingPushTimer(): void {
+  if (settingsSyncTimer) {
+    clearTimeout(settingsSyncTimer);
+    settingsSyncTimer = null;
+  }
+}
+
+function applySaveOutcome(result: boolean | null): void {
+  if (result === null) {
+    setSettingsSyncPhase(isInAllOfficesMode() ? 'idle' : 'error');
+  } else {
+    setSettingsSyncPhase('synced');
+  }
+}
+
+function runBackendWrite(payload: Gtr30SettingsPayload): Promise<boolean> {
+  const write = async (): Promise<boolean> => {
+    setSettingsSyncPhase('syncing');
+    try {
+      const result = await gtr30SettingsBackendRepository.save(payload);
+      applySaveOutcome(result);
+      return result !== null;
+    } catch {
+      setSettingsSyncPhase('error');
+      return false;
+    }
+  };
+  const chained = backendWriteChain.then(write, write);
+  backendWriteChain = chained.then(
+    () => undefined,
+    () => undefined
+  );
+  return chained;
+}
 
 function debouncePushSettings(payload: Gtr30SettingsPayload): void {
-  if (settingsSyncTimer) clearTimeout(settingsSyncTimer);
+  cancelPendingPushTimer();
+  pendingPushPayload = payload;
   setSettingsSyncPhase('pending');
   settingsSyncTimer = setTimeout(() => {
     settingsSyncTimer = null;
-    setSettingsSyncPhase('syncing');
-    void (async () => {
-      try {
-        const result = await gtr30SettingsBackendRepository.save(payload);
-        if (result === null) {
-          let allOffices = false;
-          try {
-            allOffices = isAllOfficesMode();
-          } catch {
-            // store unavailable
-          }
-          setSettingsSyncPhase(allOffices ? 'idle' : 'error');
-        } else {
-          setSettingsSyncPhase('synced');
-        }
-      } catch {
-        setSettingsSyncPhase('error');
-      }
-    })();
+    const queued = pendingPushPayload;
+    pendingPushPayload = null;
+    if (queued) void runBackendWrite(queued);
   }, SYNC_DEBOUNCE_MS);
 }
 
@@ -81,16 +112,51 @@ class Gtr30SettingsService {
 
   loadSettings(): Gtr30SettingsPayload {
     const stored = gtr30SettingsLocalStorageRepository.load();
-    if (stored) return stored;
+    if (stored) {
+      return {
+        ...stored,
+        settings: { ...DEFAULT_GTR30_SETTINGS, ...(stored.settings ?? {}) },
+        employeeTemplate: { ...DEFAULT_GTR30_EMPLOYEE_TEMPLATE, ...(stored.employeeTemplate ?? {}) },
+      };
+    }
     return this.getDefaults();
   }
 
-  async hydrateFromBackend(): Promise<void> {
-    const local = gtr30SettingsLocalStorageRepository.load();
-    if (local) return;
-    const remote = await gtr30SettingsBackendRepository.load();
-    if (remote === null) return;
+  hydrateFromBackend(force = false): Promise<boolean> {
+    if (hydrateInFlight) return hydrateInFlight;
+    const request = this.hydrateNow(force).finally(() => {
+      if (hydrateInFlight === request) hydrateInFlight = null;
+    });
+    hydrateInFlight = request;
+    return request;
+  }
+
+  private async hydrateNow(force: boolean): Promise<boolean> {
+    if (!force) {
+      const local = gtr30SettingsLocalStorageRepository.load();
+      if (local) return false;
+    }
+    let remote: Gtr30SettingsPayload | null;
+    try {
+      remote = await gtr30SettingsBackendRepository.load();
+    } catch {
+      if (!isInAllOfficesMode()) setSettingsSyncPhase('error');
+      return false;
+    }
+    if (remote === null) return false;
+    const current = gtr30SettingsLocalStorageRepository.load();
+    const changed =
+      !current || JSON.stringify(current) !== JSON.stringify(remote);
     gtr30SettingsLocalStorageRepository.save(remote);
+    return changed;
+  }
+
+  async flushPendingSave(): Promise<boolean> {
+    cancelPendingPushTimer();
+    const queued = pendingPushPayload;
+    pendingPushPayload = null;
+    if (!queued) return true;
+    return runBackendWrite(queued);
   }
 
   saveSettings(payload: {
@@ -127,13 +193,13 @@ class Gtr30SettingsService {
   }
 
   resetSettings(): Gtr30SettingsPayload {
+    cancelPendingPushTimer();
+    pendingPushPayload = null;
     gtr30SettingsLocalStorageRepository.clear();
-    if (settingsSyncTimer) {
-      clearTimeout(settingsSyncTimer);
-      settingsSyncTimer = null;
-    }
     setSettingsSyncPhase('idle');
-    void gtr30SettingsBackendRepository.clear();
+    Promise.resolve(gtr30SettingsBackendRepository.clear()).catch(() => {
+      setSettingsSyncPhase('error');
+    });
     return this.getDefaults();
   }
 }

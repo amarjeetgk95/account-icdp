@@ -9,6 +9,7 @@ import { Skeleton } from '../../../shared/components/Skeleton';
 import { ChevronLeft, Printer, Download, Edit, FileQuestion, FileDown } from 'lucide-react';
 import { useToast } from '../../../hooks/use-toast';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
+import { popupNativePrint } from '@/shared/utilities/nativePrint';
 
 export function GTR44ViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,7 +20,13 @@ export function GTR44ViewPage() {
   const { data: bill, isLoading } = useGTR44Bill(id || '');
 
   const handlePrint = () => {
-    window.print();
+    popupNativePrint({
+      viewId: 'gtr44-printable-form-container',
+      title: `GTR44_${bill?.billNo || bill?.id || 'Bill'}`,
+      pageSize: 'A4',
+      orientation: 'portrait',
+      pageContainerSelector: '.gtr-page',
+    });
   };
 
   const handleDownloadPdf = async () => {

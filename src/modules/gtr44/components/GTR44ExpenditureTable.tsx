@@ -15,32 +15,21 @@ interface GTR44ExpenditureTableProps {
   readOnly?: boolean;
 }
 
-// Render 5 mini boxes for EDP code (4 digits + 1 operator)
+// Render EDP code as 5-part sliced string without boxes (e.g. "0 2 0 1 +")
 const renderEDPCode = (edpStr: string) => {
   const clean = edpStr.replace(/\s+/g, '');
-  const chars = clean.split('');
+  const formatted = clean.split('').join(' ');
   return (
-    <div className="inline-flex border-l border-t border-b border-black">
-      {chars.map((ch, idx) => (
-        <span
-          key={idx}
-          style={{
-            width: 12,
-            height: 14.5,
-            fontSize: 10,
-            fontFamily: "'Courier New', monospace",
-            fontWeight: 700,
-            borderRight: '1px solid #000',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            lineHeight: 1,
-          }}
-        >
-          {ch}
-        </span>
-      ))}
-    </div>
+    <span
+      style={{
+        fontFamily: "'Courier New', monospace",
+        fontWeight: 700,
+        fontSize: '9pt',
+        letterSpacing: '0.5px',
+      }}
+    >
+      {formatted}
+    </span>
   );
 };
 
