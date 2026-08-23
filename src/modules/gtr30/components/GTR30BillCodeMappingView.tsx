@@ -34,6 +34,7 @@ import {
   useRemoveGTR30BudgetHead,
 } from '../hooks/useGTR30BudgetHeads';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { GTR30HeadPostsEditor } from './GTR30HeadPostsEditor';
 
 const BILL_CODE_SUGGESTIONS = [
   {
@@ -110,6 +111,7 @@ const EMPTY_HEAD_FORM: Omit<GTR30BudgetHead, 'id'> = {
   minorHead: '',
   subHead: '',
   budgetYear: '2026-27',
+  establishmentPosts: [],
 };
 
 export function GTR30BillCodeMappingView() {
@@ -432,7 +434,7 @@ export function GTR30BillCodeMappingView() {
                   <div className="sm:col-span-2 lg:col-span-3">
                     <Label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
                       <ListTree className="h-3 w-3 text-emerald-600" /> Budget Head
-                      <span className="font-normal text-slate-400">(select to auto-fill all classification fields below)</span>
+                      <span className="font-normal text-slate-500">(select to auto-fill all classification fields below)</span>
                     </Label>
                     <select
                       value={mapping.budgetHeadId ?? ''}
@@ -616,7 +618,7 @@ export function GTR30BillCodeMappingView() {
             <div className="border-t border-slate-200 pt-3 space-y-3">
               <h3 className="text-xs font-bold uppercase text-slate-800 flex items-center gap-1">
                 <TreePine className="h-3.5 w-3.5 text-blue-600" /> Budget Head
-                <span className="font-normal normal-case text-slate-400">— select from saved heads</span>
+                <span className="font-normal normal-case text-slate-500">— select from saved heads</span>
               </h3>
               <div>
                 <Label className="text-xs font-semibold">
@@ -796,6 +798,12 @@ export function GTR30BillCodeMappingView() {
                   />
                 </div>
               </div>
+              <div className="border-t border-slate-200 pt-3">
+                <GTR30HeadPostsEditor
+                  posts={headForm.establishmentPosts ?? []}
+                  onChange={(posts) => setHeadForm((f) => ({ ...f, establishmentPosts: posts }))}
+                />
+              </div>
               <div className="flex items-center justify-end gap-2 pt-1">
                 {editingHeadId && (
                   <Button type="button" variant="outline" size="sm" onClick={openAddHeadForm}>
@@ -835,7 +843,12 @@ export function GTR30BillCodeMappingView() {
                       <p className="text-[11px] font-mono text-slate-500 truncate">
                         {h.headChargeable || '—'} · {h.demandNo || '—'} · {h.majorHead || '—'}
                       </p>
-                      <p className="text-[11px] text-slate-400 truncate">{h.minorHead || ''}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{h.minorHead || ''}</p>
+                      <p className="text-[11px] text-slate-500">
+                        {h.establishmentPosts?.length
+                          ? `${h.establishmentPosts.length} establishment post${h.establishmentPosts.length === 1 ? '' : 's'}`
+                          : 'No establishment posts'}
+                      </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <Button

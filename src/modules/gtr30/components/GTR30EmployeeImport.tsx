@@ -217,7 +217,7 @@ export function GTR30EmployeeImport({ monthKey, billCode, employees = [] }: GTR3
               <p className="text-xs font-semibold text-slate-700">
                 {csvFileName ? `Selected: ${csvFileName}` : 'Click or drag a .csv file to upload'}
               </p>
-              <p className="text-[11px] text-slate-400 mt-1">
+              <p className="text-[11px] text-slate-500 mt-1">
                 Standard GTR-30 CSV containing employee details, basic pay, and allowances
               </p>
             </div>

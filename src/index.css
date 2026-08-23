@@ -57,6 +57,14 @@
     --surface-card: 255 255 255;
     --surface-raised: 255 255 255;
     --surface-overlay: 255 255 255;
+
+    /* ── Semantic color tokens ── */
+    --earning: 5 150 105;
+    --earning-light: 236 253 245;
+    --deduction: 225 29 72;
+    --deduction-light: 255 241 242;
+    --net: 37 99 235;
+    --warning: 217 119 6;
   }
 
   * {

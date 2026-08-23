@@ -268,5 +268,6 @@ export const DEFAULT_BUDGET_HEADS: GTR30BudgetHead[] = [
     subHead:
       'Sub Head-05 Scheme for Strengthening of Statistical Wing in Directorate of Animal Husbandry (Pay and Allowances for Centrally Sponsored Scheme)',
     budgetYear: '2026-27',
+    establishmentPosts: defaultEstablishmentPosts.map((post) => ({ ...post })),
   },
 ];

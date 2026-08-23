@@ -344,7 +344,7 @@ export function GTR30EmployeeManagementPage() {
       {/* 2. KPI Summary Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
             Total Basic Pay
           </span>
           <span className="text-base sm:text-lg font-black font-mono text-slate-900 dark:text-white mt-1 block">
@@ -597,7 +597,7 @@ export function GTR30EmployeeManagementPage() {
                       className={`transition-colors ${
                         isSelected
                           ? 'bg-blue-50/80 dark:bg-blue-950/50'
-                          : 'hover:bg-blue-50/40 dark:hover:bg-slate-800/40'
+                          : 'hover:bg-slate-50/75 dark:hover:bg-slate-800/40'
                       }`}
                     >
                       <td className={`px-3 ${py} text-center`}>
@@ -610,7 +610,7 @@ export function GTR30EmployeeManagementPage() {
                         />
                       </td>
 
-                      <td className={`px-3.5 ${py} text-center font-mono font-medium text-slate-400`}>
+                      <td className={`px-3.5 ${py} text-center font-mono font-medium text-slate-500 dark:text-slate-400`}>
                         {employee.srNo || (currentPage - 1) * PAGE_SIZE + idx + 1}
                       </td>
 

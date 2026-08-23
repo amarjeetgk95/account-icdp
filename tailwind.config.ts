@@ -54,13 +54,13 @@ export default {
           foreground: "rgb(var(--card-foreground))",
         },
         earning: {
-          DEFAULT: "#059669",
-          light: "#ECFDF5",
+          DEFAULT: "rgb(var(--earning))",
+          light: "rgb(var(--earning-light))",
           border: "#A7F3D0",
         },
         deduction: {
-          DEFAULT: "#E11D48",
-          light: "#FFF1F2",
+          DEFAULT: "rgb(var(--deduction))",
+          light: "rgb(var(--deduction-light))",
           border: "#FECDD3",
         },
       },

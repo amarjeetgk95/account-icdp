@@ -560,7 +560,7 @@ export function GTR30EmployeeMasterForm({
                   <div className="leading-tight">{tab.label}</div>
                   <div
                     className={`text-[10px] font-normal truncate hidden sm:block ${
-                      isActive ? 'text-blue-100' : 'text-slate-400'
+                      isActive ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'
                     }`}
                   >
                     {tab.desc}
@@ -598,7 +598,7 @@ export function GTR30EmployeeMasterForm({
               <User className="h-4 w-4 text-blue-600" />
               <h3 className="text-sm font-bold text-slate-900">Personal &amp; Designation Details</h3>
             </div>
-            <span className="text-[11px] text-slate-400">Step 1 of 5</span>
+            <span className="text-[11px] text-slate-500">Step 1 of 5</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -754,7 +754,7 @@ export function GTR30EmployeeMasterForm({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-400">Step 2 of 5</span>
+              <span className="text-[11px] text-slate-500">Step 2 of 5</span>
               <Button
                 type="button"
                 size="sm"
@@ -962,7 +962,7 @@ export function GTR30EmployeeMasterForm({
 
                 {payEntriesValue.length === 0 && !showNewPayRow && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-xs text-slate-400">
+                    <td colSpan={6} className="px-4 py-8 text-center text-xs text-slate-500">
                       No pay entries yet. Enter a pay increment date above, or add your first entry —
                       the bill generator automatically uses the pay active on the bill month.
                     </td>
@@ -980,7 +980,7 @@ export function GTR30EmployeeMasterForm({
                         isCurrent ? 'bg-indigo-50/50' : 'bg-white'
                       }`}
                     >
-                      <td className="px-2 py-1.5 text-[11px] text-slate-400 font-mono">
+                      <td className="px-2 py-1.5 text-[11px] text-slate-500 font-mono">
                         {displayIdx + 1}
                       </td>
                       <td className="px-2 py-1.5">
@@ -1045,7 +1045,7 @@ export function GTR30EmployeeMasterForm({
             </table>
           </div>
           {payEntriesValue.length > 0 && (
-            <p className="text-[11px] text-slate-400 flex items-center gap-1">
+            <p className="text-[11px] text-slate-500 flex items-center gap-1">
               <CalendarRange className="h-3 w-3" />
               The top row is the current pay. Bills use the pay active on the bill month — mid-month
               changes are split day-by-day (e.g. ₹39,900 until 30-01-2027 → ₹42,500 from 01-02-2027).
@@ -1060,7 +1060,7 @@ export function GTR30EmployeeMasterForm({
               <TrendingUp className="h-4 w-4 text-emerald-600" />
               <h3 className="text-sm font-bold text-slate-900">Monthly Allowances &amp; Earnings (₹)</h3>
             </div>
-            <span className="text-[11px] text-slate-400">Step 3 of 5</span>
+            <span className="text-[11px] text-slate-500">Step 3 of 5</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1172,7 +1172,7 @@ export function GTR30EmployeeMasterForm({
               <TrendingDown className="h-4 w-4 text-rose-600" />
               <h3 className="text-sm font-bold text-slate-900">Statutory Deductions &amp; Recoveries (₹)</h3>
             </div>
-            <span className="text-[11px] text-slate-400">Step 4 of 5</span>
+            <span className="text-[11px] text-slate-500">Step 4 of 5</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1294,7 +1294,7 @@ export function GTR30EmployeeMasterForm({
               <Home className="h-4 w-4 text-blue-600" />
               <h3 className="text-sm font-bold text-slate-900">Govt. Quarters, Rent &amp; Additional Information</h3>
             </div>
-            <span className="text-[11px] text-slate-400">Step 5 of 5</span>
+            <span className="text-[11px] text-slate-500">Step 5 of 5</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

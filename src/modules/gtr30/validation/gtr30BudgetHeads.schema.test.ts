@@ -50,6 +50,47 @@ describe('gtr30BudgetHeadsSchema', () => {
     expect(result.data).toEqual([]);
   });
 
+  it('accepts budget heads with establishment posts', () => {
+    const heads = [
+      {
+        id: 'bh3',
+        name: 'Head With Posts',
+        establishmentPosts: [
+          {
+            id: 'post-1',
+            srNo: '1',
+            designation: 'આંકડા અધિકારી',
+            cadreClass: '૨',
+            sanctioned: 1,
+            filled: 0,
+            vacant: 1,
+            total: 1,
+          },
+        ],
+      },
+    ];
+
+    const result = gtr30BudgetHeadsSchema.safeParse(heads);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data[0].establishmentPosts).toHaveLength(1);
+      expect(result.data[0].establishmentPosts?.[0].designation).toBe('આંકડા અધિકારી');
+    }
+  });
+
+  it('rejects budget heads with malformed establishment posts', () => {
+    const heads = [
+      {
+        id: 'bh4',
+        name: 'Bad Posts Head',
+        establishmentPosts: [{ id: '', designation: 'no id' }],
+      },
+    ];
+
+    const result = gtr30BudgetHeadsSchema.safeParse(heads);
+    expect(result.success).toBe(false);
+  });
+
   it('rejects non-array input', () => {
     const result = gtr30BudgetHeadsSchema.safeParse({});
     expect(result.success).toBe(false);

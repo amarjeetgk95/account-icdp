@@ -795,6 +795,7 @@ export function GTR30CreatePage() {
                 <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
                   <button
                     type="button"
+                    aria-expanded={Boolean(advancedEarningsOpen[emp.id])}
                     onClick={() => setAdvancedEarningsOpen((prev) => ({ ...prev, [emp.id]: !prev[emp.id] }))}
                     className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors"
                   >
@@ -841,6 +842,7 @@ export function GTR30CreatePage() {
                 <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
                   <button
                     type="button"
+                    aria-expanded={Boolean(advancedDeductionsOpen[emp.id])}
                     onClick={() => setAdvancedDeductionsOpen((prev) => ({ ...prev, [emp.id]: !prev[emp.id] }))}
                     className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors"
                   >
@@ -928,9 +930,15 @@ export function GTR30CreatePage() {
                     const nextCode = e.target.value;
                     const matched = billCodeOptions.find((m) => m.billCode === nextCode);
                     if (matched) {
+                      const codeHead = matched.budgetHeadId
+                        ? budgetHeadOptions.find((h) => h.id === matched.budgetHeadId)
+                        : undefined;
                       setData((prev) => ({
                         ...prev,
                         billCode: nextCode,
+                        ...(codeHead?.establishmentPosts?.length
+                          ? { establishmentPosts: codeHead.establishmentPosts.map((p) => ({ ...p })) }
+                          : {}),
                         controllingOfficer: matched.controllingOfficer || prev.controllingOfficer,
                         classOfExpenditure: matched.classOfExpenditure || prev.classOfExpenditure,
                         fund: matched.fund || prev.fund,
@@ -974,6 +982,9 @@ export function GTR30CreatePage() {
                     setData((prev) => ({
                       ...prev,
                       budgetHeadId: head.id,
+                      ...(head.establishmentPosts?.length
+                        ? { establishmentPosts: head.establishmentPosts.map((p) => ({ ...p })) }
+                        : {}),
                       controllingOfficer: head.controllingOfficer || prev.controllingOfficer,
                       classOfExpenditure: head.classOfExpenditure || prev.classOfExpenditure,
                       fund: head.fund || prev.fund,

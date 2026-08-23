@@ -1,3 +1,5 @@
+import type { GTR30PostItem } from './bill';
+
 export interface GTR30PayEntry {
   id: string;
   startDate: string;
@@ -110,4 +112,6 @@ export interface GTR30BudgetHead {
   minorHead?: string;
   subHead?: string;
   budgetYear?: string;
+  /** Sanctioned establishment (મહેકમ) posts specific to this budget head. */
+  establishmentPosts?: GTR30PostItem[];
 }

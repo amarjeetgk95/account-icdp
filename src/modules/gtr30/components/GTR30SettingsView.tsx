@@ -45,6 +45,7 @@ import {
   useRemoveGTR30BudgetHead,
 } from '../hooks/useGTR30BudgetHeads';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { GTR30HeadPostsEditor } from './GTR30HeadPostsEditor';
 import { normalizeDARates, DEFAULT_DA_PERCENT, parseFlexibleDateToISO } from '../utils/gtr30GovRules';
 
 const EMPTY_POST: GTR30PostItem = {
@@ -85,6 +86,7 @@ const EMPTY_HEAD_FORM: Omit<GTR30BudgetHead, 'id'> = {
   minorHead: '',
   subHead: '',
   budgetYear: '2026-27',
+  establishmentPosts: [],
 };
 
 type TabId = 'office' | 'drawing' | 'budget' | 'template' | 'posts' | 'daRates' | 'resolutions';
@@ -188,7 +190,7 @@ function SettingsField({
           <AlertCircle className="h-3 w-3 shrink-0" /> {error}
         </p>
       ) : hint ? (
-        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{hint}</p>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{hint}</p>
       ) : null}
     </div>
   );
@@ -831,6 +833,13 @@ export function GTR30SettingsView() {
                 />
               </SettingsField>
             </div>
+          </div>
+
+          <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
+            <GTR30HeadPostsEditor
+              posts={headForm.establishmentPosts ?? []}
+              onChange={(posts) => setHeadForm((f) => ({ ...f, establishmentPosts: posts }))}
+            />
           </div>
 
           <div className="flex justify-end pt-1">

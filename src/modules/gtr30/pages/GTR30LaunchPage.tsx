@@ -105,6 +105,10 @@ export function GTR30LaunchPage() {
         })
       : gtr30BillFormService.emptyFormData();
     const matchedMapping = mappingsQuery.data?.find((m) => m.billCode === billCode);
+    const headForPosts = selectedHead
+      ?? (matchedMapping?.budgetHeadId
+          ? budgetHeads.find((h) => h.id === matchedMapping.budgetHeadId)
+          : undefined);
     const formData = {
       ...base,
       // eslint-disable-next-line react-hooks/purity -- crypto.randomUUID() runs in an onClick handler, not during render
@@ -146,6 +150,10 @@ export function GTR30LaunchPage() {
             subHead: selectedHead.subHead || base.subHead,
             budgetYear: selectedHead.budgetYear || base.budgetYear,
           }
+        : {}),
+      // Establishment (મહેકમ) posts come from the effective budget head when configured
+      ...(headForPosts?.establishmentPosts?.length
+        ? { establishmentPosts: headForPosts.establishmentPosts.map((p) => ({ ...p })) }
         : {}),
       employees: rows.map((master, idx) =>
         gtr30EmployeeTransformService.masterToBillEmployee(master, idx + 1, undefined, {
@@ -278,7 +286,7 @@ export function GTR30LaunchPage() {
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {billCodeMappings.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-slate-400">
+                  <td colSpan={6} className="px-3 py-6 text-center text-slate-500 dark:text-slate-400">
                     No Bill Codes defined. Add them in Bill Settings.
                   </td>
                 </tr>
@@ -288,17 +296,17 @@ export function GTR30LaunchPage() {
                 const payTotal = monthRows.reduce((sum, m) => sum + (m.currentPay || 0), 0);
                 const existing = existingFor(mapping.billCode);
                 return (
-                  <tr key={mapping.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                  <tr key={mapping.id} className="hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-3.5 py-3 font-bold text-blue-700 dark:text-blue-400 font-mono">{mapping.billCode}</td>
                     <td className="px-3.5 py-3 text-slate-600 dark:text-slate-300">{mapping.description}</td>
                     <td className="px-3.5 py-3">
                       {monthRows.length === 0 ? (
-                        <span className="text-slate-400 text-xs">No entries in master</span>
+                        <span className="text-slate-500 dark:text-slate-400 text-xs">No entries in master</span>
                       ) : (
                         <div className="flex items-center gap-1.5">
                           <Users className="h-3.5 w-3.5 text-slate-400" />
                           <span className="font-semibold text-slate-900 dark:text-white">{monthRows.length}</span>
-                          <span className="text-xs text-slate-400 truncate max-w-[220px]">
+                          <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
                             {monthRows.map((e) => e.name || e.hrpnNo || 'Unnamed').join(', ')}
                           </span>
                           {isFallback && sourceKey && (
@@ -332,7 +340,7 @@ export function GTR30LaunchPage() {
                           {existing.status}
                         </span>
                       ) : (
-                        <span className="text-slate-400 text-xs">Not created</span>
+                        <span className="text-slate-500 dark:text-slate-400 text-xs">Not created</span>
                       )}
                     </td>
                     <td className="px-3.5 py-3 text-right">

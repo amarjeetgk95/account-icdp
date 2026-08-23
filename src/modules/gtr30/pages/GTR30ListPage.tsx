@@ -365,7 +365,7 @@ export function GTR30ListPage() {
                     <tr key={bill.id} className="hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="p-3.5 font-bold text-slate-900 dark:text-white">
                         <div className="font-mono">{bill.billRegisterNo || 'Draft'}</div>
-                        <div className="text-xs font-normal text-slate-400">{bill.billDate || 'No date'}</div>
+                        <div className="text-xs font-normal text-slate-500 dark:text-slate-400">{bill.billDate || 'No date'}</div>
                       </td>
                       <td className="p-3.5">
                         <div className="font-medium text-slate-800 dark:text-slate-200">{bill.officeName}</div>

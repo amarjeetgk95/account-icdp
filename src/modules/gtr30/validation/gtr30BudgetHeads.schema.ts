@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { gtr30PostItemSchema } from './gtr30Bill.schema';
 
 const budgetHeadSchema = z.object({
   id: z.string(),
@@ -17,6 +18,7 @@ const budgetHeadSchema = z.object({
   minorHead: z.string().optional(),
   subHead: z.string().optional(),
   budgetYear: z.string().optional(),
+  establishmentPosts: z.array(gtr30PostItemSchema).optional(),
 });
 
 export const gtr30BudgetHeadsSchema = z.array(budgetHeadSchema);

@@ -686,7 +686,7 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
       </div>
 
       {showControls && activePage === 'all' && (
-        <div className="no-print mt-4 text-center text-[11px] text-slate-400">
+        <div className="no-print mt-4 text-center text-[11px] text-slate-500">
           Showing all 10 pages · P1-P4 landscape, P5-P10 portrait · {`Print All generates mixed-orientation PDF (avoids landscape-default mesh)`} · Single tab uses native print
         </div>
       )}
