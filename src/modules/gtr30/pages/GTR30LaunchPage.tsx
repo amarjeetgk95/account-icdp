@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, ChevronLeft, CreditCard, FilePlus, Pencil, ArrowRight, Users, Info, AlertCircle } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, CreditCard, FilePlus, Pencil, ArrowRight, Users, Info, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useUIStore } from '@/core/stores/ui-store';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
+import { StatusBadge } from '@/shared/components/StatusBadge';
 import { gtr30MonthKeyFor, gtr30MonthOptions, gtr30YearOptions } from '../utils/gtr30MonthKey';
 import { gtr30BillFormService } from '../services/gtr30BillForm.service';
 import { gtr30EmployeeTransformService } from '../services/gtr30EmployeeTransform.service';
@@ -211,9 +212,54 @@ export function GTR30LaunchPage() {
       )}
 
       <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <Calendar className="h-5 w-5 text-blue-600" />
-          <h2 className="font-bold text-md text-slate-900 dark:text-white">Select Bill Month, Year &amp; Budget Head</h2>
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-blue-600" />
+            <h2 className="font-bold text-md text-slate-900 dark:text-white">Select Bill Month, Year &amp; Budget Head</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => {
+                const months = gtr30MonthOptions();
+                const currentIdx = months.indexOf(month);
+                if (currentIdx > 0) {
+                  setMonth(months[currentIdx - 1]);
+                } else {
+                  // Wrap to December of previous year
+                  setMonth(months[months.length - 1]);
+                  setYear((prev) => prev - 1);
+                }
+              }}
+              title="Previous month"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[120px] text-center">
+              {month} {year}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => {
+                const months = gtr30MonthOptions();
+                const currentIdx = months.indexOf(month);
+                if (currentIdx < months.length - 1) {
+                  setMonth(months[currentIdx + 1]);
+                } else {
+                  // Wrap to January of next year
+                  setMonth(months[0]);
+                  setYear((prev) => prev + 1);
+                }
+              }}
+              title="Next month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-3 items-start">
           <div className="flex flex-col gap-1">
@@ -328,17 +374,7 @@ export function GTR30LaunchPage() {
                     </td>
                     <td className="px-3.5 py-3">
                       {existing ? (
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            existing.status === 'passed'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
-                              : existing.status === 'submitted'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-                          }`}
-                        >
-                          {existing.status}
-                        </span>
+                        <StatusBadge status={existing.status} />
                       ) : (
                         <span className="text-slate-500 dark:text-slate-400 text-xs">Not created</span>
                       )}

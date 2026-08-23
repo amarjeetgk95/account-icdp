@@ -60,6 +60,20 @@ const GTR30_PAGE_IDS_MAP: Record<GTR30PageView, string[]> = {
   p10: ['gtr30-page-10'],
 };
 
+const PAGE_LABELS: Record<GTR30PageView, string> = {
+  all: 'All Pages (1-10)',
+  p1: 'P1 · Outer Cover (GTR-30)',
+  p2: 'P2 · Inner Sheet 1 (Earnings)',
+  p3: 'P3 · Inner Sheet 2 (Deductions)',
+  p4: 'P4 · Certificate (રૂબરૂ)',
+  p5: 'P5 · House Rent',
+  p6: 'P6 · Professional Tax',
+  p7: 'P7 · GIS Employee',
+  p8: 'P8 · GIS Group',
+  p9: 'P9 · Establishment',
+  p10: 'P10 · Pramanpatra',
+};
+
 export const GTR30Document: React.FC<GTR30DocumentProps> = ({
   data,
   defaultViewPage = 'all',
@@ -586,6 +600,10 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
             <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
               {visibleCount} page{visibleCount > 1 ? 's' : ''} {activePage !== 'all' ? `· ${activePage.toUpperCase()}` : ''}
+            </span>
+
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden md:inline">
+              {PAGE_LABELS[activePage] || activePage}
             </span>
 
             <div className="flex items-center bg-slate-100 rounded-lg border border-slate-200 p-0.5">

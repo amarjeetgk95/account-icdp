@@ -1121,46 +1121,55 @@ export function GTR30EmployeeMasterForm({
             {/* Transport Allowance */}
             <div>
               <Label htmlFor="transportAllowance" className="text-xs font-semibold text-slate-700">
-                Transport Allowance (TA) (₹)
+                Transport Allowance (TA)
               </Label>
-              <Input
-                id="transportAllowance"
-                type="number"
-                step="any"
-                {...register('transportAllowance')}
-                className="mt-1 font-mono text-sm"
-                placeholder="3600"
-              />
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <Input
+                  id="transportAllowance"
+                  type="number"
+                  step="any"
+                  {...register('transportAllowance')}
+                  className="pl-7 font-mono text-sm tabular-nums"
+                  placeholder="3,600"
+                />
+              </div>
             </div>
 
             {/* Medical Allowance */}
             <div>
               <Label htmlFor="medicalAllowance" className="text-xs font-semibold text-slate-700">
-                Medical Allowance (₹)
+                Medical Allowance
               </Label>
-              <Input
-                id="medicalAllowance"
-                type="number"
-                step="any"
-                {...register('medicalAllowance')}
-                className="mt-1 font-mono text-sm"
-                placeholder="1000"
-              />
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <Input
+                  id="medicalAllowance"
+                  type="number"
+                  step="any"
+                  {...register('medicalAllowance')}
+                  className="pl-7 font-mono text-sm tabular-nums"
+                  placeholder="1,000"
+                />
+              </div>
             </div>
 
             {/* CLA */}
             <div>
               <Label htmlFor="claAllowance" className="text-xs font-semibold text-slate-700">
-                City Compensatory (CLA) (₹)
+                City Compensatory (CLA)
               </Label>
-              <Input
-                id="claAllowance"
-                type="number"
-                step="any"
-                {...register('claAllowance')}
-                className="mt-1 font-mono text-sm"
-                placeholder="270"
-              />
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <Input
+                  id="claAllowance"
+                  type="number"
+                  step="any"
+                  {...register('claAllowance')}
+                  className="pl-7 font-mono text-sm tabular-nums"
+                  placeholder="270"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -1219,14 +1228,17 @@ export function GTR30EmployeeMasterForm({
               <Label htmlFor="societyDeduction" className="text-xs font-semibold text-slate-700">
                 ICDP Credit Society
               </Label>
-              <Input
-                id="societyDeduction"
-                type="number"
-                step="any"
-                {...register('societyDeduction')}
-                className="mt-1 font-mono text-sm"
-                placeholder="4154"
-              />
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <Input
+                  id="societyDeduction"
+                  type="number"
+                  step="any"
+                  {...register('societyDeduction')}
+                  className="pl-7 font-mono text-sm tabular-nums"
+                  placeholder="4,154"
+                />
+              </div>
             </div>
 
             {/* GIS Group Selection */}
@@ -1257,30 +1269,36 @@ export function GTR30EmployeeMasterForm({
 
                 <div>
                   <Label htmlFor="gis1981Insurance" className="text-xs font-semibold text-purple-900">
-                    GIS Ins. Fund (9581) (₹)
+                    GIS Ins. Fund (9581)
                   </Label>
-                  <Input
-                    id="gis1981Insurance"
-                    type="number"
-                    step="any"
-                    {...register('gis1981Insurance')}
-                    className="mt-1 font-mono text-sm bg-white"
-                    placeholder="240"
-                  />
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                    <Input
+                      id="gis1981Insurance"
+                      type="number"
+                      step="any"
+                      {...register('gis1981Insurance')}
+                      className="pl-7 font-mono text-sm tabular-nums bg-white"
+                      placeholder="240"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <Label htmlFor="gis1981Savings" className="text-xs font-semibold text-purple-900">
-                    GIS Sav. Fund (9582) (₹)
+                    GIS Sav. Fund (9582)
                   </Label>
-                  <Input
-                    id="gis1981Savings"
-                    type="number"
-                    step="any"
-                    {...register('gis1981Savings')}
-                    className="mt-1 font-mono text-sm bg-white"
-                    placeholder="560"
-                  />
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                    <Input
+                      id="gis1981Savings"
+                      type="number"
+                      step="any"
+                      {...register('gis1981Savings')}
+                      className="pl-7 font-mono text-sm tabular-nums bg-white"
+                      placeholder="560"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1301,16 +1319,19 @@ export function GTR30EmployeeMasterForm({
             {/* Rent of Building */}
             <div>
               <Label htmlFor="rentOfBuilding" className="text-xs font-semibold text-slate-700">
-                Rent of Building Recovery (9550) (₹)
+                Rent of Building Recovery (9550)
               </Label>
-              <Input
-                id="rentOfBuilding"
-                type="number"
-                step="any"
-                {...register('rentOfBuilding')}
-                className="mt-1 font-mono text-sm"
-                placeholder="300"
-              />
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <Input
+                  id="rentOfBuilding"
+                  type="number"
+                  step="any"
+                  {...register('rentOfBuilding')}
+                  className="pl-7 font-mono text-sm tabular-nums"
+                  placeholder="300"
+                />
+              </div>
             </div>
 
             {/* Insurance Scheme Type */}

@@ -43,3 +43,31 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
     </div>
   );
 }
+
+/** Skeleton for a KPI stat card with border-left accent */
+export function StatCardSkeleton() {
+  return (
+    <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-slate-200">
+      <Skeleton className="h-3 w-20 mb-3" />
+      <Skeleton className="h-6 w-28" />
+      <Skeleton className="h-2.5 w-16 mt-2" />
+    </div>
+  );
+}
+
+/** Skeleton for a form card section with labeled fields */
+export function FormSkeleton({ fields = 6 }: { fields?: number }) {
+  return (
+    <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+      <Skeleton className="h-5 w-40 mb-2" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: fields }).map((_, i) => (
+          <div key={i} className="space-y-1.5">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-9 w-full rounded-md" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

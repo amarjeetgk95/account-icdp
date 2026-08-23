@@ -17,6 +17,9 @@ import {
   TrendingUp,
   TrendingDown,
   SlidersHorizontal,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { useUIStore } from '@/core/stores/ui-store';
 import {
@@ -64,12 +67,23 @@ export function GTR30EmployeeManagementPage() {
   const [selectedBillCode, setSelectedBillCode] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [cadreFilter, setCadreFilter] = useState<string>('ALL');
+  const [sortField, setSortField] = useState<'name' | 'currentPay' | 'cadre' | 'designation' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [deleteTarget, setDeleteTarget] = useState<{ employee: GTR30EmployeeMaster; billCode: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [showPayScaleCol, setShowPayScaleCol] = useState(true);
   const [showHrpnCol, setShowHrpnCol] = useState(true);
+
+  const toggleSort = (field: 'name' | 'currentPay' | 'cadre' | 'designation') => {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
 
   // Multi-selection state
   const [selectedEmployeeKeys, setSelectedEmployeeKeys] = useState<Set<string>>(new Set());
@@ -108,7 +122,7 @@ export function GTR30EmployeeManagementPage() {
   }, [groups, selectedBillCode]);
 
   const filteredList = useMemo(() => {
-    return allEmployeesWithBillCode.filter(({ employee }) => {
+    const list = allEmployeesWithBillCode.filter(({ employee }) => {
       if (cadreFilter !== 'ALL' && employee.cadreClass !== cadreFilter) {
         return false;
       }
@@ -122,7 +136,37 @@ export function GTR30EmployeeManagementPage() {
         (employee.payScale ?? '').toLowerCase().includes(q)
       );
     });
-  }, [allEmployeesWithBillCode, cadreFilter, searchTerm]);
+
+    if (sortField) {
+      list.sort((a, b) => {
+        let aVal: string | number = '';
+        let bVal: string | number = '';
+        if (sortField === 'name') {
+          aVal = a.employee.name || '';
+          bVal = b.employee.name || '';
+        } else if (sortField === 'currentPay') {
+          aVal = a.employee.currentPay || 0;
+          bVal = b.employee.currentPay || 0;
+        } else if (sortField === 'cadre') {
+          aVal = a.employee.cadreClass || '';
+          bVal = b.employee.cadreClass || '';
+        } else if (sortField === 'designation') {
+          aVal = a.employee.designation || '';
+          bVal = b.employee.designation || '';
+        }
+        if (typeof aVal === 'string') {
+          return sortDir === 'asc'
+            ? aVal.localeCompare(bVal as string)
+            : (bVal as string).localeCompare(aVal);
+        }
+        return sortDir === 'asc'
+          ? (aVal as number) - (bVal as number)
+          : (bVal as number) - (aVal as number);
+      });
+    }
+
+    return list;
+  }, [allEmployeesWithBillCode, cadreFilter, searchTerm, sortField, sortDir]);
 
   // Pagination (page resets whenever a filter changes, via the filter handlers)
   const totalPages = Math.ceil(filteredList.length / PAGE_SIZE);
@@ -343,7 +387,7 @@ export function GTR30EmployeeManagementPage() {
 
       {/* 2. KPI Summary Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-shadow">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
             Total Basic Pay
           </span>
@@ -352,7 +396,7 @@ export function GTR30EmployeeManagementPage() {
           </span>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-shadow">
           <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block flex items-center justify-between">
             Total Gross <TrendingUp className="h-3.5 w-3.5" />
           </span>
@@ -361,7 +405,7 @@ export function GTR30EmployeeManagementPage() {
           </span>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-shadow">
           <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600 block flex items-center justify-between">
             Total Deductions <TrendingDown className="h-3.5 w-3.5" />
           </span>
@@ -370,7 +414,7 @@ export function GTR30EmployeeManagementPage() {
           </span>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-shadow">
           <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block">
             Total Take-Home
           </span>
@@ -571,12 +615,48 @@ export function GTR30EmployeeManagementPage() {
                     />
                   </th>
                   <th className={`px-3 ${density === 'compact' ? 'py-1.5' : 'py-3'} w-10 text-center`}>#</th>
-                  <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[180px]`}>Employee Name</th>
+                  <th
+                    className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[180px] cursor-pointer hover:text-slate-900 dark:hover:text-white select-none`}
+                    onClick={() => toggleSort('name')}
+                  >
+                    <span className="flex items-center gap-1">
+                      Employee Name
+                      {sortField === 'name' ? (
+                        sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </span>
+                  </th>
                   {showHrpnCol && <th className={`px-3.5 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[90px]`}>HRPN No.</th>}
-                  <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[130px]`}>Designation</th>
+                  <th
+                    className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[130px] cursor-pointer hover:text-slate-900 dark:hover:text-white select-none`}
+                    onClick={() => toggleSort('designation')}
+                  >
+                    <span className="flex items-center gap-1">
+                      Designation
+                      {sortField === 'designation' ? (
+                        sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </span>
+                  </th>
                   <th className={`px-3 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[100px]`}>Bill Code</th>
                   {showPayScaleCol && <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[140px]`}>7th Pay Matrix</th>}
-                  <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[100px] text-right`}>Basic Pay</th>
+                  <th
+                    className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[100px] text-right cursor-pointer hover:text-slate-900 dark:hover:text-white select-none`}
+                    onClick={() => toggleSort('currentPay')}
+                  >
+                    <span className="flex items-center justify-end gap-1">
+                      Basic Pay
+                      {sortField === 'currentPay' ? (
+                        sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </span>
+                  </th>
                   <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[100px] text-right`}>Gross Pay</th>
                   <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[100px] text-right`}>Take-Home</th>
                   <th className={`px-4 ${density === 'compact' ? 'py-1.5' : 'py-3'} min-w-[90px] text-center sticky right-0 bg-slate-50 dark:bg-slate-800`}>

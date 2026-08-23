@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Plus, Printer, Save, Settings, Trash2, Users, Calculator, History, TrendingUp, TrendingDown, Columns, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Plus, Printer, Save, Settings, Trash2, Users, Calculator, History, TrendingUp, TrendingDown, Columns, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -132,6 +132,8 @@ export function GTR30CreatePage() {
   const [isSplitView, setIsSplitView] = useState(false);
   const [advancedEarningsOpen, setAdvancedEarningsOpen] = useState<Record<string, boolean>>({});
   const [advancedDeductionsOpen, setAdvancedDeductionsOpen] = useState<Record<string, boolean>>({});
+  const [lastAutoSaved, setLastAutoSaved] = useState<Date | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const billCodeOptions = mappingsQuery.data ?? [];
   const budgetHeadOptions = useGTR30BudgetHeads().data ?? [];
@@ -281,6 +283,27 @@ export function GTR30CreatePage() {
     toast({ title: 'Recalculated', description: `DA (${effectiveDaPercent}%) and NPS (10%) updated.` });
   };
 
+  const autoRecalculateAllEmployees = () => {
+    setData((current) => ({
+      ...current,
+      employees: current.employees.map((emp) => {
+        const pay = (emp.payOfEstablishment || emp.payOfOfficer || 0);
+        const da = Math.round(pay * (effectiveDaPercent / 100));
+        const nps = Math.round((pay + da) * 0.1);
+        return {
+          ...emp,
+          da,
+          npsPension: nps,
+          payLevelCell: `PAY=${pay} (LEVEL CELL-7)`,
+        };
+      }),
+    }));
+    toast({
+      title: 'All Staff Recalculated',
+      description: `Applied DA (${effectiveDaPercent}%) and NPS (10%) to all ${data.employees.length} staff members.`,
+    });
+  };
+
   const addEmployee = () => {
     const nextSr = data.employees.length + 1;
     setData((current) => ({
@@ -380,6 +403,47 @@ export function GTR30CreatePage() {
     window.setTimeout(() => window.print(), 200);
   };
 
+  // Autosave: save draft after 30s of inactivity
+  useEffect(() => {
+    if (activeTab === 'preview') return; // Don't autosave while previewing
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      // Only autosave if there are employees and it's a draft
+      if (data.employees.length > 0 && (!existing?.status || existing.status === 'draft')) {
+        // Trigger the same save logic as the Save button
+        const saveBtn = document.querySelector('[data-shortcut="save"]') as HTMLButtonElement;
+        if (saveBtn && !saveBtn.disabled) {
+          saveBtn.click();
+          setLastAutoSaved(new Date());
+        }
+      }
+    }, 30000);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [data, activeTab, existing?.status]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+S / Cmd+S: Save bill
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        // Find the save handler - look for the save button's onClick
+        // Trigger save by calling the same function
+        const saveBtn = document.querySelector('[data-shortcut="save"]') as HTMLButtonElement;
+        if (saveBtn && !saveBtn.disabled) saveBtn.click();
+      }
+      // Ctrl+P / Cmd+P: Print (switch to preview tab)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        setActiveTab('preview');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div className="max-w-7xl mx-auto space-y-4 pb-24">
       <WorkspaceHeader
@@ -406,8 +470,9 @@ export function GTR30CreatePage() {
             <Button variant="outline" size="sm" onClick={printBill}>
               <Printer className="mr-1 h-4 w-4" /> Print PDF
             </Button>
-            <Button size="sm" onClick={saveBill} className="font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20">
+            <Button size="sm" onClick={saveBill} data-shortcut="save" className="font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20">
               <Save className="mr-1 h-4 w-4" /> Save Bill
+              <kbd className="hidden sm:inline-flex ml-1.5 text-[9px] font-mono opacity-60 px-1 py-0.5 rounded bg-white/10 border border-white/20">Ctrl+S</kbd>
             </Button>
           </div>
         }
@@ -445,6 +510,7 @@ export function GTR30CreatePage() {
               </TabsTrigger>
               <TabsTrigger value="preview" className="workspace-tab data-[state=active]:workspace-tab-active focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
                 4. 10-Page Preview
+                <kbd className="hidden sm:inline-flex ml-1.5 text-[9px] font-mono opacity-60 px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/20">Ctrl+P</kbd>
               </TabsTrigger>
             </TabsList>
 
@@ -459,7 +525,12 @@ export function GTR30CreatePage() {
                 Enter employee basic pay, allowances, and schedule deductions. All 10 sheets and cover tables update dynamically.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {data.employees.length > 0 && (
+                <Button size="sm" variant="outline" onClick={autoRecalculateAllEmployees} className="text-blue-600 border-blue-200 hover:bg-blue-50">
+                  <Calculator className="mr-1 h-3.5 w-3.5" /> Auto-Calc All ({effectiveDaPercent}%)
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={loadEmployeesFromMaster}>
                 <Users className="mr-1 h-4 w-4" /> Load from Master
               </Button>
@@ -1381,9 +1452,17 @@ export function GTR30CreatePage() {
           <div className="flex items-center gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={() => setActiveTab('preview')} className="bg-slate-800 text-white hover:bg-slate-700 border-slate-700 h-8 text-xs">
               Preview
+              <kbd className="hidden sm:inline-flex ml-1.5 text-[9px] font-mono opacity-60 px-1 py-0.5 rounded bg-white/10 border border-white/20">Ctrl+P</kbd>
             </Button>
-            <Button size="sm" onClick={saveBill} className="bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 sm:px-5 h-8 text-xs shadow-md shadow-emerald-600/20">
+            {lastAutoSaved && (
+              <span className="text-[10px] text-slate-400 hidden sm:inline-flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                Auto-saved {lastAutoSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            <Button size="sm" onClick={saveBill} data-shortcut="save" className="bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 sm:px-5 h-8 text-xs shadow-md shadow-emerald-600/20">
               <Save className="mr-1.5 h-3.5 w-3.5" /> Save
+              <kbd className="hidden sm:inline-flex ml-1.5 text-[9px] font-mono opacity-60 px-1 py-0.5 rounded bg-white/10 border border-white/20">Ctrl+S</kbd>
             </Button>
           </div>
         </div>

@@ -22,6 +22,8 @@ import { cn } from '@/utils/cn';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { StatCardSkeleton, SkeletonTable } from '@/shared/components/Skeleton';
+import { StatusBadge } from '@/shared/components/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import {
   useGtr30Bills,
@@ -231,244 +233,238 @@ export function GTR30ListPage() {
         }
       />
 
-      {/* KPI Stats Header — uses global stat-tile / card tokens + stat-label/value/sub */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className={cn('stat-tile p-4')}>
-          <div className="stat-label">Total Pay Bills</div>
-          <div className="stat-value">{stats.count}</div>
-          <div className="stat-sub">{stats.totalEmployees} total staff members</div>
-        </Card>
-        <Card className={cn('stat-tile p-4')}>
-          <div className="stat-label">Gross Expenditure</div>
-          <div className="stat-value text-money">₹{formatMoney(stats.totalGross)}</div>
-          <div className="stat-sub">Salaries &amp; allowances</div>
-        </Card>
-        <Card className={cn('stat-tile stat-tile-accent border-l-rose-500 p-4')}>
-          <div className="stat-label text-rose-600">Total Deductions</div>
-          <div className="stat-value text-money text-rose-600">₹{formatMoney(stats.totalDeductions)}</div>
-          <div className="stat-sub">NPS, Rent, PT, GIS &amp; Taxes</div>
-        </Card>
-        <Card className={cn('stat-tile stat-tile-accent border-l-emerald-500 p-4')}>
-          <div className="stat-label text-emerald-600">Net Disbursed</div>
-          <div className="stat-value text-money text-emerald-600">₹{formatMoney(stats.totalNet)}</div>
-          <div className="stat-sub">Cheques / Bank transfers</div>
-        </Card>
-      </div>
-
-      {/* Search & Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by Bill No, Month, Office, or Employee name..."
-            className="pl-9 text-sm bg-white dark:bg-slate-900 dark:border-slate-800"
-          />
-        </div>
-      </div>
-
-      {/* Bill List Table */}
-      {filteredBills.length === 0 ? (
-        bills.length === 0 ? (
-          /* Guided Onboarding Card for First Time Users */
-          <Card className="border border-blue-200 dark:border-blue-900/60 bg-gradient-to-br from-blue-50/70 via-white to-indigo-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/40 p-8 rounded-2xl shadow-sm text-center">
-            <div className="max-w-xl mx-auto space-y-6">
-              <div className="inline-flex p-3.5 rounded-2xl bg-blue-600/10 text-blue-600 border border-blue-200 dark:border-blue-800">
-                <FileText className="h-8 w-8" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">Get Started with GTR-30 Pay Bills</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Follow these 3 quick steps to configure and generate your official 10-page government pay bills.
-                </p>
-              </div>
-
-              <div className="grid sm:grid-cols-3 gap-3 text-left">
-                <div
-                  onClick={() => navigate('/gtr30/settings')}
-                  className="p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer group shadow-2xs"
-                >
-                  <div className="flex items-center justify-between text-blue-600 mb-2">
-                    <Settings className="h-5 w-5" />
-                    <span className="text-[10px] font-mono font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">Step 1</span>
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">Bill Settings</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Configure DDO, office, and standard bill codes.</p>
-                </div>
-
-                <div
-                  onClick={() => navigate('/gtr30/employee-management')}
-                  className="p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer group shadow-2xs"
-                >
-                  <div className="flex items-center justify-between text-indigo-600 mb-2">
-                    <Users className="h-5 w-5" />
-                    <span className="text-[10px] font-mono font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded-full">Step 2</span>
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">Employee Directory</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Register staff profiles &amp; 7th Pay Matrix scales.</p>
-                </div>
-
-                <div
-                  onClick={() => navigate('/gtr30/create')}
-                  className="p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all cursor-pointer group shadow-2xs"
-                >
-                  <div className="flex items-center justify-between text-emerald-600 mb-2">
-                    <FilePlus className="h-5 w-5" />
-                    <span className="text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full">Step 3</span>
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">Create Pay Bill</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Auto-calculate DA, generate 10-sheet PDF.</p>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <Button onClick={() => navigate('/gtr30/create')} className="bg-blue-600 hover:bg-blue-700 font-bold text-xs px-6 shadow-md shadow-blue-600/20">
-                  <FilePlus className="mr-1.5 h-4 w-4" /> Create First GTR-30 Bill <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ) : (
-          <EmptyState
-            icon={FileText}
-            title="No matching bills found"
-            hint="Try searching with a different keyword or clear the search filter."
-            action={
-              <Button variant="outline" onClick={() => setSearchTerm('')}>
-                Clear Search
-              </Button>
-            }
-          />
-        )
-      ) : (
-        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden rounded-2xl">
-          <div className="overflow-x-auto">
-            <table className="table" aria-label="GTR-30 Pay Bill Register">
-              <thead>
-                <tr>
-                  <th scope="col">Bill Reg. No.</th>
-                  <th scope="col">Office &amp; Month</th>
-                  <th scope="col" className="text-center">Status</th>
-                  <th scope="col" className="text-center">Staff Count</th>
-                  <th scope="col" className="text-right">Gross Amount</th>
-                  <th scope="col" className="text-right">Deductions</th>
-                  <th scope="col" className="text-right">Net Payable</th>
-                  <th scope="col" className="text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBills.map((bill) => {
-                  const t = billTotals(bill);
-                  const status = bill.status || 'draft';
-                  return (
-                    <tr key={bill.id} className="hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="p-3.5 font-bold text-slate-900 dark:text-white">
-                        <div className="font-mono">{bill.billRegisterNo || 'Draft'}</div>
-                        <div className="text-xs font-normal text-slate-500 dark:text-slate-400">{bill.billDate || 'No date'}</div>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="font-medium text-slate-800 dark:text-slate-200">{bill.officeName}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{bill.monthOf}</div>
-                      </td>
-                      <td className="p-3.5 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                            status === 'passed'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
-                              : status === 'submitted'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              status === 'passed'
-                                ? 'bg-emerald-500'
-                                : status === 'submitted'
-                                ? 'bg-blue-500'
-                                : 'bg-slate-400'
-                            }`}
-                          />
-                          {status}
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
-                          {(bill.employees || []).length} Staff
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-right text-money font-medium text-slate-700 dark:text-slate-300">
-                        ₹{formatMoney(t.gross)}
-                      </td>
-                      <td className="p-3.5 text-right text-money font-medium text-rose-600 dark:text-rose-400">
-                        ₹{formatMoney(t.deductions)}
-                      </td>
-                      <td className="p-3.5 text-right text-money font-bold text-emerald-700 dark:text-emerald-400 text-base">
-                        ₹{formatMoney(t.net)}
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                            title="View Full Bill"
-                            aria-label={`View bill ${bill.billRegisterNo || bill.id}`}
-                            onClick={() => navigate(`/gtr30/view/${bill.id}`)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                            title="Edit Bill"
-                            aria-label={`Edit bill ${bill.billRegisterNo || bill.id}`}
-                            onClick={() => navigate(`/gtr30/edit/${bill.id}`)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                            title="Re-sync employees from Master"
-                            aria-label={`Re-sync employees from Master for bill ${bill.billRegisterNo || bill.id}`}
-                            disabled={refreshingId === bill.id}
-                            onClick={() => handleRefreshFromMaster(bill)}
-                          >
-                            <RefreshCw className={`h-4 w-4 ${refreshingId === bill.id ? 'animate-spin' : ''}`} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                            title="Duplicate Bill"
-                            aria-label={`Duplicate bill ${bill.billRegisterNo || bill.id}`}
-                            onClick={() => handleDuplicate(bill)}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                            title="Delete Bill"
-                            aria-label={`Delete bill ${bill.billRegisterNo || bill.id}`}
-                            onClick={() => setDeleteTarget(bill.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {billsQuery.isLoading ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
           </div>
-        </Card>
+          <SkeletonTable rows={4} cols={6} />
+        </>
+      ) : (
+        <>
+          {/* KPI Stats Header — uses global stat-tile / card tokens + stat-label/value/sub */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className={cn('stat-tile p-4 hover:shadow-md transition-shadow')}>
+              <div className="stat-label">Total Pay Bills</div>
+              <div className="stat-value">{stats.count}</div>
+              <div className="stat-sub">{stats.totalEmployees} total staff members</div>
+            </Card>
+            <Card className={cn('stat-tile p-4 hover:shadow-md transition-shadow')}>
+              <div className="stat-label">Gross Expenditure</div>
+              <div className="stat-value text-money">₹{formatMoney(stats.totalGross)}</div>
+              <div className="stat-sub">Salaries &amp; allowances</div>
+            </Card>
+            <Card className={cn('stat-tile stat-tile-accent border-l-rose-500 p-4 hover:shadow-md transition-shadow')}>
+              <div className="stat-label text-rose-600">Total Deductions</div>
+              <div className="stat-value text-money text-rose-600">₹{formatMoney(stats.totalDeductions)}</div>
+              <div className="stat-sub">NPS, Rent, PT, GIS &amp; Taxes</div>
+            </Card>
+            <Card className={cn('stat-tile stat-tile-accent border-l-emerald-500 p-4 hover:shadow-md transition-shadow')}>
+              <div className="stat-label text-emerald-600">Net Disbursed</div>
+              <div className="stat-value text-money text-emerald-600">₹{formatMoney(stats.totalNet)}</div>
+              <div className="stat-sub">Cheques / Bank transfers</div>
+            </Card>
+          </div>
+
+          {/* Search & Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by Bill No, Month, Office, or Employee name..."
+                className="pl-9 text-sm bg-white dark:bg-slate-900 dark:border-slate-800"
+              />
+            </div>
+          </div>
+
+          {/* Bill List Table */}
+          {filteredBills.length === 0 ? (
+            bills.length === 0 ? (
+              /* Guided Onboarding Card for First Time Users */
+              <Card className="border border-blue-200 dark:border-blue-900/60 bg-gradient-to-br from-blue-50/70 via-white to-indigo-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/40 p-8 rounded-2xl shadow-sm text-center">
+                <div className="max-w-xl mx-auto space-y-6">
+                  <div className="inline-flex p-3.5 rounded-2xl bg-blue-600/10 text-blue-600 border border-blue-200 dark:border-blue-800">
+                    <FileText className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white">Get Started with GTR-30 Pay Bills</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Follow these 3 quick steps to configure and generate your official 10-page government pay bills.
+                    </p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-3 gap-3 text-left">
+                    <div
+                      onClick={() => navigate('/gtr30/settings')}
+                      className="p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer group shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between text-blue-600 mb-2">
+                        <Settings className="h-5 w-5" />
+                        <span className="text-[10px] font-mono font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">Step 1</span>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">Bill Settings</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Configure DDO, office, and standard bill codes.</p>
+                    </div>
+
+                    <div
+                      onClick={() => navigate('/gtr30/employee-management')}
+                      className="p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer group shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between text-indigo-600 mb-2">
+                        <Users className="h-5 w-5" />
+                        <span className="text-[10px] font-mono font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded-full">Step 2</span>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">Employee Directory</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Register staff profiles &amp; 7th Pay Matrix scales.</p>
+                    </div>
+
+                    <div
+                      onClick={() => navigate('/gtr30/create')}
+                      className="p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all cursor-pointer group shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between text-emerald-600 mb-2">
+                        <FilePlus className="h-5 w-5" />
+                        <span className="text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full">Step 3</span>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">Create Pay Bill</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Auto-calculate DA, generate 10-sheet PDF.</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button onClick={() => navigate('/gtr30/create')} className="bg-blue-600 hover:bg-blue-700 font-bold text-xs px-6 shadow-md shadow-blue-600/20">
+                      <FilePlus className="mr-1.5 h-4 w-4" /> Create First GTR-30 Bill <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ) : (
+              <EmptyState
+                icon={FileText}
+                title="No matching bills found"
+                hint="Try searching with a different keyword or clear the search filter."
+                action={
+                  <Button variant="outline" onClick={() => setSearchTerm('')}>
+                    Clear Search
+                  </Button>
+                }
+              />
+            )
+          ) : (
+            <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden rounded-2xl">
+              <div className="overflow-x-auto">
+                <table className="table" aria-label="GTR-30 Pay Bill Register">
+                  <thead>
+                    <tr>
+                      <th scope="col">Bill Reg. No.</th>
+                      <th scope="col">Office &amp; Month</th>
+                      <th scope="col" className="text-center">Status</th>
+                      <th scope="col" className="text-center">Staff Count</th>
+                      <th scope="col" className="text-right">Gross Amount</th>
+                      <th scope="col" className="text-right">Deductions</th>
+                      <th scope="col" className="text-right">Net Payable</th>
+                      <th scope="col" className="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredBills.map((bill) => {
+                      const t = billTotals(bill);
+                      const status = bill.status || 'draft';
+                      return (
+                        <tr key={bill.id} className="hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-3.5 font-bold text-slate-900 dark:text-white">
+                            <div className="font-mono">{bill.billRegisterNo || 'Draft'}</div>
+                            <div className="text-xs font-normal text-slate-500 dark:text-slate-400">{bill.billDate || 'No date'}</div>
+                          </td>
+                          <td className="p-3.5">
+                            <div className="font-medium text-slate-800 dark:text-slate-200">{bill.officeName}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{bill.monthOf}</div>
+                          </td>
+                          <td className="p-3.5 text-center">
+                            <StatusBadge status={status} />
+                          </td>
+                          <td className="p-3.5 text-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
+                              {(bill.employees || []).length} Staff
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-right text-money font-medium text-slate-700 dark:text-slate-300">
+                            ₹{formatMoney(t.gross)}
+                          </td>
+                          <td className="p-3.5 text-right text-money font-medium text-rose-600 dark:text-rose-400">
+                            ₹{formatMoney(t.deductions)}
+                          </td>
+                          <td className="p-3.5 text-right text-money font-bold text-emerald-700 dark:text-emerald-400 text-base">
+                            ₹{formatMoney(t.net)}
+                          </td>
+                          <td className="p-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                title="View Full Bill"
+                                aria-label={`View bill ${bill.billRegisterNo || bill.id}`}
+                                onClick={() => navigate(`/gtr30/view/${bill.id}`)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                title="Edit Bill"
+                                aria-label={`Edit bill ${bill.billRegisterNo || bill.id}`}
+                                onClick={() => navigate(`/gtr30/edit/${bill.id}`)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                title="Re-sync employees from Master"
+                                aria-label={`Re-sync employees from Master for bill ${bill.billRegisterNo || bill.id}`}
+                                disabled={refreshingId === bill.id}
+                                onClick={() => handleRefreshFromMaster(bill)}
+                              >
+                                <RefreshCw className={`h-4 w-4 ${refreshingId === bill.id ? 'animate-spin' : ''}`} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                title="Duplicate Bill"
+                                aria-label={`Duplicate bill ${bill.billRegisterNo || bill.id}`}
+                                onClick={() => handleDuplicate(bill)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                title="Delete Bill"
+                                aria-label={`Delete bill ${bill.billRegisterNo || bill.id}`}
+                                onClick={() => setDeleteTarget(bill.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Delete Confirmation Modal */}
