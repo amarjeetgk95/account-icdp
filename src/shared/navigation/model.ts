@@ -52,10 +52,11 @@ const NAV_GROUPS: NavGroupConfig[] = [
   { key: 'bills', label: 'Bill Creation', icon: 'receipt', colorFamily: 'emerald', match: (m) => m.navGroup === 'bills' },
   { key: 'tds', label: 'TDS', icon: 'calculator', colorFamily: 'blue', match: (m) => m.navGroup === 'tds' },
   { key: 'it-employee', label: 'Employee IT', icon: 'file-spreadsheet', colorFamily: 'purple', match: (m) => m.navGroup === 'it-employee' },
+  { key: 'establishment', label: 'Establishment', icon: 'users', colorFamily: 'amber', match: (m) => m.navGroup === 'establishment' },
   { key: 'tools', label: 'Doc Tools', icon: 'file-text', colorFamily: 'teal', match: (m) => m.navGroup === 'tools' },
 ];
 
-const SYSTEM_GROUP: NavGroupConfig = { key: 'system', label: 'System', icon: 'settings', colorFamily: 'slate', match: () => true };
+const SYSTEM_GROUP: NavGroupConfig = { key: 'system', label: 'Master Settings', icon: 'settings', colorFamily: 'slate', match: () => true };
 const ADMIN_GROUP: NavGroupConfig = { key: 'admin', label: 'Admin Console', icon: 'users', colorFamily: 'amber', match: () => true };
 
 export function matchesRoute(routePath: string, currentBasePath: string): boolean {

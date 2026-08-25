@@ -9,6 +9,8 @@ import {
   Trash2,
   Calendar,
   Layers,
+  ShieldAlert,
+  RotateCcw,
 } from 'lucide-react';
 import { PbButton } from './ui';
 
@@ -20,6 +22,7 @@ interface BatchImportQueueProps {
   onRemoveItem: (id: string) => void;
   onSelectFileToPreview: (item: BatchFileItem) => void;
   selectedFileId?: string | null;
+  onRetryFailed?: () => void;
 }
 
 export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
@@ -30,11 +33,14 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
   onRemoveItem,
   onSelectFileToPreview,
   selectedFileId,
+  onRetryFailed,
 }) => {
   if (queue.length === 0) return null;
 
   const completedCount = queue.filter((f) => f.status === 'SUCCESS').length;
   const errorCount = queue.filter((f) => f.status === 'ERROR').length;
+  const blockedCount = queue.filter((f) => f.status === 'BLOCKED').length;
+  const pendingCount = queue.filter((f) => f.status === 'PENDING').length;
   const progressPercent = Math.round((completedCount / queue.length) * 100);
 
   return (
@@ -50,12 +56,20 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
               Multi-Month Batch Upload Queue ({queue.length} Files)
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {completedCount} of {queue.length} processed &bull; {errorCount > 0 && <span className="text-red-500">{errorCount} failed</span>}
+              {completedCount} of {queue.length} processed
+              {errorCount > 0 && <> &bull; <span className="text-red-500">{errorCount} error</span></>}
+              {blockedCount > 0 && <> &bull; <span className="text-amber-600">{blockedCount} blocked</span></>}
+              {pendingCount > 0 && <> &bull; <span className="text-slate-500">{pendingCount} pending</span></>}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {(errorCount > 0 || blockedCount > 0) && onRetryFailed && (
+            <PbButton variant="secondary" icon={RotateCcw} onClick={onRetryFailed} disabled={isBatchProcessing} title="Reset failed/blocked files to pending for retry">
+              Retry Failed
+            </PbButton>
+          )}
           <PbButton variant="secondary" icon={Trash2} onClick={onClearQueue} disabled={isBatchProcessing}>
             Clear Queue
           </PbButton>
@@ -64,7 +78,7 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
             variant="primary"
             icon={Play}
             onClick={onProcessQueue}
-            disabled={isBatchProcessing || completedCount === queue.length}
+            disabled={isBatchProcessing || (completedCount === queue.length && blockedCount === 0 && errorCount === 0)}
           >
             {isBatchProcessing ? (
               <>
@@ -126,6 +140,20 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
+                {item.confidence !== undefined && item.status !== 'PENDING' && item.status !== 'PARSING' && (
+                  <span
+                    className={`hidden sm:inline px-1.5 py-0.5 rounded text-[0.6rem] font-mono font-bold border ${
+                      (item.confidence ?? 100) < 60
+                        ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800'
+                        : (item.confidence ?? 100) < 80
+                          ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                    }`}
+                    title={`Extraction confidence ${item.confidence}%`}
+                  >
+                    {item.confidence}%
+                  </span>
+                )}
                 {item.status === 'PENDING' && (
                   <span className="px-2 py-0.5 rounded text-[0.7rem] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                     Ready
@@ -142,8 +170,13 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
                   </span>
                 )}
                 {item.status === 'ERROR' && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.7rem] font-semibold bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200">
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.7rem] font-semibold bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200" title={item.error}>
                     <AlertCircle size={12} /> Error
+                  </span>
+                )}
+                {item.status === 'BLOCKED' && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.7rem] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200" title={item.error}>
+                    <ShieldAlert size={12} /> Blocked
                   </span>
                 )}
 

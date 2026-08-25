@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { payrollService } from '../services/payroll.service';
 import { payrollRepository } from '../repositories/payroll.repository';
+import { taxReconciliationService } from '../services/taxReconciliation.service';
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
+import type { SyncPaybillToPayrollPayload } from '../types/reconciliation';
 
 export function useRoster(month: string, fy: number) {
   const officeId = useActiveOfficeId();
@@ -35,6 +37,7 @@ export function useSaveSalary() {
       });
       queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-quarter-report'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-tax-reconciliation'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -55,6 +58,7 @@ export function useClearMonth() {
       });
       queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-quarter-report'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-tax-reconciliation'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -90,3 +94,31 @@ export function useMonthDataCheck(month: string, fy: number) {
     staleTime: 60000,
   });
 }
+
+export function useTaxReconciliation(quarter: string, fy: number) {
+  const officeId = useActiveOfficeId();
+
+  return useQuery({
+    queryKey: ['payroll-tax-reconciliation', quarter, fy, officeId],
+    queryFn: () => taxReconciliationService.getQuarterTaxReconciliation(quarter, fy, officeId || undefined),
+    enabled: !!quarter && !!officeId,
+  });
+}
+
+export function useSyncPaybillToPayroll() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: SyncPaybillToPayrollPayload) =>
+      taxReconciliationService.syncPaybillToPayroll(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-roster'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-month-check'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-budget-head-report'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-quarter-report'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-tax-reconciliation'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}
+

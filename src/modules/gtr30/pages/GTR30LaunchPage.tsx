@@ -68,7 +68,7 @@ export function GTR30LaunchPage() {
   if (settingsQuery.isPending && !settingsQuery.data) {
     return (
       <div className="max-w-5xl mx-auto py-16 flex flex-col items-center justify-center gap-4 text-slate-500">
-        <div className="h-10 w-10 animate-spin rounded-full border-3 border-blue-600 border-t-transparent" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
         <div className="text-sm font-medium text-slate-700">Loading settings…</div>
         <div className="text-xs text-slate-500 max-w-md text-center">
           Configure settings first to generate a blank bill with your office defaults.
@@ -112,8 +112,7 @@ export function GTR30LaunchPage() {
           : undefined);
     const formData = {
       ...base,
-      // eslint-disable-next-line react-hooks/purity -- crypto.randomUUID() runs in an onClick handler, not during render
-      billRegisterNo: `${billCode}-${month}-${crypto.randomUUID().slice(0, 8)}`,
+      billRegisterNo: `${billCode}-${month}`,
       monthOf: month,
       billCode,
       controllingOfficer: matchedMapping?.controllingOfficer || base.controllingOfficer,
@@ -215,7 +214,7 @@ export function GTR30LaunchPage() {
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-blue-600" />
-            <h2 className="font-bold text-md text-slate-900 dark:text-white">Select Bill Month, Year &amp; Budget Head</h2>
+            <h2 className="font-bold text-base text-slate-900 dark:text-white">Select Bill Month, Year &amp; Budget Head</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -240,6 +239,19 @@ export function GTR30LaunchPage() {
             <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[120px] text-center">
               {month} {year}
             </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+              onClick={() => {
+                const now = new Date();
+                setMonth(now.toLocaleString('en-US', { month: 'long' }));
+                setYear(activeFY);
+              }}
+              title="Jump to the current month"
+            >
+              This month
+            </Button>
             <Button
               variant="outline"
               size="icon"
@@ -314,14 +326,14 @@ export function GTR30LaunchPage() {
       <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm space-y-4">
         <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
           <CreditCard className="h-5 w-5 text-blue-600" />
-          <h2 className="font-bold text-md text-slate-900 dark:text-white">Bills by Bill Code</h2>
+          <h2 className="font-bold text-base text-slate-900 dark:text-white">Bills by Bill Code</h2>
         </div>
 
         <div className="bg-slate-50/70 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
           <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="bg-slate-100/80 dark:bg-slate-800 text-left text-xs uppercase font-bold text-slate-600 dark:text-slate-400">
-                <th className="px-3.5 py-2.5">Bill Code</th>
+                <th className="px-3.5 py-2.5 sticky left-0 bg-slate-100/95 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">Bill Code</th>
                 <th className="px-3.5 py-2.5">Description</th>
                 <th className="px-3.5 py-2.5">Employees in Master</th>
                 <th className="px-3.5 py-2.5">Pay Total (₹)</th>
@@ -342,8 +354,8 @@ export function GTR30LaunchPage() {
                 const payTotal = monthRows.reduce((sum, m) => sum + (m.currentPay || 0), 0);
                 const existing = existingFor(mapping.billCode);
                 return (
-                  <tr key={mapping.id} className="hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="px-3.5 py-3 font-bold text-blue-700 dark:text-blue-400 font-mono">{mapping.billCode}</td>
+                  <tr key={mapping.id} className="group hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="px-3.5 py-3 font-bold text-blue-700 dark:text-blue-400 font-mono sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/40 transition-colors border-r border-slate-100 dark:border-slate-800">{mapping.billCode}</td>
                     <td className="px-3.5 py-3 text-slate-600 dark:text-slate-300">{mapping.description}</td>
                     <td className="px-3.5 py-3">
                       {monthRows.length === 0 ? (
@@ -363,7 +375,7 @@ export function GTR30LaunchPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-3.5 py-3 font-mono">
+                    <td className="px-3.5 py-3 font-mono tabular-nums">
                       {monthRows.length === 0 ? (
                         <span className="text-slate-300 text-xs">—</span>
                       ) : (
@@ -376,16 +388,18 @@ export function GTR30LaunchPage() {
                       {existing ? (
                         <StatusBadge status={existing.status} />
                       ) : (
-                        <span className="text-slate-500 dark:text-slate-400 text-xs">Not created</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 ring-1 ring-inset ring-slate-200 dark:ring-slate-700 rounded-full px-2 py-0.5 bg-slate-50 dark:bg-slate-800/60 whitespace-nowrap">
+                          Not created
+                        </span>
                       )}
                     </td>
                     <td className="px-3.5 py-3 text-right">
                       {existing ? (
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/gtr30/edit/${existing.id}`)} className="h-8 text-xs font-semibold">
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/gtr30/edit/${existing.id}`)} className="h-8 text-xs font-semibold min-w-[110px] justify-center">
                           <Pencil className="h-3.5 w-3.5 mr-1" /> Edit Bill
                         </Button>
                       ) : (
-                        <Button size="sm" onClick={() => createBill(mapping.billCode)} className="h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs">
+                        <Button size="sm" onClick={() => createBill(mapping.billCode)} className="h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs min-w-[110px] justify-center">
                           <FilePlus className="h-3.5 w-3.5 mr-1" /> Create Bill
                           <ArrowRight className="h-3.5 w-3.5 ml-1" />
                         </Button>

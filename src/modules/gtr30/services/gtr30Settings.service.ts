@@ -162,17 +162,20 @@ class Gtr30SettingsService {
   saveSettings(payload: {
     settings: GTR30DefaultSettings;
     employeeTemplate: GTR30DefaultEmployeeTemplate;
-    defaultPosts: GTR30PostItem[];
+    defaultPosts?: GTR30PostItem[];
     daRates?: GTR30DARateEntry[];
   }): Gtr30SettingsPayload {
     const existing = gtr30SettingsLocalStorageRepository.load();
     const daRates = payload.daRates
       ? payload.daRates.map((r) => ({ ...r }))
       : existing?.daRates ?? freshDefaultDaRates();
+    const defaultPosts = payload.defaultPosts
+      ? payload.defaultPosts.map((post) => ({ ...post }))
+      : existing?.defaultPosts ?? freshDefaultPosts();
     const next: Gtr30SettingsPayload = {
       settings: { ...payload.settings },
       employeeTemplate: { ...payload.employeeTemplate },
-      defaultPosts: payload.defaultPosts.map((post) => ({ ...post })),
+      defaultPosts,
       daRates,
     };
     // Ensure daRates sorted ascending by effectiveFrom

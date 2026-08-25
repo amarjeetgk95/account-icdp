@@ -65,20 +65,7 @@ const mockModules: ModuleDefinition[] = [
       { path: '/payroll/entry', label: 'Monthly Entry', icon: 'file-spreadsheet' },
     ],
   },
-  {
-    id: 'pdf-tools',
-    name: 'OCR & PDF Tools',
-    icon: 'scan-text',
-    navGroup: 'tools',
-    routes: [{ path: '/pdf-tools/ocr', element: <div>OCR</div> }],
-    sidebar: true,
-    featureFlag: 'pdf_tools_module',
-    order: 1,
-    children: [
-      { path: '/pdf-tools/ocr', label: 'OCR Document Studio', icon: 'file-spreadsheet' },
-      { path: '/pdf-tools/editor', label: 'PDF Workbench', icon: 'layers' },
-    ],
-  },
+
 ];
 
 function renderWithProviders(ui: React.ReactElement, initialPath = '/dashboard') {
@@ -122,7 +109,6 @@ describe('Header Cascading Flyout Navigation', () => {
     expect(screen.getByText('Dashboard')).toBeDefined();
     expect(screen.getByText('Bill Creation')).toBeDefined();
     expect(screen.getByText('TDS')).toBeDefined();
-    expect(screen.getByText('Doc Tools')).toBeDefined();
   });
 
   it('opens Level 2 dropdown and Level 3 cascading sub-flyout on multi-branch module click (Bill Creation)', () => {
@@ -140,25 +126,21 @@ describe('Header Cascading Flyout Navigation', () => {
     expect(screen.getByText('DC Bills Register')).toBeDefined();
   });
 
-  it('renders single-branch module (Doc Tools) directly in Level 2 without 3rd branch bifurcation', () => {
+  it('renders TDS section branches correctly', () => {
     renderWithProviders(<Header modules={mockModules} />, '/dashboard');
 
-    const toolsBtn = screen.getByRole('button', { name: /doc tools/i });
-    fireEvent.click(toolsBtn);
+    const tdsBtn = screen.getByRole('button', { name: /TDS/i });
+    fireEvent.click(tdsBtn);
 
-    // Direct items inside Level 2 dropdown
-    expect(screen.getByText('OCR Document Studio')).toBeDefined();
-    expect(screen.getByText('PDF Workbench')).toBeDefined();
+    // Single-branch TDS section renders child directly (Case A in Header.tsx:451)
+    expect(screen.getByText('Monthly Entry')).toBeDefined();
   });
 
-  it('renders financial year selector and search trigger', () => {
-    const onOpenCommandPalette = vi.fn();
-    renderWithProviders(<Header modules={mockModules} onOpenCommandPalette={onOpenCommandPalette} />, '/dashboard');
+  it('renders financial year selector', () => {
+    renderWithProviders(<Header modules={mockModules} />, '/dashboard');
 
     expect(screen.getByTitle('Financial Year')).toBeDefined();
-    const searchBtn = screen.getByRole('button', { name: /search/i });
-    fireEvent.click(searchBtn);
-    expect(onOpenCommandPalette).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /search/i })).toBeNull();
   });
 
   it('renders user profile menu with sign out button', () => {

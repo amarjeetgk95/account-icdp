@@ -538,7 +538,7 @@ export function GTR30EmployeeManagementPage() {
                 onClick={() => setDensity('comfortable')}
                 className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
                   density === 'comfortable'
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
                 }`}
                 title="Comfortable row spacing"
@@ -550,7 +550,7 @@ export function GTR30EmployeeManagementPage() {
                 onClick={() => setDensity('compact')}
                 className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
                   density === 'compact'
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
                 }`}
                 title="Compact dense rows"

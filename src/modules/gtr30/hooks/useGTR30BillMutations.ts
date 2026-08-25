@@ -8,8 +8,31 @@ export function useGtr30SaveBill() {
   const queryClient = useQueryClient();
   const officeId = useActiveOfficeId();
   return useMutation({
-    mutationFn: (input: { form: GTR30FormData; existing: GTR30Bill | null }) =>
+    mutationFn: (input: { form: GTR30FormData & { status?: GTR30Bill['status'] }; existing: GTR30Bill | null }) =>
       gtr30BillsService.saveBill(input.form, input.existing),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(['gtr30Bills', officeId ?? null], (prev: GTR30Bill[] | undefined) => {
+        const list = prev ?? [];
+        const idx = list.findIndex((b) => b.id === saved.id);
+        if (idx >= 0) {
+          const next = [...list];
+          next[idx] = saved;
+          return next;
+        }
+        return [saved, ...list];
+      });
+      queryClient.setQueryData(['gtr30Bill', officeId ?? null, saved.id], saved);
+      void invalidateGtr30Queries(queryClient);
+    },
+  });
+}
+
+export function useGtr30UpdateBillStatus() {
+  const queryClient = useQueryClient();
+  const officeId = useActiveOfficeId();
+  return useMutation({
+    mutationFn: (input: { id: string; status: GTR30Bill['status'] }) =>
+      gtr30BillsService.updateBillStatus(input.id, input.status),
     onSuccess: (saved) => {
       queryClient.setQueryData(['gtr30Bills', officeId ?? null], (prev: GTR30Bill[] | undefined) => {
         const list = prev ?? [];

@@ -7,9 +7,15 @@ import {
 } from '../validation/gtr30EmployeeMaster.schema';
 import { normalizePayEntries } from '../utils/gtr30PayMatrix';
 import { isAllOfficesMode } from '@/shared/utilities/office';
+import { resolveOfficeIdStrict } from '../repositories/officeScope';
 
 const SYNC_DEBOUNCE_MS = 600;
+const SYNC_STORAGE_KEY = 'gtr30:syncPhases';
+const RETRY_BASE_MS = 2000;
+const MAX_RETRY_MS = 30000;
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const retryCounts = new Map<string, number>();
 
 export type Gtr30SyncPhase = 'idle' | 'pending' | 'syncing' | 'synced' | 'error';
 
@@ -20,11 +26,76 @@ export interface Gtr30SyncStatus {
 }
 
 const syncPhases = new Map<string, Gtr30SyncPhase>();
+const syncErrors = new Map<string, string>();
 const syncListeners = new Set<() => void>();
 
-function setSyncPhase(key: string, phase: Gtr30SyncPhase): void {
+function persistSyncPhases(): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const obj: Record<string, Gtr30SyncPhase> = {};
+    for (const [k, v] of syncPhases.entries()) obj[k] = v;
+    localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(obj));
+  } catch {}
+}
+
+function hydrateSyncPhases(): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const raw = localStorage.getItem(SYNC_STORAGE_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw) as Record<string, Gtr30SyncPhase>;
+    for (const [k, v] of Object.entries(obj)) {
+      if (['idle', 'pending', 'syncing', 'synced', 'error'].includes(v)) {
+        syncPhases.set(k, v as Gtr30SyncPhase);
+      }
+    }
+  } catch {}
+}
+
+// Hydrate on module load
+hydrateSyncPhases();
+
+function setSyncPhase(key: string, phase: Gtr30SyncPhase, errorMsg?: string): void {
   syncPhases.set(key, phase);
+  if (phase === 'error' && errorMsg) {
+    syncErrors.set(key, errorMsg);
+  } else if (phase !== 'error') {
+    syncErrors.delete(key);
+    if (phase === 'synced' || phase === 'idle') {
+      retryCounts.delete(key);
+      const t = retryTimers.get(key);
+      if (t) {
+        clearTimeout(t);
+        retryTimers.delete(key);
+      }
+    }
+  }
+  persistSyncPhases();
   for (const listener of syncListeners) listener();
+}
+
+function scheduleRetry(key: string): void {
+  const count = (retryCounts.get(key) ?? 0) + 1;
+  retryCounts.set(key, count);
+  const delay = Math.min(RETRY_BASE_MS * Math.pow(2, count - 1), MAX_RETRY_MS);
+  const existing = retryTimers.get(key);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    retryTimers.delete(key);
+    const local = gtr30EmployeeMasterLocalRepository.loadAll();
+    const group = local[key];
+    if (!group) {
+      setSyncPhase(key, 'idle');
+      return;
+    }
+    setSyncPhase(key, 'pending');
+    debounceReplace(group.monthKey, group.billCode, group.employees);
+  }, delay);
+  retryTimers.set(key, timer);
+}
+
+export function getGtr30SyncErrors(): Record<string, string> {
+  return Object.fromEntries(syncErrors.entries());
 }
 
 function aggregateSyncStatus(): Gtr30SyncStatus {
@@ -69,16 +140,44 @@ function debounceReplace(monthKey: string, billCode: string, employees: GTR30Emp
             } catch {
               // store unavailable
             }
-            setSyncPhase(key, allOffices ? 'idle' : 'error');
+            if (allOffices) {
+              setSyncPhase(key, 'idle');
+            } else {
+              const officeId = await resolveOfficeIdStrict().catch(() => null);
+              const msg = !officeId ? 'No office selected (please re-login)' : 'Server rejected save - check console for details';
+              console.warn('[GTR30EmployeeMaster] replaceGroup returned null for', { monthKey, billCode, officeId });
+              setSyncPhase(key, 'error', msg);
+              scheduleRetry(key);
+            }
           } else {
             setSyncPhase(key, 'synced');
           }
-        } catch {
-          setSyncPhase(key, 'error');
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Unknown sync error';
+          console.warn('[GTR30EmployeeMaster] replaceGroup failed:', { monthKey, billCode, error: msg });
+          setSyncPhase(key, 'error', msg);
+          scheduleRetry(key);
         }
       })();
     }, SYNC_DEBOUNCE_MS)
   );
+}
+
+export function retryGtr30Sync(): void {
+  const local = gtr30EmployeeMasterLocalRepository.loadAll();
+  for (const [key, phase] of syncPhases.entries()) {
+    if (phase !== 'error') continue;
+    const group = local[key];
+    if (!group) continue;
+    retryCounts.delete(key);
+    const t = retryTimers.get(key);
+    if (t) {
+      clearTimeout(t);
+      retryTimers.delete(key);
+    }
+    setSyncPhase(key, 'pending');
+    debounceReplace(group.monthKey, group.billCode, group.employees);
+  }
 }
 
 interface EmployeeGroupSnapshot {
@@ -301,8 +400,13 @@ class Gtr30EmployeeMasterService {
   reset(): void {
     gtr30EmployeeMasterLocalRepository.clear();
     for (const timer of pendingTimers.values()) clearTimeout(timer);
+    for (const timer of retryTimers.values()) clearTimeout(timer);
     pendingTimers.clear();
+    retryTimers.clear();
+    retryCounts.clear();
     syncPhases.clear();
+    syncErrors.clear();
+    try { localStorage.removeItem(SYNC_STORAGE_KEY); } catch {}
     for (const listener of syncListeners) listener();
   }
 

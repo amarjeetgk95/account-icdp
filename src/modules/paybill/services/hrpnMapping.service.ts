@@ -201,7 +201,8 @@ class HrpnMappingService {
 
   /**
    * Map extracted deduction rows against master employee dataset using HRPN.
-   * Mirrors `mapRows` for the deduction side.
+   * Mirrors `mapRows` for the deduction side with duplicate, invalid and
+   * name-mismatch detection so both sheet types share the same gates.
    */
   mapDeductionRows(
     rows: PayBillDeductionRow[],
@@ -209,28 +210,65 @@ class HrpnMappingService {
   ): PayBillDeductionExtractedRecord[] {
     const masterMap = this.buildMasterMap(masterEmployees);
 
+    // Count occurrences to detect in-file duplicates (parity with earnings)
+    const hrpnOccurrences = new Map<string, number>();
+    for (const row of rows) {
+      const h = this.normalizeHrpn(row.hrpn);
+      if (h) hrpnOccurrences.set(h, (hrpnOccurrences.get(h) || 0) + 1);
+    }
+
     const records: PayBillDeductionExtractedRecord[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const hrpn = this.normalizeHrpn(row.hrpn);
-      const matchedEmployee = hrpn ? (masterMap.get(hrpn) || null) : null;
-      const mappingStatus: MappingStatus = matchedEmployee ? 'MATCHED' : 'NOT_FOUND';
-      const mappingMessage = matchedEmployee
-        ? `Matched with master record: ${matchedEmployee.name}`
-        : `HRPN ${hrpn || ''} not found in master employee dataset`;
+      const errors: string[] = [];
+      const warnings: string[] = [];
+      let mappingStatus: MappingStatus = 'NOT_FOUND';
+      let mappingMessage = '';
+      let matchedEmployee: MasterEmployeeInfo | null = null;
+      let nameMismatch = false;
+
+      if (!hrpn || !this.isValidHrpn(hrpn)) {
+        mappingStatus = 'INVALID_HRPN';
+        mappingMessage = 'Missing or invalid HRPN format';
+        errors.push('Invalid HRPN key');
+      } else if ((hrpnOccurrences.get(hrpn) || 0) > 1) {
+        mappingStatus = 'DUPLICATE';
+        mappingMessage = `Duplicate HRPN ${hrpn} appears multiple times in this bill`;
+        errors.push(`HRPN ${hrpn} is duplicated in file`);
+        matchedEmployee = masterMap.get(hrpn) || null;
+      } else {
+        matchedEmployee = masterMap.get(hrpn) || null;
+        if (matchedEmployee) {
+          mappingStatus = 'MATCHED';
+          mappingMessage = `Matched with master record: ${matchedEmployee.name}`;
+          if (this.isNameMismatch(row.employeeName, matchedEmployee.name)) {
+            nameMismatch = true;
+            warnings.push(
+              `HRPN matched, but employee name differs (PDF: "${row.employeeName}", Master: "${matchedEmployee.name}")`
+            );
+          }
+        } else {
+          mappingStatus = 'NOT_FOUND';
+          mappingMessage = `HRPN ${hrpn} not found in master employee dataset`;
+          warnings.push('Employee not registered in master dataset');
+        }
+      }
+
+      const normalizedRow: PayBillDeductionRow = { ...row, hrpn };
 
       records.push({
-        id: `ded_rec_${i + 1}`,
-        row,
+        id: `ded_rec_${i + 1}_${hrpn || 'nohrpn'}`,
+        row: normalizedRow,
         mappingStatus,
         mappingMessage,
         matchedEmployee,
-        nameMismatch: false,
-        validationStatus: 'VALID',
-        errors: [],
-        warnings: [],
-        normalizedString: this.generateDeductionNormalizedString(row),
+        nameMismatch,
+        validationStatus: errors.length > 0 ? 'ERROR' : warnings.length > 0 ? 'WARNING' : 'VALID',
+        errors,
+        warnings,
+        normalizedString: this.generateDeductionNormalizedString(normalizedRow),
       });
     }
 

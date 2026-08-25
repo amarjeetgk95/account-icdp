@@ -482,6 +482,10 @@
     @apply border-l-4;
   }
 
+  .stat-tile-accent::before {
+    display: none;
+  }
+
   .stat-tile-icon {
     @apply w-10 h-10 rounded-lg flex items-center justify-center text-lg mb-3;
   }
@@ -607,6 +611,13 @@
 
   .badge-neutral { background: #F1F5F9; color: #64748B; }
   .badge-neutral .badge-dot { background: #94A3B8; }
+
+  /* ============================================================
+     FORM UTILITIES
+     ============================================================ */
+  .money-input {
+    @apply font-mono text-xs tabular-nums;
+  }
 
   /* ============================================================
      ALERTS

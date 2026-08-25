@@ -12,9 +12,9 @@ export interface FeatureFlags {
   reports_module: boolean;
   gtr44_module: boolean;
   gtr30_module: boolean;
+  establishment_module: boolean;
   paybill_module: boolean;
   paybill_component_master: boolean;
-  pdf_tools_module: boolean;
 }
 
 interface FeatureFlagStore {
@@ -32,9 +32,9 @@ const defaultFlags: FeatureFlags = {
   reports_module: true,
   gtr44_module: true,
   gtr30_module: true,
+  establishment_module: true,
   paybill_module: true,
   paybill_component_master: true,
-  pdf_tools_module: true,
 };
 
 const useFeatureFlags = create<FeatureFlagStore>()(

@@ -5,7 +5,6 @@ import {
   UserCog,
   TreePine,
   UserRound,
-  FileText,
   ScrollText,
   Save,
   RotateCcw,
@@ -36,7 +35,7 @@ import {
   useResetGTR30Settings,
 } from '../hooks/useGTR30Settings';
 import type { GTR30DARateEntry, GTR30DefaultSettings, GTR30DefaultEmployeeTemplate } from '../types/settings';
-import type { GTR30PostItem, GTR30BudgetHead } from '../types';
+import type { GTR30BudgetHead } from '../types';
 import { normalizeInsuranceGroup } from '../types/bill';
 import { GTR30BillCodeMappingView } from './GTR30BillCodeMappingView';
 import {
@@ -47,17 +46,6 @@ import {
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { GTR30HeadPostsEditor } from './GTR30HeadPostsEditor';
 import { normalizeDARates, DEFAULT_DA_PERCENT, parseFlexibleDateToISO } from '../utils/gtr30GovRules';
-
-const EMPTY_POST: GTR30PostItem = {
-  id: '',
-  srNo: '',
-  designation: '',
-  cadreClass: '૩',
-  sanctioned: 1,
-  filled: 0,
-  vacant: 1,
-  total: 1,
-};
 
 const CADRE_CLASS_OPTIONS = ['૧', '૨', '૩', '૪'];
 const ASCII_TO_GUJARATI: Record<string, string> = {
@@ -89,14 +77,13 @@ const EMPTY_HEAD_FORM: Omit<GTR30BudgetHead, 'id'> = {
   establishmentPosts: [],
 };
 
-type TabId = 'office' | 'drawing' | 'budget' | 'template' | 'posts' | 'daRates' | 'resolutions';
+type TabId = 'office' | 'drawing' | 'budget' | 'template' | 'daRates' | 'resolutions';
 
 const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: 'office', label: 'Office & Treasury', icon: Building2 },
   { id: 'drawing', label: 'Drawing Officer', icon: UserCog },
   { id: 'budget', label: 'Budget Heads', icon: TreePine },
   { id: 'template', label: 'Employee Template', icon: UserRound },
-  { id: 'posts', label: 'Establishment Posts', icon: FileText },
   { id: 'daRates', label: 'DA Rates', icon: Percent },
   { id: 'resolutions', label: 'Resolutions & Bill Codes', icon: ScrollText },
 ];
@@ -288,9 +275,6 @@ export function GTR30SettingsView() {
   const [localTemplate, setLocalTemplate] = useState<GTR30DefaultEmployeeTemplate>(() => ({
     ...(initial?.employeeTemplate ?? ({} as GTR30DefaultEmployeeTemplate)),
   }));
-  const [localPosts, setLocalPosts] = useState<GTR30PostItem[]>(() =>
-    (initial?.defaultPosts ?? []).map((p) => ({ ...p }))
-  );
   const [localDaRates, setLocalDaRates] = useState<GTR30DARateEntry[]>(() =>
     (initial?.daRates ?? []).map((r) => ({ ...r }))
   );
@@ -300,7 +284,6 @@ export function GTR30SettingsView() {
       JSON.stringify({
         settings: initial?.settings,
         employeeTemplate: initial?.employeeTemplate,
-        defaultPosts: initial?.defaultPosts,
         daRates: initial?.daRates,
       }),
     [initial]
@@ -310,13 +293,11 @@ export function GTR30SettingsView() {
     setResyncedSnapshot(savedSnapshot);
     setLocalSettings({ ...initial.settings });
     setLocalTemplate({ ...initial.employeeTemplate });
-    setLocalPosts(initial.defaultPosts.map((p) => ({ ...p })));
     setLocalDaRates((initial.daRates ?? []).map((r) => ({ ...r })));
   }
   const localSnapshot = JSON.stringify({
     settings: localSettings,
     employeeTemplate: localTemplate,
-    defaultPosts: localPosts,
     daRates: localDaRates,
   });
   const dirty = savedSnapshot !== localSnapshot;
@@ -330,7 +311,6 @@ export function GTR30SettingsView() {
     drawing: Boolean(errors.drawingOfficerName),
     budget: Boolean(errors.headChargeable),
     template: false,
-    posts: false,
     daRates: Object.keys(daErrors).length > 0,
     resolutions: false,
   };
@@ -347,33 +327,6 @@ export function GTR30SettingsView() {
     value: GTR30DefaultEmployeeTemplate[K]
   ) => {
     setLocalTemplate((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const updatePost = (id: string, field: keyof GTR30PostItem, value: string | number) => {
-    setLocalPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== id) return post;
-        const updated = { ...post, [field]: value };
-        if (field === 'sanctioned' || field === 'filled') {
-          const sanc = Number(field === 'sanctioned' ? value : post.sanctioned) || 0;
-          const fill = Number(field === 'filled' ? value : post.filled) || 0;
-          updated.vacant = Math.max(0, sanc - fill);
-          updated.total = sanc;
-        }
-        return updated;
-      })
-    );
-  };
-
-  const addPost = () => {
-    setLocalPosts((prev) => [
-      ...prev,
-      { ...EMPTY_POST, id: crypto.randomUUID(), srNo: String(prev.length + 1) },
-    ]);
-  };
-
-  const removePost = (id: string) => {
-    setLocalPosts((prev) => prev.filter((p) => p.id !== id));
   };
 
   const updateDaRate = (id: string, field: keyof GTR30DARateEntry, value: string | number) => {
@@ -419,15 +372,15 @@ export function GTR30SettingsView() {
     }
     try {
       const normalizedDaRates = normalizeDARates(localDaRates);
-      const saved = await saveMutation.mutateAsync({
+      const saved = await (saveMutation.mutateAsync as unknown as (v: unknown) => Promise<{ settings: typeof localSettings; employeeTemplate: typeof localTemplate; daRates: typeof localDaRates }>)({
         settings: localSettings,
         employeeTemplate: localTemplate,
-        defaultPosts: localPosts,
+        // defaultPosts removed from UI — backend still expects it, send empty array for compat
+        defaultPosts: [],
         daRates: normalizedDaRates,
-      });
+      } as unknown as never);
       setLocalSettings({ ...saved.settings });
       setLocalTemplate({ ...saved.employeeTemplate });
-      setLocalPosts(saved.defaultPosts.map((p) => ({ ...p })));
       setLocalDaRates((saved.daRates ?? []).map((r) => ({ ...r })));
       toast({
         title: 'Settings Saved',
@@ -447,7 +400,6 @@ export function GTR30SettingsView() {
     const reset = await resetMutation.mutateAsync();
     setLocalSettings({ ...reset.settings });
     setLocalTemplate({ ...reset.employeeTemplate });
-    setLocalPosts(reset.defaultPosts.map((p) => ({ ...p })));
     setLocalDaRates((reset.daRates ?? []).map((r) => ({ ...r })));
     toast({ title: 'Settings Reset', description: 'Built-in defaults restored.' });
   };
@@ -467,17 +419,16 @@ export function GTR30SettingsView() {
   }, [localTemplate.insuranceGroup]);
 
   const completeness = useMemo(() => {
-    const total = 6;
+    const total = 5;
     let filled = 0;
     if (localSettings.officeName.trim()) filled++;
     if (localSettings.officeFullName.trim()) filled++;
     if (localSettings.treasuryName.trim()) filled++;
     if (localSettings.drawingOfficerName.trim()) filled++;
     if (localDaRates.length > 0) filled++;
-    if (localPosts.length > 0) filled++;
     const percent = Math.round((filled / total) * 100);
     return { filled, total, percent };
-  }, [localSettings, localDaRates, localPosts]);
+  }, [localSettings, localDaRates]);
 
   return (
     <div className="space-y-5">
@@ -1072,109 +1023,6 @@ export function GTR30SettingsView() {
         </Card>
       )}
 
-      {/* Establishment Posts */}
-      {activeTab === 'posts' && (
-        <Card className="border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4 bg-white dark:bg-slate-900">
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-            <SectionHeader
-              icon={FileText}
-              title="Default Establishment Posts"
-              subtitle="Sanctioned strength shown on the bill"
-            />
-            <Button size="sm" variant="outline" onClick={addPost}>
-              <Plus className="h-4 w-4 mr-1" /> Add Post
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {localPosts.map((post) => {
-              const postCadreOptions = CADRE_CLASS_OPTIONS.includes(
-                toGujaratiCadre(post.cadreClass ?? '')
-              )
-                ? CADRE_CLASS_OPTIONS
-                : [...CADRE_CLASS_OPTIONS, toGujaratiCadre(post.cadreClass ?? '')];
-              return (
-                <div
-                  key={post.id}
-                  className="grid gap-2 sm:grid-cols-7 items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700"
-                >
-                  <div>
-                    <Label className="text-xs">Sr.</Label>
-                    <Input
-                      value={post.srNo}
-                      onChange={(e) => updatePost(post.id, 'srNo', e.target.value)}
-                      className={`font-serif ${inputClass()}`}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Label className="text-xs">Designation</Label>
-                    <Input
-                      value={post.designation}
-                      onChange={(e) => updatePost(post.id, 'designation', e.target.value)}
-                      className={`font-serif ${inputClass()}`}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Class</Label>
-                    <select
-                      value={toGujaratiCadre(post.cadreClass ?? '')}
-                      onChange={(e) => updatePost(post.id, 'cadreClass', e.target.value)}
-                      className={`font-serif ${selectClass()}`}
-                    >
-                      {postCadreOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Sanctioned</Label>
-                    <Input
-                      type="number"
-                      value={post.sanctioned}
-                      onChange={(e) =>
-                        updatePost(post.id, 'sanctioned', parseInt(e.target.value) || 0)
-                      }
-                      className={inputClass()}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Filled</Label>
-                    <Input
-                      type="number"
-                      value={post.filled}
-                      onChange={(e) => updatePost(post.id, 'filled', parseInt(e.target.value) || 0)}
-                      className={inputClass()}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <Label className="text-xs">Vacant</Label>
-                      <Input
-                        value={post.vacant}
-                        disabled
-                        className="h-9 mt-1 text-sm bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
-                      />
-                    </div>
-                    {localPosts.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-red-500 mt-5 hover:bg-red-50 dark:hover:bg-red-900/30"
-                        onClick={() => removePost(post.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
       {/* DA Rates with Effective From */}
       {activeTab === 'daRates' && (
         <Card className="border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4 bg-white dark:bg-slate-900">
@@ -1377,8 +1225,8 @@ export function GTR30SettingsView() {
               <RotateCcw className="h-5 w-5 text-amber-600" /> Reset GTR-30 defaults?
             </DialogTitle>
             <DialogDescription>
-              This restores the built-in office, treasury, budget head, drawing officer, employee
-              template, and establishment post defaults. Your currently saved settings will be
+              This restores the built-in office, treasury, budget head, drawing officer, and employee
+              template defaults. Your currently saved settings will be
               overwritten.
             </DialogDescription>
           </DialogHeader>

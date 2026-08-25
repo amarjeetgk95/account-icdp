@@ -41,6 +41,8 @@ describe('GTR30SyncStatusBadge', () => {
   it('renders the error state with the error count in the title', () => {
     const { container } = renderWith({ phase: 'error', pendingCount: 0, errorCount: 3 });
     expect(screen.getByText(/Sync failed/)).toBeTruthy();
-    expect(container.querySelector('[title="3 group(s) failed to sync to the server"]')).toBeTruthy();
+    const el = container.querySelector('[title]');
+    expect(el).toBeTruthy();
+    expect(el?.getAttribute('title')).toContain('3 group(s) failed to sync');
   });
 });

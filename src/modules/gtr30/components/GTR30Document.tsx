@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { GTR30FormData } from '../types';
 import { GTR30Page1Outer } from './GTR30Page1Outer';
 import { GTR30Page3Inner1 } from './GTR30Page3Inner1';
@@ -11,7 +11,7 @@ import { GTR30Page8InsuranceGroup as GTR30Page9InsuranceGroup } from './GTR30Pag
 import { GTR30Page9Establishment as GTR30Page10Establishment } from './GTR30Page9Establishment';
 import { GTR30Page10Pramanpatra as GTR30Page11Pramanpatra } from './GTR30Page10Pramanpatra';
 import { Button } from '@/components/ui/button';
-import { Printer, ZoomIn, ZoomOut, RotateCcw, Layers, FileText } from 'lucide-react';
+import { Printer, ZoomIn, ZoomOut, RotateCcw, Layers, FileText, Maximize2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { popupNativePrint } from '@/shared/utilities/nativePrint';
 
@@ -60,6 +60,8 @@ const GTR30_PAGE_IDS_MAP: Record<GTR30PageView, string[]> = {
   p10: ['gtr30-page-10'],
 };
 
+const PAGE_KEYS: GTR30PageView[] = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10'];
+
 const PAGE_LABELS: Record<GTR30PageView, string> = {
   all: 'All Pages (1-10)',
   p1: 'P1 · Outer Cover (GTR-30)',
@@ -74,6 +76,8 @@ const PAGE_LABELS: Record<GTR30PageView, string> = {
   p10: 'P10 · Pramanpatra',
 };
 
+const LANDSCAPE_PAGES: GTR30PageView[] = ['p1', 'p2', 'p3', 'p4'];
+
 export const GTR30Document: React.FC<GTR30DocumentProps> = ({
   data,
   defaultViewPage = 'all',
@@ -83,12 +87,37 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
   const [activePage, setActivePage] = useState<GTR30PageView>(defaultViewPage);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [printSelection, setPrintSelection] = useState<Record<GTR30PageView, boolean>>(() => {
+    const initial = {} as Record<GTR30PageView, boolean>;
+    for (const key of PAGE_KEYS) initial[key] = true;
+    return initial;
+  });
+
+  const selectedPageKeys =
+    activePage === 'all' ? PAGE_KEYS.filter((key) => printSelection[key]) : [activePage];
+  const selectedCount = selectedPageKeys.length;
+
+  const pagesWrapperRef = useRef<HTMLDivElement>(null);
+
+  const fitWidth = () => {
+    const el = pagesWrapperRef.current;
+    if (!el) return;
+    const pageEl = el.querySelector<HTMLElement>('.gtr30-page');
+    if (!pageEl) return;
+    const natural = pageEl.getBoundingClientRect().width / (zoomLevel || 1);
+    if (natural <= 0) return;
+    const avail = el.clientWidth - 8;
+    const fit = avail / natural;
+    setZoomLevel(Math.min(1.5, Math.max(0.6, Number(fit.toFixed(2)))));
+  };
 
   const handlePrint = () => {
+    if (selectedCount === 0) return;
     setIsPrinting(true);
     try {
-      const pageIds = GTR30_PAGE_IDS_MAP[activePage] || GTR30_PAGE_IDS_MAP.all;
-      const isLandscape = ['p1', 'p2', 'p3', 'p4'].includes(activePage);
+      const pageIds = selectedPageKeys.flatMap((key) => GTR30_PAGE_IDS_MAP[key] || []);
+      const landscapeCount = selectedPageKeys.filter((key) => LANDSCAPE_PAGES.includes(key)).length;
+      const isLandscape = landscapeCount === selectedPageKeys.length;
 
       const customStyles = `
         @page {
@@ -638,6 +667,17 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                title="Fit to width"
+                aria-label="Fit page to available width"
+                onClick={fitWidth}
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 title="Reset Zoom"
                 aria-label="Reset zoom to 100%"
                 onClick={() => setZoomLevel(1)}
@@ -650,10 +690,10 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
               type="button"
               size="sm"
               onClick={handlePrint}
-              disabled={isPrinting}
+              disabled={isPrinting || selectedCount === 0}
               className="h-8 font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-sm disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              <Printer className={`h-3.5 w-3.5 mr-1.5 ${isPrinting ? 'animate-spin' : ''}`} aria-hidden="true" /> {isPrinting ? 'Preparing Print…' : activePage === 'all' ? 'Print All (10 Pages)' : 'Print'}
+              <Printer className={`h-3.5 w-3.5 mr-1.5 ${isPrinting ? 'animate-spin' : ''}`} aria-hidden="true" /> {isPrinting ? 'Preparing Print…' : activePage === 'all' ? `Print ${selectedCount} Page${selectedCount > 1 ? 's' : ''}` : 'Print'}
             </Button>
           </div>
         </div>
@@ -681,31 +721,125 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
         `}</style>
       )}
 
-      <div className="gtr30-pages-wrapper-wrapper overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-4">
+      <div className="flex items-start gap-5">
+        {showControls && (
+          <aside
+            className="no-print hidden xl:flex flex-col gap-1 w-56 shrink-0 sticky top-24 self-start max-h-[calc(100vh-8rem)] overflow-y-auto pr-1"
+            aria-label="GTR-30 page list"
+          >
+            <div className="flex items-center justify-between px-1 pb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Pages to print
+              </span>
+              <div className="flex items-center gap-2 text-[10px] font-semibold">
+                <button
+                  type="button"
+                  className="text-blue-600 hover:underline"
+                  onClick={() => {
+                    const next = {} as Record<GTR30PageView, boolean>;
+                    for (const key of PAGE_KEYS) next[key] = true;
+                    setPrintSelection(next);
+                  }}
+                >
+                  Select all
+                </button>
+                <button
+                  type="button"
+                  className="text-slate-400 hover:underline"
+                  onClick={() => {
+                    const next = {} as Record<GTR30PageView, boolean>;
+                    for (const key of PAGE_KEYS) next[key] = false;
+                    setPrintSelection(next);
+                  }}
+                >
+                  None
+                </button>
+              </div>
+            </div>
+            {pageTabs
+              .filter((tab) => tab.key !== 'all')
+              .map((tab) => (
+                <div
+                  key={tab.key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActivePage(tab.key)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActivePage(tab.key);
+                    }
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg border px-2.5 py-2 cursor-pointer transition-all',
+                    activePage === tab.key
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/40 shadow-xs'
+                      : 'border-slate-200 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border',
+                      LANDSCAPE_PAGES.includes(tab.key)
+                        ? 'bg-sky-50 text-sky-600 border-sky-200'
+                        : 'bg-amber-50 text-amber-600 border-amber-200'
+                    )}
+                    title={LANDSCAPE_PAGES.includes(tab.key) ? 'A4 landscape' : 'A4 portrait'}
+                  >
+                    {LANDSCAPE_PAGES.includes(tab.key) ? 'L' : 'P'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-bold text-slate-800 dark:text-slate-100 leading-none">
+                      {tab.label}
+                    </div>
+                    {tab.sub && (
+                      <div className="text-[10px] text-slate-400 truncate mt-0.5">{tab.sub}</div>
+                    )}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(printSelection[tab.key])}
+                    onChange={() =>
+                      setPrintSelection((prev) => ({ ...prev, [tab.key]: !prev[tab.key] }))
+                    }
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Include ${tab.label} in print`}
+                    className="h-3.5 w-3.5 accent-blue-600 cursor-pointer"
+                  />
+                </div>
+              ))}
+          </aside>
+        )}
+
         <div
-          className="gtr30-pages-wrapper flex flex-col gap-6 items-center min-w-[320px] will-change-transform"
-          style={{
-            transform: !isPrinting && zoomLevel !== 1 ? `scale(${zoomLevel})` : undefined,
-            transformOrigin: 'top center',
-            transition: 'transform 0.18s cubic-bezier(0.16,1,0.3,1)',
-          }}
+          ref={pagesWrapperRef}
+          className="gtr30-pages-wrapper-wrapper flex-1 min-w-0 overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-4"
         >
-          {(activePage === 'all' || activePage === 'p1') && <div data-page-label="GTR-30 · P1 Outer (૨૭૨)"><GTR30Page1Outer data={data} /></div>}
-          {(activePage === 'all' || activePage === 'p2') && <div data-page-label="GTR-30 · P2 Inner Pay 1-19 (૨૭૪)"><GTR30Page3Inner1 data={data} /></div>}
-          {(activePage === 'all' || activePage === 'p3') && <div data-page-label="GTR-30 · P3 Inner Ded 20-39 (૨૭૫)"><GTR30Page4Inner2 data={data} /></div>}
-          {(activePage === 'all' || activePage === 'p4') && <div data-page-label="GTR-30 · P4 Certificate Bilingual (૨૭૬)"><GTR30Page5Certificate data={data} /></div>}
-          {(activePage === 'all' || activePage === 'p5') && <div data-page-label="GTR-30 · P5 Rent Schedule (ઘરભાડા)"><GTR30Page6Rent data={data} /></div>}
-          {(activePage === 'all' || activePage === 'p6') && <div data-page-label="GTR-30 · P6 Prof Tax (વ્યવસાય વેરા)"><GTR30Page7ProfTax data={data} /></div>}
-          {(activePage === 'all' || activePage === 'p7') && <div data-page-label="GTR-30 · P7 GIS Emp (જૂથ વીમા કર્મચારી)"><GTR30Page8InsuranceEmp data={data} /></div>}
-          {(activePage === 'all' || activePage === 'p8') && <div data-page-label="GTR-30 · P8 GIS Group (જૂથ વાઈઝ)"><GTR30Page9InsuranceGroup data={data} /></div>}
-          {(activePage === 'all' || activePage === 'p9') && <div data-page-label="GTR-30 · P9 Establishment (મહેકમ)"><GTR30Page10Establishment data={data} /></div>}
-          {(activePage === 'all' || activePage === 'p10') && <div data-page-label="GTR-30 · P10 Pramanpatra (પ્રમાણપત્ર)"><GTR30Page11Pramanpatra data={data} /></div>}
+          <div
+            className="gtr30-pages-wrapper flex flex-col gap-6 items-center min-w-[320px] will-change-transform"
+            style={{
+              transform: !isPrinting && zoomLevel !== 1 ? `scale(${zoomLevel})` : undefined,
+              transformOrigin: 'top center',
+              transition: 'transform 0.18s cubic-bezier(0.16,1,0.3,1)',
+            }}
+          >
+            {(activePage === 'all' || activePage === 'p1') && <div data-page-label="GTR-30 · P1 Outer (૨૭૨)"><GTR30Page1Outer data={data} /></div>}
+            {(activePage === 'all' || activePage === 'p2') && <div data-page-label="GTR-30 · P2 Inner Pay 1-19 (૨૭૪)"><GTR30Page3Inner1 data={data} /></div>}
+            {(activePage === 'all' || activePage === 'p3') && <div data-page-label="GTR-30 · P3 Inner Ded 20-39 (૨૭૫)"><GTR30Page4Inner2 data={data} /></div>}
+            {(activePage === 'all' || activePage === 'p4') && <div data-page-label="GTR-30 · P4 Certificate Bilingual (૨૭૬)"><GTR30Page5Certificate data={data} /></div>}
+            {(activePage === 'all' || activePage === 'p5') && <div data-page-label="GTR-30 · P5 Rent Schedule (ઘરભાડા)"><GTR30Page6Rent data={data} /></div>}
+            {(activePage === 'all' || activePage === 'p6') && <div data-page-label="GTR-30 · P6 Prof Tax (વ્યવસાય વેરા)"><GTR30Page7ProfTax data={data} /></div>}
+            {(activePage === 'all' || activePage === 'p7') && <div data-page-label="GTR-30 · P7 GIS Emp (જૂથ વીમા કર્મચારી)"><GTR30Page8InsuranceEmp data={data} /></div>}
+            {(activePage === 'all' || activePage === 'p8') && <div data-page-label="GTR-30 · P8 GIS Group (જૂથ વાઈઝ)"><GTR30Page9InsuranceGroup data={data} /></div>}
+            {(activePage === 'all' || activePage === 'p9') && <div data-page-label="GTR-30 · P9 Establishment (મહેકમ)"><GTR30Page10Establishment data={data} /></div>}
+            {(activePage === 'all' || activePage === 'p10') && <div data-page-label="GTR-30 · P10 Pramanpatra (પ્રમાણપત્ર)"><GTR30Page11Pramanpatra data={data} /></div>}
+          </div>
         </div>
       </div>
 
       {showControls && activePage === 'all' && (
         <div className="no-print mt-4 text-center text-[11px] text-slate-500">
-          Showing all 10 pages · P1-P4 landscape, P5-P10 portrait · {`Print All generates mixed-orientation PDF (avoids landscape-default mesh)`} · Single tab uses native print
+          Showing all 10 pages · P1-P4 landscape, P5-P10 portrait · Use the page list to choose which sheets to print · Mixed-orientation PDF is generated automatically
         </div>
       )}
     </div>

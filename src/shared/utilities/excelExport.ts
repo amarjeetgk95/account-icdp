@@ -1,6 +1,6 @@
 import type ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import type { QuarterReport, BudgetHeadReport } from '@/modules/payroll/types';
+import type { QuarterReport, BudgetHeadReport, TaxReconciliationReport } from '@/modules/payroll/types';
 import type { IncomeTaxReport, GSTReport } from '@/modules/parties/types';
 
 interface OfficeHeaderDetails {
@@ -386,7 +386,7 @@ export async function exportBudgetHeadExcel(report: BudgetHeadReport, office?: O
   ws2.addRow([]);
 
   const QUARTER_NAMES = ['Q1', 'Q2', 'Q3', 'Q4'];
-  const QUARTER_MONTHS = ['Apr-Jun', 'Jul-Sep', 'Oct-Dec', 'Jan-Mar'];
+  const QUARTER_MONTHS = ['Mar-May', 'Jun-Aug', 'Sep-Nov', 'Dec-Feb'];
 
   for (let qi = 0; qi < 4; qi++) {
     const startMonth = qi * 3;
@@ -456,3 +456,190 @@ export async function exportBudgetHeadExcel(report: BudgetHeadReport, office?: O
   autoFitColumns(ws2);
   await saveWorkbook(workbook, `BudgetHead_Statement_FY${fyLabel}.xlsx`);
 }
+
+/**
+ * Formats and downloads Employee Income Tax Reconciliation Excel return workbook.
+ */
+export async function exportTaxReconciliationExcel(
+  report: TaxReconciliationReport,
+  office?: OfficeHeaderDetails
+): Promise<void> {
+  const officeName = office?.officeName || 'GOVERNMENT OF GUJARAT — ICDP SURAT';
+  const tan = office?.tan || 'NOT PROVIDED';
+  const address = office?.address || 'Surat, Gujarat';
+
+  const workbook = await createWorkbook();
+  const ws = workbook.addWorksheet(`Tax Reconciliation ${report.quarter}`);
+
+  // Styles
+  const greenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } } as ExcelJS.Fill; // green-100
+  const greenFont = { bold: true, color: { argb: 'FF15803D' } } as ExcelJS.Font; // green-700
+  const roseFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE4E6' } } as ExcelJS.Fill; // rose-100
+  const roseFont = { bold: true, color: { argb: 'FFBE123C' } } as ExcelJS.Font; // rose-700
+  const amberFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } } as ExcelJS.Fill; // amber-100
+  const amberFont = { bold: true, color: { argb: 'FFB45309' } } as ExcelJS.Font; // amber-700
+  const slateFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } } as ExcelJS.Fill; // slate-100
+
+  // Title Block
+  ws.addRow(['EMPLOYEE INCOME TAX RECONCILIATION STATEMENT (PAYBILL VS PAYROLL)']).font = THEME.titleFont;
+  ws.addRow([`Office Name: ${officeName}`]).font = THEME.boldFont;
+  ws.addRow([`TAN: ${tan} | Address: ${address}`]);
+  ws.addRow([`Financial Year: ${report.fyLabel} | Quarter: ${report.quarter} (${report.quarterMonths.join(', ')})`]);
+  ws.addRow([]);
+
+  // Summary Metrics Card Row
+  const s = report.summary;
+  const sumRow1 = ws.addRow([
+    'Total Employees:', s.totalEmployees,
+    'Matched:', s.matchedCount,
+    'Tax Mismatch:', s.taxMismatchCount,
+    'Missing in Payroll:', s.missingInPayrollCount,
+    'Paybill Total TDS (₹):', s.totalPaybillTax,
+    'Payroll Total TDS (₹):', s.totalPayrollTax,
+    'Net Tax Diff (₹):', s.netTaxDiff,
+  ]);
+  sumRow1.font = THEME.boldFont;
+  sumRow1.eachCell((cell) => {
+    cell.fill = slateFill;
+    cell.border = THEME.border;
+  });
+  ws.addRow([]);
+
+  // Grouped Header
+  const m1 = report.monthLabels[0] || { work: 'M1', paid: 'M1' };
+  const m2 = report.monthLabels[1] || { work: 'M2', paid: 'M2' };
+  const m3 = report.monthLabels[2] || { work: 'M3', paid: 'M3' };
+
+  const h1 = ws.addRow([
+    'Sr.', 'HRPN', 'Employee Name', 'PAN No.',
+    `Month 1: ${m1.work} (paid in ${m1.paid})`, '', '', '', '', '',
+    `Month 2: ${m2.work} (paid in ${m2.paid})`, '', '', '', '', '',
+    `Month 3: ${m3.work} (paid in ${m3.paid})`, '', '', '', '', '',
+    'Quarterly Gross Salary', '', '',
+    'Quarterly Tax (TDS)', '', '',
+    'Reconciliation Status',
+  ]);
+
+  const h2 = ws.addRow([
+    '', '', '', '',
+    'PB Gross', 'PR Gross', 'Gross Diff', 'PB IT', 'PR IT', 'Tax Diff',
+    'PB Gross', 'PR Gross', 'Gross Diff', 'PB IT', 'PR IT', 'Tax Diff',
+    'PB Gross', 'PR Gross', 'Gross Diff', 'PB IT', 'PR IT', 'Tax Diff',
+    'Paybill Gross', 'Payroll Gross', 'Net Gross Diff',
+    'Paybill Total', 'Payroll Total', 'Net Tax Diff',
+    '',
+  ]);
+
+  applyHeaderStyle(h1);
+  applyHeaderStyle(h2);
+
+  ws.mergeCells(`A${h1.number}:A${h2.number}`);
+  ws.mergeCells(`B${h1.number}:B${h2.number}`);
+  ws.mergeCells(`C${h1.number}:C${h2.number}`);
+  ws.mergeCells(`D${h1.number}:D${h2.number}`);
+  ws.mergeCells(`E${h1.number}:J${h1.number}`);
+  ws.mergeCells(`K${h1.number}:P${h1.number}`);
+  ws.mergeCells(`Q${h1.number}:V${h1.number}`);
+  ws.mergeCells(`W${h1.number}:Y${h1.number}`);
+  ws.mergeCells(`Z${h1.number}:AB${h1.number}`);
+  ws.mergeCells(`AC${h1.number}:AC${h2.number}`);
+
+  // Data Rows
+  report.rows.forEach((r, idx) => {
+    const m = r.months;
+    const row = ws.addRow([
+      idx + 1,
+      r.hrpn,
+      r.employeeName,
+      r.pan,
+      m[0].paybillGross, m[0].payrollGross, m[0].grossDiff, m[0].paybillTax, m[0].payrollTax, m[0].taxDiff,
+      m[1].paybillGross, m[1].payrollGross, m[1].grossDiff, m[1].paybillTax, m[1].payrollTax, m[1].taxDiff,
+      m[2].paybillGross, m[2].payrollGross, m[2].grossDiff, m[2].paybillTax, m[2].payrollTax, m[2].taxDiff,
+      r.quarterPaybillGross, r.quarterPayrollGross, r.quarterGrossDiff,
+      r.quarterPaybillTax, r.quarterPayrollTax, r.quarterTaxDiff,
+      r.status,
+    ]);
+
+    applyDataStyle(row);
+
+    // Color code monthly and total diff cells (Gross Diff: 7, 13, 19, 25; Tax Diff: 10, 16, 22, 28)
+    const taxDiffCols = [10, 16, 22, 28];
+    taxDiffCols.forEach((colIdx) => {
+      const cell = row.getCell(colIdx);
+      const val = Number(cell.value) || 0;
+      if (Math.abs(val) > 0.01) {
+        cell.fill = roseFill;
+        cell.font = roseFont;
+      }
+    });
+
+    const grossDiffCols = [7, 13, 19, 25];
+    grossDiffCols.forEach((colIdx) => {
+      const cell = row.getCell(colIdx);
+      const val = Number(cell.value) || 0;
+      if (Math.abs(val) > 0.01) {
+        cell.fill = amberFill;
+        cell.font = amberFont;
+      }
+    });
+
+    // Color code status column (Col 29 / AC)
+    const statusCell = row.getCell(29);
+    if (r.status === 'MATCHED') {
+      statusCell.fill = greenFill;
+      statusCell.font = greenFont;
+    } else if (r.status === 'TAX_MISMATCH') {
+      statusCell.fill = roseFill;
+      statusCell.font = roseFont;
+    } else if (r.status === 'GROSS_MISMATCH') {
+      statusCell.fill = amberFill;
+      statusCell.font = amberFont;
+    } else if (r.status === 'MISSING_IN_PAYROLL' || r.status === 'MISSING_IN_PAYBILL') {
+      statusCell.fill = amberFill;
+      statusCell.font = amberFont;
+    } else {
+      statusCell.fill = slateFill;
+    }
+  });
+
+  // Grand Total Row
+  const totalRow = ws.addRow([
+    'TOTAL', '', '', '',
+    report.rows.reduce((s, r) => s + r.months[0].paybillGross, 0),
+    report.rows.reduce((s, r) => s + r.months[0].payrollGross, 0),
+    report.rows.reduce((s, r) => s + r.months[0].grossDiff, 0),
+    report.rows.reduce((s, r) => s + r.months[0].paybillTax, 0),
+    report.rows.reduce((s, r) => s + r.months[0].payrollTax, 0),
+    report.rows.reduce((s, r) => s + r.months[0].taxDiff, 0),
+
+    report.rows.reduce((s, r) => s + r.months[1].paybillGross, 0),
+    report.rows.reduce((s, r) => s + r.months[1].payrollGross, 0),
+    report.rows.reduce((s, r) => s + r.months[1].grossDiff, 0),
+    report.rows.reduce((s, r) => s + r.months[1].paybillTax, 0),
+    report.rows.reduce((s, r) => s + r.months[1].payrollTax, 0),
+    report.rows.reduce((s, r) => s + r.months[1].taxDiff, 0),
+
+    report.rows.reduce((s, r) => s + r.months[2].paybillGross, 0),
+    report.rows.reduce((s, r) => s + r.months[2].payrollGross, 0),
+    report.rows.reduce((s, r) => s + r.months[2].grossDiff, 0),
+    report.rows.reduce((s, r) => s + r.months[2].paybillTax, 0),
+    report.rows.reduce((s, r) => s + r.months[2].payrollTax, 0),
+    report.rows.reduce((s, r) => s + r.months[2].taxDiff, 0),
+
+    s.totalPaybillGross,
+    s.totalPayrollGross,
+    s.netGrossDiff,
+
+    s.totalPaybillTax,
+    s.totalPayrollTax,
+    s.netTaxDiff,
+    '',
+  ]);
+  applyTotalStyle(totalRow);
+  ws.mergeCells(`A${totalRow.number}:D${totalRow.number}`);
+
+  autoFitColumns(ws);
+  await saveWorkbook(workbook, `Tax_Reconciliation_${report.quarter}_FY${report.fyLabel}.xlsx`);
+}
+
+

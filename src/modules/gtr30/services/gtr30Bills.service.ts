@@ -1,4 +1,4 @@
-import type { GTR30Bill, GTR30FormData } from '../types';
+import type { GTR30Bill, GTR30BillStatus, GTR30FormData } from '../types';
 import { billTotals } from './gtr30Calc.service';
 import { gtr30BillRegisterRepository } from '../repositories/billRegister.repository';
 
@@ -11,21 +11,49 @@ class Gtr30BillsService {
     return gtr30BillRegisterRepository.get(id);
   }
 
-  async saveBill(form: GTR30FormData, existing: GTR30Bill | null): Promise<GTR30Bill> {
+  async saveBill(form: GTR30FormData & { status?: GTR30BillStatus }, existing: GTR30Bill | null): Promise<GTR30Bill> {
     const now = new Date().toISOString();
-    const totals = billTotals(form);
+    const totals = billTotals(form as GTR30FormData);
+    const deterministicFallback = [form.billCode, form.monthOf].filter(Boolean).join('-') || 'GTR30-DRAFT';
+    let candidateNo = form.billRegisterNo || existing?.billRegisterNo || deterministicFallback;
+    // Ensure uniqueness without random numbers: if candidate collides with another bill in same office, append sequential suffix -2, -3, etc.
+    if (!existing || candidateNo !== existing.billRegisterNo) {
+      candidateNo = await this.ensureUniqueBillRegNo(candidateNo, existing?.id);
+    }
     const bill: GTR30Bill = {
-      ...form,
+      ...(form as GTR30FormData),
       id: existing?.id ?? crypto.randomUUID(),
-      billRegisterNo: form.billRegisterNo || existing?.billRegisterNo || `GTR30-${Date.now()}`,
+      billRegisterNo: candidateNo,
       createdDate: existing?.createdDate ?? now,
       updatedDate: now,
       grossTotal: totals.gross,
       deductionsTotal: totals.deductions,
       netTotal: totals.net,
-      status: existing?.status ?? 'draft',
+      status: form.status ?? existing?.status ?? 'draft',
     };
     return gtr30BillRegisterRepository.save(bill);
+  }
+
+  private async ensureUniqueBillRegNo(baseNo: string, excludeId?: string): Promise<string> {
+    const existingBills = await gtr30BillRegisterRepository.list();
+    const existingNos = new Set(
+      existingBills.filter((b) => b.id !== excludeId).map((b) => b.billRegisterNo)
+    );
+    if (!existingNos.has(baseNo)) return baseNo;
+    let seq = 2;
+    while (existingNos.has(`${baseNo}-${seq}`)) seq++;
+    return `${baseNo}-${seq}`;
+  }
+
+  async updateBillStatus(id: string, status: GTR30BillStatus): Promise<GTR30Bill> {
+    const existing = await gtr30BillRegisterRepository.get(id);
+    if (!existing) throw new Error('Bill not found');
+    const updated: GTR30Bill = {
+      ...existing,
+      status,
+      updatedDate: new Date().toISOString(),
+    };
+    return gtr30BillRegisterRepository.save(updated);
   }
 
   async duplicateBill(source: GTR30Bill): Promise<GTR30Bill> {

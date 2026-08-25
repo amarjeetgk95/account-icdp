@@ -1,7 +1,7 @@
+import { Navigate } from 'react-router-dom';
 import { lazyNamedExport } from '@/shared/utilities/lazyNamed';
 import type { RouteDefinition } from '@/shared/types/module';
 
-const GTR44SettingsPage = lazyNamedExport(() => import('./pages/GTR44SettingsPage'), 'GTR44SettingsPage');
 const GTR44ListPage = lazyNamedExport(() => import('./pages/GTR44ListPage'), 'GTR44ListPage');
 const GTR44CreatePage = lazyNamedExport(() => import('./pages/GTR44CreatePage'), 'GTR44CreatePage');
 const GTR44ViewPage = lazyNamedExport(() => import('./pages/GTR44ViewPage'), 'GTR44ViewPage');
@@ -9,7 +9,7 @@ const GTR44ViewPage = lazyNamedExport(() => import('./pages/GTR44ViewPage'), 'GT
 export const gtr44Routes: RouteDefinition[] = [
   {
     path: '/gtr44/settings',
-    element: <GTR44SettingsPage />,
+    element: <Navigate to="/settings/gtr44" replace />,
   },
   {
     path: '/gtr44/list',

@@ -23,10 +23,10 @@ interface PayBillAllowanceMatrixReportProps {
 }
 
 const MONTH_OPTIONS = [
-  'April', 'May', 'June',
-  'July', 'August', 'September',
-  'October', 'November', 'December',
-  'January', 'February', 'March',
+  'March', 'April', 'May',
+  'June', 'July', 'August',
+  'September', 'October', 'November',
+  'December', 'January', 'February',
 ];
 
 function defaultMonthForFy(financialYear: number): string {
@@ -34,7 +34,7 @@ function defaultMonthForFy(financialYear: number): string {
   const monthIdx = now.getMonth(); // 0 = January
   const currentFy = monthIdx >= 3 ? now.getFullYear() : now.getFullYear() - 1;
   if (currentFy !== financialYear) return 'April';
-  return MONTH_OPTIONS[monthIdx >= 3 ? monthIdx - 3 : monthIdx + 9];
+  return MONTH_OPTIONS[(monthIdx + 10) % 12];
 }
 
 export function PayBillAllowanceMatrixReport({
@@ -60,7 +60,10 @@ export function PayBillAllowanceMatrixReport({
     Promise.all([paybillRepository.getSettings(), paybillRepository.getManualLedgerValues()])
       .then(([settings, manualVals]) => {
         if (cancelled) return;
-        setManualAllowances(settings.manualAllowances || []);
+        const allowances = settings.manualAllowances && settings.manualAllowances.length > 0
+          ? settings.manualAllowances
+          : ['Pay Difference', 'DA Difference'];
+        setManualAllowances(allowances);
         setManualDeductions(settings.manualDeductions || []);
         setEarningColumnOrder(settings.earningColumnOrder || []);
         setDeductionColumnOrder(settings.deductionColumnOrder || []);
@@ -84,7 +87,21 @@ export function PayBillAllowanceMatrixReport({
       group: 'EARNING' as const,
     }));
     const grossCol = PAYBILL_EARNING_COLUMNS.find((c) => c.key === 'grossAmount') as PayBillMonthlyMatrixColumn;
-    return orderItems([...regular, ...manual], earningColumnOrder, ['grossAmount']).concat(grossCol);
+    const defaultEarningOrder = [
+      'basicPay',
+      'da',
+      'hra',
+      'cla',
+      'medicalAllowance',
+      'transportAllowance',
+      'specialPay',
+      'washingAllowance',
+      'nppAllowance',
+      'manual::Pay Difference',
+      'manual::DA Difference',
+    ];
+    const effectiveOrder = earningColumnOrder.length > 0 ? earningColumnOrder : defaultEarningOrder;
+    return orderItems([...regular, ...manual], effectiveOrder, ['grossAmount']).concat(grossCol);
   }, [manualAllowances, earningColumnOrder]);
 
   const deductionCols = useMemo<PayBillMonthlyMatrixColumn[]>(() => {
@@ -192,13 +209,16 @@ export function PayBillAllowanceMatrixReport({
   };
 
   const handlePrint = () => {
-    const tableEl = document.querySelector('.space-y-4') as HTMLElement | null;
+    // Target only the matrix table panel — not the filter/actions header.
+    // Previously `.space-y-4` matched the outer page wrapper and printed the whole page.
+    const tableEl = document.getElementById('paybill-matrix-print') as HTMLElement | null;
     if (tableEl) {
       popupNativePrint({
         elements: [tableEl],
         title: `PayBill_Matrix_${selectedMonth}_${financialYear}`,
         pageSize: 'A4',
         orientation: 'landscape',
+        pageMargin: '8mm',
       });
     } else {
       window.print();
@@ -210,7 +230,7 @@ export function PayBillAllowanceMatrixReport({
   const tableColSpan = 1 + allCols.length;
 
   const yearFor = (m: string) =>
-    m === 'April' ? financialYear : m === 'January' || m === 'February' || m === 'March' ? financialYear + 1 : financialYear;
+    m === 'January' || m === 'February' ? financialYear + 1 : financialYear;
 
   return (
     <div className="space-y-4">
@@ -218,7 +238,9 @@ export function PayBillAllowanceMatrixReport({
       <PbPanel
         icon={Landmark}
         iconClass="bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm"
-        title="Pay Bill Allowance Matrix Report"
+        title="Pay Bill Allowance Matrix Report — Monthly Register"
+        // Previously just "Allowance Matrix Report"; clarified as current-month register.
+        // The 12-month trend per employee lives in the Employee Ledger tab.
         actions={
           <>
             <div className="flex items-center gap-2">
@@ -292,7 +314,8 @@ export function PayBillAllowanceMatrixReport({
         }
       />
 
-      {/* Main Matrix Table */}
+      {/* Main Matrix Table — print target (table only) */}
+      <div id="paybill-matrix-print" className="report-print-area">
       <PbPanel
         className="overflow-hidden"
         padded={false}
@@ -464,6 +487,7 @@ export function PayBillAllowanceMatrixReport({
             </table>
         </div>
       </PbPanel>
+      </div>
     </div>
   );
 }

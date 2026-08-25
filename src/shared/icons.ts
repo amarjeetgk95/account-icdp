@@ -29,6 +29,7 @@ import {
   Image as ImageIcon,
   Languages,
   Cpu,
+  History,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -41,9 +42,9 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   admin: Shield,
   adminaudit: Clock,
   gtr44: Receipt,
+  establishment: Users,
   paybill: FileSpreadsheet,
   'it-employee': FileSpreadsheet,
-  'pdf-tools': ScanText,
   tools: ScanText,
 };
 
@@ -75,6 +76,7 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
   image: ImageIcon,
   languages: Languages,
   cpu: Cpu,
+  history: History,
 };
 
 const FALLBACK_ICON: LucideIcon = LayoutDashboard;

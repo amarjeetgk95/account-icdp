@@ -98,21 +98,21 @@ class PayBillExcelService {
     // 2. Table Column Headers
     const headers = [
       'Allowance Parameter',
+      'March',
       'April',
       'May',
-      'June',
       'Q1 Total',
+      'June',
       'July',
       'August',
-      'September',
       'Q2 Total',
+      'September',
       'October',
       'November',
-      'December',
       'Q3 Total',
+      'December',
       'January',
       'February',
-      'March',
       'Q4 Total',
       'Annual Total',
     ];
@@ -128,25 +128,28 @@ class PayBillExcelService {
 
     // 3. Allowance Data Rows
     for (const row of report.rows) {
-      const isGross = row.key === 'gross_amount';
+      const isGross =
+        row.key === 'gross_amount' ||
+        row.key === 'grossAmount' ||
+        row.parameter.toLowerCase().includes('gross');
 
       const rowValues = [
         row.parameter,
+        row.months.March || 0,
         row.months.April || 0,
         row.months.May || 0,
-        row.months.June || 0,
         row.q1 || 0,
+        row.months.June || 0,
         row.months.July || 0,
         row.months.August || 0,
-        row.months.September || 0,
         row.q2 || 0,
+        row.months.September || 0,
         row.months.October || 0,
         row.months.November || 0,
-        row.months.December || 0,
         row.q3 || 0,
+        row.months.December || 0,
         row.months.January || 0,
         row.months.February || 0,
-        row.months.March || 0,
         row.q4 || 0,
         row.total || 0,
       ];

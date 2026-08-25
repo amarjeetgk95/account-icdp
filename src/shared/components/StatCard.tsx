@@ -26,6 +26,8 @@ interface StatCardProps {
   /** Small icon in the top-right corner */
   deltaIcon?: LucideIcon;
   onClick?: () => void;
+  /** Compact density for dense dashboards — smaller padding/typography, modern flat look */
+  compact?: boolean;
 }
 
 export function StatCard({
@@ -38,6 +40,7 @@ export function StatCard({
   icon: Icon,
   deltaIcon: DeltaIcon,
   onClick,
+  compact = false,
 }: StatCardProps) {
   const display = value === undefined || value === null
     ? '—'
@@ -46,6 +49,28 @@ export function StatCard({
       : String(value);
 
   const subtitle = sub ?? hint;
+
+  // Compact = balanced modern — ~25% smaller card, but text stays comfortably readable
+  const cardPadding = compact ? 'px-3.5 py-3' : 'p-4';
+  const cardRadius = compact ? 'rounded-xl' : 'rounded-2xl';
+  const labelSize = compact ? 'text-[11px] leading-none' : 'text-[11px]';
+  const valueSize = compact ? 'text-[16px] leading-5' : 'text-lg leading-7';
+  const subSize = compact ? 'text-xs leading-3.5' : 'text-xs';
+  const iconBox = compact ? 'w-7 h-7 rounded-lg' : 'w-8 h-8 rounded-lg';
+  const iconSize = compact ? 14 : 16;
+  const topGap = compact ? 'mt-2' : 'mt-3';
+  const hoverShadow = compact
+    ? 'hover:shadow-none hover:border-slate-200 dark:hover:border-slate-700'
+    : 'hover:shadow-[0_8px_24px_-12px_rgba(99,102,241,0.22)] hover:border-slate-300 dark:hover:border-slate-700';
+
+  const accentBorder: Record<StatTone, string> = {
+    indigo: 'border-l-indigo-500/80',
+    emerald: 'border-l-emerald-500/80',
+    amber: 'border-l-amber-500/80',
+    sky: 'border-l-sky-500/80',
+    violet: 'border-l-violet-500/80',
+    rose: 'border-l-rose-500/80',
+  };
 
   return (
     <div
@@ -59,43 +84,43 @@ export function StatCard({
             }
           : undefined
       }
-      className={`group bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-[0_8px_24px_-12px_rgba(99,102,241,0.22)] animate-fade-in ${
+      className={`group bg-white dark:bg-slate-900 border ${compact ? 'border-l-2' : ''} ${compact ? accentBorder[tone] || accentBorder.indigo : ''} border-slate-200/80 dark:border-slate-800 ${cardRadius} ${cardPadding} transition-all duration-200 ${hoverShadow} animate-fade-in ${
         onClick
           ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2'
           : ''
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className={`flex items-center justify-between gap-2 ${compact ? 'gap-2' : 'gap-3'} ${compact ? '' : 'items-start'}`}>
+        <div className={`${labelSize} font-semibold uppercase tracking-wide ${compact ? 'tracking-[0.04em]' : ''} text-slate-500 dark:text-slate-400 truncate`}>
+          {label}
+        </div>
         {Icon && (
           gradient ? (
             <span
-              className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-white shadow-sm shrink-0"
+              className={`${iconBox} inline-flex items-center justify-center text-white shadow-sm shrink-0`}
               style={{ background: gradient }}
             >
-              <Icon size={16} strokeWidth={2} />
+              <Icon size={iconSize} strokeWidth={2} />
             </span>
           ) : (
             <div
-              className={`w-8 h-8 rounded-lg ring-1 flex items-center justify-center transition-colors shrink-0 ${TONE_STYLES[tone] || TONE_STYLES.indigo}`}
+              className={`${iconBox} ring-1 flex items-center justify-center transition-colors shrink-0 ${TONE_STYLES[tone] || TONE_STYLES.indigo}`}
             >
-              <Icon size={16} strokeWidth={2} />
+              <Icon size={iconSize} strokeWidth={2} />
             </div>
           )
         )}
-        {DeltaIcon && (
+        {DeltaIcon && !compact && (
           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-50 dark:bg-slate-700/60 text-slate-400 dark:text-slate-400">
             <DeltaIcon size={13} />
           </span>
         )}
       </div>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mt-3">
-        {label}
-      </div>
-      <div className="text-lg leading-7 font-semibold text-slate-900 dark:text-slate-100 tracking-tight mt-0.5 tabular-nums">
+      <div className={`${valueSize} font-semibold text-slate-900 dark:text-slate-100 tracking-tight ${topGap} tabular-nums truncate`}>
         {display}
       </div>
       {subtitle && (
-        <div className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
+        <div className={`${subSize} text-slate-400 dark:text-slate-500 ${compact ? 'mt-1 truncate' : 'mt-1.5'}`}>
           {subtitle}
         </div>
       )}

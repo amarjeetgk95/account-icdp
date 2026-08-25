@@ -87,9 +87,9 @@ export type Database = {
         Relationships: []
       }
       paybill_imports: {
-        Row: { id: string; office_id: string; bill_no: string; month: string; financial_year: number; sheet_type: string | null; ddo_hrpn: string | null; ddo_name: string | null; major_head: string | null; ddo_code: string | null; department: string | null; office_name: string | null; tan_no: string | null; cardex_no: string | null; total_records: number; matched_count: number; gross_total: number; uploaded_file: string | null; uploaded_by: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; office_id: string; bill_no: string; month: string; financial_year: number; sheet_type?: string | null; ddo_hrpn?: string | null; ddo_name?: string | null; major_head?: string | null; ddo_code?: string | null; department?: string | null; office_name?: string | null; tan_no?: string | null; cardex_no?: string | null; total_records?: number; matched_count?: number; gross_total?: number; uploaded_file?: string | null; uploaded_by?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; office_id?: string; bill_no?: string; month?: string; financial_year?: number; sheet_type?: string | null; ddo_hrpn?: string | null; ddo_name?: string | null; major_head?: string | null; ddo_code?: string | null; department?: string | null; office_name?: string | null; tan_no?: string | null; cardex_no?: string | null; total_records?: number; matched_count?: number; gross_total?: number; uploaded_file?: string | null; uploaded_by?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; office_id: string; bill_no: string; month: string; financial_year: number; sheet_type: string | null; ddo_hrpn: string | null; ddo_name: string | null; major_head: string | null; ddo_code: string | null; department: string | null; office_name: string | null; tan_no: string | null; cardex_no: string | null; total_records: number; matched_count: number; gross_total: number; uploaded_file: string | null; uploaded_by: string | null; file_hash: string | null; source_file_name: string | null; status: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; office_id: string; bill_no: string; month: string; financial_year: number; sheet_type?: string | null; ddo_hrpn?: string | null; ddo_name?: string | null; major_head?: string | null; ddo_code?: string | null; department?: string | null; office_name?: string | null; tan_no?: string | null; cardex_no?: string | null; total_records?: number; matched_count?: number; gross_total?: number; uploaded_file?: string | null; uploaded_by?: string | null; file_hash?: string | null; source_file_name?: string | null; status?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; office_id?: string; bill_no?: string; month?: string; financial_year?: number; sheet_type?: string | null; ddo_hrpn?: string | null; ddo_name?: string | null; major_head?: string | null; ddo_code?: string | null; department?: string | null; office_name?: string | null; tan_no?: string | null; cardex_no?: string | null; total_records?: number; matched_count?: number; gross_total?: number; uploaded_file?: string | null; uploaded_by?: string | null; file_hash?: string | null; source_file_name?: string | null; status?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
       paybill_employee_deductions: {
@@ -137,7 +137,31 @@ export type Database = {
       paybill_employee_components: {
         Row: { id: string; paybill_employee_id: string | null; import_id: string | null; office_id: string; sheet_type: string; hrpn: string | null; component_id: string | null; component_code: string | null; component_name: string; amount: number; source: string; created_at: string }
         Insert: { id?: string; paybill_employee_id?: string | null; import_id?: string | null; office_id: string; sheet_type?: string; hrpn?: string | null; component_id?: string | null; component_code?: string | null; component_name: string; amount?: number; source?: string; created_at?: string }
-        Update: { id?: string; paybill_employee_id?: string | null; import_id?: string | null; office_id?: string; sheet_type?: string; hrpn?: string | null; component_id?: string | null; component_code?: string | null; component_name?: string; amount?: number; source?: string; created_at?: string }
+        Update: { id?: string; paybill_employee_id?: string | null; import_id?: string | null; office_id?: string; sheet_type?: string; hrpn?: string | null; component_id?: string | null; component_code?: string | null; component_name: string; amount?: number; source?: string; created_at?: string }
+        Relationships: []
+      }
+      paybill_manual_adjustments: {
+        Row: { id: string; office_id: string; hrpn: string; param_key: string; param_label: string; month: string; financial_year: number; amount: number; group_type: string; reason: string | null; created_by: string | null; updated_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; office_id: string; hrpn: string; param_key: string; param_label: string; month: string; financial_year: number; amount?: number; group_type?: string; reason?: string | null; created_by?: string | null; updated_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; office_id?: string; hrpn?: string; param_key?: string; param_label?: string; month?: string; financial_year?: number; amount?: number; group_type?: string; reason?: string | null; created_by?: string | null; updated_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      paybill_import_audits: {
+        Row: { id: string; import_id: string; office_id: string; action: string; actor_id: string | null; details: Json; created_at: string }
+        Insert: { id?: string; import_id: string; office_id: string; action: string; actor_id?: string | null; details?: Json; created_at?: string }
+        Update: { id?: string; import_id?: string; office_id?: string; action?: string; actor_id?: string | null; details?: Json; created_at?: string }
+        Relationships: []
+      }
+      form16_certificates: {
+        Row: { id: string; office_id: string; employee_id: string | null; hrpn: string; financial_year: number; assessment_year: number; certificate_number: string; certificate_last_updated: string; status: string; tax_regime: string; employer_snapshot: Record<string, unknown>; employee_snapshot: Record<string, unknown>; signatory_snapshot: Record<string, unknown>; part_a: Record<string, unknown>; part_b: Record<string, unknown>; computed_totals: Record<string, unknown> | null; issued_at: string | null; issued_by: string | null; voided_at: string | null; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; office_id: string; employee_id?: string | null; hrpn: string; financial_year: number; assessment_year?: number; certificate_number?: string; certificate_last_updated?: string; status?: string; tax_regime?: string; employer_snapshot?: Record<string, unknown>; employee_snapshot?: Record<string, unknown>; signatory_snapshot?: Record<string, unknown>; part_a?: Record<string, unknown>; part_b?: Record<string, unknown>; computed_totals?: Record<string, unknown> | null; issued_at?: string | null; issued_by?: string | null; voided_at?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; office_id?: string; employee_id?: string | null; hrpn?: string; financial_year?: number; assessment_year?: number; certificate_number?: string; certificate_last_updated?: string; status?: string; tax_regime?: string; employer_snapshot?: Record<string, unknown>; employee_snapshot?: Record<string, unknown>; signatory_snapshot?: Record<string, unknown>; part_a?: Record<string, unknown>; part_b?: Record<string, unknown>; computed_totals?: Record<string, unknown> | null; issued_at?: string | null; issued_by?: string | null; voided_at?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      form16_audit_log: {
+        Row: { id: string; certificate_id: string; office_id: string; action: string; actor_id: string | null; details: Json; created_at: string }
+        Insert: { id?: string; certificate_id: string; office_id: string; action: string; actor_id?: string | null; details?: Json; created_at?: string }
+        Update: { id?: string; certificate_id?: string; office_id?: string; action?: string; actor_id?: string | null; details?: Json; created_at?: string }
         Relationships: []
       }
     }
@@ -187,6 +211,13 @@ export type Database = {
       get_gtr44_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
       upsert_gtr44_bill: { Args: { p_office_id: string; p_data: Json }; Returns: Json }
       delete_gtr44_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
+      list_establishment: { Args: { p_office_id: string }; Returns: Json }
+      upsert_establishment_employees: { Args: { p_office_id: string; p_employees: Json }; Returns: Json }
+      list_establishment_posts: { Args: { p_office_id: string }; Returns: Json }
+      upsert_establishment_posts: { Args: { p_office_id: string; p_posts: Json }; Returns: Json }
+      backfill_establishment_from_gtr30: { Args: { p_office_id: string }; Returns: Json }
+      backfill_establishment_from_payroll: { Args: { p_office_id: string }; Returns: Json }
+      log_paybill_import_audit: { Args: { p_import_id: string; p_action: string; p_details?: Json }; Returns: string }
     }
   }
 }

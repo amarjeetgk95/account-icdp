@@ -19,3 +19,25 @@ export const financialYearSchema = z.object({
     .min(2000, 'Year must be 2000 or later')
     .max(2100, 'Year must be 2100 or earlier'),
 });
+
+export const form16DefaultsSchema = z.object({
+  employerName: z.string().max(200).default(''),
+  employerPan: z
+    .string()
+    .refine((v) => v === '' || /^[A-Za-z0-9]{10}$/.test(v), {
+      message: 'PAN must be exactly 10 letters/digits',
+    })
+    .default(''),
+  employerTan: z
+    .string()
+    .refine((v) => v === '' || /^[A-Za-z]{4}[0-9]{5}[A-Za-z]$/.test(v), {
+      message: 'TAN format is AAAA99999A',
+    })
+    .default(''),
+  citTds: z.string().max(200).default(''),
+  signatoryName: z.string().max(120).default(''),
+  signatoryDesignation: z.string().max(120).default(''),
+  signatoryPlace: z.string().max(120).default(''),
+});
+
+export type Form16DefaultsInput = z.output<typeof form16DefaultsSchema>;

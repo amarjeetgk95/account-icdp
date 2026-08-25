@@ -39,10 +39,10 @@ export function useSaveGTR30Settings() {
       employeeTemplate: Parameters<
         typeof gtr30SettingsService.saveSettings
       >[0]['employeeTemplate'];
-      defaultPosts: Parameters<typeof gtr30SettingsService.saveSettings>[0]['defaultPosts'];
+      defaultPosts?: Parameters<typeof gtr30SettingsService.saveSettings>[0]['defaultPosts'];
       daRates?: Parameters<typeof gtr30SettingsService.saveSettings>[0]['daRates'];
     }) => {
-      const saved = gtr30SettingsService.saveSettings(input);
+      const saved = gtr30SettingsService.saveSettings(input as Parameters<typeof gtr30SettingsService.saveSettings>[0]);
       await gtr30SettingsService.flushPendingSave();
       return saved;
     },

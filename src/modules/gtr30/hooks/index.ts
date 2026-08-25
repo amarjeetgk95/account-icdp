@@ -7,6 +7,7 @@ export {
   useGtr30SaveBill,
   useGtr30DeleteBill,
   useGtr30DuplicateBill,
+  useGtr30UpdateBillStatus,
 } from './useGTR30BillMutations';
 
 export {

@@ -143,6 +143,7 @@ class PayBillReportService {
 
     const rows = report.rows.map((r) => [
       r.parameter,
+      r.months.March,
       r.months.April,
       r.months.May,
       r.months.June,
@@ -154,7 +155,6 @@ class PayBillReportService {
       r.months.December,
       r.months.January,
       r.months.February,
-      r.months.March,
       r.q1,
       r.q2,
       r.q3,

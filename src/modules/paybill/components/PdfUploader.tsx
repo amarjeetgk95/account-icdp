@@ -11,7 +11,6 @@ interface PdfUploaderProps {
   onLoadSample: () => void;
   onLoadSampleDeduction?: () => void;
   onOpenOcrFallback: () => void;
-  onOpenPdfExtractor?: () => void;
   onClear: () => void;
 }
 
@@ -24,7 +23,6 @@ export function PdfUploader({
   onLoadSample,
   onLoadSampleDeduction,
   onOpenOcrFallback,
-  onOpenPdfExtractor,
   onClear,
 }: PdfUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,20 +136,6 @@ export function PdfUploader({
                 >
                   <Sparkles className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                   Sample Deduction PDF (April-2026)
-                </button>
-              )}
-
-              {onOpenPdfExtractor && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenPdfExtractor();
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-900 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 rounded-lg shadow-xs transition-all"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  PDF to Word / Excel OCR Extractor
                 </button>
               )}
 

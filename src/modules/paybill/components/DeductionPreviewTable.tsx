@@ -1,9 +1,11 @@
 import React from 'react';
 import {
-  CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   UserPlus,
+  Check,
 } from 'lucide-react';
+import { MappingStatusBadge } from './MappingStatusBadge';
 import type { PayBillDeductionExtractedRecord, PayBillDeductionTotalRow } from '../types';
 
 interface DeductionPreviewTableProps {
@@ -80,7 +82,9 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
               <th className="py-2.5 px-3 font-bold border-b border-slate-200 dark:border-slate-700 text-right">Govt Sav (9582)</th>
               <th className="py-2.5 px-3 font-bold border-b border-slate-200 dark:border-slate-700 text-right bg-rose-50/50 dark:bg-rose-950/30">Total Ded</th>
               <th className="py-2.5 px-3 font-bold border-b border-slate-200 dark:border-slate-700 text-right bg-emerald-50/50 dark:bg-emerald-950/30">Net Pay</th>
-              <th className="py-2.5 px-3 font-bold border-b border-slate-200 dark:border-slate-700 text-center">Status</th>
+              <th className="py-2.5 px-3 font-bold border-b border-slate-200 dark:border-slate-700 text-center">Mapping</th>
+              <th className="py-2.5 px-3 font-bold border-b border-slate-200 dark:border-slate-700 text-center">Validation</th>
+              <th className="py-2.5 px-3 font-bold border-b border-slate-200 dark:border-slate-700 text-center">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -130,25 +134,40 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
                   {formatInr(rec.row.netPay)}
                 </td>
                 <td className="py-2.5 px-3 text-center">
-                  {rec.mappingStatus === 'MATCHED' ? (
-                    <span className="inline-flex items-center gap-1 text-[0.65rem] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-full">
-                      <CheckCircle2 size={11} /> Matched
+                  <MappingStatusBadge status={rec.mappingStatus} nameMismatch={rec.nameMismatch} message={rec.mappingMessage} />
+                </td>
+                <td className="py-2.5 px-3 text-center">
+                  {rec.errors.length > 0 ? (
+                    <span
+                      title={rec.errors.join(' | ')}
+                      className="inline-flex items-center gap-1 text-[0.65rem] bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 px-2 py-0.5 rounded-full font-bold cursor-help"
+                    >
+                      <AlertCircle size={11} className="text-red-600" /> Error
+                    </span>
+                  ) : rec.warnings.length > 0 ? (
+                    <span
+                      title={rec.warnings.join(' | ')}
+                      className="inline-flex items-center gap-1 text-[0.65rem] bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium cursor-help"
+                    >
+                      <AlertTriangle size={11} className="text-amber-500" /> Warn
                     </span>
                   ) : (
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="inline-flex items-center gap-1 text-[0.65rem] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 rounded-full">
-                        <AlertCircle size={11} /> Not In Master
-                      </span>
-                      {onQuickAddEmployee && (
-                        <button
-                          onClick={() => onQuickAddEmployee(rec.row)}
-                          className="inline-flex items-center gap-0.5 text-[0.65rem] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition"
-                          title="Add to Master Employee dataset"
-                        >
-                          <UserPlus size={10} /> Add
-                        </button>
-                      )}
-                    </div>
+                    <span className="inline-flex items-center gap-1 text-[0.65rem] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
+                      <Check size={11} className="text-emerald-600" /> OK
+                    </span>
+                  )}
+                </td>
+                <td className="py-2.5 px-3 text-center">
+                  {rec.mappingStatus === 'NOT_FOUND' && onQuickAddEmployee ? (
+                    <button
+                      onClick={() => onQuickAddEmployee(rec.row)}
+                      className="inline-flex items-center gap-0.5 text-[0.65rem] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition"
+                      title="Add to Master Employee dataset"
+                    >
+                      <UserPlus size={10} /> Add
+                    </button>
+                  ) : (
+                    <span className="text-[0.65rem] text-slate-400">—</span>
                   )}
                 </td>
               </tr>
@@ -158,7 +177,7 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
           {/* Footer totals */}
           <tfoot className="bg-slate-100/90 dark:bg-slate-800/90 font-bold border-t-2 border-slate-300 dark:border-slate-600 sticky bottom-0 z-10 backdrop-blur-xs">
             <tr>
-              <td colSpan={4} className="py-3 px-3 text-left uppercase text-[0.72rem] tracking-wider text-slate-800 dark:text-slate-200">
+              <td colSpan={6} className="py-3 px-3 text-left uppercase text-[0.72rem] tracking-wider text-slate-800 dark:text-slate-200">
                 Total ({records.length} Employees)
               </td>
               <td className="py-3 px-3 text-right font-mono text-slate-900 dark:text-slate-100">
@@ -191,7 +210,7 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
               <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-100/50 dark:bg-emerald-950/40">
                 {formatInr(pdfTotals?.netPay || calculatedTotals.netPay)}
               </td>
-              <td className="py-3 px-3 text-center">
+              <td colSpan={3} className="py-3 px-3 text-center">
                 <span className="text-emerald-700 dark:text-emerald-300 font-bold font-mono text-[0.7rem]">
                   RECONCILED
                 </span>

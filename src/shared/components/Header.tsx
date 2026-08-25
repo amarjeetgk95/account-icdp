@@ -6,7 +6,6 @@ import {
   X,
   ChevronDown,
   ChevronRight,
-  Search,
   Calendar,
   Moon,
   Sun,
@@ -25,6 +24,7 @@ import {
   List,
   Wallet,
   FileBarChart,
+  Edit3,
 } from 'lucide-react';
 import { useAuthStore } from '@/core/auth/store';
 import { useUIStore } from '@/core/stores/ui-store';
@@ -56,8 +56,10 @@ const SECTION_SVG_ICONS: Record<string, React.ElementType> = {
   bills: Receipt,
   tds: Calculator,
   'it-employee': FileSpreadsheet,
+  establishment: Users,
   tools: ScanText,
   settings: SettingsIcon,
+  system: SettingsIcon,
   admin: Users,
 };
 
@@ -65,17 +67,20 @@ const BRANCH_SVG_ICONS: Record<string, React.ElementType> = {
   dashboard: LayoutDashboard,
   gtr44: Receipt,
   gtr30: FileSpreadsheet,
+  establishment: Users,
   parties: Users,
   payroll: Wallet,
   reports: FileBarChart,
   settings: SettingsIcon,
   paybill: FileSpreadsheet,
-  'pdf-tools': ScanText,
   tools: ScanText,
   admin: ShieldCheck,
   'file-plus': FilePlus,
   list: List,
   'file-text': FileText,
+  users: Users,
+  user: Users,
+  edit: Edit3,
 };
 
 function getBranchIcon(key: string, iconName?: string): React.ElementType {
@@ -86,10 +91,9 @@ function getBranchIcon(key: string, iconName?: string): React.ElementType {
 
 interface HeaderProps {
   modules: ModuleDefinition[];
-  onOpenCommandPalette?: () => void;
 }
 
-export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
+export function Header({ modules }: HeaderProps) {
   const { user, signOut } = useAuthStore();
   const { isAdmin, isLoading } = usePermissions();
   const location = useLocation();
@@ -102,6 +106,7 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
 
   // Dropdown & Cascading Flyout States
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null);
   const [hoveredBranch, setHoveredBranch] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -140,8 +145,16 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
     clearCloseTimer();
     dropdownCloseTimerRef.current = setTimeout(() => {
       setOpenDropdown(null);
+      setDropdownPos(null);
       setHoveredBranch(null);
     }, 220); // grace period prevents collapsing on diagonal cursor motion
+  }, [clearCloseTimer]);
+
+  const closeDropdowns = useCallback(() => {
+    clearCloseTimer();
+    setOpenDropdown(null);
+    setDropdownPos(null);
+    setHoveredBranch(null);
   }, [clearCloseTimer]);
 
   const handleBranchMouseEnter = useCallback(
@@ -165,6 +178,7 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
     function handleClickOutside(event: MouseEvent) {
       if (navRef.current && !navRef.current.contains(event.target as Node)) {
         setOpenDropdown(null);
+        setDropdownPos(null);
         setHoveredBranch(null);
       }
       if (userRef.current && !userRef.current.contains(event.target as Node)) {
@@ -191,6 +205,7 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setOpenDropdown(null);
+        setDropdownPos(null);
         setHoveredBranch(null);
         setUserMenuOpen(false);
         setMobileMenuOpen(false);
@@ -199,6 +214,22 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Close flyouts on any scroll/resize while open (fixed-position menu would desync)
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handleScrollOrResize = () => {
+      setOpenDropdown(null);
+      setDropdownPos(null);
+      setHoveredBranch(null);
+    };
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [openDropdown]);
 
   useEffect(() => {
     if (mobileMenuOpen) {
@@ -214,6 +245,7 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
   // Close menus on navigation change - reset is intentional when route changes
   useEffect(() => {
     setOpenDropdown(null);
+    setDropdownPos(null);
     setHoveredBranch(null);
     setUserMenuOpen(false);
     setMobileMenuOpen(false);
@@ -286,8 +318,9 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
       <nav
         ref={navRef}
         aria-label="Primary navigation"
-        className="hidden lg:flex items-center gap-0.5 xl:gap-1 min-w-0 h-full flex-1 justify-center max-w-[640px] xl:max-w-none"
+        className="hidden lg:flex items-center min-w-0 h-full flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
+        <div className="flex items-center gap-0.5 xl:gap-1 h-full mx-auto">
         {/* Dashboard Direct Link */}
         {navModel.dashboardEnabled && (
           <NavLink
@@ -328,8 +361,13 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
             <div
               key={section.key}
               className="relative h-full flex items-center"
-              onMouseEnter={() => {
+              onMouseEnter={(e) => {
                 clearCloseTimer();
+                const trigger = e.currentTarget.firstElementChild as HTMLElement | null;
+                if (trigger) {
+                  const rect = trigger.getBoundingClientRect();
+                  setDropdownPos({ left: rect.left, top: rect.bottom + 6 });
+                }
                 setOpenDropdown(section.key);
                 setHoveredBranch(activeBranch?.key || null);
               }}
@@ -338,21 +376,28 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
               {/* Level 1 Trigger Button */}
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
                   clearCloseTimer();
-                  setOpenDropdown((prev) => (prev === section.key ? null : section.key));
+                  if (openDropdown === section.key) {
+                    closeDropdowns();
+                    return;
+                  }
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setDropdownPos({ left: rect.left, top: rect.bottom + 6 });
+                  setOpenDropdown(section.key);
                   setHoveredBranch(activeBranch?.key || null);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     clearCloseTimer();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setDropdownPos({ left: rect.left, top: rect.bottom + 6 });
                     setOpenDropdown(section.key);
                     setHoveredBranch(activeBranch?.key || null);
                   }
                   if (e.key === 'Escape') {
-                    setOpenDropdown(null);
-                    setHoveredBranch(null);
+                    closeDropdowns();
                   }
                 }}
                 className={`
@@ -385,15 +430,16 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
                 )}
               </button>
 
-              {/* Level 2: Dropdown Menu Card */}
-              {isOpen && (
+              {/* Level 2: Dropdown Menu Card (fixed-position so it escapes the scrollable nav) */}
+              {isOpen && dropdownPos && (
                 <div
                   id={`dropdown-${section.key}`}
                   role="menu"
                   aria-labelledby={`trigger-${section.key}`}
                   onMouseEnter={clearCloseTimer}
                   onMouseLeave={scheduleDropdownClose}
-                  className="absolute left-0 top-full pt-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                  style={{ left: dropdownPos.left, top: dropdownPos.top }}
+                  className="fixed z-50 animate-in fade-in zoom-in-95 duration-100"
                 >
                   <div className="w-60 bg-white dark:bg-slate-900 backdrop-blur-xl rounded-xl border border-slate-200 dark:border-slate-700 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.5)] p-1.5">
                     {/* Dropdown section header */}
@@ -533,28 +579,11 @@ export function Header({ modules, onOpenCommandPalette }: HeaderProps) {
             </div>
           );
         })}
+        </div>
       </nav>
 
-      {/* Right: Search, Financial Year, Theme Switcher, User Account Profile */}
+      {/* Right: Financial Year, Theme Switcher, User Account Profile */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {/* Search Command Palette Trigger — hides text on small to reduce crowding */}
-        {onOpenCommandPalette && (
-          <button
-            type="button"
-            onClick={onOpenCommandPalette}
-            className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
-            title="Search (Ctrl+K)"
-            aria-label="Search - press Ctrl+K"
-            aria-keyshortcuts="Control+K Meta+K"
-          >
-            <Search size={14} aria-hidden="true" />
-            <span className="hidden xl:inline text-slate-500">Search...</span>
-            <kbd className="hidden xl:inline-flex items-center gap-0.5 ml-1.5 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-mono text-slate-400 shadow-xs">
-              Ctrl K
-            </kbd>
-          </button>
-        )}
-
         {/* Financial Year Selector - FY centered around active FY */}
         <div className="relative flex items-center shrink-0">
           <Calendar size={12} className="absolute left-2.5 text-emerald-600/70 dark:text-emerald-400/70 pointer-events-none" aria-hidden="true" />

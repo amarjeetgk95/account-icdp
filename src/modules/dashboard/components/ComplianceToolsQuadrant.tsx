@@ -7,8 +7,6 @@ import {
   X,
   ExternalLink,
   Clock,
-  ScanText,
-  Layers,
   ArrowRight,
 } from 'lucide-react';
 import type { DashboardData, QuarterReadinessData } from '../types';
@@ -94,7 +92,7 @@ export function ComplianceToolsQuadrant({ data }: ComplianceToolsQuadrantProps) 
               Compliance Audit & Utilities
             </h3>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              NSDL FVU verification, deadlines & PDF toolset
+              NSDL FVU verification & statutory deadlines
             </p>
           </div>
         </div>
@@ -212,44 +210,7 @@ export function ComplianceToolsQuadrant({ data }: ComplianceToolsQuadrantProps) 
         </button>
       </div>
 
-      {/* OCR & PDF Tools Mini Cards */}
-      <div className="grid grid-cols-2 gap-2 pt-1">
-        <button
-          type="button"
-          onClick={() => navigate('/pdf-tools/ocr')}
-          className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left cursor-pointer group"
-        >
-          <div className="w-7 h-7 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-            <ScanText size={14} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-              OCR Studio
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Scan to Word & Excel
-            </div>
-          </div>
-        </button>
 
-        <button
-          type="button"
-          onClick={() => navigate('/pdf-tools/editor')}
-          className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left cursor-pointer group"
-        >
-          <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-            <Layers size={14} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-              PDF Workbench
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Merge, Split, Compress
-            </div>
-          </div>
-        </button>
-      </div>
 
       {/* MODAL: Missing PANs */}
       {activeModal === 'missing-pan' && (

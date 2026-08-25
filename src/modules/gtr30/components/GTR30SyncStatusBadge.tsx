@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
 import { useGTR30EmployeeMasterSyncStatus } from '../hooks/useGTR30EmployeeMasterSync';
-import type { Gtr30SyncPhase } from '../services/gtr30EmployeeMaster.service';
+import { retryGtr30Sync, getGtr30SyncErrors, type Gtr30SyncPhase } from '../services/gtr30EmployeeMaster.service';
 
 const PHASE_LABEL: Record<Gtr30SyncPhase, string> = {
   idle: 'All changes saved',
@@ -31,12 +31,31 @@ export function GTR30SyncStatusBadge() {
           ? AlertTriangle
           : CheckCircle2;
 
+  const errors = getGtr30SyncErrors();
+  const firstError = Object.values(errors)[0];
   const title =
     phase === 'error'
-      ? `${errorCount} group(s) failed to sync to the server`
+      ? `${errorCount} group(s) failed to sync: ${firstError || 'unknown error'} — click Retry`
       : phase === 'pending'
         ? `${pendingCount} group(s) waiting to sync to the server`
         : undefined;
+
+  if (phase === 'error') {
+    return (
+      <button
+        type="button"
+        onClick={() => retryGtr30Sync()}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${PHASE_STYLES[phase]} hover:brightness-95 transition`}
+        title={title}
+        aria-label="Retry sync"
+      >
+        <Icon className="h-3.5 w-3.5" />
+        {PHASE_LABEL[phase]}
+        <RefreshCw className="h-3 w-3 ml-1" />
+        Retry
+      </button>
+    );
+  }
 
   return (
     <span

@@ -133,7 +133,7 @@ function buildBatchMatrix(items: BatchFileItem[]): PayBillBatchMatrix {
 
   const fiscalIndex = (month: string) => {
     const i = CALENDAR_MONTHS.indexOf(month);
-    return i >= 3 ? i - 3 : i + 9;
+    return i >= 2 ? i - 2 : i + 10;
   };
 
   const months: PayBillBatchMatrixMonth[] = Array.from(monthMap.values())
@@ -647,13 +647,20 @@ export function usePayBillImport() {
         setError('No deduction data to import.');
         return null;
       }
+      // Deduction parity: block on critical validation errors (negatives, invalid HRPN, duplicates, total mismatch)
+      const dedCritical = deductionRecords.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'DUPLICATE');
+      if (dedCritical) {
+        setError('Cannot import: deduction records have critical errors (check negatives / HRPN / duplicates / total deductions). Please resolve them first.');
+        return null;
+      }
       setIsImporting(true);
       setError(null);
       try {
         const result = await paybillStorageService.importDeductions(
           metadata,
           deductionRecords,
-          fileName || 'PayBill_Deduction.pdf'
+          fileName || 'PayBill_Deduction.pdf',
+          file as unknown as File | null
         );
         setImportResult(result);
         return result;
@@ -683,7 +690,8 @@ export function usePayBillImport() {
       const result = await paybillStorageService.importPayBill(
         metadata,
         records,
-        fileName || 'PayBill.pdf'
+        fileName || 'PayBill.pdf',
+        file as unknown as File | null
       );
       setImportResult(result);
       return result;
@@ -694,25 +702,43 @@ export function usePayBillImport() {
     } finally {
       setIsImporting(false);
     }
-  }, [metadata, records, deductionRecords, sheetType, summary, fileName]);
+  }, [metadata, records, deductionRecords, sheetType, summary, fileName, file]);
 
   /**
    * Add multiple PDF files to batch processing queue
+   * Guards against adding the same file twice (name+size) within the current queue.
    */
   const addFilesToBatchQueue = useCallback((newFiles: File[]) => {
     const pdfs = newFiles.filter((f) => f.name.toLowerCase().endsWith('.pdf'));
-    const items: BatchFileItem[] = pdfs.map((f) => ({
-      id: `batch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      file: f,
-      name: f.name,
-      size: f.size,
-      status: 'PENDING',
-    }));
-    setBatchQueue((prev) => [...prev, ...items]);
+    setBatchQueue((prev) => {
+      const existingKeys = new Set(prev.map((p) => `${p.name}::${p.size}`));
+      const items: BatchFileItem[] = [];
+      let skipped = 0;
+      for (const f of pdfs) {
+        const key = `${f.name}::${f.size}`;
+        if (existingKeys.has(key)) {
+          skipped += 1;
+          continue;
+        }
+        existingKeys.add(key);
+        items.push({
+          id: `batch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          file: f,
+          name: f.name,
+          size: f.size,
+          status: 'PENDING',
+        });
+      }
+      if (skipped > 0) {
+        setError(`${skipped} file(s) were already in the queue and were skipped.`);
+      }
+      return [...prev, ...items];
+    });
   }, []);
 
   /**
    * Process all files in batch queue sequentially
+   * Improvements: per-file duplicate-bill guard, validation gates, confidence capture, BLOCKED status for bad files.
    */
   const processBatchQueue = useCallback(async () => {
     if (batchQueue.length === 0) return;
@@ -731,6 +757,7 @@ export function usePayBillImport() {
     const succeededItems: BatchFileItem[] = [];
 
     for (const item of batchQueue) {
+      // Skip already successful items; allow retry for ERROR/BLOCKED by reprocessing them
       if (item.status === 'SUCCESS') {
         succeededItems.push(item);
         continue;
@@ -742,36 +769,100 @@ export function usePayBillImport() {
 
       try {
         const parsed = await pdfParserService.parsePdf(item.file);
+        const confidence = parsed.detection?.confidence ?? 100;
+
+        // Duplicate bill guard (same bill_no + month + sheet side already imported)
+        const dup = parsed.metadata.billNo
+          ? await paybillRepository.findImportByBillNo(parsed.metadata.billNo, {
+              month: parsed.metadata.month,
+              financialYear: paybillStorageService.parseMonthAndFy(parsed.metadata.month).financialYear,
+              sheetType: parsed.sheetType,
+            } as unknown as { month?: string; financialYear?: number; sheetType?: import('../types').PayBillSheetType })
+          : null;
+
+        if (dup) {
+          const blocked: BatchFileItem = {
+            ...item,
+            status: 'BLOCKED',
+            month: parsed.metadata.month,
+            billNo: parsed.metadata.billNo,
+            sheetType: parsed.sheetType,
+            parsedResult: parsed,
+            confidence,
+            hasCriticalErrors: false,
+            hasDuplicates: false,
+            error: `Duplicate bill ${dup.billNo} for ${dup.month}-${dup.financialYear} (${dup.sheetType}) already exists.`,
+          };
+          setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? blocked : q)));
+          continue;
+        }
+
         if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
+          const mapped = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
+          const validated = paybillValidationService.validateDeductionRecords(mapped);
+          const hasCritical = validated.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN');
+          const hasDuplicates = validated.some((r) => r.mappingStatus === 'DUPLICATE');
+          const isBlocked = hasCritical || hasDuplicates || confidence < 50;
+
           const updated: BatchFileItem = {
             ...item,
-            status: 'SUCCESS',
+            status: isBlocked ? 'BLOCKED' : 'SUCCESS',
             month: parsed.metadata.month,
             billNo: parsed.metadata.billNo,
             sheetType: 'DEDUCTION',
             parsedResult: parsed,
             recordCount: parsed.deductionRows?.length || 0,
             grossTotal: parsed.pdfDeductionTotals?.totalDeductions || 0,
+            confidence,
+            hasCriticalErrors: hasCritical,
+            hasDuplicates,
+            error: isBlocked
+              ? hasDuplicates
+                ? 'Duplicate HRPNs found in file — review before import.'
+                : hasCritical
+                  ? 'Critical validation errors present — review before import.'
+                  : confidence < 50
+                    ? `Low extraction confidence (${confidence}%) — verify via OCR fallback.`
+                    : undefined
+              : undefined,
           };
           setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
-          succeededItems.push(updated);
+          if (!isBlocked) succeededItems.push(updated);
         } else {
           const mapped = hrpnMappingService.mapRows(parsed.rows, masterEmployees);
           const validated = paybillValidationService.validateRecords(mapped);
-          paybillValidationService.reconcile(validated, parsed.pdfTotals);
+          const recon = paybillValidationService.reconcile(validated, parsed.pdfTotals);
+          const hasCritical = validated.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN');
+          const hasDuplicates = validated.some((r) => r.mappingStatus === 'DUPLICATE');
+          const hasReconciliationMismatch = recon.status === 'MISMATCH' && recon.diff !== 0 && Math.abs(recon.diff) > 1;
+          const isBlocked = hasCritical || hasDuplicates || (hasReconciliationMismatch && validated.length > 0) || confidence < 50;
 
           const updated: BatchFileItem = {
             ...item,
-            status: 'SUCCESS',
+            status: isBlocked ? 'BLOCKED' : 'SUCCESS',
             month: parsed.metadata.month,
             billNo: parsed.metadata.billNo,
             sheetType: 'EARNING',
             parsedResult: parsed,
             recordCount: parsed.rows.length,
             grossTotal: parsed.pdfTotals?.grossAmount || 0,
+            confidence,
+            hasCriticalErrors: hasCritical,
+            hasDuplicates,
+            error: isBlocked
+              ? hasDuplicates
+                ? 'Duplicate HRPNs found in file — review before import.'
+                : hasCritical
+                  ? 'Critical validation errors present — review before import.'
+                  : hasReconciliationMismatch
+                    ? recon.message
+                    : confidence < 50
+                      ? `Low extraction confidence (${confidence}%) — verify via OCR fallback.`
+                      : undefined
+              : undefined,
           };
           setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
-          succeededItems.push(updated);
+          if (!isBlocked) succeededItems.push(updated);
         }
       } catch (err) {
         setBatchQueue((prev) =>
@@ -786,6 +877,8 @@ export function usePayBillImport() {
 
     if (succeededItems.length > 0) {
       setBatchMatrix(buildBatchMatrix(succeededItems));
+    } else {
+      setBatchMatrix(null);
     }
 
     setIsBatchProcessing(false);
@@ -808,7 +901,21 @@ export function usePayBillImport() {
   }, []);
 
   /**
+   * Reset failed / blocked items to PENDING so the user can fix source files and retry only those.
+   */
+  const retryFailedBatchItems = useCallback(() => {
+    setBatchQueue((prev) =>
+      prev.map((q) =>
+        q.status === 'ERROR' || q.status === 'BLOCKED' ? { ...q, status: 'PENDING' as const, error: undefined, hasCriticalErrors: undefined, hasDuplicates: undefined } : q
+      )
+    );
+    setBatchMatrix(null);
+    setError(null);
+  }, []);
+
+  /**
    * Save ALL successfully parsed batch files into the ledger at once.
+   * Skips BLOCKED/ERROR files; surfaces per-file failures. Passes file for hash.
    * Returns per-file import counts; on partial failure, sets an error message.
    */
   const importBatchToLedger = useCallback(async (): Promise<{
@@ -818,7 +925,14 @@ export function usePayBillImport() {
   } | null> => {
     const successItems = batchQueue.filter((q) => q.status === 'SUCCESS' && q.parsedResult);
     if (successItems.length === 0) {
-      setError('No processed files to save. Please run Process All first.');
+      const blocked = batchQueue.filter((q) => q.status === 'BLOCKED');
+      if (blocked.length > 0) {
+        setError(
+          `${blocked.length} file(s) have validation issues and are blocked. Review each blocked file, fix errors, then retry. Only successful files can be saved.`
+        );
+      } else {
+        setError('No processed files to save. Please run Process All first.');
+      }
       return null;
     }
 
@@ -838,16 +952,29 @@ export function usePayBillImport() {
           if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
             const mapped = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
             const validated = paybillValidationService.validateDeductionRecords(mapped);
-            await paybillStorageService.importDeductions(parsed.metadata, validated, item.name);
+            // Final gate: if critical errors emerged since parsing, skip
+            if (validated.some((r) => r.validationStatus === 'ERROR')) {
+              throw new Error('Critical validation errors present — re-validate before saving.');
+            }
+            await paybillStorageService.importDeductions(parsed.metadata, validated, item.name, item.file);
           } else {
             const mapped = hrpnMappingService.mapRows(parsed.rows, masterEmployees);
             const validated = paybillValidationService.validateRecords(mapped);
-            await paybillStorageService.importPayBill(parsed.metadata, validated, item.name);
+            if (validated.some((r) => r.validationStatus === 'ERROR')) {
+              throw new Error('Critical validation errors present — re-validate before saving.');
+            }
+            await paybillStorageService.importPayBill(parsed.metadata, validated, item.name, item.file);
           }
           imported += 1;
+          // Mark item as imported in queue to prevent re-import
+          setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: 'SUCCESS' as const } : q)));
         } catch (err) {
           failed += 1;
-          failures.push(`${item.name}: ${err instanceof Error ? err.message : 'Import failed'}`);
+          const msg = err instanceof Error ? err.message : 'Import failed';
+          failures.push(`${item.name}: ${msg}`);
+          setBatchQueue((prev) =>
+            prev.map((q) => (q.id === item.id ? { ...q, status: 'ERROR' as const, error: msg } : q))
+          );
         }
       }
     } catch (err) {
@@ -1120,6 +1247,7 @@ export function usePayBillImport() {
     importBatchToLedger,
     clearBatchQueue,
     removeBatchItem,
+    retryFailedBatchItems,
     selectBatchItem,
     quickAddEmployee,
     syncMasterPayScale,

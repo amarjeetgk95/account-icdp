@@ -5,7 +5,6 @@ import {
   Users,
   BarChart3,
   Building2,
-  ScanText,
   FileSpreadsheet,
   ArrowUpRight,
 } from 'lucide-react';
@@ -57,13 +56,6 @@ export function QuickLaunchDock() {
       icon: Building2,
       path: '/parties/overview',
       colorClass: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border-amber-200/80 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50',
-    },
-    {
-      label: 'OCR Studio',
-      sublabel: 'Bilingual Scan',
-      icon: ScanText,
-      path: '/pdf-tools/ocr',
-      colorClass: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border-teal-200/80 dark:border-teal-800/80 hover:bg-teal-100 dark:hover:bg-teal-900/50',
     },
     {
       label: 'TDS Reports',

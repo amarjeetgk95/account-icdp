@@ -2,7 +2,6 @@ import { useModules } from '@/modules';
 import { Layout } from '@/shared/components/Layout';
 import { Routes } from '@/shared/components/Routes';
 import { Header } from '@/shared/components/Header';
-import { CommandPalette } from '@/shared/components/CommandPalette';
 import { AuthGate } from '@/shared/components/AuthGate';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { ToastContainer } from '@/shared/components/Toast';
@@ -11,7 +10,7 @@ import { SkeletonTable, SkeletonCard } from '@/shared/components/Skeleton';
 import { useAuthStore } from '@/core/auth/store';
 import { usePermissions } from '@/core/permissions/hooks';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, Suspense } from 'react';
 
 const AUTH_PATHS = new Set(['/login', '/forgot-password', '/update-password']);
 
@@ -33,24 +32,12 @@ export default function App() {
   const { user, isRoleLoaded, initialize } = useAuthStore();
   const { isAdmin } = usePermissions();
   const location = useLocation();
-  const [showCommandPalette, setShowCommandPalette] = useState(false);
 
   useEffect(() => {
     if (!isRoleLoaded) {
       initialize();
     }
   }, [isRoleLoaded, initialize]);
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === 'k' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        setShowCommandPalette((open) => !open);
-      }
-    };
-    window.addEventListener('keydown', down);
-    return () => window.removeEventListener('keydown', down);
-  }, []);
 
   const isAuthPage = AUTH_PATHS.has(location.pathname);
   const isUpdatePasswordPage = location.pathname === '/update-password';
@@ -73,7 +60,7 @@ export default function App() {
           <Layout>
             <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
               {/* Level 1: Horizontal Top Navigation with Cascading Flyout Menus */}
-              <Header modules={modules} onOpenCommandPalette={() => setShowCommandPalette(true)} />
+              <Header modules={modules} />
 
               {/* Workspace Main Scrollable Content */}
               <main className="flex-1 overflow-hidden">
@@ -84,7 +71,6 @@ export default function App() {
                 </div>
               </main>
             </div>
-            <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
           </Layout>
         )}
         <ToastContainer />

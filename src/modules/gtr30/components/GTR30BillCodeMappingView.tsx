@@ -340,7 +340,7 @@ export function GTR30BillCodeMappingView() {
         <div className="flex items-center gap-2">
           <CreditCard className="h-5 w-5 text-blue-600" />
           <div>
-            <h2 className="font-bold text-md text-slate-900">Bill Code &amp; Budget Head Configuration</h2>
+            <h2 className="font-bold text-base text-slate-900">Bill Code &amp; Budget Head Configuration</h2>
             <p className="text-xs text-slate-500">
               Configure each Bill Code with its own distinct Budget Head, Scheme, Demand No., and Controlling Officer.
             </p>

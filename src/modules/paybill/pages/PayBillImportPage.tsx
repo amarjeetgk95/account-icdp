@@ -32,26 +32,28 @@ export function PayBillImportPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-3">
-      <WorkspaceHeader
-        eyebrow="Employee IT · Government Pay Bill Register"
-        title="Pay Bill PDF Import & Allowance System"
-        context={<><Calendar size={13} className="text-slate-500" /> FY {fyLabel}</>}
-        actions={<>
-          <button
-            onClick={() => setIsSettingsModalOpen(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-            title="Pay Bill Settings"
-          >
-            <Settings size={13} /> Settings
-          </button>
-          <button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
-          >
-            <Upload size={13} /> Upload PDF
-          </button>
-        </>}
-      />
+      {activeTab !== 'employee' && (
+        <WorkspaceHeader
+          eyebrow="Employee IT · Government Pay Bill Register"
+          title="Pay Bill PDF Import & Allowance System"
+          context={<><Calendar size={13} className="text-slate-500" /> FY {fyLabel}</>}
+          actions={<>
+            <button
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+              title="Pay Bill Settings"
+            >
+              <Settings size={13} /> Settings
+            </button>
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
+            >
+              <Upload size={13} /> Upload PDF
+            </button>
+          </>}
+        />
+      )}
 
       {/* TAB 1: 12-Month Allowance Matrix Report */}
       {activeTab === 'matrix' && (

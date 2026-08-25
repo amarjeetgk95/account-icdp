@@ -171,6 +171,6 @@ describe('PayBillImportPage', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/Select Employee:/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /Employee Ledger/i })).toBeInTheDocument();
   });
 });

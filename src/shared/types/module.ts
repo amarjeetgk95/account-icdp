@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export type UserRole = 'admin' | 'office';
 
-export type NavGroup = 'overview' | 'bills' | 'tds' | 'it-employee' | 'tools' | 'system' | 'admin' | 'main';
+export type NavGroup = 'overview' | 'bills' | 'tds' | 'it-employee' | 'establishment' | 'tools' | 'system' | 'admin' | 'main';
 
 export interface RouteDefinition {
   path: string;
@@ -41,7 +41,7 @@ export interface FeatureFlagKeys {
   reports_module: boolean;
   gtr44_module: boolean;
   gtr30_module: boolean;
+  establishment_module: boolean;
   paybill_module: boolean;
   paybill_component_master: boolean;
-  pdf_tools_module: boolean;
 }

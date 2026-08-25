@@ -8,6 +8,7 @@ export interface PayBillParameterMatrixRow {
   key: string;
   parameter: string;
   months: {
+    March: number;
     April: number;
     May: number;
     June: number;
@@ -19,7 +20,6 @@ export interface PayBillParameterMatrixRow {
     December: number;
     January: number;
     February: number;
-    March: number;
     [key: string]: number;
   };
   q1: number;
@@ -244,6 +244,8 @@ export interface PayBillImportResult {
   dbWarning?: string;
 }
 
+export type PayBillImportStatus = 'IMPORTED' | 'REVIEWED' | 'APPROVED' | 'POSTED' | 'REVERSED';
+
 export interface PayBillStoredImport {
   id: string;
   officeId: string;
@@ -266,6 +268,10 @@ export interface PayBillStoredImport {
   netPayTotal?: number;
   uploadedFile: string | null;
   createdAt: string;
+  /** Import lifecycle status (036 hardening). Optional for backward compat. */
+  status?: PayBillImportStatus;
+  fileHash?: string | null;
+  sourceFileName?: string | null;
 }
 
 export interface PayBillValidationFlags {
@@ -394,7 +400,7 @@ export interface BatchFileItem {
   file: File;
   name: string;
   size: number;
-  status: 'PENDING' | 'PARSING' | 'SUCCESS' | 'ERROR';
+  status: 'PENDING' | 'PARSING' | 'SUCCESS' | 'ERROR' | 'BLOCKED';
   month?: string;
   billNo?: string;
   sheetType?: PayBillSheetType;
@@ -402,6 +408,11 @@ export interface BatchFileItem {
   recordCount?: number;
   grossTotal?: number;
   error?: string;
+  fileHash?: string | null;
+  /** Confidence 0-100 from parser detection */
+  confidence?: number;
+  hasCriticalErrors?: boolean;
+  hasDuplicates?: boolean;
 }
 
 type AuditAnomalyType =
