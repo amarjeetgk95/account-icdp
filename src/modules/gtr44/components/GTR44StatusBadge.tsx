@@ -1,51 +1,51 @@
-import React from 'react';
 import { CheckCircle, Clock, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import type { ReactNode } from 'react';
 
-export type GTR44Status = 'draft' | 'submitted' | 'passed' | 'objected' | 'ac_adjusted';
+type GTR44Status = 'draft' | 'submitted' | 'passed' | 'objected' | 'ac_adjusted';
 
 interface GTR44StatusBadgeProps {
   status: GTR44Status;
   className?: string;
 }
 
-const statusConfig: Record<GTR44Status, { label: string; color: string; icon: React.ReactNode }> = {
+const statusConfig: Record<GTR44Status, { label: string; badgeClass: string; icon: ReactNode }> = {
   draft: {
     label: 'Draft',
-    color: 'bg-gray-100 text-gray-800 border-gray-200',
-    icon: <Clock className="w-4 h-4 mr-1" />
+    badgeClass: 'badge-neutral',
+    icon: <Clock className="w-4 h-4" />
   },
   submitted: {
     label: 'Submitted',
-    color: 'bg-blue-100 text-blue-800 border-blue-200',
-    icon: <RefreshCw className="w-4 h-4 mr-1 animate-spin-slow" />
+    badgeClass: 'badge-primary',
+    icon: <RefreshCw className="w-4 h-4 animate-spin" />
   },
   passed: {
     label: 'Passed',
-    color: 'bg-green-100 text-green-800 border-green-200',
-    icon: <CheckCircle className="w-4 h-4 mr-1" />
+    badgeClass: 'badge-success',
+    icon: <CheckCircle className="w-4 h-4" />
   },
   objected: {
     label: 'Objected',
-    color: 'bg-red-100 text-red-800 border-red-200',
-    icon: <XCircle className="w-4 h-4 mr-1" />
+    badgeClass: 'badge-danger',
+    icon: <XCircle className="w-4 h-4" />
   },
   ac_adjusted: {
     label: 'AC Adjusted',
-    color: 'bg-purple-100 text-purple-800 border-purple-200',
-    icon: <AlertCircle className="w-4 h-4 mr-1" />
+    badgeClass: 'badge-info',
+    icon: <AlertCircle className="w-4 h-4" />
   }
 };
 
-export const GTR44StatusBadge: React.FC<GTR44StatusBadgeProps> = ({ status, className = '' }) => {
+export function GTR44StatusBadge({ status, className = '' }: GTR44StatusBadgeProps) {
   const config = statusConfig[status] || statusConfig.draft;
 
   return (
-    <div 
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium border transition-colors ${config.color} ${className}`} 
+    <span
+      className={`badge ${config.badgeClass} ${className}`}
       title={`Status: ${config.label}`}
     >
       {config.icon}
       {config.label}
-    </div>
+    </span>
   );
-};
+}

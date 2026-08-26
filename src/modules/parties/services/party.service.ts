@@ -10,7 +10,7 @@ import type {
 const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
-export class PartyService {
+class PartyService {
   private validateTransactionInput(input: TransactionInput): string | null {
     if (!input.partyName?.trim()) return 'Party name is required';
     if (!input.billNo?.trim()) return 'Bill number is required';

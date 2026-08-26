@@ -1,7 +1,7 @@
 import { MONTHS } from '@/shared/constants';
 import type { OfficeCompletion } from '../types';
 
-export const MONTH_SHORT: Record<string, string> = {
+const MONTH_SHORT: Record<string, string> = {
   April: 'Apr',
   May: 'May',
   June: 'Jun',
@@ -25,7 +25,7 @@ export function completionPercentage(office: OfficeCompletion): number {
   return Math.round((filled / MONTHS.length) * 100);
 }
 
-export function isComplete(office: OfficeCompletion): boolean {
+function isComplete(office: OfficeCompletion): boolean {
   return new Set(office.months || []).size >= MONTHS.length;
 }
 

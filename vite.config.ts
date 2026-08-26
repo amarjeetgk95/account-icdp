@@ -16,12 +16,12 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom', 'zustand', '@tanstack/react-query'],
           supabase: ['@supabase/supabase-js'],
-          spreadsheet: ['exceljs', 'xlsx'],
         },
       },
     },

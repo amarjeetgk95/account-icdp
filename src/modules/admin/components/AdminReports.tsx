@@ -22,6 +22,7 @@ import { GSTReportSection } from './reports/GSTReportSection';
 import { IncomeTaxReportSection } from './reports/IncomeTaxReportSection';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { downloadCsv } from '@/shared/utilities';
+import { popupNativePrint } from '@/shared/utilities/nativePrint';
 import type { Office } from '../types';
 import '../styles/reports.css';
 
@@ -163,9 +164,25 @@ export function AdminReports({ offices, officesLoading, officeId, onOfficeIdChan
             <div className="report-controls">
               <label className="label inline-flex items-center gap-1.5 dark:text-slate-400">Actions</label>
               <div className="flex flex-col gap-2">
-                <button onClick={() => window.print()} className="btn btn-primary w-full">
+                <button
+                  onClick={() => {
+                    const el = document.querySelector('.report-print-area') as HTMLElement | null;
+                    if (el) {
+                      popupNativePrint({
+                        elements: [el],
+                        title: `${activeSub.toUpperCase()}_Report_${officeName || 'Office'}`,
+                        pageSize: 'A4',
+                        orientation: activeSub === '24q' ? 'landscape' : 'portrait',
+                        pageContainerSelector: '.report-print-area',
+                      });
+                    } else {
+                      window.print();
+                    }
+                  }}
+                  className="btn btn-primary w-full"
+                >
                   <Printer size={15} />
-                  Print PDF
+                  Print
                 </button>
                 <button onClick={exportCSV} className="btn btn-outline w-full">
                   <Download size={15} />

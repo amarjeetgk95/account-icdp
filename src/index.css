@@ -57,6 +57,14 @@
     --surface-card: 255 255 255;
     --surface-raised: 255 255 255;
     --surface-overlay: 255 255 255;
+
+    /* ── Semantic color tokens ── */
+    --earning: 5 150 105;
+    --earning-light: 236 253 245;
+    --deduction: 225 29 72;
+    --deduction-light: 255 241 242;
+    --net: 37 99 235;
+    --warning: 217 119 6;
   }
 
   * {
@@ -67,6 +75,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-size: 105%;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -78,14 +87,8 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     letter-spacing: -0.011em;
     font-size: 1rem;
-    /* Soft colorful ambient mesh — low opacity, warm but professional */
-    background-color: #F7F8FC;
-    background-image:
-      radial-gradient(58rem 40rem at 12% -6%, rgba(124, 58, 237, 0.075) 0px, transparent 55%),
-      radial-gradient(48rem 34rem at 94% 2%, rgba(14, 165, 233, 0.065) 0px, transparent 55%),
-      radial-gradient(42rem 30rem at 88% 92%, rgba(16, 185, 129, 0.06) 0px, transparent 55%),
-      radial-gradient(38rem 28rem at 6% 96%, rgba(245, 158, 11, 0.055) 0px, transparent 55%),
-      radial-gradient(30rem 22rem at 55% 48%, rgba(244, 114, 182, 0.04) 0px, transparent 60%);
+    background-color: #f7f8fa;
+    background-image: linear-gradient(180deg, #fbfcfd 0%, #f6f8fb 100%);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -166,7 +169,8 @@
   /* Main scroll container: plain, dependency-free vertical scrolling */
   .app-scroll {
     overflow-y: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -212,122 +216,118 @@
   }
 
   /* ============================================================
-     SIDEBAR NAVIGATION (Floating Glassmorphism & Responsive Drawer)
+     COLLAPSIBLE SIDEBAR & UTILITY HEADER (Modern Enterprise Layout)
      ============================================================ */
-  .sidebar {
-    @apply w-[260px] bg-white/85 backdrop-blur-xl border border-slate-200/80 flex flex-col h-[calc(100vh-32px)] shrink-0 m-4 rounded-3xl shadow-float overflow-hidden transition-all duration-300 z-30;
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 255, 0.92) 100%);
-    contain: layout style;
+
+  /* ── Sidebar Navigation Items ── */
+  .sidebar-nav-item {
+    @apply flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all;
   }
 
-  .sidebar-collapsed {
-    @apply w-[72px] m-4;
+  .sidebar-nav-item-active {
+    @apply bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold shadow-xs;
   }
 
-  .sidebar-collapsed .sidebar-logo {
-    @apply px-3 justify-center;
+  .sidebar-nav-icon {
+    @apply w-5 h-5 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0 transition-colors;
   }
 
-  .sidebar-collapsed .sidebar-nav {
-    @apply px-2.5 space-y-4;
+  .sidebar-nav-item-active .sidebar-nav-icon {
+    @apply text-indigo-600 dark:text-indigo-400;
   }
 
-  @media (max-width: 1023px) {
-    .sidebar {
-      @apply fixed top-0 left-0 bottom-0 h-screen m-0 rounded-none z-50 transform -translate-x-full shadow-2xl transition-transform duration-300;
-    }
-    .sidebar.sidebar-mobile-open {
-      @apply translate-x-0 w-[260px];
-    }
+  .sidebar-nav-label {
+    @apply truncate;
   }
 
-  .sidebar-logo {
-    @apply h-20 flex items-center px-6 gap-3 shrink-0 border-b border-indigo-100/80;
-    background: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 60%, #FDF2F8 100%);
+  /* ── Sidebar Sub-Item (Expanded child links) ── */
+  .sidebar-sub-item {
+    @apply flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition-all;
   }
 
-  .sidebar-logo-icon {
-    @apply w-10 h-10 rounded-2xl object-contain transition-transform hover:-translate-y-0.5;
+  .sidebar-sub-item-active {
+    @apply text-indigo-700 dark:text-indigo-300 font-bold bg-indigo-50/80 dark:bg-indigo-950/30;
   }
 
-  .sidebar-logo-text {
-    @apply text-sm font-heading font-bold text-slate-800 leading-tight tracking-tight;
-  }
-  .sidebar-nav {
-    @apply flex-1 flex flex-col px-4 py-6 min-h-0;
-  }
-
-  .sidebar-groups {
-    @apply flex-1 overflow-y-auto space-y-6 min-h-0;
+  /* ── Collapsed Rail Hover Flyout ── */
+  .sidebar-flyout {
+    @apply absolute left-[calc(100%+8px)] top-0 w-60 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-700 shadow-xl z-50 overflow-hidden;
+    animation: scaleIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  .sidebar-system-group {
-    @apply shrink-0 mt-6 pt-4 border-t border-indigo-100/80;
+  .sidebar-flyout-header {
+    @apply px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between;
   }
 
-  .sidebar-system-collapsed {
-    @apply mt-4 pt-0 border-t-0;
+  .sidebar-flyout-item {
+    @apply flex items-start gap-2 p-2 rounded-lg text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors;
   }
 
-  .sidebar-group-label {
-    @apply text-[11px] font-bold uppercase tracking-widest px-3 mb-2;
-    color: #818CF8;
+  .sidebar-flyout-item-active {
+    @apply bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold;
   }
 
-  .sidebar-link {
-    @apply relative flex items-center gap-3 px-3 py-2 min-h-9 rounded-xl text-slate-600 font-medium text-sm transition-all duration-200 border border-transparent;
+  /* ============================================================
+     OPERATIONAL WORKSPACES
+     A common hierarchy for scope, status, action and supporting controls.
+     ============================================================ */
+  .workspace-header {
+    @apply flex flex-col gap-1.5;
   }
 
-  .sidebar-link:hover {
-    @apply text-indigo-600 border-indigo-100 shadow-sm;
-    background: linear-gradient(90deg, #F8FAFC 0%, #F5F3FF 100%);
+  .workspace-header-main {
+    @apply flex flex-wrap items-center gap-x-3 gap-y-1;
   }
 
-  .sidebar-link-active {
-    @apply text-indigo-700 border-indigo-100/80 font-semibold;
-    background: #EEF2FF;
+  .workspace-header-eyebrow {
+    @apply mb-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 leading-none;
   }
 
-  .sidebar-link-active::before {
-    content: '';
-    @apply absolute left-0 top-2 bottom-2 w-1 rounded-r-full;
-    background: #6366F1;
+  .workspace-header-title {
+    @apply text-base font-bold tracking-tight text-slate-950 leading-tight;
   }
 
-  .sidebar-link-icon {
-    @apply flex items-center justify-center text-slate-400 transition-colors shrink-0;
+  .workspace-header-description {
+    @apply mt-0.5 max-w-3xl text-sm leading-5 text-slate-500;
   }
 
-  .sidebar-link:hover .sidebar-link-icon {
-    @apply text-indigo-500;
+  .workspace-header-actions {
+    @apply flex shrink-0 flex-wrap items-center gap-2 ml-auto;
   }
 
-  .sidebar-link-active .sidebar-link-icon {
-    @apply text-indigo-600;
+  .workspace-header-context {
+    @apply inline-flex min-h-7 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 tabular-nums;
   }
 
-  .sidebar-child-link {
-    @apply pl-9 py-2 text-[13px] opacity-90;
+  .workspace-header-primary-action {
+    @apply inline-flex;
   }
 
-  .sidebar-user {
-    @apply p-4 border-t border-slate-200 flex items-center gap-3;
+  .workspace-header-support {
+    @apply flex flex-wrap items-center gap-2;
   }
 
-  .sidebar-user-info {
-    @apply flex-1 min-w-0;
+  .workspace-tabs {
+    @apply flex gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-1;
   }
 
-  .sidebar-user-email {
-    @apply text-xs truncate;
-    color: #64748B;
+  .workspace-tab {
+    @apply flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold text-slate-600 transition-colors whitespace-nowrap;
   }
 
-  .sidebar-user-role {
-    @apply text-[0.68rem] font-bold uppercase tracking-wide cursor-pointer transition-colors;
-    color: #94A3B8;
+  .workspace-tab:hover { @apply bg-white text-slate-950; }
+
+  .workspace-tab-active {
+    @apply bg-white text-slate-950 shadow-sm ring-1 ring-slate-200;
   }
-  .sidebar-user-role:hover { color: #DC2626; }
+
+  .workspace-status {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold;
+  }
+
+.workspace-status-attention { @apply border-amber-200 bg-amber-50 text-amber-800; }
+  .workspace-status-risk { @apply border-rose-200 bg-rose-50 text-rose-700; }
+  .workspace-status-info { @apply border-blue-200 bg-blue-50 text-blue-700; }
 
   /* ============================================================
      BUTTONS
@@ -430,7 +430,6 @@
     @apply bg-white border border-slate-200 overflow-hidden;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-card);
-    contain: layout paint;
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
   .card:hover {
@@ -447,7 +446,7 @@
   }
 
   .card-header {
-    @apply px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4;
+    @apply px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3;
   }
 
   .card-body {
@@ -465,7 +464,6 @@
     @apply bg-white border border-slate-200 p-5 relative overflow-hidden;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-card);
-    contain: layout paint;
   }
 
   .stat-tile::before {
@@ -481,6 +479,10 @@
 
   .stat-tile-accent {
     @apply border-l-4;
+  }
+
+  .stat-tile-accent::before {
+    display: none;
   }
 
   .stat-tile-icon {
@@ -610,6 +612,13 @@
   .badge-neutral .badge-dot { background: #94A3B8; }
 
   /* ============================================================
+     FORM UTILITIES
+     ============================================================ */
+  .money-input {
+    @apply font-mono text-xs tabular-nums;
+  }
+
+  /* ============================================================
      ALERTS
      ============================================================ */
   .alert {
@@ -652,16 +661,16 @@
      PAGE HEADER
      ============================================================ */
   .page-header {
-    @apply flex flex-wrap justify-between items-end gap-3 mb-3;
+    @apply flex items-center justify-between gap-3 mb-2;
   }
 
   .page-title {
-    @apply text-2xl font-extrabold text-slate-800 dark:text-slate-100;
+    @apply text-base font-bold text-slate-800 dark:text-slate-100;
     letter-spacing: -0.02em;
   }
 
   .page-subtitle {
-    @apply text-xs font-medium text-slate-500 dark:text-slate-400 mt-1;
+    @apply text-xs font-medium text-slate-500 dark:text-slate-400;
   }
 
   .page-actions {
@@ -1818,6 +1827,169 @@
     .bh-q-band.bh-q4-band { border-left-color: #f43f5e; }
 
   /* ============================================================
+     GTR-30 PRINT TOKENS — dark-mode isolation & Gujarati fonts
+     Ensures prints render in light mode even when app is in dark
+     class. Tailwind tokens: font-guj / font-gujSans / font-plexGu,
+     colors earning/deduction, spacing gtrBox (11px), shadow gtr.
+     ============================================================ */
+  .gtr30-page {
+    color-scheme: light;
+    @apply bg-white text-black;
+  }
+  .gtr30-document-root {
+    color-scheme: light;
+    background: #fff;
+  }
+  :root {
+    --gtr-gu: "Noto Serif Gujarati", Shruti, serif;
+    --gtr-gu-sans: "Noto Sans Gujarati", Shruti, sans-serif;
+    --gtr-plex-gu: "IBM Plex Sans Gujarati", sans-serif;
+    --gtr-box-w: 11px;
+    --gtr-box-h: 14px;
+  }
+  .font-guj {
+    font-family: var(--gtr-gu);
+  }
+  .font-gujSans {
+    font-family: var(--gtr-gu-sans);
+  }
+  .font-plexGu {
+    font-family: var(--gtr-plex-gu);
+  }
+
+  /* Fixed A4 landscape geometry taken from the supplied inner-sheet render. */
+  .gtr30-inner-sheet-page {
+    position: relative;
+    width: 297mm;
+    height: 210mm;
+    min-height: 210mm;
+    max-height: 210mm;
+    padding: 0 !important;
+    overflow: hidden;
+  }
+  .gtr30-inner-sheet-table {
+    position: absolute;
+    left: 4mm;
+    top: 12mm;
+    width: 289mm;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: 0.35mm solid #111;
+    background: #fff;
+    color: #111;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 6.5pt;
+  }
+  .gtr30-inner-sheet-table th,
+  .gtr30-inner-sheet-table td {
+    border: 0.18mm solid #111;
+    overflow: visible;
+    box-sizing: border-box;
+  }
+  .gtr30-inner-sheet-table th {
+    padding: 0.6mm 0.4mm;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .gtr30-inner-col-sr { width: 3.7mm; }
+  .gtr30-inner-col-profile { width: 38mm; }
+  .gtr30-inner-col-designation { width: 16mm; }
+  .gtr30-inner-earnings-table col:nth-child(n + 4) { width: 13.606mm; }
+  .gtr30-inner-deductions-table col:nth-child(n + 4) { width: 14.456mm; }
+  .gtr30-inner-header-row { height: 28mm; }
+  .gtr30-inner-header-row th { height: 28mm; }
+  .gtr30-inner-header-blank { background: #fff; }
+  .gtr30-inner-vertical-label {
+    display: flex;
+    width: 100%;
+    height: 26.5mm;
+    align-items: center;
+    justify-content: center;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-align: center;
+    font-size: 5.6pt;
+    line-height: 1.08;
+    white-space: normal;
+    word-break: normal;
+    overflow: visible;
+  }
+  .gtr30-inner-vertical-label br { display: block; content: ''; margin-bottom: 0.8mm; }
+  .gtr30-inner-resolution-cell {
+    padding: 1.4mm 1.8mm !important;
+    font-family: var(--gtr-gu-sans), Arial, sans-serif;
+    font-size: 6.4pt;
+    line-height: 1.2;
+    text-align: left;
+    vertical-align: top !important;
+  }
+  .gtr30-inner-code-row { height: 3mm; }
+  .gtr30-inner-code-row th {
+    height: 3mm;
+    padding: 0.3mm 0.4mm;
+    font-size: 5.5pt;
+    line-height: 1;
+    text-align: center;
+  }
+  .gtr30-inner-band-row { height: 7.5mm; }
+  .gtr30-inner-band-row td {
+    height: 7.5mm;
+    padding: 0.5mm 0.8mm;
+    background: #fff;
+    color: #111;
+    text-align: center;
+    line-height: 1.08;
+    vertical-align: middle;
+  }
+  .gtr30-inner-band-row td:nth-child(2),
+  .gtr30-inner-band-row td:nth-child(3) {
+    background: #4a4a4a;
+    color: #fff;
+  }
+  .gtr30-inner-band-row strong { font-size: 6.7pt; }
+  .gtr30-inner-detail-row { height: 10.5mm; }
+  .gtr30-inner-cell {
+    height: 10.5mm;
+    padding: 0.7mm 0.8mm;
+    text-align: right;
+    line-height: 1.05;
+    white-space: nowrap;
+    vertical-align: middle;
+    font-variant-numeric: tabular-nums;
+  }
+  .gtr30-inner-sr-cell { text-align: center; }
+  .gtr30-inner-profile-cell,
+  .gtr30-inner-designation-cell {
+    height: 10.5mm;
+    padding: 0.7mm 0.8mm;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1.1;
+  }
+  .gtr30-inner-profile-cell strong,
+  .gtr30-inner-profile-cell span { display: block; }
+  .gtr30-inner-profile-cell strong:first-child { font-size: 6.8pt; }
+  .gtr30-inner-profile-cell span { font-size: 5.5pt; }
+  .gtr30-inner-number-cell { font-size: 6.5pt; }
+  .gtr30-inner-designation-cell strong { text-decoration: underline; }
+  .gtr30-inner-alt-row td { background: #f0f0f0; }
+  .gtr30-inner-alt-row .gtr30-inner-profile-cell,
+  .gtr30-inner-alt-row .gtr30-inner-designation-cell { background: #f0f0f0; }
+  .gtr30-inner-emphasis-cell { font-weight: 700; }
+  .gtr30-inner-total-row { height: 4.3mm; }
+  .gtr30-inner-total-row td {
+    height: 4.3mm;
+    padding: 0.5mm 0.8mm;
+    background: #eee;
+    font-weight: 700;
+  }
+  .gtr30-inner-total-row td:nth-child(n + 4) { text-align: right; }
+
+  @media screen {
+    .gtr30-inner-sheet-table { transform-origin: top left; }
+  }
+
+  /* ============================================================
      PRINT ENGINE
      Prints ONLY the active report (.report-print-area). All app
      chrome (sidebar, header, top tabs, page titles) is hidden so
@@ -1829,9 +2001,9 @@
     }
 
     aside,
-    .app-header,
-    .sidebar,
-    .app-header-actions {
+    .topnav-header,
+    .topnav-mobile-panel,
+    .topnav-header-actions {
       display: none !important;
     }
 
@@ -1882,10 +2054,20 @@
       transform: none !important;
     }
 
-    /* Reveal only the report area */
+    /* Reveal printable areas */
     .report-print-area,
-    .report-print-area * {
-      visibility: visible;
+    .report-print-area *,
+    .gtr30-document-root,
+    .gtr30-document-root *,
+    .gtr30-page,
+    .gtr30-page *,
+    .gtr44-document-root,
+    .gtr44-document-root *,
+    .gtr-page,
+    .gtr-page *,
+    .page-container,
+    .page-container * {
+      visibility: visible !important;
     }
 
     .report-print-area {
@@ -2094,17 +2276,6 @@
     outline-offset: -2px;
   }
 
-  .ost-row-active,
-  .ost-row-active:hover {
-    background: #EEF2FF !important;
-    box-shadow: inset 3px 0 0 #4F46E5;
-  }
-  .dark .ost-row-active,
-  .dark .ost-row-active:hover {
-    background: rgba(79, 70, 229, 0.22) !important;
-    box-shadow: inset 3px 0 0 #6366F1;
-  }
-
   /* ============================================================
      ADMIN — DATA ENTRY & REPORTS (MATERIAL DESIGN 3)
      Scoped on-screen refinements for the Data Entry Summary
@@ -2278,48 +2449,6 @@
   .dark .um-field .label { color: #94A3B8; }
   .um-field-icon {
     @apply absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none;
-  }
-
-  /* ---- Material segmented control ---- */
-  .um-segmented {
-    @apply inline-flex items-center gap-1 p-1 rounded-xl w-full sm:w-auto;
-    background: #F1F5F9;
-    border: 1px solid #E2E8F0;
-  }
-  .dark .um-segmented {
-    background: rgba(30, 41, 59, 0.6);
-    border-color: #334155;
-  }
-  .um-seg-btn {
-    @apply inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all duration-150;
-    color: #64748B;
-  }
-  .um-seg-btn:hover { color: #0F172A; }
-  .dark .um-seg-btn { color: #94A3B8; }
-  .dark .um-seg-btn:hover { color: #F1F5F9; }
-  .um-seg-active,
-  .um-seg-active:hover {
-    background: #4F46E5;
-    color: #FFFFFF;
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.45);
-  }
-
-  /* ---- Tonal info chip (invite hint) ---- */
-  .um-info-chip {
-    @apply flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold leading-relaxed animate-fade-in;
-    background: #EEF2FF;
-    color: #4338CA;
-    border: 1px solid #E0E7FF;
-  }
-  .dark .um-info-chip {
-    background: rgba(79, 70, 229, 0.16);
-    color: #A5B4FC;
-    border-color: rgba(99, 102, 241, 0.28);
-  }
-
-  /* ---- Filled Material submit button ---- */
-  .um-submit {
-    @apply w-full py-2.5 rounded-xl text-sm font-bold shadow-primary;
   }
 
   /* ---- Material data tables (Users & Audit log) ---- */

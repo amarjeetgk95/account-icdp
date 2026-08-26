@@ -1,7 +1,7 @@
 import { supabase } from '@/core/supabase/client';
 import { rpcArray } from '@/shared/utilities';
 import type { Json } from '@/shared/json.types';
-import type { UserInfo, Office, SystemStats, OfficeStats, OfficeCompletion, DataEntryReportRow, UpdateOfficeInput } from '../types';
+import type { UserInfo, Office, SystemStats, OfficeStats, OfficeCompletion, DataEntryReportRow, ImportHealthRow, OfficeConfig } from '../types';
 
 function messageOf(data: Json | null, fallback: string): string {
   if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -98,17 +98,7 @@ export const adminRepository = {
     return office;
   },
 
-  async updateOffice(input: UpdateOfficeInput): Promise<string> {
-    const { data, error } = await supabase.rpc('admin_update_office', {
-      office_id: input.officeId,
-      office_name: input.name,
-      office_district: input.district ?? '',
-    });
-    if (error) throw error;
-    return messageOf(data, 'Office updated');
-  },
-
-  async createUser(email: string, password: string, role: string, officeId: string): Promise<string> {
+  async createUser(email: string, password: string, role: string, officeId: string | null): Promise<string> {
     const { data, error } = await supabase.rpc('admin_create_user', {
       user_email: email,
       user_password: password,
@@ -119,7 +109,7 @@ export const adminRepository = {
     return messageOf(data, 'User created');
   },
 
-  async inviteUser(email: string, role: string, officeId: string): Promise<string> {
+  async inviteUser(email: string, role: string, officeId: string | null): Promise<string> {
     const { data, error } = await supabase.rpc('admin_invite_user', {
       user_email: email,
       user_role: role,
@@ -144,6 +134,30 @@ export const adminRepository = {
     } catch {
       return [defaultFY];
     }
+  },
+
+  async getImportHealth(): Promise<ImportHealthRow[]> {
+    const { data, error } = await supabase.rpc('admin_import_health');
+    if (error) throw error;
+    const rows = rpcArray<ImportHealthRow>(data);
+    return rows.map((row) => ({ ...row, office_id: String(row.office_id) }));
+  },
+
+  async getOfficeConfig(officeId: string): Promise<OfficeConfig> {
+    const { data, error } = await supabase.rpc('admin_office_config', {
+      target_office_id: officeId,
+    });
+    if (error) throw error;
+    return data as unknown as OfficeConfig;
+  },
+
+  async setOfficeFy(officeId: string, fy: number): Promise<string> {
+    const { data, error } = await supabase.rpc('admin_set_office_fy', {
+      target_office_id: officeId,
+      fy,
+    });
+    if (error) throw error;
+    return messageOf(data, 'Financial year updated');
   },
 };
 

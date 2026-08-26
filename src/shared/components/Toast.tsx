@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+type ToastType = 'success' | 'error' | 'warning' | 'info';
 
-export interface ToastMessage {
+interface ToastMessage {
   id: string;
   type: ToastType;
   title?: string;
@@ -17,7 +17,7 @@ interface ToastStore {
   removeToast: (id: string) => void;
 }
 
-export const useToastStore = create<ToastStore>((set) => ({
+const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
   addToast: (toast) => {
     const id = crypto.randomUUID();

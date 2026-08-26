@@ -35,6 +35,8 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
       hprnNo: '',
       name: '',
       pan: '',
+      designation: '',
+      payScale: '',
       joinDate: '',
       transferDate: '',
       budgetHeadId: '',
@@ -57,6 +59,8 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
         hprnNo: editingEmployee.hprnNo || '',
         name: editingEmployee.name,
         pan: editingEmployee.pan,
+        designation: editingEmployee.designation || '',
+        payScale: editingEmployee.payScale || '',
         joinDate: editingEmployee.joinDate || '',
         transferDate: editingEmployee.transferDate || '',
         budgetHeadId: editingEmployee.budgetHeadId ? String(editingEmployee.budgetHeadId) : '',
@@ -74,6 +78,8 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             hprnNo: emp.hprn_no || '',
             name: emp.name,
             pan: emp.pan,
+            designation: emp.designation || '',
+            payScale: emp.pay_scale || '',
             joinDate: emp.join_date || '',
             transferDate: emp.transfer_date || '',
             budgetHeadId: emp.budget_head_id ? String(emp.budget_head_id) : '',
@@ -243,6 +249,32 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
         </div>
 
         <div>
+          <label htmlFor="designation" className="label text-slate-700 dark:text-slate-300">
+            Designation
+          </label>
+          <input
+            id="designation"
+            type="text"
+            {...register('designation')}
+            className="input text-sm"
+            placeholder="e.g. Accountant, Driver, Peon"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="payScale" className="label text-slate-700 dark:text-slate-300">
+            Pay Scale
+          </label>
+          <input
+            id="payScale"
+            type="text"
+            {...register('payScale')}
+            className="input text-sm font-mono text-xs"
+            placeholder="e.g. PB-2 (9300-34800)/4200"
+          />
+        </div>
+
+        <div>
           <label htmlFor="budgetHeadId" className="label text-slate-700 dark:text-slate-300 flex items-center justify-between">
             <span>Budget Head Tag</span>
           </label>
@@ -254,7 +286,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
               </option>
             ))}
           </select>
-          <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Designation &amp; Budget Head designation tag</p>
+          <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Classification tag for salary reporting</p>
         </div>
       </div>
 

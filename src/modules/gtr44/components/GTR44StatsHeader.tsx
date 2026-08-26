@@ -1,13 +1,12 @@
 import { Card, CardContent } from '../../../components/ui/card';
 import { FileText, IndianRupee, Clock, CheckCircle } from 'lucide-react';
+import { formatCurrency } from '@/shared/utilities';
 
 interface GTR44StatsHeaderProps {
   totalBills: number;
   ytdExpense: number;
   pendingCount: number;
   passedTotal: number;
-  activeTab?: string;
-  onTabClick?: (tab: string) => void;
 }
 
 export function GTR44StatsHeader({
@@ -15,8 +14,6 @@ export function GTR44StatsHeader({
   ytdExpense,
   pendingCount,
   passedTotal,
-  activeTab = 'all',
-  onTabClick,
 }: GTR44StatsHeaderProps) {
   const tileConfig = [
     {
@@ -26,7 +23,6 @@ export function GTR44StatsHeader({
       icon: FileText,
       bg: 'bg-blue-100 dark:bg-blue-900/30',
       iconColor: 'text-blue-600 dark:text-blue-400',
-      isActive: activeTab === 'all',
     },
     {
       id: 'submitted',
@@ -35,43 +31,39 @@ export function GTR44StatsHeader({
       icon: Clock,
       bg: 'bg-amber-100 dark:bg-amber-900/30',
       iconColor: 'text-amber-600 dark:text-amber-400',
-      isActive: activeTab === 'submitted',
     },
     {
       id: 'passed',
       label: 'Passed Bills Total',
-      value: `₹${passedTotal.toLocaleString('en-IN')}`,
+      value: formatCurrency(passedTotal),
       icon: CheckCircle,
       bg: 'bg-green-100 dark:bg-green-900/30',
       iconColor: 'text-green-600 dark:text-green-400',
-      isActive: activeTab === 'passed',
     },
     {
       id: 'ytd',
       label: 'YTD Contingent Exp.',
-      value: `₹${ytdExpense.toLocaleString('en-IN')}`,
+      value: formatCurrency(ytdExpense),
       icon: IndianRupee,
       bg: 'bg-indigo-100 dark:bg-indigo-900/30',
       iconColor: 'text-indigo-600 dark:text-indigo-400',
-      isActive: activeTab === 'ytd',
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       {tileConfig.map((tile) => (
         <Card
           key={tile.id}
-          className={`transition-all cursor-pointer ${tile.isActive ? 'ring-2 ring-indigo-500 shadow-lg scale-[1.02]' : 'hover:shadow-md'}`}
-          onClick={() => onTabClick && onTabClick(tile.id)}
+          className="transition-all hover:shadow-md"
         >
-          <CardContent className="p-6 flex items-center justify-between">
+          <CardContent className="p-3.5 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">{tile.label}</p>
-              <h3 className="text-2xl font-bold mt-1">{tile.value}</h3>
+              <p className="text-xs font-medium text-muted-foreground">{tile.label}</p>
+              <h3 className="text-lg font-bold mt-0.5">{tile.value}</h3>
             </div>
-            <div className={`p-3 rounded-full ${tile.bg}`}>
-              <tile.icon className={`h-5 w-5 ${tile.iconColor}`} />
+            <div className={`p-2 rounded-full ${tile.bg}`}>
+              <tile.icon className={`h-4 w-4 ${tile.iconColor}`} />
             </div>
           </CardContent>
         </Card>

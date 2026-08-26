@@ -1,18 +1,22 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useFinancialYears, useYearlyReport } from '../hooks/useReports';
 import type { YearlyReport } from '../types';
-import { formatCurrency, export26QExcel, exportGSTExcel } from '@/shared/utilities';
+import { formatCurrency, export26QExcel, exportGSTExcel, popupNativePrint } from '@/shared/utilities';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { SkeletonTable } from '@/shared/components/Skeleton';
+import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
-import { FileSpreadsheet, Users, Store, CalendarDays, Receipt } from 'lucide-react';
+import { FileSpreadsheet, Users, Store, CalendarDays, Receipt, Printer } from 'lucide-react';
 
 type ReportTab = '24q' | '26q' | 'gst';
 
 export function ReportsPage() {
   const [selectedFY, setSelectedFY] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<ReportTab>('24q');
+  const { tab } = useParams<{ tab: string }>();
+  const validTabs: ReportTab[] = ['24q', '26q', 'gst'];
+  const activeTab: ReportTab = validTabs.includes(tab as ReportTab) ? (tab as ReportTab) : '24q';
 
   const { data: years, isLoading: yearsLoading } = useFinancialYears();
   const defaultFY = () => {
@@ -45,11 +49,14 @@ export function ReportsPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="card p-5 mb-6 no-print">
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <h1 className="text-2xl font-bold text-slate-800">Annual Yearly Report</h1>
-          <div className="flex items-center gap-3">
-            <select value={activeFY || ''} onChange={handleFYChange} className="input w-40">
+      <WorkspaceHeader
+        className="no-print"
+        eyebrow="Reporting & returns"
+        title="Annual reports"
+        context={<><CalendarDays size={13} /> FY {activeFY}-{String(activeFY + 1).slice(-2)}</>}
+        actions={
+          <div className="flex items-center gap-2">
+            <select value={activeFY || ''} onChange={handleFYChange} className="input w-36">
               {fyOptions.map((y) => (
                 <option key={y} value={y}>{y}-{String(y + 1).slice(-2)}</option>
               ))}
@@ -111,66 +118,79 @@ export function ReportsPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              Export Formatted Excel
+              Export Excel
             </button>
-            <button onClick={() => window.print()} className="btn btn-secondary">Print PDF</button>
+            <button
+              onClick={() => {
+                const el = document.querySelector('.report-print-area') as HTMLElement | null;
+                if (el) {
+                  popupNativePrint({
+                    elements: [el],
+                    title: `${activeTab.toUpperCase()}_Report_${activeFY}`,
+                    pageSize: 'A4',
+                    orientation: activeTab === '24q' ? 'landscape' : 'portrait',
+                    pageContainerSelector: '.report-print-area',
+                  });
+                } else {
+                  window.print();
+                }
+              }}
+              className="btn btn-secondary btn-sm inline-flex items-center gap-1.5"
+            >
+              <Printer className="w-4 h-4" />
+              Print
+            </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {report && (
-        <div className="space-y-5 mb-6 no-print">
+        <div className="space-y-3 mb-6 no-print">
           {/* Payroll Overview Group */}
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
               <Users size={14} className="text-indigo-600 dark:text-indigo-400" />
               Payroll Overview (24Q Employee)
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="card p-4 border-l-4 border-l-emerald-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total Employees</div>
-                <div className="text-2xl font-extrabold mt-1 text-slate-800 dark:text-slate-100">{report.summary.totalEmployees}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="card p-3 border-l-4 border-l-emerald-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Total Employees</div>
+                <div className="text-lg font-extrabold mt-0.5 text-slate-800 dark:text-slate-100">{report.summary.totalEmployees}</div>
               </div>
-              <div className="card p-4 border-l-4 border-l-indigo-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Annual Gross + DA Salary</div>
-                <div className="text-2xl font-extrabold mt-1 text-indigo-600 dark:text-indigo-400">{formatCurrency(report.summary.totalGross)}</div>
+              <div className="card p-3 border-l-4 border-l-indigo-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Annual Gross + DA Salary</div>
+                <div className="text-lg font-extrabold mt-0.5 text-indigo-600 dark:text-indigo-400">{formatCurrency(report.summary.totalGross)}</div>
               </div>
-              <div className="card p-4 border-l-4 border-l-rose-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total TDS (24Q)</div>
-                <div className="text-2xl font-extrabold mt-1 text-rose-600 dark:text-rose-400">{formatCurrency(report.summary.totalTax)}</div>
+              <div className="card p-3 border-l-4 border-l-rose-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Total TDS (24Q)</div>
+                <div className="text-lg font-extrabold mt-0.5 text-rose-600 dark:text-rose-400">{formatCurrency(report.summary.totalTax)}</div>
               </div>
             </div>
           </div>
 
           {/* Vendor Overview Group */}
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
               <Store size={14} className="text-amber-600 dark:text-amber-400" />
               Vendor Overview (26Q & GST)
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="card p-4 border-l-4 border-l-amber-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total Vendors</div>
-                <div className="text-2xl font-extrabold mt-1 text-slate-800 dark:text-slate-100">{report.summary.totalVendors}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="card p-3 border-l-4 border-l-amber-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Total Vendors</div>
+                <div className="text-lg font-extrabold mt-0.5 text-slate-800 dark:text-slate-100">{report.summary.totalVendors}</div>
               </div>
-              <div className="card p-4 border-l-4 border-l-red-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Vendor IT Deducted (26Q)</div>
-                <div className="text-2xl font-extrabold mt-1 text-red-600 dark:text-red-400">{formatCurrency(report.summary.totalIncomeTax)}</div>
+              <div className="card p-3 border-l-4 border-l-red-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Vendor IT Deducted (26Q)</div>
+                <div className="text-lg font-extrabold mt-0.5 text-red-600 dark:text-red-400">{formatCurrency(report.summary.totalIncomeTax)}</div>
               </div>
-              <div className="card p-4 border-l-4 border-l-teal-500">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total GST (Annual)</div>
-                <div className="text-2xl font-extrabold mt-1 text-teal-600 dark:text-teal-400">{formatCurrency(report.summary.totalGst)}</div>
+              <div className="card p-3 border-l-4 border-l-teal-500">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Total GST (Annual)</div>
+                <div className="text-lg font-extrabold mt-0.5 text-teal-600 dark:text-teal-400">{formatCurrency(report.summary.totalGst)}</div>
               </div>
             </div>
           </div>
         </div>
       )}
-
-      <div className="flex border-b border-slate-200 mb-6 no-print">
-        <button onClick={() => setActiveTab('24q')} className={"px-4 py-3 text-sm font-medium border-b-2 " + (activeTab === '24q' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500')}>24Q Employee</button>
-        <button onClick={() => setActiveTab('26q')} className={"px-4 py-3 text-sm font-medium border-b-2 " + (activeTab === '26q' ? 'border-amber-600 text-amber-600' : 'border-transparent text-slate-500')}>26Q Vendor IT</button>
-        <button onClick={() => setActiveTab('gst')} className={"px-4 py-3 text-sm font-medium border-b-2 " + (activeTab === 'gst' ? 'border-green-600 text-green-600' : 'border-transparent text-slate-500')}>GST Annual</button>
-      </div>
 
       {reportLoading ? (
         <SkeletonTable rows={6} cols={6} />

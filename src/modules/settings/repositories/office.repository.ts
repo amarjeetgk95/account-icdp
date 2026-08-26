@@ -1,38 +1,29 @@
 import { supabase } from '@/core/supabase/client';
-import { useUIStore } from '@/core/stores/ui-store';
-import { useAuthStore } from '@/core/auth/store';
+import { getOfficeScope, requireOfficeId } from '@/shared/utilities/office';
 import type { OfficeDetailsInput } from '../validation/settings.schema';
-
-function getOfficeId(): string | null {
-  const authOfficeId = useAuthStore.getState().user?.officeId || null;
-  if (authOfficeId) return authOfficeId;
-  return useUIStore.getState().activeOfficeId || null;
-}
 
 export const officeRepository = {
   async getName(officeId?: string): Promise<string> {
-    const targetOfficeId = officeId || getOfficeId();
-    if (!targetOfficeId) return '';
+    const scope = getOfficeScope(officeId);
+    if (!scope.all && !scope.officeId) return '';
 
-    const { data, error } = await supabase
-      .from('offices')
-      .select('name')
-      .eq('id', targetOfficeId)
-      .maybeSingle();
+    let q = supabase.from('offices').select('name');
+    if (!scope.all) q = q.eq('id', scope.officeId!);
+    const { data, error } = await q.maybeSingle();
 
     if (error) return '';
     return data?.name || '';
   },
 
   async get(officeId?: string): Promise<OfficeDetailsInput> {
-    const targetOfficeId = officeId || getOfficeId();
-    if (!targetOfficeId) throw new Error('No office selected');
+    const scope = getOfficeScope(officeId);
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { data, error } = await supabase
+    let q = supabase
       .from('office_details')
-      .select('office_name, subtitle, address, phone, email, gst, tan')
-      .eq('office_id', targetOfficeId)
-      .maybeSingle();
+      .select('office_name, subtitle, address, phone, email, gst, tan');
+    if (!scope.all) q = q.eq('office_id', scope.officeId!);
+    const { data, error } = await q.maybeSingle();
 
     if (error && error.code !== 'PGRST116') throw error;
 
@@ -60,8 +51,7 @@ export const officeRepository = {
   },
 
   async save(input: OfficeDetailsInput): Promise<void> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No active office selected');
+    const officeId = requireOfficeId();
 
     const payload = {
       office_id: officeId,

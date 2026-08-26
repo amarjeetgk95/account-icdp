@@ -1,6 +1,6 @@
 import { supabase } from '@/core/supabase/client';
 import { useAuthStore } from '@/core/auth/store';
-import { getOfficeId } from '@/shared/utilities/office';
+import { getOfficeScope, requireOfficeId } from '@/shared/utilities/office';
 import type { Database } from '@/shared/database.types';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 
@@ -14,24 +14,13 @@ function getUserId(): string | undefined {
 }
 
 export const salaryRepository = {
-  async listImports(financialYear?: number): Promise<SalaryImport[]> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
-    let q = supabase.from('salary_imports').select('*').eq('office_id', officeId).order('created_at', { ascending: false });
-    if (financialYear != null) q = q.eq('financial_year', financialYear);
-    const { data, error } = await q;
-    if (error) throw error;
-    return data || [];
-  },
-
   async createImport(payload: {
     excelFilename: string;
     financialYear: number;
     totalRecords: number;
     matchedCount: number;
   }): Promise<SalaryImport> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
     const insert: SalaryImportInsert = {
       office_id: officeId,
       excel_filename: payload.excelFilename,
@@ -47,8 +36,7 @@ export const salaryRepository = {
 
   async upsertSalaries(rows: Omit<EmployeeSalaryInsert, 'office_id'>[]): Promise<void> {
     if (rows.length === 0) return;
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
     const payload: EmployeeSalaryInsert[] = rows.map((r) => ({ ...r, office_id: officeId }));
     const { error } = await supabase
       .from('employee_salary')
@@ -57,8 +45,7 @@ export const salaryRepository = {
   },
 
   async upsertToPayrollGrid(records: ClassifiedSalaryRecord[]): Promise<number> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
     const rows = records
       .filter((r) => r.status === 'matched' && r.employeeId)
       .map((r) => ({
@@ -79,29 +66,17 @@ export const salaryRepository = {
     return rows.length;
   },
 
-  async listByHrpn(hrpn: string, financialYear: number): Promise<EmployeeSalary[]> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
-    const { data, error } = await supabase
-      .from('employee_salary')
-      .select('*')
-      .eq('office_id', officeId)
-      .eq('hprn_no', hrpn)
-      .eq('financial_year', financialYear)
-      .order('month', { ascending: true });
-    if (error) throw error;
-    return data || [];
-  },
-
   async listLatestByOffice(): Promise<EmployeeSalary[]> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
-    const { data, error } = await supabase
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
+    let q = supabase
       .from('employee_salary')
-      .select('*')
-      .eq('office_id', officeId)
+      .select('*');
+    if (!scope.all) q = q.eq('office_id', scope.officeId!);
+    q = q
       .in('status', ['matched', 'unmatched'])
       .order('created_at', { ascending: false });
+    const { data, error } = await q;
     if (error) throw error;
     const seen = new Map<string, EmployeeSalary>();
     for (const row of data || []) {
@@ -112,8 +87,9 @@ export const salaryRepository = {
   },
 
   async getEmployeeLookupDetails(searchQuery: string, financialYear: number, selectedHrpn?: string) {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
+    const officeId = scope.officeId!;
 
     const cleanQuery = searchQuery.trim();
     if (!cleanQuery) {
@@ -132,18 +108,21 @@ export const salaryRepository = {
     }
 
     // 1. Fetch matching employees from master table (by Name, HRPN, or PAN)
-    const { data: masterList, error: masterError } = await supabase
+    let qMaster = supabase
       .from('employees')
-      .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id')
-      .eq('office_id', officeId)
-      .or(`name.ilike.%${cleanQuery}%,hprn_no.ilike.%${cleanQuery}%,pan.ilike.%${cleanQuery}%`);
+      .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id');
+    if (!scope.all) qMaster = qMaster.eq('office_id', officeId);
+    const { data: masterList, error: masterError } = await qMaster.or(
+      `name.ilike.%${cleanQuery}%,hprn_no.ilike.%${cleanQuery}%,pan.ilike.%${cleanQuery}%`
+    );
     if (masterError) throw masterError;
 
     // 2. Fetch matching imported salary records (by Name or HRPN)
-    const { data: importedList, error: importedError } = await supabase
+    let qImported = supabase
       .from('employee_salary')
-      .select('*')
-      .eq('office_id', officeId)
+      .select('*');
+    if (!scope.all) qImported = qImported.eq('office_id', officeId);
+    const { data: importedList, error: importedError } = await qImported
       .eq('financial_year', financialYear)
       .or(`name.ilike.%${cleanQuery}%,hprn_no.ilike.%${cleanQuery}%`);
     if (importedError) throw importedError;
@@ -196,10 +175,11 @@ export const salaryRepository = {
     ) || null;
 
     if (!emp) {
-      const { data: empFetch, error: empFetchError } = await supabase
+      let qEmpFetch = supabase
         .from('employees')
-        .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id')
-        .eq('office_id', officeId)
+        .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id');
+      if (!scope.all) qEmpFetch = qEmpFetch.eq('office_id', officeId);
+      const { data: empFetch, error: empFetchError } = await qEmpFetch
         .ilike('hprn_no', targetHrpn)
         .maybeSingle();
       if (empFetchError) throw empFetchError;
@@ -225,10 +205,11 @@ export const salaryRepository = {
     // Manual salaries
     let manualSalaries: Array<{ month: string; gross: number; da: number; tax: number }> = [];
     if (emp?.id) {
-      const { data: ms, error: msError } = await supabase
+      let qManual = supabase
         .from('employee_salaries')
-        .select('month, gross, da, tax')
-        .eq('office_id', officeId)
+        .select('month, gross, da, tax');
+      if (!scope.all) qManual = qManual.eq('office_id', officeId);
+      const { data: ms, error: msError } = await qManual
         .eq('employee_id', emp.id)
         .eq('financial_year', financialYear);
       if (msError) throw msError;
@@ -236,10 +217,11 @@ export const salaryRepository = {
     }
 
     // Imported salaries for target employee
-    const { data: targetImportedSalaries, error: targetImportedError } = await supabase
+    let qTargetImported = supabase
       .from('employee_salary')
-      .select('*')
-      .eq('office_id', officeId)
+      .select('*');
+    if (!scope.all) qTargetImported = qTargetImported.eq('office_id', officeId);
+    const { data: targetImportedSalaries, error: targetImportedError } = await qTargetImported
       .ilike('hprn_no', targetHrpn)
       .eq('financial_year', financialYear)
       .order('created_at', { ascending: false });

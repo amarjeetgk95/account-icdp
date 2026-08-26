@@ -15,6 +15,9 @@ export default {
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
         heading: ['Outfit', 'sans-serif'],
+        guj: ['"Noto Serif Gujarati"', 'Shruti', 'serif'],
+        gujSans: ['"Noto Sans Gujarati"', 'Shruti', 'sans-serif'],
+        plexGu: ['"IBM Plex Sans Gujarati"', 'sans-serif'],
       },
       colors: {
         border: "rgb(var(--border))",
@@ -50,16 +53,33 @@ export default {
           DEFAULT: "rgb(var(--card))",
           foreground: "rgb(var(--card-foreground))",
         },
+        earning: {
+          DEFAULT: "rgb(var(--earning))",
+          light: "rgb(var(--earning-light))",
+          border: "#A7F3D0",
+        },
+        deduction: {
+          DEFAULT: "rgb(var(--deduction))",
+          light: "rgb(var(--deduction-light))",
+          border: "#FECDD3",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      spacing: {
+        gtrBox: "11px",
+      },
+      borderWidth: {
+        l4: "4px",
+      },
       boxShadow: {
         xs: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
         card: "var(--shadow-card)",
         float: "var(--shadow-float)",
+        gtr: "0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.08)",
       },
     },
   },

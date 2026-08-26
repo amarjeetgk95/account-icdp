@@ -23,7 +23,7 @@ export interface QuarterReport {
   rows: QuarterReportRow[];
 }
 
-export interface QuarterReportRow {
+interface QuarterReportRow {
   name: string;
   pan: string;
   g: [number, number, number];
@@ -61,3 +61,5 @@ export interface BudgetHeadReport {
   groups: BudgetHeadReportGroup[];
   totals: BudgetHeadQuarterTotals;
 }
+
+export * from './reconciliation';

@@ -38,6 +38,9 @@ vi.mock('../repositories/admin.repository', () => ({
     createUser: vi.fn(),
     inviteUser: vi.fn(),
     getFinancialYears: vi.fn(),
+    getImportHealth: vi.fn(),
+    getOfficeConfig: vi.fn(),
+    setOfficeFy: vi.fn(),
   },
 }));
 
@@ -148,6 +151,44 @@ describe('AdminService', () => {
       expect(mockRepo.inviteUser).toHaveBeenCalledWith('invite@test.com', 'office', 'o1');
       expect(result).toBe('Invitation created');
     });
+
+    it('creates an admin without binding an office (password)', async () => {
+      mockRepo.createUser.mockResolvedValue('User created');
+
+      const result = await service.createUser({
+        email: 'admin@test.com',
+        password: 'password123',
+        role: 'admin',
+      });
+
+      expect(mockRepo.listOffices).not.toHaveBeenCalled();
+      expect(mockRepo.createOffice).not.toHaveBeenCalled();
+      expect(mockRepo.createUser).toHaveBeenCalledWith('admin@test.com', 'password123', 'admin', null);
+      expect(result).toBe('User created');
+    });
+
+    it('creates an admin without binding an office (invite)', async () => {
+      mockRepo.inviteUser.mockResolvedValue('Invitation created');
+
+      const result = await service.createUser({
+        email: 'admin@test.com',
+        role: 'admin',
+      });
+
+      expect(mockRepo.createOffice).not.toHaveBeenCalled();
+      expect(mockRepo.inviteUser).toHaveBeenCalledWith('admin@test.com', 'admin', null);
+      expect(result).toBe('Invitation created');
+    });
+
+    it('rejects an office user without an office name', async () => {
+      await expect(
+        service.createUser({
+          email: 'a@b.com',
+          password: 'password123',
+          role: 'office',
+        })
+      ).rejects.toThrow('Office name is required for office users');
+    });
   });
 
   describe('setUserRole', () => {
@@ -212,6 +253,54 @@ describe('AdminService', () => {
   describe('reports', () => {
     it('requires an office id for financial years', async () => {
       await expect(service.getFinancialYears('')).rejects.toThrow('No office selected');
+    });
+  });
+
+  describe('import health and office config', () => {
+    it('delegates getImportHealth to repository', async () => {
+      mockRepo.getImportHealth.mockResolvedValue([]);
+      const res = await service.getImportHealth();
+      expect(mockRepo.getImportHealth).toHaveBeenCalled();
+      expect(res).toEqual([]);
+    });
+
+    it('requires an office id for office config', async () => {
+      await expect(service.getOfficeConfig('')).rejects.toThrow('Office ID is required');
+      expect(mockRepo.getOfficeConfig).not.toHaveBeenCalled();
+    });
+
+    it('delegates getOfficeConfig to repository', async () => {
+      const config = {
+        office_id: '1',
+        office_name: 'A',
+        district: null,
+        current_fy: 2026,
+        financial_years: [2026],
+        users: 1,
+        employees: 2,
+      };
+      mockRepo.getOfficeConfig.mockResolvedValue(config);
+      const res = await service.getOfficeConfig('1');
+      expect(mockRepo.getOfficeConfig).toHaveBeenCalledWith('1');
+      expect(res).toEqual(config);
+    });
+
+    it('rejects an invalid financial year', async () => {
+      await expect(service.setOfficeFy('1', 1999)).rejects.toThrow('Financial year must be an integer');
+      await expect(service.setOfficeFy('1', 2101)).rejects.toThrow('Financial year must be an integer');
+      await expect(service.setOfficeFy('1', 2026.5)).rejects.toThrow('Financial year must be an integer');
+      expect(mockRepo.setOfficeFy).not.toHaveBeenCalled();
+    });
+
+    it('requires an office id for setOfficeFy', async () => {
+      await expect(service.setOfficeFy('', 2026)).rejects.toThrow('Office ID is required');
+    });
+
+    it('delegates setOfficeFy to repository', async () => {
+      mockRepo.setOfficeFy.mockResolvedValue('Financial year updated');
+      const res = await service.setOfficeFy('1', 2026);
+      expect(mockRepo.setOfficeFy).toHaveBeenCalledWith('1', 2026);
+      expect(res).toBe('Financial year updated');
     });
   });
 });

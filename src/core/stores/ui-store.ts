@@ -1,55 +1,54 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export type Theme = 'light' | 'dark';
+
+function applyTheme(theme: Theme) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (theme === 'dark') root.classList.add('dark');
+  else root.classList.remove('dark');
+}
+
 interface UIState {
   activeOfficeId: string | null;
   activeFinancialYear: number;
-  sidebarCollapsed: boolean;
-  mobileMenuOpen: boolean;
+  theme: Theme;
   setActiveOfficeId: (id: string | null) => void;
   setActiveFinancialYear: (year: number) => void;
-  toggleSidebar: () => void;
-  setMobileMenuOpen: (open: boolean) => void;
-  toggleMobileMenu: () => void;
+  toggleTheme: () => void;
   initializeOffice: (officeId: string | null) => void;
-}
-
-function enforceLightTheme() {
-  if (typeof document !== 'undefined') {
-    document.documentElement.classList.remove('dark');
-  }
 }
 
 export const useUIStore = create<UIState>()(
   persist(
-    (set) => {
-      enforceLightTheme();
-      return {
-        activeOfficeId: null,
-        activeFinancialYear: (() => {
-          const now = new Date();
-          return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-        })(),
-        sidebarCollapsed: false,
-        mobileMenuOpen: false,
-        setActiveOfficeId: (id) => set({ activeOfficeId: id }),
-        setActiveFinancialYear: (year) => set({ activeFinancialYear: year }),
-        toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-        setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
-        toggleMobileMenu: () => set((state) => ({ mobileMenuOpen: !state.mobileMenuOpen })),
-        initializeOffice: (officeId) => {
-          set({ activeOfficeId: officeId });
-        },
-      };
-    },
+    (set) => ({
+      activeOfficeId: null,
+       activeFinancialYear: (() => {
+        const now = new Date();
+        return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+      })(),
+      theme: 'light',
+      setActiveOfficeId: (id) => set({ activeOfficeId: id }),
+      setActiveFinancialYear: (year) => set({ activeFinancialYear: year }),
+      toggleTheme: () =>
+        set((state) => {
+          const next: Theme = state.theme === 'dark' ? 'light' : 'dark';
+          applyTheme(next);
+          return { theme: next };
+        }),
+      initializeOffice: (officeId) => {
+        set({ activeOfficeId: officeId });
+      },
+    }),
     {
-      name: 'icdp-ui-store',
-      partialize: (state) => ({
-        activeFinancialYear: state.activeFinancialYear,
-        sidebarCollapsed: state.sidebarCollapsed,
-      }),
-      onRehydrateStorage: () => () => {
-        enforceLightTheme();
+       name: 'icdp-ui-store',
+       partialize: (state) => ({
+         activeFinancialYear: state.activeFinancialYear,
+         theme: state.theme,
+       }),
+      onRehydrateStorage: () => (state) => {
+        applyTheme(state?.theme ?? 'light');
       },
     }
   )

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'icdp-cache-v2';
+const CACHE_NAME = 'icdp-cache-v3';
 const ASSETS = [
   '/',
   '/index.html',

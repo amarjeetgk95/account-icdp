@@ -1,40 +1,42 @@
 import { supabase } from '@/core/supabase/client';
-import { getOfficeId } from '@/shared/utilities/office';
+import { getOfficeScope, requireOfficeId } from '@/shared/utilities/office';
 import { isActiveInEntryMonth } from '../utils/employeeDates';
 import type { EmployeeRosterItem, QuarterReport, BudgetHeadReport, BudgetHeadReportGroup } from '../types';
 
 
 export const payrollRepository = {
   async checkMonthData(month: string, fy: number, officeId?: string): Promise<{ count: number }> {
-    const targetOfficeId = officeId || getOfficeId();
-    if (!targetOfficeId) throw new Error('No office selected');
+    const scope = getOfficeScope(officeId);
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { count } = await supabase
+    let q = supabase
       .from('employee_salaries')
       .select('*', { count: 'exact', head: true })
       .eq('financial_year', fy)
-      .eq('month', month)
-      .eq('office_id', targetOfficeId);
+      .eq('month', month);
+    if (!scope.all) q = q.eq('office_id', scope.officeId!);
 
+    const { count } = await q;
     return { count: count || 0 };
   },
 
   async getRosterForMonth(month: string, fy: number): Promise<EmployeeRosterItem[]> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { data: employees } = await supabase
+    let qEmployees = supabase
       .from('employees')
-      .select('id, name, pan, hprn_no, join_date, transfer_date')
-      .eq('office_id', officeId)
-      .order('id');
+      .select('id, name, pan, hprn_no, join_date, transfer_date');
+    if (!scope.all) qEmployees = qEmployees.eq('office_id', scope.officeId!);
+    const { data: employees } = await qEmployees.order('id');
 
-    const { data: salaries } = await supabase
+    let qSalaries = supabase
       .from('employee_salaries')
       .select('employee_id, gross, da, tax')
       .eq('financial_year', fy)
-      .eq('month', month)
-      .eq('office_id', officeId);
+      .eq('month', month);
+    if (!scope.all) qSalaries = qSalaries.eq('office_id', scope.officeId!);
+    const { data: salaries } = await qSalaries;
 
     const salMap: Record<string, { gross: number; da: number; tax: number }> = {};
     (salaries || []).forEach((s) => {
@@ -64,8 +66,7 @@ export const payrollRepository = {
     entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>,
     fy: number
   ): Promise<string> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const officeId = requireOfficeId();
 
     const records = entries.map((e) => ({
       employee_id: e.employeeId,
@@ -103,15 +104,16 @@ export const payrollRepository = {
     month: string,
     fy: number
   ): Promise<Array<{ employeeId: string; gross: number; da: number; tax: number }>> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { data, error } = await supabase
+    let q = supabase
       .from('employee_salaries')
       .select('employee_id, gross, da, tax')
       .eq('financial_year', fy)
-      .eq('month', month)
-      .eq('office_id', officeId);
+      .eq('month', month);
+    if (!scope.all) q = q.eq('office_id', scope.officeId!);
+    const { data, error } = await q;
 
     if (error) throw error;
 
@@ -124,8 +126,7 @@ export const payrollRepository = {
   },
 
   async clearMonthSalary(month: string, fy: number, officeId?: string): Promise<number> {
-    const targetOfficeId = officeId || getOfficeId();
-    if (!targetOfficeId) throw new Error('No office selected');
+    const targetOfficeId = officeId || requireOfficeId();
 
     const { count, error } = await supabase
       .from('employee_salaries')
@@ -139,8 +140,8 @@ export const payrollRepository = {
   },
 
   async getQuarterReport(quarter: string, fy: number, officeId?: string): Promise<QuarterReport> {
-    const targetOfficeId = officeId || getOfficeId();
-    if (!targetOfficeId) throw new Error('No office selected');
+    const scope = getOfficeScope(officeId);
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
     const quarterConfig: Record<string, string[]> = {
       Q1: ['April', 'May', 'June'],
@@ -151,17 +152,18 @@ export const payrollRepository = {
 
     const months = quarterConfig[quarter] || quarterConfig.Q1;
 
-    const { data: employees } = await supabase
+    let qEmployees = supabase
       .from('employees')
-      .select('id, name, pan')
-      .eq('office_id', targetOfficeId)
-      .order('id');
+      .select('id, name, pan');
+    if (!scope.all) qEmployees = qEmployees.eq('office_id', scope.officeId!);
+    const { data: employees } = await qEmployees.order('id');
 
-    const { data: salaries } = await supabase
+    let qSalaries = supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
-      .eq('financial_year', fy)
-      .eq('office_id', targetOfficeId);
+      .eq('financial_year', fy);
+    if (!scope.all) qSalaries = qSalaries.eq('office_id', scope.officeId!);
+    const { data: salaries } = await qSalaries;
 
     const salMap: Record<string, Record<string, { gross: number; da: number; tax: number }>> = {};
     (salaries || []).forEach((s) => {
@@ -219,31 +221,31 @@ export const payrollRepository = {
   },
 
   async getBudgetHeadReport(fy: number, officeId?: string): Promise<BudgetHeadReport> {
-    const targetOfficeId = officeId || getOfficeId();
-    if (!targetOfficeId) throw new Error('No office selected');
+    const scope = getOfficeScope(officeId);
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
     const monthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
 
     const round = (n: number) => Math.round(n * 100) / 100;
 
-    const { data: employees } = await supabase
+    let qEmployees = supabase
       .from('employees')
-      .select('id, name, pan, budget_head_id')
-      .eq('office_id', targetOfficeId)
-      .order('id');
+      .select('id, name, pan, budget_head_id');
+    if (!scope.all) qEmployees = qEmployees.eq('office_id', scope.officeId!);
+    const { data: employees } = await qEmployees.order('id');
 
-    const { data: heads } = await supabase
+    let qHeads = supabase
       .from('budget_heads')
-      .select('id, code, name')
-      .eq('office_id', targetOfficeId)
-      .order('sort_order', { ascending: true })
-      .order('code', { ascending: true });
+      .select('id, code, name');
+    if (!scope.all) qHeads = qHeads.eq('office_id', scope.officeId!);
+    const { data: heads } = await qHeads.order('sort_order', { ascending: true }).order('code', { ascending: true });
 
-    const { data: salaries } = await supabase
+    let qSalaries = supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
-      .eq('financial_year', fy)
-      .eq('office_id', targetOfficeId);
+      .eq('financial_year', fy);
+    if (!scope.all) qSalaries = qSalaries.eq('office_id', scope.officeId!);
+    const { data: salaries } = await qSalaries;
 
     const headMap: Record<string, { code: string; name: string }> = {};
     (heads || []).forEach((h: { id: string; code: string; name: string }) => {

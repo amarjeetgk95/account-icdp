@@ -1,22 +1,14 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Search, Download, Filter, FileText, RefreshCw, Eye } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Search, Download, Filter, FileText, Eye } from 'lucide-react';
 import { useAdminAudit } from '../hooks/useAdminAudit';
 import { filterAuditLogs, uniqueAuditUsers, uniqueAuditActions } from '../utils/filters';
-import { AdminLayout } from '@/modules/admin/components/AdminLayout';
-import { AdminModal } from '@/modules/admin/components/AdminModal';
+import { AdminLayout } from '@/shared/components/AdminLayout';
+import { AdminModal } from '@/shared/components/AdminModal';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { SkeletonTable } from '@/shared/components/Skeleton';
-import { downloadCsv, formatDateTime } from '@/shared/utilities';
+import { downloadCsv, formatDateTime, getErrorMessage } from '@/shared/utilities';
 import { getSectionIcon } from '@/shared/icons';
 import type { AuditLogEntry } from '../types';
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'object' && error !== null && 'message' in error) {
-    return String((error as { message: unknown }).message);
-  }
-  return String(error);
-}
 
 export function AdminAuditPage() {
     const [page, setPage] = useState(1);
@@ -32,12 +24,6 @@ export function AdminAuditPage() {
   const [selectedUser, setSelectedUser] = useState<string>('ALL');
   const [selectedAction, setSelectedAction] = useState<string>('ALL');
   const [activeDetailLog, setActiveDetailLog] = useState<AuditLogEntry | null>(null);
-
-  // Reset to the first page whenever a filter changes so the newest matching
-  // entries surface first.
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery, selectedUser, selectedAction]);
 
   const uniqueUsers = useMemo(() => uniqueAuditUsers(logs), [logs]);
   const uniqueActions = useMemo(() => uniqueAuditActions(logs), [logs]);
@@ -93,55 +79,29 @@ export function AdminAuditPage() {
   };
 
 return (
-    <AdminLayout
+     <AdminLayout
       title="Audit Trail"
-      subtitle="System-wide activity logs, user operations, and security audit trail"
       icon={getSectionIcon('audit')}
+      actions={[
+        {
+          label: 'CSV',
+          icon: Download,
+          onClick: handleExportCSV,
+          disabled: !filteredLogs.length,
+          variant: 'ghost',
+        },
+        {
+          label: 'JSON',
+          icon: Download,
+          onClick: handleExportJSON,
+          disabled: !filteredLogs.length,
+          variant: 'ghost',
+        },
+      ]}
+      refreshAction={isFetching ? undefined : () => refetch()}
     >
-      <div className="space-y-5">
+      <div className="space-y-4">
         <div className="card rounded-2xl overflow-hidden">
-          <div className="card-header flex-wrap gap-4 bg-slate-50/60 dark:bg-slate-800/40">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400 flex items-center justify-center shrink-0">
-                <FileText size={18} strokeWidth={2.2} />
-              </span>
-              <div className="min-w-0">
-                <h3 className="font-semibold text-slate-800 dark:text-slate-100">Audit Logs</h3>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  Security operations, user role assignments, and administrative actions
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => refetch()}
-                disabled={isFetching}
-                className="btn btn-ghost btn-sm text-xs"
-                title="Refresh audit logs"
-              >
-                <RefreshCw size={14} className={`mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
-              <button
-                onClick={handleExportCSV}
-                disabled={!filteredLogs.length}
-                className="btn btn-secondary btn-sm text-xs"
-              >
-                <Download size={14} className="mr-1.5" />
-                Export CSV
-              </button>
-              <button
-                onClick={handleExportJSON}
-                disabled={!filteredLogs.length}
-                className="btn btn-secondary btn-sm text-xs"
-              >
-                <Download size={14} className="mr-1.5" />
-                Export JSON
-              </button>
-            </div>
-          </div>
-
           <div className="px-4 py-3 bg-slate-50/70 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -149,7 +109,7 @@ return (
                 type="text"
                 placeholder="Search audit trail..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
                 className="input pl-9 text-xs w-full rounded-xl"
               />
             </div>
@@ -158,7 +118,7 @@ return (
               <Filter size={14} className="text-slate-400 shrink-0" />
               <select
                 value={selectedUser}
-                onChange={(e) => setSelectedUser(e.target.value)}
+                onChange={(e) => { setSelectedUser(e.target.value); setPage(1); }}
                 className="input text-xs w-full rounded-xl"
               >
                 <option value="ALL">All Users / Admin Email</option>
@@ -174,7 +134,7 @@ return (
               <Filter size={14} className="text-slate-400 shrink-0" />
               <select
                 value={selectedAction}
-                onChange={(e) => setSelectedAction(e.target.value)}
+                onChange={(e) => { setSelectedAction(e.target.value); setPage(1); }}
                 className="input text-xs w-full rounded-xl"
               >
                 <option value="ALL">All Actions</option>

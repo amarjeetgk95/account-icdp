@@ -2,6 +2,7 @@ import React from 'react';
 import { GTR44FormData } from '../types';
 import { GTR44CertificationPage3 } from './GTR44Certification';
 import { splitAmount, formatDateDDMMYYYY, numberToWordsINR, formatIndianCurrency } from '../utils/gtr44Utils';
+import { sumPartyEntries } from '../services/gtr44Calc.service';
 
 interface GTR44Page3Props {
   data: GTR44FormData;
@@ -13,10 +14,10 @@ const PAGE_3_ROW_COUNT = 5;
 
 export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
   const page2Entries = data.partyEntries.slice(0, PAGE_2_ROW_COUNT);
-  const page2Total = page2Entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const page2Total = sumPartyEntries(page2Entries);
 
   const page3Entries = data.partyEntries.slice(PAGE_2_ROW_COUNT, PAGE_2_ROW_COUNT + PAGE_3_ROW_COUNT);
-  const totalAmount = data.partyEntries.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalAmount = sumPartyEntries(data.partyEntries);
 
   const broughtForwardSplit = splitAmount(page2Total);
   const totalSplit = splitAmount(totalAmount);
@@ -34,7 +35,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
           display: 'flex',
           flexDirection: 'column',
           fontFamily: "'Times New Roman', Times, serif",
-          fontSize: '10.5pt',
+          fontSize: '11.5pt',
           color: '#000000',
         }}
       >
@@ -58,11 +59,11 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                   borderRight: '1px solid #000',
                   textAlign: 'right',
                   paddingRight: '20px',
-                  fontSize: '10.5pt',
+                  fontSize: '11.5pt',
                 }}
               >
                 <span>Brought Forward Rs.&nbsp;&nbsp;</span>
-                <span style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '10pt' }}>આગળથી ખેંચ્યા રૂ.</span>
+                <span style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '11pt' }}>આગળથી ખેંચ્યા રૂ.</span>
               </th>
               <th style={{ width: '22%', padding: 0 }}>
                 <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
@@ -85,7 +86,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                       textAlign: 'center',
                       fontFamily: "'Courier New', monospace",
                       fontWeight: 700,
-                      fontSize: '10.5pt',
+                      fontSize: '11.5pt',
                     }}
                   >
                     {page2Total > 0 ? broughtForwardSplit.ps : ''}
@@ -101,14 +102,14 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
               const s = splitAmount(entry.amount);
               return (
                 <tr key={entry.id || idx} style={{ borderBottom: '1px solid #000', height: '42px', verticalAlign: 'top' }}>
-                  <td style={{ width: '22%', borderRight: '1px solid #000', padding: '4px 8px', textAlign: 'center', fontWeight: 700, fontSize: '11pt' }}>
+                  <td style={{ width: '22%', borderRight: '1px solid #000', padding: '4px 8px', textAlign: 'center', fontWeight: 700, fontSize: '12pt' }}>
                     {entry.subVoucherNo || entry.srNo}
                   </td>
                   <td style={{ width: '56%', borderRight: '1px solid #000', padding: '4px 10px', lineHeight: 1.3 }}>
-                    <div style={{ fontWeight: 700, fontSize: '11pt' }}>{entry.partyName}</div>
-                    <div style={{ fontSize: '10pt', color: '#111', marginTop: '1px' }}>{entry.details}</div>
+                    <div style={{ fontWeight: 700, fontSize: '12pt' }}>{entry.partyName}</div>
+                    <div style={{ fontSize: '11pt', color: '#111', marginTop: '1px' }}>{entry.details}</div>
                     {(entry.billNo || entry.date) && (
-                      <div style={{ fontSize: '9.5pt', color: '#333', marginTop: '2px' }}>
+                      <div style={{ fontSize: '10.5pt', color: '#333', marginTop: '2px' }}>
                         {entry.billNo && <span>Bill No: {entry.billNo}</span>}
                         {entry.billNo && entry.date && <span> · </span>}
                         {entry.date && <span>Date: {formatDateDDMMYYYY(entry.date)}</span>}
@@ -138,7 +139,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                           paddingTop: '4px',
                           fontFamily: "'Courier New', monospace",
                           fontWeight: 700,
-                          fontSize: '10.5pt',
+          fontSize: '11.5pt',
                         }}
                       >
                         {s.ps}
@@ -176,15 +177,15 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '10.5pt' }}>Total Rs. (In Words)</span>
-                  <span style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '10pt' }}>
+                  <span style={{ fontSize: '11.5pt' }}>Total Rs. (In Words)</span>
+                  <span style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '11pt' }}>
                     કુલ રૂપિયા (શબ્દોમાં)
                   </span>
                   <span
                     style={{
                       fontStyle: 'italic',
                       fontWeight: 700,
-                      fontSize: '10.5pt',
+                      fontSize: '11.5pt',
                       borderBottom: '1px solid #000',
                       flex: 1,
                       paddingLeft: '6px',
@@ -215,7 +216,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                       textAlign: 'center',
                       fontFamily: "'Courier New', monospace",
                       fontWeight: 700,
-                      fontSize: '10.5pt',
+                      fontSize: '11.5pt',
                     }}
                   >
                     {totalAmount > 0 ? totalSplit.ps : ''}
@@ -227,7 +228,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
         </table>
 
         {/* Under Rs. line */}
-        <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '14px', fontSize: '10.5pt' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '10px', fontSize: '11.5pt' }}>
           <span style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>Under Rs.&nbsp;</span>
           <span
             style={{
@@ -242,6 +243,45 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
             {totalAmount > 0 ? `${formatIndianCurrency(underRs)} (${numberToWordsINR(underRs)})` : ''}
           </span>
         </div>
+
+        {/* GST Deduction Details — shown only when GST data is present; hidden for exact replica of paper form */}
+        {(data.deductions.gst > 0 || data.deductions.gstCgst > 0 || data.deductions.gstSgst > 0 || !!data.deductions.gstNo) && (
+          <div
+            style={{
+              border: '1px solid #000',
+              marginBottom: '10px',
+              fontSize: '10.5pt',
+              padding: '6px 10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontWeight: 700 }}>
+              <span>Deduction on account of GST :&nbsp;</span>
+              <span style={{ fontFamily: "'Courier New', monospace" }}>
+                {data.deductions.gst ? `Rs. ${formatIndianCurrency(data.deductions.gst)}` : ''}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '16px', marginTop: '4px', fontSize: '10pt', flexWrap: 'wrap' }}>
+              <span>
+                CGST&nbsp;
+                <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
+                  {data.deductions.gstCgst ? formatIndianCurrency(data.deductions.gstCgst) : ''}
+                </span>
+              </span>
+              <span>
+                SGST&nbsp;
+                <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
+                  {data.deductions.gstSgst ? formatIndianCurrency(data.deductions.gstSgst) : ''}
+                </span>
+              </span>
+              <span>
+                GSTIN&nbsp;
+                <span style={{ borderBottom: '1px solid #000', minWidth: '140px', display: 'inline-block', textAlign: 'center', fontWeight: 700 }}>
+                  {data.deductions.gstNo || ''}
+                </span>
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Certifications 1, 2, 3, 4 */}
         <div style={{ flex: 1 }}>

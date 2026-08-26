@@ -70,14 +70,25 @@ VITE_ENV=development
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | TypeScript + Vite production build |
-| `npm run typecheck` | Type-check without emitting |
-| `npm run lint` | ESLint check |
-| `npm run test` | Vitest tests |
-| `npm run db:generate-types` | Generate types from Supabase |
+| Command                     | Description                        |
+| --------------------------- | ---------------------------------- |
+| `npm run dev`               | Start development server           |
+| `npm run build`             | TypeScript + Vite production build |
+| `npm run typecheck`         | Type-check without emitting        |
+| `npm run lint`              | ESLint check                       |
+| `npm run test`              | Vitest tests                       |
+| `npm run db:generate-types` | Generate types from Supabase       |
+
+## Local OCR Server
+
+The OCR workbench uses browser OCR by default. For better local processing, run:
+
+```bash
+pip install "paddlepaddle<=2.6" "paddleocr<3.0" flask flask-cors pillow numpy pytesseract
+python scripts/ocr_server.py --port 5005
+```
+
+Install Tesseract separately and make sure `eng.traineddata` and `guj.traineddata` are available. The server uses PaddleOCR for English and Tesseract for Gujarati or mixed Gujarati-English pages. Verify the language packs with `tesseract --list-langs`; on Windows, set `TESSERACT_CMD` if Tesseract is not on `PATH`.
 
 ## Next Steps
 

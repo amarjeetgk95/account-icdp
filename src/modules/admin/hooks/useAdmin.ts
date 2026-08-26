@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminService } from '../services/admin.service';
-import type { CreateUserInput, UpdateOfficeInput } from '../types';
+import { invalidateAdminQueries } from '@/shared/utilities/adminQuery';
+import type { CreateUserInput } from '../types';
 
 export function useSystemStats() {
   return useQuery({
@@ -42,12 +43,7 @@ export function useUsers() {
     mutationFn: ({ userId, role, officeId }: { userId: string; role: 'admin' | 'office'; officeId: string | null }) =>
       adminService.setUserRole(userId, role, officeId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-offices'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-system-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-office-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-data-entry-report'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
+      void invalidateAdminQueries(queryClient);
     },
   });
 
@@ -55,23 +51,14 @@ export function useUsers() {
     mutationFn: ({ userId, suspended }: { userId: string; suspended: boolean }) =>
       adminService.setUserStatus(userId, suspended),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-offices'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-system-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-office-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
+      void invalidateAdminQueries(queryClient);
     },
   });
 
   const deleteUserMutation = useMutation({
     mutationFn: (userId: string) => adminService.deleteUser(userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-offices'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-system-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-office-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-data-entry-report'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
+      void invalidateAdminQueries(queryClient);
     },
   });
 
@@ -96,46 +83,13 @@ export function useOffices() {
   });
 }
 
-export function useCreateOffice() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ name, district }: { name: string; district?: string | null }) =>
-      adminService.createOffice(name, district ?? undefined),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-offices'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-system-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-office-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
-    },
-  });
-}
-
-export function useUpdateOffice() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: UpdateOfficeInput) => adminService.updateOffice(input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-offices'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-system-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-office-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
-    },
-  });
-}
-
 export function useCreateUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: CreateUserInput) => adminService.createUser(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-offices'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-system-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-office-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
+      void invalidateAdminQueries(queryClient);
     },
   });
 }
@@ -145,6 +99,33 @@ export function useOfficeFinancialYears(officeId: string | null) {
     queryKey: ['admin-office-financial-years', officeId],
     queryFn: () => adminService.getFinancialYears(officeId!),
     enabled: !!officeId,
+  });
+}
+
+export function useImportHealth() {
+  return useQuery({
+    queryKey: ['admin-import-health'],
+    queryFn: () => adminService.getImportHealth(),
+  });
+}
+
+export function useOfficeConfig(officeId: string | null) {
+  return useQuery({
+    queryKey: ['admin-office-config', officeId],
+    queryFn: () => adminService.getOfficeConfig(officeId!),
+    enabled: !!officeId,
+  });
+}
+
+export function useSetOfficeFy() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ officeId, fy }: { officeId: string; fy: number }) =>
+      adminService.setOfficeFy(officeId, fy),
+    onSuccess: () => {
+      void invalidateAdminQueries(queryClient);
+    },
   });
 }
 

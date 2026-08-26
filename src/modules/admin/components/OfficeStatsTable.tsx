@@ -9,7 +9,6 @@ import type { LucideIcon } from 'lucide-react';
 interface OfficeStatsTableProps {
   offices: OfficeStats[];
   isLoading: boolean;
-  activeOfficeId: string | null;
   onSelectOffice: (officeId: string) => void;
 }
 
@@ -39,7 +38,7 @@ function MetricChip({ icon: Icon, tint, value }: { icon: LucideIcon; tint: strin
   );
 }
 
-export function OfficeStatsTable({ offices = [], isLoading, activeOfficeId, onSelectOffice }: OfficeStatsTableProps) {
+export function OfficeStatsTable({ offices = [], isLoading, onSelectOffice }: OfficeStatsTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const ROW_HEIGHT = 48;
 
@@ -103,7 +102,6 @@ export function OfficeStatsTable({ offices = [], isLoading, activeOfficeId, onSe
               const office = offices[virtualRow.index];
               if (!office) return null;
               const idx = virtualRow.index;
-              const isActive = String(office.office_id) === String(activeOfficeId);
               return (
                 <tr
                   key={office.office_id || idx}
@@ -117,7 +115,7 @@ export function OfficeStatsTable({ offices = [], isLoading, activeOfficeId, onSe
                   role="button"
                   tabIndex={0}
                   aria-label={`Open reports for ${office.office_name}`}
-                  className={`ost-row group cursor-pointer ${isActive ? 'ost-row-active' : ''}`}
+                  className="ost-row group cursor-pointer"
                   title="Open this office's reports"
                   style={{
                     position: 'absolute',
@@ -137,12 +135,6 @@ export function OfficeStatsTable({ offices = [], isLoading, activeOfficeId, onSe
                         <Building2 size={12} strokeWidth={2.2} />
                       </span>
                       {office.office_name}
-                      {isActive && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 shadow-sm">
-                          <span className="w-1 h-1 rounded-full bg-white" />
-                          active
-                        </span>
-                      )}
                     </span>
                   </td>
                   <td className="text-right">

@@ -10,7 +10,7 @@ function fileToArray(rows: unknown[][]): string[][] {
   );
 }
 
-export class SalaryService {
+class SalaryService {
   async readExcelRows(file: File): Promise<unknown[][]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -92,12 +92,6 @@ export class SalaryService {
     };
 
     return { classified, summary };
-  }
-
-  async previewImport(file: File): Promise<SalaryPreviewSummary & { classified: ClassifiedSalaryRecord[] }> {
-    const rows = await this.readExcelRows(file);
-    const { classified, summary } = await this.classifyRows(rows);
-    return { fileName: file.name, ...summary, classified };
   }
 
   async importSalary(file: File): Promise<SalaryImportSummary> {

@@ -1,5 +1,5 @@
 import { supabase } from '@/core/supabase/client';
-import { getOfficeId } from '@/shared/utilities/office';
+import { getOfficeScope } from '@/shared/utilities/office';
 import { MONTHS } from '@/shared/constants';
 import type { YearlyReport, YearlyEmployeeRecord, YearlyVendorRecord } from '../types';
 
@@ -9,23 +9,21 @@ function money(value: number): number {
 
 export const reportRepository = {
   async getFinancialYears(): Promise<number[]> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { data, error } = await supabase
-      .from('employee_salaries')
-      .select('financial_year')
-      .eq('office_id', officeId);
+    let qYears = supabase.from('employee_salaries').select('financial_year');
+    if (!scope.all) qYears = qYears.eq('office_id', scope.officeId!);
+    const { data, error } = await qYears;
 
     if (error) throw error;
 
     const years = new Set<number>();
     (data || []).forEach((row) => years.add(row.financial_year));
 
-    const { data: txRows, error: txError } = await supabase
-      .from('party_transactions')
-      .select('transaction_date')
-      .eq('office_id', officeId);
+    let qTxYears = supabase.from('party_transactions').select('transaction_date');
+    if (!scope.all) qTxYears = qTxYears.eq('office_id', scope.officeId!);
+    const { data: txRows, error: txError } = await qTxYears;
 
     if (txError) throw txError;
 
@@ -45,27 +43,29 @@ export const reportRepository = {
   },
 
   async getYearlyReport(fy: number): Promise<YearlyReport> {
-    const officeId = getOfficeId();
-    if (!officeId) throw new Error('No office selected');
+    const scope = getOfficeScope();
+    if (!scope.all && !scope.officeId) throw new Error('No office selected');
 
-    const { data: employees, error: empError } = await supabase
+    let qEmployees = supabase
       .from('employees')
-      .select('id, name, pan')
-      .eq('office_id', officeId)
-      .order('id');
+      .select('id, name, pan');
+    if (!scope.all) qEmployees = qEmployees.eq('office_id', scope.officeId!);
+    const { data: employees, error: empError } = await qEmployees.order('id');
     if (empError) throw empError;
 
-    const { data: salaries, error: salError } = await supabase
+    let qSalaries = supabase
       .from('employee_salaries')
       .select('employee_id, month, gross, da, tax')
-      .eq('financial_year', fy)
-      .eq('office_id', officeId);
+      .eq('financial_year', fy);
+    if (!scope.all) qSalaries = qSalaries.eq('office_id', scope.officeId!);
+    const { data: salaries, error: salError } = await qSalaries;
     if (salError) throw salError;
 
-    const { data: transactions, error: txError } = await supabase
+    let qTx = supabase
       .from('party_transactions')
-      .select('transaction_date, amount, cgst, sgst, igst, total_gst, income_tax, parties(id, name, gst_no, pan_no)')
-      .eq('office_id', officeId);
+      .select('transaction_date, amount, cgst, sgst, igst, total_gst, income_tax, parties(id, name, gst_no, pan_no)');
+    if (!scope.all) qTx = qTx.eq('office_id', scope.officeId!);
+    const { data: transactions, error: txError } = await qTx;
     if (txError) throw txError;
 
     type SalaryRecord = { employee_id: string; month: string; gross: number; da: number; tax: number };

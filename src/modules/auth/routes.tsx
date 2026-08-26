@@ -1,9 +1,9 @@
 import type { RouteDefinition } from '@/shared/types/module';
-import { lazy } from 'react';
+import { lazyNamedExport } from '@/shared/utilities/lazyNamed';
 
-const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
-const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
-const UpdatePasswordPage = lazy(() => import('./pages/UpdatePasswordPage').then((m) => ({ default: m.UpdatePasswordPage })));
+const LoginPage = lazyNamedExport(() => import('./pages/LoginPage'), 'LoginPage');
+const ForgotPasswordPage = lazyNamedExport(() => import('./pages/ForgotPasswordPage'), 'ForgotPasswordPage');
+const UpdatePasswordPage = lazyNamedExport(() => import('./pages/UpdatePasswordPage'), 'UpdatePasswordPage');
 
 export const authRoutes: RouteDefinition[] = [
   {

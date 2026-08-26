@@ -11,7 +11,7 @@ export interface MonthlyRoadmapData {
   pendingNames: string[];
 }
 
-export interface QuarterReadiness {
+interface QuarterReadiness {
   pct: number;
   processed: number;
   expected: number;
@@ -29,6 +29,31 @@ export interface Task {
   title: string;
   hint: string;
   action?: string;
+  category?: 'payroll' | 'treasury' | 'vendor' | 'compliance';
+}
+
+export interface TreasurySummary {
+  gtr30Count: number;
+  gtr30GrossTotal: number;
+  gtr30PendingCount: number;
+  gtr44Count: number;
+  gtr44GrossTotal: number;
+  gtr44DraftCount: number;
+}
+
+export interface VendorTdsSummary {
+  activePartiesCount: number;
+  totalVendorAmount: number;
+  totalVendorIncomeTax: number;
+  totalGstTds: number;
+  transactionCount: number;
+}
+
+export interface StatutoryDeadlineInfo {
+  nextTdsDepositDate: string;
+  nextQuarterFilingDate: string;
+  nextQuarterName: string;
+  daysUntilFiling: number;
 }
 
 export interface DashboardData {
@@ -47,4 +72,9 @@ export interface DashboardData {
   zeroTaxEntries: string[];
   missingPANs: string[];
   entryMonthName?: string;
+
+  // Cross-module extensions
+  treasury: TreasurySummary;
+  vendorTds: VendorTdsSummary;
+  statutoryDeadlines: StatutoryDeadlineInfo;
 }

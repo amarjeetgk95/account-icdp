@@ -35,7 +35,7 @@ type TransactionFormData = z.infer<typeof transactionSchema>;
 interface TransactionFormProps {
   parties: Party[];
   onSubmit: (input: TransactionInput) => Promise<void> | void;
-  onBulkSubmit?: (inputs: TransactionInput[]) => Promise<void> | void;
+  onBulkSubmit?: (inputs: TransactionInput[]) => Promise<{ failed?: number } | void> | void;
   isLoading: boolean;
 }
 
@@ -204,10 +204,14 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
         if (onBulkSubmit) {
           setStatus({ type: 'info', message: `Importing ${entries.length} transactions...` });
           try {
-            await onBulkSubmit(entries);
+            const result = await onBulkSubmit(entries);
+            const failed = result?.failed ?? 0;
             setStatus({
-              type: 'success',
-              message: `✓ Successfully imported ${entries.length} transactions`,
+              type: failed > 0 ? 'error' : 'success',
+              message:
+                failed > 0
+                  ? `Imported ${entries.length - failed} of ${entries.length} transactions — ${failed} row(s) skipped due to invalid data`
+                  : `✓ Successfully imported ${entries.length} transactions`,
             });
           } catch (error) {
             setStatus({

@@ -29,11 +29,11 @@ export type Database = {
         Relationships: []
       }
       employees: {
-        Row: { id: string; hprn_no: string | null; name: string; pan: string; join_date: string | null; transfer_date: string | null; budget_head_id: string | null; office_id: string; created_at: string; updated_at: string }
+        Row: { id: string; hprn_no: string | null; name: string; pan: string; designation?: string | null; pay_scale?: string | null; join_date: string | null; transfer_date: string | null; budget_head_id: string | null; office_id: string; created_at: string; updated_at: string }
 
-        Insert: { id?: string; hprn_no?: string | null; name: string; pan: string; join_date?: string | null; transfer_date?: string | null; budget_head_id?: string | null; office_id: string; created_at?: string; updated_at?: string }
+        Insert: { id?: string; hprn_no?: string | null; name: string; pan: string; designation?: string | null; pay_scale?: string | null; join_date?: string | null; transfer_date?: string | null; budget_head_id?: string | null; office_id: string; created_at?: string; updated_at?: string }
 
-        Update: { id?: string; hprn_no?: string | null; name?: string; pan?: string; join_date?: string | null; transfer_date?: string | null; budget_head_id?: string | null; office_id?: string; created_at?: string; updated_at?: string }
+        Update: { id?: string; hprn_no?: string | null; name?: string; pan?: string; designation?: string | null; pay_scale?: string | null; join_date?: string | null; transfer_date?: string | null; budget_head_id?: string | null; office_id?: string; created_at?: string; updated_at?: string }
         Relationships: []
       }
       employee_salaries: {
@@ -86,6 +86,84 @@ export type Database = {
         Update: { id?: string; office_id?: string; key?: string; value?: string; created_at?: string; updated_at?: string }
         Relationships: []
       }
+      paybill_imports: {
+        Row: { id: string; office_id: string; bill_no: string; month: string; financial_year: number; sheet_type: string | null; ddo_hrpn: string | null; ddo_name: string | null; major_head: string | null; ddo_code: string | null; department: string | null; office_name: string | null; tan_no: string | null; cardex_no: string | null; total_records: number; matched_count: number; gross_total: number; uploaded_file: string | null; uploaded_by: string | null; file_hash: string | null; source_file_name: string | null; status: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; office_id: string; bill_no: string; month: string; financial_year: number; sheet_type?: string | null; ddo_hrpn?: string | null; ddo_name?: string | null; major_head?: string | null; ddo_code?: string | null; department?: string | null; office_name?: string | null; tan_no?: string | null; cardex_no?: string | null; total_records?: number; matched_count?: number; gross_total?: number; uploaded_file?: string | null; uploaded_by?: string | null; file_hash?: string | null; source_file_name?: string | null; status?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; office_id?: string; bill_no?: string; month?: string; financial_year?: number; sheet_type?: string | null; ddo_hrpn?: string | null; ddo_name?: string | null; major_head?: string | null; ddo_code?: string | null; department?: string | null; office_name?: string | null; tan_no?: string | null; cardex_no?: string | null; total_records?: number; matched_count?: number; gross_total?: number; uploaded_file?: string | null; uploaded_by?: string | null; file_hash?: string | null; source_file_name?: string | null; status?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      paybill_employee_deductions: {
+        Row: { id: string; import_id: string; office_id: string; employee_id: string | null; hrpn: string; employee_name: string; designation: string | null; month: string; financial_year: number; basic_pay: number; da: number; hra: number; income_tax: number; prof_tax: number; hba_interest: number; gpf_regular: number; gpf_class4: number; nps_regular: number; gis_govt_fund: number; gis_govt_saving: number; other_deductions: number; total_deductions: number; net_pay: number; mapping_status: string; validation_status: string | null; mapping_message: string | null; name_mismatch: boolean; errors: unknown[]; warnings: unknown[]; validation_flags: Record<string, unknown> | null; created_at: string; updated_at: string }
+        Insert: { id?: string; import_id: string; office_id: string; employee_id?: string | null; hrpn: string; employee_name: string; designation?: string | null; month: string; financial_year: number; basic_pay?: number; da?: number; hra?: number; income_tax?: number; prof_tax?: number; hba_interest?: number; gpf_regular?: number; gpf_class4?: number; nps_regular?: number; gis_govt_fund?: number; gis_govt_saving?: number; other_deductions?: number; total_deductions?: number; net_pay?: number; mapping_status: string; validation_status?: string | null; mapping_message?: string | null; name_mismatch?: boolean; errors?: unknown[]; warnings?: unknown[]; validation_flags?: Record<string, unknown> | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; import_id?: string; office_id?: string; employee_id?: string | null; hrpn?: string; employee_name?: string; designation?: string | null; month?: string; financial_year?: number; basic_pay?: number; da?: number; hra?: number; income_tax?: number; prof_tax?: number; hba_interest?: number; gpf_regular?: number; gpf_class4?: number; nps_regular?: number; gis_govt_fund?: number; gis_govt_saving?: number; other_deductions?: number; total_deductions?: number; net_pay?: number; mapping_status?: string; validation_status?: string | null; mapping_message?: string | null; name_mismatch?: boolean; errors?: unknown[]; warnings?: unknown[]; validation_flags?: Record<string, unknown> | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      paybill_employee_earnings: {
+        Row: { id: string; import_id: string; office_id: string; employee_id: string | null; hrpn: string; employee_name: string; designation: string | null; pay_scale: string | null; ph: string | null; slo: string | null; month: string; financial_year: number; basic_pay: number; da: number; hra: number; cla: number; medical_allowance: number; transport_allowance: number; special_pay?: number; washing_allowance?: number; npp_allowance: number; gross_amount: number; mapping_status: string; validation_status: string | null; mapping_message: string | null; name_mismatch: boolean; errors: unknown[]; warnings: unknown[]; validation_flags: Record<string, unknown> | null; created_at: string; updated_at: string }
+        Insert: { id?: string; import_id: string; office_id: string; employee_id?: string | null; hrpn: string; employee_name: string; designation?: string | null; pay_scale?: string | null; ph?: string | null; slo?: string | null; month: string; financial_year: number; basic_pay?: number; da?: number; hra?: number; cla?: number; medical_allowance?: number; transport_allowance?: number; special_pay?: number; washing_allowance?: number; npp_allowance?: number; gross_amount?: number; mapping_status: string; validation_status?: string | null; mapping_message?: string | null; name_mismatch?: boolean; errors?: unknown[]; warnings?: unknown[]; validation_flags?: Record<string, unknown> | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; import_id?: string; office_id?: string; employee_id?: string | null; hrpn?: string; employee_name?: string; designation?: string | null; pay_scale?: string | null; ph?: string | null; slo?: string | null; month?: string; financial_year?: number; basic_pay?: number; da?: number; hra?: number; cla?: number; medical_allowance?: number; transport_allowance?: number; special_pay?: number; washing_allowance?: number; npp_allowance?: number; gross_amount?: number; mapping_status?: string; validation_status?: string | null; mapping_message?: string | null; name_mismatch?: boolean; errors?: unknown[]; warnings?: unknown[]; validation_flags?: Record<string, unknown> | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      paybill_settings: {
+        Row: { office_id: string; settings_key: string; settings_value: Json; updated_at: string | null; updated_by: string | null }
+        Insert: { office_id: string; settings_key: string; settings_value?: Json; updated_at?: string | null; updated_by?: string | null }
+        Update: { office_id?: string; settings_key?: string; settings_value?: Json; updated_at?: string | null; updated_by?: string | null }
+        Relationships: []
+      }
+      paybill_vouchers: {
+        Row: { id: string; office_id: string; voucher_no: string; bill_no: string; month: string; financial_year: number; voucher_date: string; major_head: string | null; gross_total: number; basic_pay_total: number; da_total: number; hra_total: number; cla_total: number; med_total: number; trans_total: number; special_pay_total: number; washing_total: number; npp_total: number; gpf_total: number; nps_total: number; income_tax_total: number; pt_total: number; gis_total: number; net_total: number; remarks: string | null; status: string; posted_by: string | null; created_at: string }
+        Insert: { id?: string; office_id: string; voucher_no: string; bill_no: string; month: string; financial_year: number; voucher_date?: string; major_head?: string | null; gross_total?: number; basic_pay_total?: number; da_total?: number; hra_total?: number; cla_total?: number; med_total?: number; trans_total?: number; special_pay_total?: number; washing_total?: number; npp_total?: number; gpf_total?: number; nps_total?: number; income_tax_total?: number; pt_total?: number; gis_total?: number; net_total?: number; remarks?: string | null; status?: string; posted_by?: string | null; created_at?: string }
+        Update: { id?: string; office_id?: string; voucher_no?: string; bill_no?: string; month?: string; financial_year?: number; voucher_date?: string; major_head?: string | null; gross_total?: number; basic_pay_total?: number; da_total?: number; hra_total?: number; cla_total?: number; med_total?: number; trans_total?: number; special_pay_total?: number; washing_total?: number; npp_total?: number; gpf_total?: number; nps_total?: number; income_tax_total?: number; pt_total?: number; gis_total?: number; net_total?: number; remarks?: string | null; status?: string; posted_by?: string | null; created_at?: string }
+        Relationships: []
+      }
+      gtr44_bills: {
+        Row: { id: string; office_id: string; bill_no: string; fy: number | null; month: string | null; status: string; gross_amount: number; net_amount: number; form_data: Json; created_at: string; updated_at: string; created_by: string | null }
+        Insert: { id?: string; office_id: string; bill_no?: string; fy?: number | null; month?: string | null; status?: string; gross_amount?: number; net_amount?: number; form_data: Json; created_at?: string; updated_at?: string; created_by?: string | null }
+        Update: { id?: string; office_id?: string; bill_no?: string; fy?: number | null; month?: string | null; status?: string; gross_amount?: number; net_amount?: number; form_data?: Json; created_at?: string; updated_at?: string; created_by?: string | null }
+        Relationships: []
+      }
+      payroll_components: {
+        Row: { id: string; component_code: string | null; component_name: string; short_name: string | null; type: string; kind: string; category: string | null; sub_category: string | null; active: boolean; display_order: number; is_mandatory: boolean; is_total_field: boolean; is_system_generated: boolean; validation_rule: Record<string, unknown> | null; notes: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; component_code?: string | null; component_name: string; short_name?: string | null; type: string; kind?: string; category?: string | null; sub_category?: string | null; active?: boolean; display_order?: number; is_mandatory?: boolean; is_total_field?: boolean; is_system_generated?: boolean; validation_rule?: Record<string, unknown> | null; notes?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; component_code?: string | null; component_name?: string; short_name?: string | null; type?: string; kind?: string; category?: string | null; sub_category?: string | null; active?: boolean; display_order?: number; is_mandatory?: boolean; is_total_field?: boolean; is_system_generated?: boolean; validation_rule?: Record<string, unknown> | null; notes?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      payroll_component_aliases: {
+        Row: { id: string; component_id: string; alias_text: string; alias_type: string; created_at: string }
+        Insert: { id?: string; component_id: string; alias_text: string; alias_type?: string; created_at?: string }
+        Update: { id?: string; component_id?: string; alias_text?: string; alias_type?: string; created_at?: string }
+        Relationships: []
+      }
+      paybill_employee_components: {
+        Row: { id: string; paybill_employee_id: string | null; import_id: string | null; office_id: string; sheet_type: string; hrpn: string | null; component_id: string | null; component_code: string | null; component_name: string; amount: number; source: string; created_at: string }
+        Insert: { id?: string; paybill_employee_id?: string | null; import_id?: string | null; office_id: string; sheet_type?: string; hrpn?: string | null; component_id?: string | null; component_code?: string | null; component_name: string; amount?: number; source?: string; created_at?: string }
+        Update: { id?: string; paybill_employee_id?: string | null; import_id?: string | null; office_id?: string; sheet_type?: string; hrpn?: string | null; component_id?: string | null; component_code?: string | null; component_name: string; amount?: number; source?: string; created_at?: string }
+        Relationships: []
+      }
+      paybill_manual_adjustments: {
+        Row: { id: string; office_id: string; hrpn: string; param_key: string; param_label: string; month: string; financial_year: number; amount: number; group_type: string; reason: string | null; created_by: string | null; updated_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; office_id: string; hrpn: string; param_key: string; param_label: string; month: string; financial_year: number; amount?: number; group_type?: string; reason?: string | null; created_by?: string | null; updated_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; office_id?: string; hrpn?: string; param_key?: string; param_label?: string; month?: string; financial_year?: number; amount?: number; group_type?: string; reason?: string | null; created_by?: string | null; updated_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      paybill_import_audits: {
+        Row: { id: string; import_id: string; office_id: string; action: string; actor_id: string | null; details: Json; created_at: string }
+        Insert: { id?: string; import_id: string; office_id: string; action: string; actor_id?: string | null; details?: Json; created_at?: string }
+        Update: { id?: string; import_id?: string; office_id?: string; action?: string; actor_id?: string | null; details?: Json; created_at?: string }
+        Relationships: []
+      }
+      form16_certificates: {
+        Row: { id: string; office_id: string; employee_id: string | null; hrpn: string; financial_year: number; assessment_year: number; certificate_number: string; certificate_last_updated: string; status: string; tax_regime: string; employer_snapshot: Record<string, unknown>; employee_snapshot: Record<string, unknown>; signatory_snapshot: Record<string, unknown>; part_a: Record<string, unknown>; part_b: Record<string, unknown>; computed_totals: Record<string, unknown> | null; issued_at: string | null; issued_by: string | null; voided_at: string | null; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; office_id: string; employee_id?: string | null; hrpn: string; financial_year: number; assessment_year?: number; certificate_number?: string; certificate_last_updated?: string; status?: string; tax_regime?: string; employer_snapshot?: Record<string, unknown>; employee_snapshot?: Record<string, unknown>; signatory_snapshot?: Record<string, unknown>; part_a?: Record<string, unknown>; part_b?: Record<string, unknown>; computed_totals?: Record<string, unknown> | null; issued_at?: string | null; issued_by?: string | null; voided_at?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; office_id?: string; employee_id?: string | null; hrpn?: string; financial_year?: number; assessment_year?: number; certificate_number?: string; certificate_last_updated?: string; status?: string; tax_regime?: string; employer_snapshot?: Record<string, unknown>; employee_snapshot?: Record<string, unknown>; signatory_snapshot?: Record<string, unknown>; part_a?: Record<string, unknown>; part_b?: Record<string, unknown>; computed_totals?: Record<string, unknown> | null; issued_at?: string | null; issued_by?: string | null; voided_at?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      form16_audit_log: {
+        Row: { id: string; certificate_id: string; office_id: string; action: string; actor_id: string | null; details: Json; created_at: string }
+        Insert: { id?: string; certificate_id: string; office_id: string; action: string; actor_id?: string | null; details?: Json; created_at?: string }
+        Update: { id?: string; certificate_id?: string; office_id?: string; action?: string; actor_id?: string | null; details?: Json; created_at?: string }
+        Relationships: []
+      }
     }
     Functions: {
       admin_list_users: { Args: Record<string, never>; Returns: Json }
@@ -95,8 +173,8 @@ export type Database = {
       admin_list_offices: { Args: Record<string, never>; Returns: Json }
       admin_create_office: { Args: { office_name: string; office_district: string }; Returns: Json }
       admin_update_office: { Args: { office_id: string; office_name: string; office_district: string }; Returns: Json }
-      admin_create_user: { Args: { user_email: string; user_password: string; user_role: string; user_office_id: string }; Returns: Json }
-      admin_invite_user: { Args: { user_email: string; user_role: string; user_office_id: string }; Returns: Json }
+      admin_create_user: { Args: { user_email: string; user_password: string; user_role: string; user_office_id: string | null }; Returns: Json }
+      admin_invite_user: { Args: { user_email: string; user_role: string; user_office_id: string | null }; Returns: Json }
       admin_entry_completion: { Args: Record<string, never>; Returns: Json }
       admin_office_financial_years: { Args: { target_office_id: string }; Returns: Json }
       admin_audit_list: { Args: { limit_count?: number; offset_count?: number }; Returns: Json }
@@ -104,12 +182,42 @@ export type Database = {
       get_system_stats: { Args: Record<string, never>; Returns: Json }
       admin_office_stats: { Args: Record<string, never>; Returns: Json }
       admin_data_entry_report: { Args: Record<string, never>; Returns: Json }
+      admin_import_health: { Args: Record<string, never>; Returns: Json }
+      admin_office_config: { Args: { target_office_id: string }; Returns: Json }
+      admin_set_office_fy: { Args: { target_office_id: string; fy: number }; Returns: Json }
+      admin_component_list: { Args: Record<string, never>; Returns: Json }
+      admin_component_save: { Args: { component: Json }; Returns: Json }
+      admin_component_set_active: { Args: { component_id: string; active: boolean }; Returns: Json }
+      admin_component_delete: { Args: { component_id: string }; Returns: Json }
       current_office_id: { Args: Record<string, never>; Returns: string }
       can_access_office: { Args: { target_office_id: string }; Returns: boolean }
       is_admin: { Args: Record<string, never>; Returns: boolean }
       get_payroll_quarter_report: { Args: { p_office_id: string; p_financial_year: number; p_quarter: string }; Returns: Json }
       get_budget_head_report: { Args: { p_office_id: string; p_financial_year: number }; Returns: Json }
       get_party_tds_summary: { Args: { p_office_id: string; p_financial_year: number }; Returns: Json }
+      get_paybill_parameter_matrix: { Args: { p_office_id: string; p_financial_year: number; p_hrpn?: string | null }; Returns: Json }
+      list_gtr30_employee_master: { Args: { p_office_id: string }; Returns: Json }
+      get_gtr30_employee_master: { Args: { p_office_id: string; p_month_key: string; p_bill_code: string }; Returns: Json }
+      upsert_gtr30_employee_master: { Args: { p_office_id: string; p_month_key: string; p_bill_code: string; p_employees: Json }; Returns: Json }
+      get_gtr30_bill_code_mappings: { Args: { p_office_id: string }; Returns: Json }
+      upsert_gtr30_bill_code_mappings: { Args: { p_office_id: string; p_mappings: Json }; Returns: Json }
+      get_gtr30_budget_heads: { Args: { p_office_id: string }; Returns: Json }
+      upsert_gtr30_budget_heads: { Args: { p_office_id: string; p_heads: Json }; Returns: Json }
+      list_gtr30_bills: { Args: { p_office_id: string }; Returns: Json }
+      get_gtr30_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
+      upsert_gtr30_bill: { Args: { p_office_id: string; p_data: Json }; Returns: Json }
+      delete_gtr30_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
+      list_gtr44_bills: { Args: { p_office_id: string }; Returns: Json }
+      get_gtr44_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
+      upsert_gtr44_bill: { Args: { p_office_id: string; p_data: Json }; Returns: Json }
+      delete_gtr44_bill: { Args: { p_office_id: string; p_bill_id: string }; Returns: Json }
+      list_establishment: { Args: { p_office_id: string }; Returns: Json }
+      upsert_establishment_employees: { Args: { p_office_id: string; p_employees: Json }; Returns: Json }
+      list_establishment_posts: { Args: { p_office_id: string }; Returns: Json }
+      upsert_establishment_posts: { Args: { p_office_id: string; p_posts: Json }; Returns: Json }
+      backfill_establishment_from_gtr30: { Args: { p_office_id: string }; Returns: Json }
+      backfill_establishment_from_payroll: { Args: { p_office_id: string }; Returns: Json }
+      log_paybill_import_audit: { Args: { p_import_id: string; p_action: string; p_details?: Json }; Returns: string }
     }
   }
 }

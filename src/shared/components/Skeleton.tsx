@@ -43,3 +43,15 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
     </div>
   );
 }
+
+/** Skeleton for a KPI stat card with border-left accent */
+export function StatCardSkeleton() {
+  return (
+    <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-slate-200">
+      <Skeleton className="h-3 w-20 mb-3" />
+      <Skeleton className="h-6 w-28" />
+      <Skeleton className="h-2.5 w-16 mt-2" />
+    </div>
+  );
+}
+

@@ -1,13 +1,14 @@
-﻿import type { ModuleDefinition } from '@/shared/types/module';
+import type { ModuleDefinition } from '@/shared/types/module';
 import { dashboardRoutes } from './routes';
 
 const moduleDefinition: ModuleDefinition = {
   id: 'dashboard',
-  name: 'Dashboard',
-  navGroup: 'main',
+  name: 'Dashboard Overview',
+  icon: 'dashboard',
+  navGroup: 'overview',
   permissions: ['office'],
   routes: dashboardRoutes,
-  sidebar: false,
+  sidebar: true,
   featureFlag: 'dashboard_module',
   order: 1,
 };

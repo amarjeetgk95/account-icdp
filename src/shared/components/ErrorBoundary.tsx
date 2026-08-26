@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { isChunkLoadError, reloadForChunkUpdate } from '@/shared/utilities';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -25,6 +26,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     // Log to console in all environments
     console.error('[ICDP] Unhandled error:', error, errorInfo);
+
+    // Stale chunk after a deploy: reload once to fetch the new bundle
+    if (isChunkLoadError(error)) {
+      reloadForChunkUpdate();
+    }
   }
 
   private handleReload = (): void => {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
 import { X, AlertTriangle } from 'lucide-react';
@@ -33,22 +33,26 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState('');
-  const [lastOpen, setLastOpen] = useState(open);
 
-  if (open !== lastOpen) {
-    setLastOpen(open);
-    if (open) setTyped('');
-  }
+  const handleCancel = useCallback(() => {
+    setTyped('');
+    onCancel();
+  }, [onCancel]);
+
+  const handleConfirm = useCallback(() => {
+    setTyped('');
+    onConfirm();
+  }, [onConfirm]);
 
   useEffect(() => {
     if (open) {
       const onKey = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') onCancel();
+        if (e.key === 'Escape') handleCancel();
       };
       document.addEventListener('keydown', onKey);
       return () => document.removeEventListener('keydown', onKey);
     }
-  }, [open, onCancel]);
+  }, [open, handleCancel]);
 
   if (!open) return null;
 
@@ -57,7 +61,7 @@ export function ConfirmDialog({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4 animate-fade-in"
-      onMouseDown={onCancel}
+      onMouseDown={handleCancel}
     >
       <div
         className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-scale-in"
@@ -73,7 +77,7 @@ export function ConfirmDialog({
             <h3 className="text-base font-bold text-slate-800">{title}</h3>
           </div>
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             className="text-slate-400 hover:text-slate-600 transition-colors"
             aria-label="Close"
           >
@@ -101,11 +105,11 @@ export function ConfirmDialog({
         </div>
 
         <div className="flex justify-end gap-2 px-5 py-4 bg-slate-50/70 border-t border-slate-100">
-          <button onClick={onCancel} className="btn btn-secondary" disabled={busy}>
+          <button onClick={handleCancel} className="btn btn-secondary" disabled={busy}>
             {cancelLabel}
           </button>
           <button
-            onClick={onConfirm}
+            onClick={handleConfirm}
             disabled={!confirmed || busy}
             className={danger ? 'btn btn-danger' : 'btn btn-primary'}
           >

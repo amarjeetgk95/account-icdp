@@ -1,18 +1,16 @@
-import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
+import { lazyNamedExport } from '@/shared/utilities/lazyNamed';
 import type { RouteDefinition } from '@/shared/types/module';
 
-const AdminOverviewPage = lazy(() =>
-  import('./pages/AdminOverviewPage').then((m) => ({ default: m.AdminOverviewPage }))
-);
-const AdminUsersPage = lazy(() =>
-  import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage }))
-);
-const AdminReportsPage = lazy(() =>
-  import('./pages/AdminReportsPage').then((m) => ({ default: m.AdminReportsPage }))
-);
-const AdminOfficesPage = lazy(() =>
-  import('./pages/AdminOfficesPage').then((m) => ({ default: m.AdminOfficesPage }))
+const AdminOverviewPage = lazyNamedExport(() => import('./pages/AdminOverviewPage'), 'AdminOverviewPage');
+const AdminUsersPage = lazyNamedExport(() => import('./pages/AdminUsersPage'), 'AdminUsersPage');
+const AdminReportsPage = lazyNamedExport(() => import('./pages/AdminReportsPage'), 'AdminReportsPage');
+const AdminImportsPage = lazyNamedExport(() => import('./pages/AdminImportsPage'), 'AdminImportsPage');
+const AdminComponentsPage = lazyNamedExport(() => import('./pages/AdminComponentsPage'), 'AdminComponentsPage');
+const AdminSettingsPage = lazyNamedExport(() => import('./pages/AdminSettingsPage'), 'AdminSettingsPage');
+const AdminAuditPage = lazyNamedExport(
+  () => import('@/modules/adminaudit/pages/AdminAuditPage'),
+  'AdminAuditPage'
 );
 
 export const adminRoutes: RouteDefinition[] = [
@@ -29,11 +27,23 @@ export const adminRoutes: RouteDefinition[] = [
     element: <AdminUsersPage />,
   },
   {
-    path: '/admin/offices',
-    element: <AdminOfficesPage />,
-  },
-  {
     path: '/admin/reports',
     element: <AdminReportsPage />,
+  },
+  {
+    path: '/admin/imports',
+    element: <AdminImportsPage />,
+  },
+  {
+    path: '/admin/components',
+    element: <AdminComponentsPage />,
+  },
+  {
+    path: '/admin/audit',
+    element: <AdminAuditPage />,
+  },
+  {
+    path: '/admin/settings',
+    element: <AdminSettingsPage />,
   },
 ];

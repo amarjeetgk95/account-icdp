@@ -1,62 +1,68 @@
-import { createElement } from 'react';
 import {
   LayoutDashboard,
-  Wallet,
   Users,
-  Building2,
   FileBarChart,
   Settings,
-  Shield,
   Clock,
   Receipt,
+  FileSpreadsheet,
+  Upload,
+  Layers,
+  FilePlus,
+  BarChart3,
+  UserCheck,
+  Calculator,
+  Sliders,
+  FileText,
+  CreditCard,
+  Sparkles,
+  ScanText,
+  Merge,
+  Split,
+  RotateCw,
+  Minimize2,
+  Stamp,
+  Images,
+  Image as ImageIcon,
+  Languages,
+  Cpu,
+  History,
   type LucideIcon,
 } from 'lucide-react';
 
-export const MODULE_ICONS: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  payroll: Wallet,
-  parties: Users,
-  reports: FileBarChart,
-  settings: Settings,
-  admin: Shield,
-  adminaudit: Clock,
-  gtr44: Receipt,
-};
-
-export const SECTION_ICONS: Record<string, LucideIcon> = {
+const SECTION_ICONS: Record<string, LucideIcon> = {
   overview: LayoutDashboard,
   users: Users,
-  offices: Building2,
   reports: FileBarChart,
   audit: Clock,
+  upload: Upload,
+  layers: Layers,
+  'file-plus': FilePlus,
+  receipt: Receipt,
+  settings: Settings,
+  sliders: Sliders,
+  calculator: Calculator,
+  'file-spreadsheet': FileSpreadsheet,
+  'bar-chart': BarChart3,
+  user: UserCheck,
+  'file-text': FileText,
+  'credit-card': CreditCard,
+  'scan-text': ScanText,
+  sparkles: Sparkles,
+  merge: Merge,
+  split: Split,
+  'rotate-cw': RotateCw,
+  'minimize-2': Minimize2,
+  stamp: Stamp,
+  images: Images,
+  image: ImageIcon,
+  languages: Languages,
+  cpu: Cpu,
+  history: History,
 };
 
-export const FALLBACK_ICON: LucideIcon = LayoutDashboard;
-
-export function getModuleIcon(id: string): LucideIcon {
-  return MODULE_ICONS[id] || FALLBACK_ICON;
-}
+const FALLBACK_ICON: LucideIcon = LayoutDashboard;
 
 export function getSectionIcon(id: string): LucideIcon {
   return SECTION_ICONS[id] || FALLBACK_ICON;
-}
-
-interface ModuleIconProps {
-  id: string;
-  className?: string;
-  size?: number;
-}
-
-export function ModuleIcon({ id, className, size }: ModuleIconProps) {
-  return createElement(getModuleIcon(id), { className, size });
-}
-
-interface SectionIconProps {
-  id: string;
-  className?: string;
-  size?: number;
-}
-
-export function SectionIcon({ id, className, size }: SectionIconProps) {
-  return createElement(getSectionIcon(id), { className, size });
 }

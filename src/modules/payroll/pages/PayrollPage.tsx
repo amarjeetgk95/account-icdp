@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import { useUIStore } from '@/core/stores/ui-store';
 import { payrollService } from '../services/payroll.service';
 import { useRoster, useSaveSalary, useQuarterReport, useMonthDataCheck, useClearMonth } from '../hooks/usePayroll';
@@ -10,11 +10,13 @@ import { SalaryExcelImport } from '../components/SalaryExcelImport';
 import { SalaryLookup } from '../components/SalaryLookup';
 import { BudgetHeadManager } from '../components/BudgetHeadManager';
 import { BudgetHeadReport } from '../components/BudgetHeadReport';
+import { TaxReconciliationView } from '../components/TaxReconciliationView';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { SkeletonTable } from '@/shared/components/Skeleton';
+import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
 import { downloadCsv, export24QExcel } from '@/shared/utilities';
 import {
@@ -26,29 +28,17 @@ import {
   RefreshCw,
   AlertCircle,
   Banknote,
-  Users,
-  Calendar,
-  Landmark,
-  Search,
 } from 'lucide-react';
 
-type Mode = 'entry' | 'report' | 'employees' | 'budget' | 'lookup';
-
-const TABS: { id: Mode; label: string; icon: React.ElementType; description: string }[] = [
-  { id: 'entry', label: 'Monthly Entry', icon: Banknote, description: 'Enter salary, DA, and tax for the selected month' },
-  { id: 'report', label: 'Quarterly Report', icon: FileText, description: 'Generate 24Q TDS reports for compliance' },
-  { id: 'budget', label: 'Budget Head Report', icon: Landmark, description: 'Manage budget heads and view head-wise salary statements' },
-  { id: 'lookup', label: 'Employee Lookup', icon: Search, description: 'View full salary history of an employee by HRPN' },
-  { id: 'employees', label: 'Employee Registration', icon: Users, description: 'Add, edit, and manage employee master data' },
-];
+type Mode = 'entry' | 'report' | 'reconciliation' | 'employees' | 'budget' | 'lookup';
 
 export function PayrollPage() {
   const [searchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const initialTab: Mode = tabParam === 'employees' || tabParam === 'lookup' ? tabParam : 'entry';
+  const { tab } = useParams<{ tab: string }>();
+  const validModes: Mode[] = ['entry', 'report', 'reconciliation', 'employees', 'budget', 'lookup'];
+  const mode: Mode = validModes.includes(tab as Mode) ? (tab as Mode) : 'entry';
   const initialHrpn = searchParams.get('hrpn') || '';
   const monthParam = searchParams.get('month') || '';
-  const [mode, setMode] = useState<Mode>(initialTab);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const requested = monthParam;
     if (requested) {
@@ -217,10 +207,16 @@ export function PayrollPage() {
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
+      <WorkspaceHeader
+        eyebrow="Salary TDS · 24Q"
+        title="Payroll workspace"
+        context={<>FY {y1}-{y2}</>}
+      />
+
       {saveStatus && (
         <div
           className={
-            'alert mb-4 flex items-center gap-2 flex-shrink-0 ' +
+            'alert mb-2 flex items-center gap-2 flex-shrink-0 ' +
             (saveStatus.type === 'success'
               ? 'alert-success'
               : saveStatus.type === 'error'
@@ -238,29 +234,6 @@ export function PayrollPage() {
           {saveStatus.message}
         </div>
       )}
-
-      {/* Tab navigation */}
-      <div className="payroll-tabs flex-shrink-0 mb-2.5 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl flex border border-slate-200/80 dark:border-slate-700/80 shadow-xs overflow-x-auto">
-        {TABS.map((tab) => {
-          const TabIcon = tab.icon;
-          const isActive = mode === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setMode(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-                isActive
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/60 dark:border-slate-700'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-              title={tab.description}
-            >
-              <TabIcon size={14} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
 
       {mode === 'employees' && (
         <div
@@ -290,28 +263,31 @@ export function PayrollPage() {
         </div>
       )}
 
-      {mode === 'entry' && (
-        <div className="w-full flex-shrink-0 mb-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 shadow-xs">
-          <div className="w-full flex flex-wrap items-center justify-between gap-4">
-            {/* Left Controls: FY badge + Month Select Dropdown */}
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700">
-                <Calendar size={15} className="text-slate-500 dark:text-slate-400" />
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">FY {fyLabel}</span>
-              </div>
+      {mode === 'reconciliation' && (
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
+          <div className="px-1 pb-4 space-y-4">
+            <TaxReconciliationView fy={fy} />
+          </div>
+        </div>
+      )}
 
+      {mode === 'entry' && (
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <div className="w-full flex-shrink-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-xs">
+            <div className="w-full flex flex-wrap items-center justify-between gap-4">
+              {/* Left Controls: Month Select Dropdown */}
               <div className="relative shrink-0" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={() => setShowMonthDropdown(!showMonthDropdown)}
                   title="Select the month for salary entry"
-                  className="flex items-center justify-between gap-2.5 w-72 max-w-[calc(100vw-2rem)] border border-slate-200 dark:border-slate-700 rounded-full px-5 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 transition-all shadow-xs cursor-pointer"
+                  className="flex items-center justify-between gap-2.5 w-56 max-w-[calc(100vw-2rem)] border border-slate-200 dark:border-slate-700 rounded-full px-4 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 transition-all shadow-xs cursor-pointer"
                 >
                   <span className="whitespace-nowrap">{getMonthDisplay(selectedMonth)}</span>
                   <ChevronDown size={14} className={`text-slate-400 transition-transform ${showMonthDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 {showMonthDropdown && (
-                  <div className="absolute left-0 z-50 mt-1.5 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+                  <div className="absolute left-0 z-50 mt-1.5 w-56 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
                     <div className="max-h-64 overflow-y-auto py-1">
                       {monthOptions.map((m) => (
                         <button
@@ -336,147 +312,84 @@ export function PayrollPage() {
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Right Action Controls: Toggles + Increased Excel Import button + Roster buttons */}
-            <div className="flex items-center gap-3 shrink-0 flex-wrap">
-              <label className="flex items-center gap-2 cursor-pointer select-none shrink-0" title="Show DA & Other column">
-                <span className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={showDA}
-                    onChange={(e) => setShowDA(e.target.checked)}
-                  />
-                  <span className="toggle-slider toggle-amber" />
-                </span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">DA &amp; Other</span>
-              </label>
+              {/* Right Action Controls: Toggles + Increased Excel Import button + Roster buttons */}
+              <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                <label className="flex items-center gap-2 cursor-pointer select-none shrink-0" title="Show DA & Other column">
+                  <span className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={showDA}
+                      onChange={(e) => setShowDA(e.target.checked)}
+                    />
+                    <span className="toggle-slider toggle-amber" />
+                  </span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">DA &amp; Other</span>
+                </label>
 
-              <label
-                className="flex items-center gap-2 cursor-pointer select-none shrink-0"
-                title="When ON, empty salary cells are automatically filled from previous month data"
-              >
-                <span className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={autoFill}
-                    onChange={(e) => handleAutoFillToggle(e.target.checked)}
-                  />
-                  <span className="toggle-slider" />
-                </span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Auto-fill Prev</span>
-              </label>
-
-              <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 shrink-0 hidden sm:block" />
-
-              {/* Prominent, Expanded Excel Import Button */}
-              <button
-                type="button"
-                onClick={() => setShowExcelImport(true)}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-sm hover:shadow-md transition-all flex items-center gap-2 shrink-0 cursor-pointer"
-              >
-                <FileSpreadsheet size={16} />
-                <span>Import Excel Salary Sheet</span>
-              </button>
-
-              <button
-                onClick={handleLoadRoster}
-                disabled={rosterLoading}
-                title="Reload roster for the selected month"
-                className="btn btn-primary btn-md text-xs shrink-0 px-2.5"
-              >
-                <RefreshCw size={14} className={rosterLoading ? 'animate-spin' : ''} />
-              </button>
-
-              {hasExistingData && (
-                <button
-                  onClick={async () => {
-                    if (
-                      window.confirm(
-                        `Clear ALL salary entries for ${getMonthDisplay(selectedMonth)}? This cannot be undone.`
-                      )
-                    ) {
-                      try {
-                        await clearMonth.mutateAsync({ month: selectedMonth, fy });
-                      } catch (e) {
-                        alert(e instanceof Error ? e.message : 'Failed to clear month');
-                      }
-                    }
-                  }}
-                  disabled={clearMonth.isPending}
-                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors shrink-0"
-                  title="Delete all saved salary entries for the selected month"
+                <label
+                  className="flex items-center gap-2 cursor-pointer select-none shrink-0"
+                  title="When ON, empty salary cells are automatically filled from previous month data"
                 >
-                  {clearMonth.isPending ? 'Clearing…' : 'Clear All'}
+                  <span className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={autoFill}
+                      onChange={(e) => handleAutoFillToggle(e.target.checked)}
+                    />
+                    <span className="toggle-slider" />
+                  </span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Auto-fill Prev</span>
+                </label>
+
+                <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 shrink-0 hidden sm:block" />
+
+                {/* Prominent, Expanded Excel Import Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowExcelImport(true)}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-sm hover:shadow-md transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  title="Upload the salary/pension Excel file downloaded from the Karmayogi portal"
+                >
+                  <FileSpreadsheet size={15} />
+                  <span>Excel Import</span>
                 </button>
-              )}
+
+                <button
+                  onClick={handleLoadRoster}
+                  disabled={rosterLoading}
+                  title="Reload roster for the selected month"
+                  className="btn btn-primary btn-md text-xs shrink-0 px-2.5"
+                >
+                  <RefreshCw size={14} className={rosterLoading ? 'animate-spin' : ''} />
+                </button>
+
+                {hasExistingData && (
+                  <button
+                    onClick={async () => {
+                      if (
+                        window.confirm(
+                          `Clear ALL salary entries for ${getMonthDisplay(selectedMonth)}? This cannot be undone.`
+                        )
+                      ) {
+                        try {
+                          await clearMonth.mutateAsync({ month: selectedMonth, fy });
+                        } catch (e) {
+                          alert(e instanceof Error ? e.message : 'Failed to clear month');
+                        }
+                      }
+                    }}
+                    disabled={clearMonth.isPending}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors shrink-0"
+                    title="Delete all saved salary entries for the selected month"
+                  >
+                    {clearMonth.isPending ? 'Clearing…' : 'Clear All'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {mode === 'report' && (
-        <div className="flex-shrink-0 mb-3 flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm">
-          <div className="flex items-center gap-2">
-            <FileText size={14} className="text-slate-400 dark:text-slate-500" />
-            <span className="fy-badge shrink-0">FY {fyLabel}</span>
-          </div>
-
-          {/* Segmented Quarter Selector Buttons */}
-          <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shrink-0">
-            {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
-              <button
-                key={q}
-                type="button"
-                onClick={() => setSelectedQuarter(q)}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                  selectedQuarter === q
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
-                }`}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-
-          <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0 font-medium">
-            ({quarterMonths.map((m, i) => `${m}-${i === quarterMonths.length - 1 && selectedQuarter === 'Q4' ? y2 : y1}`).join(', ')})
-          </span>
-
-          <div className="flex items-center gap-2 shrink-0 ml-auto">
-            <button
-              onClick={() => {
-                if (quarterReport) export24QExcel(quarterReport, office);
-              }}
-              disabled={!quarterReport || quarterReport.rows.length === 0}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-xs transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
-            >
-              <FileSpreadsheet size={14} />
-              <span>Excel</span>
-            </button>
-            <button
-              onClick={export24QCSV}
-              disabled={!quarterReport || quarterReport.rows.length === 0}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
-            >
-              <Download size={14} />
-              <span>CSV</span>
-            </button>
-            <button
-              onClick={exportPDF}
-              disabled={!quarterReport || quarterReport.rows.length === 0}
-              className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-xs transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
-            >
-              <FileImage size={14} />
-              <span>Preview</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {mode === 'entry' && (
-        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           <div className="card flex-1 flex flex-col overflow-hidden contain-none min-h-0 rounded-xl">
             <div className="card-body p-0 flex-1 overflow-hidden min-h-0">
               <SalaryEntryGrid
@@ -498,6 +411,64 @@ export function PayrollPage() {
 
       {mode === 'report' && (
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <div className="flex-shrink-0 mb-2 flex flex-wrap items-center gap-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
+            <FileText size={14} className="text-slate-400 dark:text-slate-500" />
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">
+              FY {fyLabel}
+            </span>
+
+            {/* Segmented Quarter Selector Buttons */}
+            <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shrink-0">
+              {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => setSelectedQuarter(q)}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                    selectedQuarter === q
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                  }`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+
+            <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0 font-medium">
+              ({quarterMonths.map((m, i) => `${m}-${i === quarterMonths.length - 1 && selectedQuarter === 'Q4' ? y2 : y1}`).join(', ')})
+            </span>
+
+            <div className="flex items-center gap-2 shrink-0 ml-auto">
+              <button
+                onClick={() => {
+                  if (quarterReport) export24QExcel(quarterReport, office);
+                }}
+                disabled={!quarterReport || quarterReport.rows.length === 0}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-xs transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+              >
+                <FileSpreadsheet size={14} />
+                <span>Excel</span>
+              </button>
+              <button
+                onClick={export24QCSV}
+                disabled={!quarterReport || quarterReport.rows.length === 0}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+              >
+                <Download size={14} />
+                <span>CSV</span>
+              </button>
+              <button
+                onClick={exportPDF}
+                disabled={!quarterReport || quarterReport.rows.length === 0}
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-xs transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+              >
+                <FileImage size={14} />
+                <span>Preview</span>
+              </button>
+            </div>
+          </div>
+
           <div className="card flex-1 flex flex-col overflow-hidden contain-none min-h-0 rounded-xl">
             <div className="card-header no-print flex-shrink-0 px-4 py-3">
               <div className="flex items-center gap-2">
@@ -572,7 +543,7 @@ export function PayrollPage() {
       <PreviewModal
         isOpen={showExcelImport}
         onClose={() => setShowExcelImport(false)}
-        title="Excel Salary Import"
+        title="Karmayogi Portal Excel Salary Import"
       >
         <SalaryExcelImport onImported={handleImported} />
       </PreviewModal>

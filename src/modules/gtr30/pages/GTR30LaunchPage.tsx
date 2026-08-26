@@ -1,0 +1,424 @@
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, ChevronLeft, ChevronRight, CreditCard, FilePlus, Pencil, ArrowRight, Users, Info, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { useUIStore } from '@/core/stores/ui-store';
+import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
+import { StatusBadge } from '@/shared/components/StatusBadge';
+import { gtr30MonthKeyFor, gtr30MonthOptions, gtr30YearOptions } from '../utils/gtr30MonthKey';
+import { gtr30BillFormService } from '../services/gtr30BillForm.service';
+import { gtr30EmployeeTransformService } from '../services/gtr30EmployeeTransform.service';
+import { useGTR30Settings } from '../hooks/useGTR30Settings';
+import { useGTR30BillCodeMappings, useHydrateGTR30BillCodeMappings } from '../hooks/useGTR30BillCodeMappings';
+import { useGTR30EmployeeMasterGroups, useHydrateGTR30EmployeeMaster } from '../hooks/useGTR30EmployeeMaster';
+import { useGtr30Bills } from '../hooks/useGTR30Bills';
+import { useGtr30SaveBill } from '../hooks/useGTR30BillMutations';
+import { useGTR30BudgetHeads } from '../hooks/useGTR30BudgetHeads';
+import { useToast } from '@/hooks/use-toast';
+import { gtr30ResolveEmployees } from '../services/gtr30EmployeeMaster.service';
+import { useEffectiveDARate } from '../hooks/useGTR30Settings';
+import { GTR30_SETTINGS_STORAGE_KEY } from '../constants/settings';
+
+const INR = (n: number) => '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
+export function GTR30LaunchPage() {
+  const navigate = useNavigate();
+  const activeFY = useUIStore((state) => state.activeFinancialYear) ?? 2026;
+  const { toast } = useToast();
+  const billsQuery = useGtr30Bills();
+  const saveMutation = useGtr30SaveBill();
+  const settingsQuery = useGTR30Settings();
+  const mappingsQuery = useGTR30BillCodeMappings();
+  const groupsQuery = useGTR30EmployeeMasterGroups();
+  const hydrateMappings = useHydrateGTR30BillCodeMappings();
+  const hydrateMaster = useHydrateGTR30EmployeeMaster();
+
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    void hydrateMappings.mutateAsync().catch(() => {});
+    void hydrateMaster.mutateAsync().catch(() => {});
+  }, [hydrateMappings, hydrateMaster]);
+
+  const bills = billsQuery.data ?? [];
+  const billCodeMappings = mappingsQuery.data ?? [];
+  const employeeGroups = groupsQuery.data ?? {};
+
+  // Default to the current calendar month instead of a hardcoded value
+  const [month, setMonth] = useState(
+    // eslint-disable-next-line react-hooks/purity -- reads today's date for the initial default only
+    new Date().toLocaleString('en-US', { month: 'long' })
+  );
+  const [year, setYear] = useState(activeFY);
+
+  // Optional Budget Head override for the bills created on this screen
+  const headsQuery = useGTR30BudgetHeads();
+  const budgetHeads = headsQuery.data ?? [];
+  const [budgetHeadId, setBudgetHeadId] = useState('');
+  const selectedHead = budgetHeadId ? budgetHeads.find((h) => h.id === budgetHeadId) : undefined;
+
+  const monthKey = gtr30MonthKeyFor(month, year);
+  const effectiveDaForMonth = useEffectiveDARate(monthKey);
+
+  const settingsConfigured = typeof window !== 'undefined' && localStorage.getItem(GTR30_SETTINGS_STORAGE_KEY) !== null;
+
+  if (settingsQuery.isPending && !settingsQuery.data) {
+    return (
+      <div className="max-w-5xl mx-auto py-16 flex flex-col items-center justify-center gap-4 text-slate-500">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <div className="text-sm font-medium text-slate-700">Loading settings…</div>
+        <div className="text-xs text-slate-500 max-w-md text-center">
+          Configure settings first to generate a blank bill with your office defaults.
+        </div>
+      </div>
+    );
+  }
+  const selectStyle =
+    'w-full h-9 rounded-md border border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-2 text-sm';
+
+  const existingFor = (billCode: string) =>
+    bills.find((b) => b.monthOf === monthKey.trim() && b.billCode === billCode);
+
+  const createBill = async (billCode: string) => {
+    const month = monthKey.trim();
+    if (!month) {
+      toast({ title: 'Missing Month', description: 'Enter Month and Year first.' });
+      return;
+    }
+    const { rows, isFallback, sourceKey } = gtr30ResolveEmployees(employeeGroups, month, billCode);
+    if (rows.length === 0) {
+      toast({
+        title: 'No Master Found',
+        description: `No employees found for ${billCode} · ${month}. Register employees in Employee Management first.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    const bundle = settingsQuery.data;
+    const base = bundle
+      ? gtr30BillFormService.buildNewBillFormData({
+          settings: bundle.settings,
+          employeeTemplate: bundle.employeeTemplate,
+          defaultPosts: bundle.defaultPosts,
+        })
+      : gtr30BillFormService.emptyFormData();
+    const matchedMapping = mappingsQuery.data?.find((m) => m.billCode === billCode);
+    const headForPosts = selectedHead
+      ?? (matchedMapping?.budgetHeadId
+          ? budgetHeads.find((h) => h.id === matchedMapping.budgetHeadId)
+          : undefined);
+    const formData = {
+      ...base,
+      billRegisterNo: `${billCode}-${month}`,
+      monthOf: month,
+      billCode,
+      controllingOfficer: matchedMapping?.controllingOfficer || base.controllingOfficer,
+      classOfExpenditure: matchedMapping?.classOfExpenditure || base.classOfExpenditure,
+      fund: matchedMapping?.fund || base.fund,
+      drawingOfficer: matchedMapping?.drawingOfficer || base.drawingOfficer,
+      demandNo: matchedMapping?.demandNo || base.demandNo,
+      demandNoLabel: matchedMapping?.demandNo ? `Demand No. ${matchedMapping.demandNo}` : base.demandNoLabel,
+      typeOfBudget: matchedMapping?.typeOfBudget || base.typeOfBudget,
+      schemeNo: matchedMapping?.schemeNo || base.schemeNo,
+      headChargeable: matchedMapping?.headChargeable || base.headChargeable,
+      sector: matchedMapping?.sector || base.sector,
+      majorHead: matchedMapping?.majorHead || base.majorHead,
+      subMajorHead: matchedMapping?.subMajorHead || base.subMajorHead,
+      minorHead: matchedMapping?.minorHead || base.minorHead,
+      subHead: matchedMapping?.subHead || base.subHead,
+      budgetYear: matchedMapping?.budgetYear || base.budgetYear,
+      // Budget Head explicitly selected on this screen overrides bill code defaults
+      ...(selectedHead
+        ? {
+            budgetHeadId: selectedHead.id,
+            headChargeable: selectedHead.headChargeable || base.headChargeable,
+            controllingOfficer: selectedHead.controllingOfficer || base.controllingOfficer,
+            classOfExpenditure: selectedHead.classOfExpenditure || base.classOfExpenditure,
+            fund: selectedHead.fund || base.fund,
+            drawingOfficer: selectedHead.drawingOfficer || base.drawingOfficer,
+            demandNo: selectedHead.demandNo || base.demandNo,
+            demandNoLabel: selectedHead.demandNo ? `Demand No. ${selectedHead.demandNo}` : base.demandNoLabel,
+            typeOfBudget: selectedHead.typeOfBudget || base.typeOfBudget,
+            schemeNo: selectedHead.schemeNo || base.schemeNo,
+            sector: selectedHead.sector || base.sector,
+            majorHead: selectedHead.majorHead || base.majorHead,
+            subMajorHead: selectedHead.subMajorHead || base.subMajorHead,
+            minorHead: selectedHead.minorHead || base.minorHead,
+            subHead: selectedHead.subHead || base.subHead,
+            budgetYear: selectedHead.budgetYear || base.budgetYear,
+          }
+        : {}),
+      // Establishment (મહેકમ) posts come from the effective budget head when configured
+      ...(headForPosts?.establishmentPosts?.length
+        ? { establishmentPosts: headForPosts.establishmentPosts.map((p) => ({ ...p })) }
+        : {}),
+      employees: rows.map((master, idx) =>
+        gtr30EmployeeTransformService.masterToBillEmployee(master, idx + 1, undefined, {
+          monthKey: month,
+          daRate: effectiveDaForMonth,
+          forceDaRecalc: true,
+        })
+      ),
+    };
+    try {
+      const saved = await saveMutation.mutateAsync({ form: formData, existing: null });
+      toast({
+        title: 'Bill Created',
+        description: isFallback
+          ? `${rows.length} employee(s) added for ${billCode} · ${month} (fallback from ${sourceKey}).`
+          : `${rows.length} employee(s) added for ${billCode} · ${month}.`,
+      });
+      navigate(`/gtr30/edit/${saved.id}`);
+    } catch (error) {
+      toast({
+        title: 'Create failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-4 pb-20">
+      <WorkspaceHeader
+        eyebrow="Bill Creation · GTR-30"
+        title="Create GTR-30 Pay Bill"
+        actions={
+          <Button variant="ghost" size="sm" onClick={() => navigate('/gtr30/list')}>
+            <ChevronLeft className="mr-1 h-4 w-4" /> Register
+          </Button>
+        }
+      />
+
+      {!settingsConfigured && (
+        <div className="border border-amber-200 bg-amber-50 dark:bg-amber-950/50 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+              Office settings not configured
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+              Configure settings first to generate a blank bill with your office defaults.
+              <Button variant="link" size="sm" className="ml-2 p-0 h-auto text-amber-800 dark:text-amber-200 hover:underline" onClick={() => navigate('/gtr30/settings')}>
+                Open Settings
+              </Button>
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-blue-600" />
+            <h2 className="font-bold text-base text-slate-900 dark:text-white">Select Bill Month, Year &amp; Budget Head</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => {
+                const months = gtr30MonthOptions();
+                const currentIdx = months.indexOf(month);
+                if (currentIdx > 0) {
+                  setMonth(months[currentIdx - 1]);
+                } else {
+                  // Wrap to December of previous year
+                  setMonth(months[months.length - 1]);
+                  setYear((prev) => prev - 1);
+                }
+              }}
+              title="Previous month"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[120px] text-center">
+              {month} {year}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+              onClick={() => {
+                const now = new Date();
+                setMonth(now.toLocaleString('en-US', { month: 'long' }));
+                setYear(activeFY);
+              }}
+              title="Jump to the current month"
+            >
+              This month
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => {
+                const months = gtr30MonthOptions();
+                const currentIdx = months.indexOf(month);
+                if (currentIdx < months.length - 1) {
+                  setMonth(months[currentIdx + 1]);
+                } else {
+                  // Wrap to January of next year
+                  setMonth(months[0]);
+                  setYear((prev) => prev + 1);
+                }
+              }}
+              title="Next month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3 items-start">
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Month</Label>
+            <select value={month} onChange={(e) => setMonth(e.target.value)} className={selectStyle}>
+              {gtr30MonthOptions().map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Year (FY)</Label>
+            <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={selectStyle}>
+              {gtr30YearOptions(activeFY).map((y) => (
+                <option key={y} value={y}>
+                  {y}-{String(y + 1).slice(-2)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300" title="Optional — overrides the bill code's configured budget head">
+              Budget Head
+            </Label>
+            <select
+              value={budgetHeadId}
+              onChange={(e) => setBudgetHeadId(e.target.value)}
+              className={selectStyle}
+              title="Optional — overrides the bill code's configured budget head for bills created here"
+            >
+              <option value="">Bill code&apos;s own head</option>
+              {budgetHeads.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name}
+                  {h.headChargeable ? ` (${h.headChargeable})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-blue-500" />
+          <span>
+            Salary entries saved in Employee Master for this month will be picked up automatically.
+            Selecting a Budget Head overrides the bill code&apos;s configured head for bills created here.
+          </span>
+        </div>
+      </Card>
+
+      <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm space-y-4">
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <CreditCard className="h-5 w-5 text-blue-600" />
+          <h2 className="font-bold text-base text-slate-900 dark:text-white">Bills by Bill Code</h2>
+        </div>
+
+        <div className="bg-slate-50/70 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
+          <table className="w-full text-sm min-w-[760px]">
+            <thead>
+              <tr className="bg-slate-100/80 dark:bg-slate-800 text-left text-xs uppercase font-bold text-slate-600 dark:text-slate-400">
+                <th className="px-3.5 py-2.5 sticky left-0 bg-slate-100/95 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">Bill Code</th>
+                <th className="px-3.5 py-2.5">Description</th>
+                <th className="px-3.5 py-2.5">Employees in Master</th>
+                <th className="px-3.5 py-2.5">Pay Total (₹)</th>
+                <th className="px-3.5 py-2.5">Status</th>
+                <th className="px-3.5 py-2.5 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {billCodeMappings.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-3 py-6 text-center text-slate-500 dark:text-slate-400">
+                    No Bill Codes defined. Add them in Bill Settings.
+                  </td>
+                </tr>
+              )}
+              {billCodeMappings.map((mapping) => {
+                const { rows: monthRows, isFallback, sourceKey } = gtr30ResolveEmployees(employeeGroups, monthKey.trim(), mapping.billCode);
+                const payTotal = monthRows.reduce((sum, m) => sum + (m.currentPay || 0), 0);
+                const existing = existingFor(mapping.billCode);
+                return (
+                  <tr key={mapping.id} className="group hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="px-3.5 py-3 font-bold text-blue-700 dark:text-blue-400 font-mono sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/40 transition-colors border-r border-slate-100 dark:border-slate-800">{mapping.billCode}</td>
+                    <td className="px-3.5 py-3 text-slate-600 dark:text-slate-300">{mapping.description}</td>
+                    <td className="px-3.5 py-3">
+                      {monthRows.length === 0 ? (
+                        <span className="text-slate-500 dark:text-slate-400 text-xs">No entries in master</span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="font-semibold text-slate-900 dark:text-white">{monthRows.length}</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                            {monthRows.map((e) => e.name || e.hrpnNo || 'Unnamed').join(', ')}
+                          </span>
+                          {isFallback && sourceKey && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-medium" title={`Fallback from ${sourceKey}`}>
+                              via {sourceKey.split('|')[0]}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3.5 py-3 font-mono tabular-nums">
+                      {monthRows.length === 0 ? (
+                        <span className="text-slate-300 text-xs">—</span>
+                      ) : (
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          {INR(payTotal)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3.5 py-3">
+                      {existing ? (
+                        <StatusBadge status={existing.status} />
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 ring-1 ring-inset ring-slate-200 dark:ring-slate-700 rounded-full px-2 py-0.5 bg-slate-50 dark:bg-slate-800/60 whitespace-nowrap">
+                          Not created
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3.5 py-3 text-right">
+                      {existing ? (
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/gtr30/edit/${existing.id}`)} className="h-8 text-xs font-semibold min-w-[110px] justify-center">
+                          <Pencil className="h-3.5 w-3.5 mr-1" /> Edit Bill
+                        </Button>
+                      ) : (
+                        <Button size="sm" onClick={() => createBill(mapping.billCode)} className="h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs min-w-[110px] justify-center">
+                          <FilePlus className="h-3.5 w-3.5 mr-1" /> Create Bill
+                          <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          One bill is created per Bill Code for the selected month. Employees entered in Employee
+          Master under the same month + bill code are picked up automatically. If no exact month
+          match exists, the system falls back to
+          <span className="font-semibold"> master</span> or any existing group for that Bill Code and marks it as
+          <span className="font-mono text-amber-700 dark:text-amber-400"> via fallback</span>.
+        </p>
+      </Card>
+    </div>
+  );
+}
