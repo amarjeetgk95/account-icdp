@@ -94,12 +94,6 @@ class SalaryService {
     return { classified, summary };
   }
 
-  async previewImport(file: File): Promise<SalaryPreviewSummary & { classified: ClassifiedSalaryRecord[] }> {
-    const rows = await this.readExcelRows(file);
-    const { classified, summary } = await this.classifyRows(rows);
-    return { fileName: file.name, ...summary, classified };
-  }
-
   async importSalary(file: File): Promise<SalaryImportSummary> {
     const rows = await this.readExcelRows(file);
     const { classified, summary } = await this.classifyRows(rows);

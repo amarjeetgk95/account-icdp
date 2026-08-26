@@ -3,11 +3,11 @@ import { salaryService } from '../services/salary.service';
 import { FileSpreadsheet, Upload, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 
-interface ImportedPreviewProps {
+interface SalaryExcelImportProps {
   onImported?: (records: ClassifiedSalaryRecord[]) => void;
 }
 
-export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
+export function SalaryExcelImport({ onImported }: SalaryExcelImportProps) {
   const [isReading, setIsReading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [preview, setPreview] = useState<{
@@ -110,10 +110,11 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
     <div className="space-y-4">
       {!preview && (
         <div
-          className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+          className="border-2 border-dashed border-emerald-300 dark:border-emerald-700/80 bg-emerald-50/30 dark:bg-emerald-950/10 rounded-2xl p-7 text-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/30 transition-all group shadow-xs"
           onDrop={onDrop}
           onDragOver={onDragOver}
           onClick={handleBrowse}
+          title="Please upload the monthly salary / pension statement Excel file downloaded from the Karmayogi portal"
         >
           <input
             id="salary-excel-input"
@@ -123,11 +124,22 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
             ref={fileInputRef}
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
           />
-          <FileSpreadsheet className="mx-auto h-10 w-10 text-slate-400 mb-2" />
-          <p className="text-[0.8rem] text-slate-600">
-            {isReading ? 'Reading Excel file...' : 'Drag Excel file here or click to browse'}
+          <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <FileSpreadsheet className="h-6 w-6" />
+          </div>
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+            {isReading ? 'Reading Karmayogi Excel file…' : 'Upload Karmayogi Portal Excel File'}
           </p>
-          <p className="text-[0.72rem] text-slate-400 mt-1">Accepts .xlsx and .xls</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 max-w-md mx-auto">
+            Please upload the monthly salary / pension payout spreadsheet downloaded directly from the <strong className="text-emerald-700 dark:text-emerald-400">Karmayogi Portal</strong>.
+          </p>
+          <div className="flex items-center justify-center gap-2 mt-3 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+            <span className="bg-white dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700">
+              Drag &amp; drop file here or click to browse
+            </span>
+            <span>•</span>
+            <span>Supports .xlsx &amp; .xls</span>
+          </div>
         </div>
       )}
 
@@ -210,11 +222,7 @@ export function SalaryExcelImport({ onImported }: ImportedPreviewProps) {
                     <td>
                       <span
                         className={`badge ${
-                          rec.status === 'matched'
-                            ? 'badge-success'
-                            : rec.status === 'unmatched'
-                            ? 'badge-warning'
-                            : 'badge-ghost'
+                          rec.status === 'matched' ? 'badge-success' : 'badge-warning'
                         }`}
                       >
                         {rec.status}

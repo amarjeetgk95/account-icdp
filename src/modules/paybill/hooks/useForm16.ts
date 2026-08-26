@@ -12,14 +12,6 @@ import type {
 
 import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 
-export function useForm16Certificate(financialYear: number, hrpn: string | null) {
-  return useQuery({
-    queryKey: ['form16-certificate', financialYear, hrpn],
-    queryFn: () => form16Repository.getCertificate(financialYear, hrpn!),
-    enabled: !!hrpn && !!financialYear,
-  });
-}
-
 export function useForm16List(financialYear?: number) {
   return useQuery({
     queryKey: ['form16-list', financialYear],
@@ -105,6 +97,15 @@ export function useForm16Defaults() {
     onSuccess: (saved) => {
       qc.setQueryData(['form16-defaults', officeId], saved);
       qc.invalidateQueries({ queryKey: ['form16-defaults'] });
+      qc.invalidateQueries({ queryKey: ['form16-list'] });
+      qc.invalidateQueries({ queryKey: ['form16-certs'] });
+      try {
+        const channel = new BroadcastChannel('form16_updates');
+        channel.postMessage({ type: 'FORM16_DEFAULTS_SAVED', timestamp: Date.now() });
+        localStorage.setItem('form16_last_saved', String(Date.now()));
+      } catch {
+        // ignore
+      }
     },
   });
 

@@ -11,7 +11,6 @@ import { formatCurrency } from '@/shared/utilities';
 
 interface VendorTdsQuadrantProps {
   vendorTds: VendorTdsSummary;
-  fy?: number;
 }
 
 export function VendorTdsQuadrant({ vendorTds }: VendorTdsQuadrantProps) {

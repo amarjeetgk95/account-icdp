@@ -2,7 +2,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { OfficeForm } from '../components/OfficeForm';
 import { Form16DefaultsForm } from '../components/Form16DefaultsForm';
 import { Form16TaxRulesConfigForm } from '../components/Form16TaxRulesConfigForm';
-import { EstablishmentSettingsView } from '../components/EstablishmentSettingsView';
 import { GTR30SettingsView } from '@/modules/gtr30/components/GTR30SettingsView';
 import { GTR44SettingsView } from '@/modules/gtr44/components/GTR44SettingsView';
 import {
@@ -11,22 +10,20 @@ import {
   Calculator,
   Receipt,
   FileSpreadsheet,
-  Users,
 } from 'lucide-react';
 
-export type SettingTabId = 'office' | 'gtr30' | 'gtr44' | 'establishment' | 'tax-rules' | 'form16';
+export type SettingTabId = 'office' | 'gtr30' | 'gtr44' | 'tax-rules' | 'form16';
 
 export function SettingsPage() {
   const { tab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
-  const validTabs: SettingTabId[] = ['office', 'gtr30', 'gtr44', 'establishment', 'tax-rules', 'form16'];
+  const validTabs: SettingTabId[] = ['office', 'gtr30', 'gtr44', 'tax-rules', 'form16'];
   const activeTab: SettingTabId = validTabs.includes(tab as SettingTabId) ? (tab as SettingTabId) : 'office';
 
   const tabs: Array<{ id: SettingTabId; label: string; icon: React.ElementType }> = [
     { id: 'office', label: 'Office & DDO Master', icon: Building2 },
     { id: 'gtr30', label: 'GTR-30 Pay Bills', icon: FileSpreadsheet },
     { id: 'gtr44', label: 'GTR-44 DC Bills', icon: Receipt },
-    { id: 'establishment', label: 'Establishment Posts', icon: Users },
     { id: 'tax-rules', label: 'Income Tax Slabs (115BAC)', icon: Calculator },
     { id: 'form16', label: 'Form 16 Deductor', icon: FileBadge },
   ];
@@ -89,12 +86,6 @@ export function SettingsPage() {
         {activeTab === 'gtr44' && (
           <div className="space-y-4">
             <GTR44SettingsView />
-          </div>
-        )}
-
-        {activeTab === 'establishment' && (
-          <div className="space-y-4">
-            <EstablishmentSettingsView />
           </div>
         )}
 

@@ -62,16 +62,6 @@ tr:hover td.ec-sticky-col {
   outline-offset: -2px;
 }
 
-.ost-row-active {
-  background-color: rgb(238 242 255);
-  box-shadow: inset 3px 0 0 rgb(79 70 229);
-}
-
-.dark .ost-row-active {
-  background-color: rgb(99 102 241 / 0.12);
-  box-shadow: inset 3px 0 0 rgb(129 140 248);
-}
-
 /* DataEntryReport polish */
 .de-report .de-table {
   min-width: 900px;

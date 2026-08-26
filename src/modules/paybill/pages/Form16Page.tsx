@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useUIStore } from '@/core/stores/ui-store';
+import { supabase } from '@/core/supabase/client';
+import { getOfficeScope } from '@/shared/utilities/office';
 import { paybillRepository } from '../repositories/paybill.repository';
-import { form16Repository } from '../repositories/form16.repository';
+import { form16Repository, isValidUuid } from '../repositories/form16.repository';
 import { establishmentService } from '@/modules/establishment/services/establishment.service';
 import { employeeService } from '@/modules/payroll/services/employee.service';
 import { popupNativePrint } from '@/shared/utilities/nativePrint';
@@ -20,12 +22,14 @@ import {
 import {
   computeForm16Totals,
   deriveQuarterlySummary,
+  derivePayrollQuarterlySummary,
   assessmentYearFor,
 } from '../services/form16Calculation.service';
+import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
 import { Form16QuarterlyModal } from '../components/Form16QuarterlyModal';
 import { Form16EditorModal } from '../components/Form16EditorModal';
 import { Form16BulkPrintModal } from '../components/Form16BulkPrintModal';
-import { Form16Document, type Form16PartALayout } from '../components/Form16Document';
+import { Form16Document } from '../components/Form16Document';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Modal } from '@/shared/components/Modal';
@@ -37,14 +41,14 @@ import {
   ShieldCheck,
   Send,
   Landmark,
-  Calculator,
-  Users,
   CheckCircle2,
-  AlertTriangle,
-  Edit3,
   Trash2,
+  Calculator,
   Sparkles,
   Sliders,
+  Users,
+  AlertTriangle,
+  Edit3,
 } from 'lucide-react';
 import type {
   Form16Certificate,
@@ -74,6 +78,7 @@ interface EnrichedEmployeeRow {
   address: string;
   grossAmount: number;
   deductions: Array<{ incomeTax: number; month: string }>;
+  payrollQuarterly?: Record<string, { amountPaid: number; taxDeducted: number }> | null;
   certificate: Form16Certificate;
   status: Form16Status;
   isSavedInDb: boolean;
@@ -218,6 +223,7 @@ function unifyEmployees(
 }
 
 export function Form16Page() {
+  const [searchParams] = useSearchParams();
   const fy = useUIStore((s) => s.activeFinancialYear);
   const fyLabel = `${fy}-${String(fy + 1).slice(-2)}`;
   const ayLabel = assessmentYearFor(fy);
@@ -227,6 +233,15 @@ export function Form16Page() {
   const [deductions, setDeductions] = useState<PayBillStoredDeduction[]>([]);
   const [manualLedger, setManualLedger] = useState<Record<string, Record<string, Record<string, number>>>>({});
   const [manualAllowances, setManualAllowances] = useState<string[]>(['Pay Difference', 'DA Difference']);
+  const [payrollSalaries, setPayrollSalaries] = useState<Array<{
+    employee_id: string;
+    month: string;
+    gross: number;
+    da: number;
+    tax: number;
+    financial_year: number;
+    employees?: { id: string; name: string; pan: string; hprn_no: string | null } | null;
+  }>>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Search, Filters & Selection
@@ -241,26 +256,47 @@ export function Form16Page() {
   const [quickPreviewCert, setQuickPreviewCert] = useState<Form16Certificate | null>(null);
   const [confirmIssueId, setConfirmIssueId] = useState<string | null>(null);
   const [confirmBatchAction, setConfirmBatchAction] = useState<'REVIEWED' | 'ISSUED' | 'DELETE' | null>(null);
-  const [partALayout, setPartALayout] = useState<Form16PartALayout>(() => {
-    try {
-      return (localStorage.getItem('form16_parta_layout') as Form16PartALayout) || 'traces';
-    } catch {
-      return 'traces';
-    }
-  });
-
-  const handleToggleLayout = (layout: Form16PartALayout) => {
-    setPartALayout(layout);
-    try {
-      localStorage.setItem('form16_parta_layout', layout);
-    } catch {
-      /* ignore */
-    }
-  };
 
   // Queries & Mutations
   const { data: savedCertificates = [], refetch: refetchCerts } = useForm16List(fy);
+
+  // Auto reload when returning from editor or receiving updates from popup window
+  useEffect(() => {
+    if (searchParams.get('reload')) {
+      void refetchCerts();
+    }
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('form16_updates');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'FORM16_SAVED' || event.data?.type === 'FORM16_CLOSED') {
+          void refetchCerts();
+        }
+      };
+    } catch {}
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'form16_last_saved') {
+        void refetchCerts();
+      }
+    };
+
+    const onFocus = () => {
+      void refetchCerts();
+    };
+
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      channel?.close();
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [searchParams, refetchCerts]);
   const { defaults: f16Defaults } = useForm16Defaults();
+  const { details: officeDetails } = useOfficeDetails();
   const { settings: office24QSettings } = useForm16Office24Q(fy);
   const { taxRulesConfig } = useForm16TaxRules();
 
@@ -270,7 +306,7 @@ export function Form16Page() {
   const batchStatusMutation = useBatchUpdateStatus();
   const batchDeleteMutation = useBatchDeleteCertificates();
 
-  // Load all Paybill, Establishment, and Master records for the FY
+  // Load all Paybill, Establishment, and Payroll records for the FY
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -283,6 +319,7 @@ export function Form16Page() {
           masterEmployees,
           settingsObj,
           ledgerVals,
+          payrollSalRows,
         ] = await Promise.all([
           paybillRepository.listEarnings({ financialYear: fy }).catch(() => []),
           paybillRepository.listDeductions({ financialYear: fy }).catch(() => []),
@@ -290,6 +327,20 @@ export function Form16Page() {
           employeeService.listEmployees().catch(() => []),
           paybillRepository.getSettings().catch(() => ({})),
           paybillRepository.getManualLedgerValues().catch(() => ({})),
+          (async () => {
+            const scope = getOfficeScope();
+            let q = supabase
+              .from('employee_salaries')
+              .select('employee_id, month, gross, da, tax, financial_year, employees(id, name, pan, hprn_no)')
+              .eq('financial_year', fy);
+            if (!scope.all && scope.officeId) q = q.eq('office_id', scope.officeId);
+            const { data, error } = await q;
+            if (error) {
+              console.warn('[Form16Page] Failed to fetch payroll salaries:', error);
+              return [];
+            }
+            return data || [];
+          })().catch(() => []),
         ]);
 
         if (cancelled) return;
@@ -297,6 +348,7 @@ export function Form16Page() {
         setEarnings(allEarnings || []);
         setDeductions(allDeductions || []);
         setManualLedger(ledgerVals || {});
+        setPayrollSalaries((payrollSalRows as any) || []);
         if (
           settingsObj &&
           typeof settingsObj === 'object' &&
@@ -338,6 +390,37 @@ export function Form16Page() {
     return map;
   }, [savedCertificates]);
 
+  // Index Payroll monthly salaries by employee HRPN / PAN / Name
+  const payrollSalariesByEmp = useMemo(() => {
+    const map = new Map<string, Array<{ month: string; gross: number; da: number; tax: number }>>();
+    for (const s of payrollSalaries) {
+      const empH = (s.employees?.hprn_no || '').trim().toLowerCase();
+      const empPan = (s.employees?.pan || '').trim().toUpperCase();
+      const empName = (s.employees?.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+      const record = {
+        month: s.month,
+        gross: Number(s.gross) || 0,
+        da: Number(s.da) || 0,
+        tax: Number(s.tax) || 0,
+      };
+
+      if (empH) {
+        if (!map.has(`h_${empH}`)) map.set(`h_${empH}`, []);
+        map.get(`h_${empH}`)!.push(record);
+      }
+      if (empPan) {
+        if (!map.has(`p_${empPan}`)) map.set(`p_${empPan}`, []);
+        map.get(`p_${empPan}`)!.push(record);
+      }
+      if (empName) {
+        if (!map.has(`n_${empName}`)) map.set(`n_${empName}`, []);
+        map.get(`n_${empName}`)!.push(record);
+      }
+    }
+    return map;
+  }, [payrollSalaries]);
+
   // Build Enriched Rows for all Distinct Employees in the FY
   const employeeRows: EnrichedEmployeeRow[] = useMemo(() => {
     return employees.map((emp) => {
@@ -366,6 +449,7 @@ export function Form16Page() {
         }
       }
 
+      // Salary data strictly fetched from Paybill module
       const grossAmount =
         empEarnings.reduce((s, e) => s + (Number(e.grossAmount) || 0), 0) + manualAllowanceSum;
 
@@ -376,29 +460,57 @@ export function Form16Page() {
 
       const existingCert = savedCertsByHrpn.get(normHrpn);
 
-      // Auto-derived quarterly entries
-      const quarterlyDerived = deriveQuarterlySummary(empEarnings, empDeds);
+      // Quarter calculations: First attempt Payroll module, fallback to Paybill module
+      const quarterlyDerivedPaybill = deriveQuarterlySummary(empEarnings, empDeds);
+      const empPayrollRecords =
+        (normHrpn ? payrollSalariesByEmp.get(`h_${normHrpn}`) : null) ||
+        (emp.pan ? payrollSalariesByEmp.get(`p_${emp.pan.trim().toUpperCase()}`) : null) ||
+        (normName ? payrollSalariesByEmp.get(`n_${normName}`) : null) ||
+        [];
+
+      const payrollQuarterly =
+        empPayrollRecords.length > 0 ? derivePayrollQuarterlySummary(empPayrollRecords) : null;
+
+      const officeFullName =
+        f16Defaults?.employerName ||
+        [officeDetails?.officeName, officeDetails?.subtitle].filter(Boolean).join(' - ') ||
+        officeDetails?.officeName ||
+        'Office of Deputy Director (ICDP), Surat';
+
+      const officeFullAddress =
+        f16Defaults?.employerAddress ||
+        officeDetails?.address ||
+        '';
+
+      const officeTan =
+        f16Defaults?.employerTan ||
+        officeDetails?.tan ||
+        '';
+
+      const officePan = f16Defaults?.employerPan || '';
+      const citTdsVal = f16Defaults?.citTds || '';
 
       // Default base cert template
       const baseDraft = form16Repository.newDraftDefaults(fy, emp.hrpn);
 
-      // Apply office defaults
+      // Apply office defaults & settings
+      baseDraft.employer = {
+        name: officeFullName,
+        address: officeFullAddress,
+        pan: officePan,
+        tan: officeTan,
+        citTds: citTdsVal,
+      };
+
       if (f16Defaults) {
-        baseDraft.employer = {
-          name: f16Defaults.employerName || '',
-          address: '',
-          pan: f16Defaults.employerPan || '',
-          tan: f16Defaults.employerTan || '',
-          citTds: f16Defaults.citTds || '',
-        };
         baseDraft.signatory = {
           name: f16Defaults.signatoryName || '',
           designation: f16Defaults.signatoryDesignation || '',
           place: f16Defaults.signatoryPlace || '',
           date: '',
         };
-        if (f16Defaults.citTds) baseDraft.partA.citTds = f16Defaults.citTds;
       }
+      if (citTdsVal) baseDraft.partA.citTds = citTdsVal;
 
       // Populate employee details
       baseDraft.employee = {
@@ -409,22 +521,59 @@ export function Form16Page() {
         address: emp.address || '',
       };
 
-      // Populate Part A quarterly summary & 24Q receipts
+      // Populate Part A quarterly summary from Payroll module (or fallback to Paybill)
       baseDraft.partA.quarters = baseDraft.partA.quarters.map((q) => {
-        const derived = quarterlyDerived[q.quarter];
+        const derivedPayroll = payrollQuarterly ? payrollQuarterly[q.quarter] : null;
+        const derivedPaybill = quarterlyDerivedPaybill[q.quarter];
         const officeReceipt = office24QSettings?.quarters[q.quarter]?.receiptNumber || '';
+
+        const amountPaid = derivedPayroll ? derivedPayroll.amountPaid : (derivedPaybill?.amountPaid || 0);
+        const taxDeducted = derivedPayroll ? derivedPayroll.taxDeducted : (derivedPaybill?.taxDeducted || 0);
+
         return {
           quarter: q.quarter,
           receiptNumber: officeReceipt,
-          amountPaid: derived?.amountPaid || 0,
-          taxDeducted: derived?.taxDeducted || 0,
-          taxDeposited: derived?.taxDeducted || 0,
+          amountPaid,
+          taxDeducted,
+          taxDeposited: taxDeducted,
         };
       });
 
       const effectiveCert: Form16Certificate = existingCert
         ? {
             ...existingCert,
+            employer: {
+              ...existingCert.employer,
+              name: f16Defaults?.employerName || existingCert.employer.name || officeFullName,
+              address: f16Defaults?.employerAddress || existingCert.employer.address || officeFullAddress,
+              tan: f16Defaults?.employerTan || existingCert.employer.tan || officeTan,
+              pan: f16Defaults?.employerPan || existingCert.employer.pan || officePan,
+              citTds: f16Defaults?.citTds || existingCert.employer.citTds || citTdsVal || existingCert.partA.citTds || '',
+            },
+            partA: {
+              ...existingCert.partA,
+              citTds: f16Defaults?.citTds || existingCert.partA.citTds || citTdsVal || '',
+              quarters: existingCert.partA.quarters.map((q) => {
+                const derivedPayroll = payrollQuarterly ? payrollQuarterly[q.quarter] : null;
+                const derivedPaybill = quarterlyDerivedPaybill[q.quarter];
+                const officeReceipt = office24QSettings?.quarters[q.quarter]?.receiptNumber || '';
+                const amountPaid = derivedPayroll ? derivedPayroll.amountPaid : (derivedPaybill?.amountPaid || q.amountPaid || 0);
+                const taxDeducted = derivedPayroll ? derivedPayroll.taxDeducted : (derivedPaybill?.taxDeducted || q.taxDeducted || 0);
+                return {
+                  quarter: q.quarter,
+                  receiptNumber: q.receiptNumber || officeReceipt,
+                  amountPaid,
+                  taxDeducted,
+                  taxDeposited: taxDeducted,
+                };
+              }),
+            },
+            signatory: {
+              ...existingCert.signatory,
+              name: f16Defaults?.signatoryName || existingCert.signatory?.name || '',
+              designation: f16Defaults?.signatoryDesignation || existingCert.signatory?.designation || '',
+              place: f16Defaults?.signatoryPlace || existingCert.signatory?.place || '',
+            },
             employee: {
               ...existingCert.employee,
               name: existingCert.employee.name || emp.name,
@@ -446,6 +595,7 @@ export function Form16Page() {
         taxRegime: 'NEW',
         earnings: [{ grossAmount }],
         deductions: deductionsMapped,
+        partA: effectiveCert.partA,
         partB: effectiveCert.partB,
         taxRulesSettings: taxRulesConfig,
       });
@@ -460,9 +610,10 @@ export function Form16Page() {
         address: emp.address || effectiveCert.employee.address || '',
         grossAmount,
         deductions: deductionsMapped,
+        payrollQuarterly,
+        status: effectiveCert.status,
+        isSavedInDb: Boolean(existingCert && existingCert.id && !existingCert.id.startsWith('temp_')),
         certificate: effectiveCert,
-        status: effectiveCert.status || 'DRAFT',
-        isSavedInDb: !!existingCert,
       };
     });
   }, [
@@ -474,6 +625,7 @@ export function Form16Page() {
     savedCertsByHrpn,
     fy,
     f16Defaults,
+    officeDetails,
     office24QSettings,
     taxRulesConfig,
   ]);
@@ -525,9 +677,9 @@ export function Form16Page() {
       if (!r.pan.trim()) missingPanCount++;
 
       const t = r.certificate.computedTotals;
-      totalGrossSalary += t?.grossSalary17_1 || r.grossAmount || 0;
-      totalTdsDeposited += t?.tdsDeducted || 0;
-      totalNetTaxPayable += t?.netTaxPayable || 0;
+      totalGrossSalary += t?.grossSalary17_1 ?? r.grossAmount ?? 0;
+      totalTdsDeposited += t?.tdsDeducted ?? 0;
+      totalNetTaxPayable += t?.netTaxPayable ?? 0;
     }
 
     return {
@@ -641,7 +793,7 @@ export function Form16Page() {
       title: `Form16_${empPan}_AY${ayLabel}`,
       pageSize: 'A4',
       orientation: 'portrait',
-      pageMargin: '5mm 6mm',
+      pageMargin: '4mm 5mm',
       customStyles: `
         #form16-single-page {
           width: 100% !important;
@@ -655,21 +807,25 @@ export function Form16Page() {
           break-after: avoid !important;
         }
         @media print {
-          @page { size: A4 portrait; margin: 5mm 6mm !important; }
-          html, body { background: #fff !important; color: #000 !important; font-family: 'Times New Roman', Times, 'Liberation Serif', Georgia, serif !important; font-size: 10pt !important; }
-          .f16-title-main { font-size: 16.5pt !important; font-weight: 900 !important; }
-          .f16-parta-title { font-size: 13pt !important; font-weight: 900 !important; }
-          .f16-rule-sub { font-size: 10pt !important; font-weight: 600 !important; }
-          .f16-cert-desc { font-size: 9.2pt !important; font-weight: 600 !important; }
-          .f16-hdr-cell { font-size: 8.8pt !important; font-weight: 800 !important; }
-          .f16-val-cell { font-size: 10.5pt !important; font-weight: 700 !important; }
-          .f16-table th { font-size: 9.8pt !important; font-weight: 900 !important; padding: 1.3mm 2mm !important; }
-          .f16-table td { font-size: 10pt !important; padding: 1.2mm 2mm !important; }
-          .f16-num { font-size: 10.8pt !important; font-weight: 800 !important; }
-          .f16-verify-box { font-size: 9.8pt !important; }
-          .f16-verify-title { font-size: 10.5pt !important; font-weight: 900 !important; }
-          .f16-verify-text { font-size: 9.8pt !important; }
-          .f16-verify-grid { font-size: 10pt !important; }
+          @page { size: A4 portrait; margin: 4mm 5mm !important; }
+          html, body { background: #fff !important; color: #000 !important; font-family: 'Times New Roman', Times, 'Liberation Serif', Georgia, serif !important; }
+          .f16-title-main { font-size: 13pt !important; font-weight: 900 !important; margin-bottom: 0.1mm !important; }
+          .f16-parta-title { font-size: 10pt !important; font-weight: 900 !important; margin: 0.1mm 0 !important; }
+          .f16-rule-sub { font-size: 8pt !important; font-weight: 600 !important; margin-bottom: 0.2mm !important; }
+          .f16-cert-desc { font-size: 7.2pt !important; font-weight: 600 !important; line-height: 1.15 !important; margin-bottom: 0.8mm !important; }
+          .f16-cert-meta-strip { font-size: 7.5pt !important; padding: 0.6mm 1.5mm !important; }
+          .f16-table { border: 1.1px solid #000 !important; margin-bottom: 0.8mm !important; }
+          .f16-table th { font-size: 7.6pt !important; font-weight: 800 !important; padding: 0.5mm 1.2mm !important; background: #f2f2f2 !important; line-height: 1.15 !important; }
+          .f16-table td { font-size: 8pt !important; padding: 0.45mm 1.2mm !important; line-height: 1.18 !important; }
+          .f16-sec-hdr { font-size: 8pt !important; font-weight: 900 !important; background: #eaeaea !important; padding: 0.5mm !important; }
+          .f16-b-opt { font-size: 7.8pt !important; font-weight: 800 !important; padding: 0.4mm !important; margin-bottom: 0.5mm !important; }
+          .f16-num { font-size: 8.5pt !important; font-weight: 700 !important; }
+          .f16-verify-box { font-size: 7.4pt !important; border: none !important; padding: 1mm 1mm !important; margin-top: 0.8mm !important; }
+          .f16-verify-title { font-size: 8.2pt !important; font-weight: 900 !important; text-align: center !important; margin-bottom: 0.4mm !important; text-decoration: underline !important; }
+          .f16-verify-text { font-size: 7.2pt !important; line-height: 1.18 !important; margin-bottom: 0.5mm !important; }
+          .f16-sig-line { font-weight: 900 !important; font-size: 7.5pt !important; }
+          .f16-sig-caption { font-size: 6.8pt !important; margin-bottom: 0.3mm !important; }
+          .f16-sig-field { font-size: 7.4pt !important; }
         }
       `,
     });
@@ -847,34 +1003,6 @@ export function Form16Page() {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* Part A Layout Preference Switcher */}
-          <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800/90 rounded-xl border border-slate-200 dark:border-slate-700">
-            <button
-              type="button"
-              onClick={() => handleToggleLayout('traces')}
-              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${
-                partALayout === 'traces'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-              }`}
-              title="Official TRACES CPC-TDS Government Layout"
-            >
-              🏛️ TRACES Format
-            </button>
-            <button
-              type="button"
-              onClick={() => handleToggleLayout('modern')}
-              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${
-                partALayout === 'modern'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-              }`}
-              title="Modern Executive Dual-Badge Layout"
-            >
-              📄 Executive Layout
-            </button>
-          </div>
-
           {/* Search Input */}
           <div className="relative w-full sm:w-64">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -979,7 +1107,14 @@ export function Form16Page() {
                     </td>
 
                     <td className="py-2.5 px-3">
-                      <div className="font-bold text-slate-900 dark:text-slate-100">{r.name}</div>
+                      <button
+                        type="button"
+                        onClick={() => window.open(`/paybill/form16/${encodeURIComponent(r.hrpn)}?fy=${fy}`, '_blank')}
+                        className="font-bold text-slate-900 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 text-left transition cursor-pointer"
+                        title="Open Form 16 in New Tab / Window"
+                      >
+                        {r.name}
+                      </button>
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
                         <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">
                           HRPN:{r.hrpn}
@@ -1010,15 +1145,15 @@ export function Form16Page() {
                     </td>
 
                     <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
-                      {inr(t?.totalTaxableIncome || 0)}
+                      {inr(t?.totalTaxableIncome ?? 0)}
                     </td>
 
                     <td className="py-2.5 px-3 text-right font-mono text-rose-600 font-semibold">
-                      {inr(t?.tdsDeducted || 0)}
+                      {inr(t?.tdsDeducted ?? 0)}
                     </td>
 
                     <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
-                      {inr(t?.netTaxPayable || 0)}
+                      {inr(t?.netTaxPayable ?? 0)}
                     </td>
 
                     <td className="py-2.5 px-3 text-center">
@@ -1039,9 +1174,9 @@ export function Form16Page() {
                       <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => setEditingCert(r.certificate)}
-                          className="p-1.5 text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 rounded-lg transition"
-                          title="Edit / Review Form 16"
+                          onClick={() => window.open(`/paybill/form16/${encodeURIComponent(r.hrpn)}?fy=${fy}`, '_blank')}
+                          className="p-1.5 text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 rounded-lg transition cursor-pointer"
+                          title="Open Form 16 in New Tab / Window"
                         >
                           <Edit3 size={14} />
                         </button>
@@ -1103,13 +1238,33 @@ export function Form16Page() {
           deductionsSource={
             employeeRows.find((r) => r.hrpn === editingCert.hrpn)?.deductions || []
           }
+          payrollQuarterlySource={
+            employeeRows.find((r) => r.hrpn === editingCert.hrpn)?.payrollQuarterly || null
+          }
+          allEmployees={employeeRows.map((r) => ({
+            hrpn: r.hrpn,
+            name: r.name,
+            designation: r.designation,
+          }))}
+          onNavigateEmployee={(targetHrpn) => {
+            const found = employeeRows.find((r) => r.hrpn.trim().toLowerCase() === targetHrpn.trim().toLowerCase());
+            if (found) {
+              setEditingCert(found.certificate);
+            }
+          }}
           onSave={async (updated) => {
-            await saveDraftMutation.mutateAsync(updated);
+            const payload = {
+              ...updated,
+              id: isValidUuid(updated.id) ? updated.id : undefined,
+            };
+            const saved = await saveDraftMutation.mutateAsync(payload);
             await refetchCerts();
-            setEditingCert(null);
+            return saved;
           }}
           onStatusChange={async (id, status) => {
-            await updateStatusMutation.mutateAsync({ id, status });
+            if (isValidUuid(id)) {
+              await updateStatusMutation.mutateAsync({ id, status });
+            }
             await refetchCerts();
           }}
           isSaving={saveDraftMutation.isPending || updateStatusMutation.isPending}
@@ -1133,33 +1288,10 @@ export function Form16Page() {
           maxWidth="xl"
         >
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => handleToggleLayout('traces')}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
-                    partALayout === 'traces'
-                      ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                  }`}
-                  title="Official TRACES CPC-TDS Government Layout"
-                >
-                  🏛️ TRACES Format
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggleLayout('modern')}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
-                    partALayout === 'modern'
-                      ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                  }`}
-                  title="Modern Executive Dual-Badge Layout"
-                >
-                  📄 Executive Layout
-                </button>
-              </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                Official TRACES Government Format
+              </span>
 
               <button
                 type="button"
@@ -1173,7 +1305,7 @@ export function Form16Page() {
               </button>
             </div>
             <div id="form16-quick-preview-doc" className="bg-white p-2 rounded-sm shadow-sm">
-              <Form16Document cert={quickPreviewCert} layout={partALayout} />
+              <Form16Document cert={quickPreviewCert} />
             </div>
           </div>
         </Modal>

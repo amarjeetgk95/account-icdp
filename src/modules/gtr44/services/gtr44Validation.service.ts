@@ -3,9 +3,6 @@ import { getGrossAmount, getNetDifference, getTotalDeductions, normalizeEDPCode 
 import { EDP_CODE_SUGGESTIONS } from '../store/gtr44Defaults';
 import { useGTR44SettingsStore } from '../store/gtr44SettingsStore';
 
-// Re-export for convenience (requirements: export function validateGTR44Settings)
-export { validateGTR44Settings, gtr44SettingsSchema } from './gtr44Settings.schema';
-
 export type GTR44WizardStepId = 'vouchers' | 'budgetHead' | 'deductions' | 'preview';
 
 export interface GTR44ValidationResult {

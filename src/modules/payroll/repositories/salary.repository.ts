@@ -14,18 +14,6 @@ function getUserId(): string | undefined {
 }
 
 export const salaryRepository = {
-  async listImports(financialYear?: number): Promise<SalaryImport[]> {
-    const scope = getOfficeScope();
-    if (!scope.all && !scope.officeId) throw new Error('No office selected');
-    let q = supabase.from('salary_imports').select('*');
-    if (!scope.all) q = q.eq('office_id', scope.officeId!);
-    q = q.order('created_at', { ascending: false });
-    if (financialYear != null) q = q.eq('financial_year', financialYear);
-    const { data, error } = await q;
-    if (error) throw error;
-    return data || [];
-  },
-
   async createImport(payload: {
     excelFilename: string;
     financialYear: number;
@@ -76,22 +64,6 @@ export const salaryRepository = {
       .upsert(rows, { onConflict: 'employee_id,financial_year,month' });
     if (error) throw error;
     return rows.length;
-  },
-
-  async listByHrpn(hrpn: string, financialYear: number): Promise<EmployeeSalary[]> {
-    const scope = getOfficeScope();
-    if (!scope.all && !scope.officeId) throw new Error('No office selected');
-    let q = supabase
-      .from('employee_salary')
-      .select('*');
-    if (!scope.all) q = q.eq('office_id', scope.officeId!);
-    q = q
-      .eq('hprn_no', hrpn)
-      .eq('financial_year', financialYear)
-      .order('month', { ascending: true });
-    const { data, error } = await q;
-    if (error) throw error;
-    return data || [];
   },
 
   async listLatestByOffice(): Promise<EmployeeSalary[]> {

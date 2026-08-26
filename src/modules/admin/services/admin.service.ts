@@ -1,5 +1,5 @@
 import { adminRepository } from '../repositories/admin.repository';
-import type { UserInfo, Office, CreateUserInput, SystemStats, OfficeStats, OfficeCompletion, DataEntryReportRow, UpdateOfficeInput, ImportHealthRow, OfficeConfig } from '../types';
+import type { UserInfo, Office, CreateUserInput, SystemStats, OfficeStats, OfficeCompletion, DataEntryReportRow, ImportHealthRow, OfficeConfig } from '../types';
 
 export class AdminService {
   async getSystemStats(): Promise<SystemStats> {
@@ -46,18 +46,6 @@ export class AdminService {
       throw new Error('Office name must be at least 2 characters');
     }
     return adminRepository.createOffice(name.trim(), district);
-  }
-
-  async updateOffice(input: UpdateOfficeInput): Promise<string> {
-    if (!input.officeId) throw new Error('Office ID is required');
-    if (!input.name || input.name.trim().length < 2) {
-      throw new Error('Office name must be at least 2 characters');
-    }
-    return adminRepository.updateOffice({
-      officeId: input.officeId,
-      name: input.name.trim(),
-      district: input.district,
-    });
   }
 
   async createUser(input: CreateUserInput): Promise<string> {

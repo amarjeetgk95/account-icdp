@@ -33,6 +33,10 @@ export const PAYBILL_DEDUCTION_COLUMNS: PayBillMonthlyMatrixColumn[] = [
   { key: 'netPay', label: 'Net Pay', group: 'DEDUCTION' },
 ];
 
+import { establishmentService } from '@/modules/establishment/services/establishment.service';
+import { servesInMonth } from '@/modules/establishment/types';
+import type { EstablishmentEmployee } from '@/modules/establishment/types';
+
 class PayBillReportService {
   /**
    * Fetch matrix report for a financial year and optional employee HRPN
@@ -47,11 +51,20 @@ class PayBillReportService {
   /**
    * Monthly employee parameter matrix: one row per employee, one column per
    * allowance parameter (earning side followed by deduction side).
+   * Dynamically filters Establishment employees based on joining and transfer dates for this specific month.
    */
   async getMonthlyEmployeeMatrix(
     financialYear: number,
     month: string
   ): Promise<PayBillMonthlyEmployeeMatrixReport> {
+    let estEmployees: EstablishmentEmployee[] = [];
+    try {
+      estEmployees = await establishmentService.syncEmployees();
+      if (!estEmployees || estEmployees.length === 0) estEmployees = establishmentService.loadEmployees();
+    } catch {
+      estEmployees = establishmentService.loadEmployees();
+    }
+
     const [earningsList, deductionsList] = await Promise.all([
       paybillRepository.listEarnings({ financialYear, month }),
       paybillRepository.listDeductions({ financialYear, month }),
@@ -82,6 +95,15 @@ class PayBillReportService {
       }
     };
 
+    // 1. First, populate establishment employees who served in this specific month
+    for (const emp of estEmployees) {
+      const hrpn = (emp.hrpnNo || '').trim();
+      if (!hrpn) continue;
+      if (!servesInMonth(emp, financialYear, month)) continue;
+      upsert(hrpn, emp.name, emp.designation || null, {});
+    }
+
+    // 2. Overlay earnings data for this month
     for (const e of earningsList) {
       upsert(e.hrpn, e.employeeName, e.designation, {
         basicPay: e.basicPay,
@@ -97,6 +119,7 @@ class PayBillReportService {
       });
     }
 
+    // 3. Overlay deductions data for this month
     for (const d of deductionsList) {
       upsert(d.hrpn, d.employeeName, d.designation, {
         incomeTax: d.incomeTax,
@@ -125,48 +148,6 @@ class PayBillReportService {
     }
 
     return { month, financialYear, columns, rows, totals };
-  }
-
-  /**
-   * Export matrix report to CSV
-   */
-  exportToCsv(report: PayBillAllowanceMatrixReport): void {
-    const headers = [
-      'Allowance Parameter',
-      ...report.monthLabels,
-      'Q1',
-      'Q2',
-      'Q3',
-      'Q4',
-      'Total (FY)',
-    ];
-
-    const rows = report.rows.map((r) => [
-      r.parameter,
-      r.months.March,
-      r.months.April,
-      r.months.May,
-      r.months.June,
-      r.months.July,
-      r.months.August,
-      r.months.September,
-      r.months.October,
-      r.months.November,
-      r.months.December,
-      r.months.January,
-      r.months.February,
-      r.q1,
-      r.q2,
-      r.q3,
-      r.q4,
-      r.total,
-    ]);
-
-    const titlePrefix = report.hrpn
-      ? `PayBill_Matrix_${report.hrpn}_FY${report.financialYear}`
-      : `PayBill_Allowance_Matrix_FY${report.financialYear}`;
-
-    downloadCsv(`${titlePrefix}.csv`, headers, rows);
   }
 
   /**

@@ -31,12 +31,6 @@ const moduleDefinition: ModuleDefinition = {
       subtitle: '22 Expenditure items, EDP codes, numbering, and print layout',
     },
     {
-      path: '/settings/establishment',
-      label: 'Establishment & Posts (મહેકમ)',
-      icon: 'users',
-      subtitle: 'Sanctioned strength, cadre-wise posts, and vacant positions',
-    },
-    {
       path: '/settings/tax-rules',
       label: 'Income Tax Slabs (115BAC)',
       icon: 'calculator',

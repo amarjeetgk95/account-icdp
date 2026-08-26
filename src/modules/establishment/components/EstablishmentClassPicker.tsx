@@ -212,8 +212,6 @@ export function EstablishmentClassPicker({
         e.preventDefault();
         if (!open) openPicker();
         setActiveIndex(idx);
-        // optionally auto-select
-        // choose(norm);
       }
     }
   };
@@ -355,9 +353,4 @@ export function EstablishmentClassPicker({
       </span>
     </div>
   );
-}
-
-// Helper to coerce legacy values for display/saving
-export function coerceClassToGujarati(raw?: string | null): string {
-  return normalizeClassValue(raw ?? '');
 }

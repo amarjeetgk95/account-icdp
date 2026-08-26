@@ -10,6 +10,8 @@ import {
 import {
   configToTaxRules,
   taxOnIncome,
+  calculateRebate87A,
+  calculateSurchargeWithMarginalRelief,
   round2,
 } from '@/modules/paybill/services/form16Calculation.service';
 import { toast } from '@/shared/components/Toast';
@@ -195,18 +197,8 @@ export function Form16TaxRulesConfigForm() {
     const stdDed = Math.min(rules.standardDeduction, gross);
     const taxable = Math.max(0, gross - stdDed);
     const rawTax = taxOnIncome(taxable, rules);
-    
-    let rebate87A = 0;
-    if (taxable <= rules.rebate87ALimit && taxable >= rules.basicExemption) {
-      rebate87A = Math.min(rawTax, rules.rebate87AMaxAmount);
-    }
-
-    let surcharge = 0;
-    for (const t of rules.surchargeThresholds) {
-      if (taxable > t.above) surcharge = (rawTax * t.rate) / 100;
-    }
-    surcharge = Math.ceil(surcharge);
-
+    const rebate87A = calculateRebate87A(taxable, rawTax, rules);
+    const surcharge = calculateSurchargeWithMarginalRelief(taxable, rawTax, rules);
     const afterRebate = Math.max(0, rawTax - rebate87A + surcharge);
     const cess = round2(afterRebate * ((rules.cessRate ?? 4) / 100));
     const totalTax = round2(afterRebate + cess);

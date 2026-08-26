@@ -1,7 +1,7 @@
 import { supabase } from '@/core/supabase/client';
 import { rpcArray } from '@/shared/utilities';
 import type { Json } from '@/shared/json.types';
-import type { UserInfo, Office, SystemStats, OfficeStats, OfficeCompletion, DataEntryReportRow, UpdateOfficeInput, ImportHealthRow, OfficeConfig } from '../types';
+import type { UserInfo, Office, SystemStats, OfficeStats, OfficeCompletion, DataEntryReportRow, ImportHealthRow, OfficeConfig } from '../types';
 
 function messageOf(data: Json | null, fallback: string): string {
   if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -96,16 +96,6 @@ export const adminRepository = {
       throw new Error(messageOf(data, 'Failed to create office'));
     }
     return office;
-  },
-
-  async updateOffice(input: UpdateOfficeInput): Promise<string> {
-    const { data, error } = await supabase.rpc('admin_update_office', {
-      office_id: input.officeId,
-      office_name: input.name,
-      office_district: input.district ?? '',
-    });
-    if (error) throw error;
-    return messageOf(data, 'Office updated');
   },
 
   async createUser(email: string, password: string, role: string, officeId: string | null): Promise<string> {

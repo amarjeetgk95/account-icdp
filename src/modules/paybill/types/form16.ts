@@ -21,6 +21,7 @@ export type Form16PartA = {
 };
 
 export type Form16PartB = {
+  grossSalary17_1Override?: number | null;
   perquisites17_2: number;
   profitsInLieu17_3: number;
   otherEmployerSalary: number;
@@ -30,6 +31,7 @@ export type Form16PartB = {
   nps80CCD2: number;
   agnipath80CCH: number;
   relief89: number;
+  tdsDeductedOverride?: number | null;
   taxCollectedAtSource: number;
 };
 
@@ -140,6 +142,48 @@ export interface Form16Certificate {
   updatedAt: string;
 }
 
+export const EMPTY_FORM16_CERTIFICATE = (hrpn: string, fy: number): Form16Certificate => ({
+  id: '',
+  officeId: '',
+  employeeId: null,
+  financialYear: fy,
+  assessmentYear: fy + 1,
+  hrpn,
+  certificateNumber: '',
+  certificateLastUpdated: new Date().toISOString(),
+  status: 'DRAFT',
+  taxRegime: 'NEW',
+  employer: { name: '', address: '', pan: '', tan: '', citTds: '' },
+  employee: { name: '', designation: '', pan: '', hrpn, address: '' },
+  signatory: { name: '', designation: '', place: 'Surat', date: new Date().toISOString().slice(0, 10) },
+  partA: {
+    citTds: '',
+    periodFrom: `01-Apr-${fy}`,
+    periodTo: `31-Mar-${fy + 1}`,
+    quarters: [
+      { quarter: 'Q1', receiptNumber: '', amountPaid: 0, taxDeducted: 0, taxDeposited: 0 },
+      { quarter: 'Q2', receiptNumber: '', amountPaid: 0, taxDeducted: 0, taxDeposited: 0 },
+      { quarter: 'Q3', receiptNumber: '', amountPaid: 0, taxDeducted: 0, taxDeposited: 0 },
+      { quarter: 'Q4', receiptNumber: '', amountPaid: 0, taxDeducted: 0, taxDeposited: 0 },
+    ],
+  },
+  partB: {
+    perquisites17_2: 0,
+    profitsInLieu17_3: 0,
+    otherEmployerSalary: 0,
+    housePropertyIncome: 0,
+    otherSourcesIncome: 0,
+    nps80CCD2: 0,
+    agnipath80CCH: 0,
+    relief89: 0,
+    taxCollectedAtSource: 0,
+  },
+  computedTotals: null,
+  issuedAt: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
+
 /**
  * Office-level defaults shared by every Form 16 certificate of an office
  * (deductor identity + default signing officer). Stored in paybill_settings
@@ -147,6 +191,7 @@ export interface Form16Certificate {
  */
 export interface Form16DeductorDefaults {
   employerName: string;
+  employerAddress?: string;
   employerPan: string;
   employerTan: string;
   citTds: string;
@@ -158,6 +203,7 @@ export interface Form16DeductorDefaults {
 
 export const EMPTY_FORM16_DEDUCTOR_DEFAULTS: Form16DeductorDefaults = {
   employerName: '',
+  employerAddress: '',
   employerPan: '',
   employerTan: '',
   citTds: '',
@@ -196,17 +242,6 @@ export const EMPTY_FORM16_24Q_SETTINGS = (fy: number): Form16Office24QSettings =
     Q4: { receiptNumber: '', filingDate: '' },
   },
 });
-
-export interface Form16SummaryMetrics {
-  totalEmployees: number;
-  draftsCount: number;
-  reviewedCount: number;
-  issuedCount: number;
-  missingPanCount: number;
-  totalGrossSalary: number;
-  totalTdsDeposited: number;
-  totalNetTaxPayable: number;
-}
 
 /**
  * Dynamic Tax Bracket and Rules configuration for New Tax Regime u/s 115BAC.
@@ -260,9 +295,9 @@ export const DEFAULT_TAX_RULES_CONFIG: Form16TaxRulesSettings = {
         { id: 's7', upto: Infinity, rate: 30 },
       ],
       surchargeThresholds: [
-        { id: 'sc1', above: 10000000, rate: 10 },
-        { id: 'sc2', above: 20000000, rate: 15 },
-        { id: 'sc3', above: 50000000, rate: 25 },
+        { id: 'sc1', above: 5000000, rate: 10 },
+        { id: 'sc2', above: 10000000, rate: 15 },
+        { id: 'sc3', above: 20000000, rate: 25 },
       ],
     },
     '2027-28': {
@@ -282,9 +317,9 @@ export const DEFAULT_TAX_RULES_CONFIG: Form16TaxRulesSettings = {
         { id: 's7', upto: Infinity, rate: 30 },
       ],
       surchargeThresholds: [
-        { id: 'sc1', above: 10000000, rate: 10 },
-        { id: 'sc2', above: 20000000, rate: 15 },
-        { id: 'sc3', above: 50000000, rate: 25 },
+        { id: 'sc1', above: 5000000, rate: 10 },
+        { id: 'sc2', above: 10000000, rate: 15 },
+        { id: 'sc3', above: 20000000, rate: 25 },
       ],
     },
     '2025-26': {
@@ -303,9 +338,9 @@ export const DEFAULT_TAX_RULES_CONFIG: Form16TaxRulesSettings = {
         { id: 's6', upto: Infinity, rate: 30 },
       ],
       surchargeThresholds: [
-        { id: 'sc1', above: 10000000, rate: 10 },
-        { id: 'sc2', above: 20000000, rate: 15 },
-        { id: 'sc3', above: 50000000, rate: 25 },
+        { id: 'sc1', above: 5000000, rate: 10 },
+        { id: 'sc2', above: 10000000, rate: 15 },
+        { id: 'sc3', above: 20000000, rate: 25 },
       ],
     },
   },

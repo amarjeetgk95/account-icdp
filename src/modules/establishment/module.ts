@@ -34,5 +34,3 @@ const moduleDefinition: ModuleDefinition = {
 };
 
 export default moduleDefinition;
-
-export const establishmentModuleDefinition = moduleDefinition;

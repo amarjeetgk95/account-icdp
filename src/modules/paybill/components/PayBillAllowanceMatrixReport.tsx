@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Landmark,
   Upload,
+  Trash2,
 } from 'lucide-react';
 import { paybillReportService, PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/paybillReport.service';
 import { paybillExcelService } from '../services/paybillExcel.service';
@@ -14,6 +15,8 @@ import { paybillRepository } from '../repositories/paybill.repository';
 import { orderItems } from '../utils/columnOrder';
 import { PbButton, PbPanel } from './ui';
 import { popupNativePrint } from '@/shared/utilities/nativePrint';
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { toast } from '@/shared/components/Toast';
 import type { PayBillMonthlyEmployeeMatrixReport, PayBillMonthlyMatrixColumn } from '../types';
 
 interface PayBillAllowanceMatrixReportProps {
@@ -46,6 +49,8 @@ export function PayBillAllowanceMatrixReport({
   const [report, setReport] = useState<PayBillMonthlyEmployeeMatrixReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [manualAllowances, setManualAllowances] = useState<string[]>([]);
   const [manualDeductions, setManualDeductions] = useState<string[]>([]);
   const [earningColumnOrder, setEarningColumnOrder] = useState<string[]>([]);
@@ -196,6 +201,21 @@ export function PayBillAllowanceMatrixReport({
     return `₹${Math.round(n).toLocaleString('en-IN')}`;
   };
 
+  const handleDeleteMonth = async () => {
+    setIsDeleting(true);
+    try {
+      await paybillRepository.deleteMonthData(financialYear, selectedMonth);
+      toast.success(`Successfully deleted all paybill records for ${selectedMonth} ${yearFor(selectedMonth)}.`);
+      setConfirmDeleteOpen(false);
+      setIsLoading(true);
+      await loadReport();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Failed to delete data for ${selectedMonth}.`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleExportCsv = () => {
     if (report) {
       paybillReportService.exportMonthlyMatrixCsv(report);
@@ -310,8 +330,43 @@ export function PayBillAllowanceMatrixReport({
             <PbButton variant="secondary" icon={Printer} onClick={handlePrint}>
               Print Report
             </PbButton>
+
+            <PbButton
+              variant="danger"
+              icon={Trash2}
+              onClick={() => setConfirmDeleteOpen(true)}
+              disabled={!report || report.rows.length === 0 || isLoading}
+              title={`Delete all paybill records and imports for ${selectedMonth}`}
+            >
+              Delete Month Data
+            </PbButton>
           </>
         }
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title={`Delete All Data for ${selectedMonth} ${yearFor(selectedMonth)}?`}
+        message={
+          <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+            <p>
+              Are you sure you want to permanently delete all paybill entries, earnings, and deductions for{' '}
+              <strong className="text-rose-600 dark:text-rose-400 font-bold">
+                {selectedMonth} {yearFor(selectedMonth)}
+              </strong>{' '}
+              (FY {fyLabel})?
+            </p>
+            <p className="text-xs text-slate-500">
+              This will remove {employeeCount} employee record{employeeCount === 1 ? '' : 's'} and associated imported bills from the database. This action cannot be undone.
+            </p>
+          </div>
+        }
+        confirmLabel={isDeleting ? 'Deleting...' : 'Yes, Delete Month Data'}
+        cancelLabel="Cancel"
+        danger
+        busy={isDeleting}
+        onConfirm={handleDeleteMonth}
+        onCancel={() => setConfirmDeleteOpen(false)}
       />
 
       {/* Main Matrix Table — print target (table only) */}

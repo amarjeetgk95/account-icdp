@@ -255,29 +255,11 @@ export const PAY_SCALE_CATALOG: PayScaleMapping[] = [
   },
 ];
 
-export function findPayScaleMappingByGradePay(gradePayStr?: string): PayScaleMapping | null {
-  if (!gradePayStr) return null;
-  const cleaned = gradePayStr.replace(/\s+/g, '').toUpperCase();
-  // Extract number from GP string (e.g. "GP:4200" or "4200" or "GP4200")
-  const match = cleaned.match(/(\d{4,5})/);
-  if (!match) return null;
-  const num = match[1];
-
-  // Specific check for 5400 PB-3 vs PB-2
-  if (num === '5400') {
-    if (cleaned.includes('PB3') || cleaned.includes('PB-3') || cleaned.includes('10')) {
-      return PAY_SCALE_CATALOG.find((p) => p.id === 'gp-5400-pb3') ?? null;
-    }
-    return PAY_SCALE_CATALOG.find((p) => p.id === 'gp-5400-pb2') ?? null;
-  }
-
-  return (
-    PAY_SCALE_CATALOG.find(
-      (p) =>
-        p.gradePay.replace(/\s+/g, '').toUpperCase().includes(num) ||
-        p.id.includes(num)
-    ) ?? null
-  );
+export function findPayScaleMappingByGradePay(gpStr?: string): PayScaleMapping | null {
+  if (!gpStr) return null;
+  const num = gpStr.replace(/[^0-9]/g, '');
+  if (!num) return null;
+  return PAY_SCALE_CATALOG.find((p) => p.gradePay.includes(num)) ?? null;
 }
 
 export function findPayScaleMappingByScale(scaleStr?: string): PayScaleMapping | null {
@@ -431,21 +413,6 @@ export function resolveDARateForMonthKey(
   }
   // Fallback: try to parse as month start via split
   return normalizeDARates(rates)[0]?.rate ?? DEFAULT_DA_PERCENT;
-}
-
-export function getEffectiveDARateOnOrBefore(
-  rates: DARateEntry[] | null | undefined,
-  isoDate: string
-): DARateEntry | null {
-  const norm = normalizeDARates(rates);
-  if (norm.length === 0) return null;
-  let best: DARateEntry | null = null;
-  for (const entry of norm) {
-    if (entry.effectiveFrom <= isoDate && (!best || entry.effectiveFrom > best.effectiveFrom)) {
-      best = entry;
-    }
-  }
-  return best ?? norm[0];
 }
 
 export function calculateNPS(currentPay: number, da: number): number {

@@ -427,30 +427,3 @@ export function popupNativePrint(options: NativePrintOptions): Window | null {
   return printWindow;
 }
 
-/**
- * Helper to print a single container element or ID
- */
-export function printElement(
-  elementOrId: string | HTMLElement,
-  options?: Partial<NativePrintOptions>
-): Window | null {
-  const el = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
-  if (!el) return null;
-  return popupNativePrint({
-    elements: [el],
-    ...options,
-  });
-}
-
-/**
- * Helper to print multiple container elements or IDs in a single print job
- */
-export function printMultipleContainers(
-  containers: (string | HTMLElement)[],
-  options?: Partial<NativePrintOptions>
-): Window | null {
-  return popupNativePrint({
-    elements: containers,
-    ...options,
-  });
-}

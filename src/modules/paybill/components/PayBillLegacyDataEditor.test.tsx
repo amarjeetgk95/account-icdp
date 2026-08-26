@@ -61,6 +61,7 @@ describe('PayBillLegacyDataEditor', () => {
 
     vi.spyOn(paybillRepository, 'listDeductions').mockResolvedValue([]);
     vi.spyOn(paybillRepository, 'getOrCreateManualImport').mockResolvedValue('manual-import-1');
+    vi.spyOn(paybillRepository, 'getOrCreateAllManualImports').mockResolvedValue({});
     vi.spyOn(paybillRepository, 'getManualLedgerValues').mockResolvedValue({
       '20014113': {
         'DA Difference': { April: 2500 },

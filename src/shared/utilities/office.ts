@@ -41,13 +41,16 @@ export async function resolveOfficeIdForUser(userId: string): Promise<string | n
 
 export function getOfficeId(): string | null {
   // Admins are not scoped to a single office.
-  const user = useAuthStore.getState().user;
+  const user = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState().user : null;
   if (user?.role === 'admin') return null;
 
   // The UI-selected office (admin office selector, or the office initialised
   // from the user's profile at sign-in) takes precedence. It is only ever set
   // explicitly for a signed-in user, so it cannot leak across accounts.
-  const uiOfficeId = useUIStore.getState().activeOfficeId || null;
+  const uiOfficeId =
+    typeof useUIStore?.getState === 'function'
+      ? useUIStore.getState().activeOfficeId || null
+      : null;
   if (uiOfficeId && uiOfficeId !== ALL_OFFICES_ID) return uiOfficeId;
   return user?.officeId || null;
 }
@@ -60,9 +63,13 @@ export const ALL_OFFICES_ID = '__all__';
 
 export function isAllOfficesMode(): boolean {
   // Admins always see merged data across all offices.
-  const user = useAuthStore.getState().user;
+  const user = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState().user : null;
   if (user?.role === 'admin') return true;
-  return useUIStore.getState().activeOfficeId === ALL_OFFICES_ID;
+  const uiOfficeId =
+    typeof useUIStore?.getState === 'function'
+      ? useUIStore.getState().activeOfficeId
+      : null;
+  return uiOfficeId === ALL_OFFICES_ID;
 }
 
 export interface OfficeScope {

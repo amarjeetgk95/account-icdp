@@ -105,6 +105,3 @@ export function validateGTR30CrossPages(data: GTR30FormData): GTR30ValidationWar
   return warnings;
 }
 
-export function hasBlockingErrors(warnings: GTR30ValidationWarning[]): boolean {
-  return warnings.some((w) => w.severity === 'error');
-}

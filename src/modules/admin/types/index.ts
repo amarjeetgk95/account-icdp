@@ -108,11 +108,3 @@ export interface CreateUserInput {
   officeName?: string;
 }
 
-export interface UpdateOfficeInput {
-  officeId: string;
-  name: string;
-  district: string | null;
-}
-
-export type UserInviteMethod = 'password' | 'invite';
-

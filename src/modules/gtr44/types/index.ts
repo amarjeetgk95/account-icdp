@@ -183,13 +183,6 @@ interface Deduction {
   amount: number;
 }
 
-export interface EDPCode {
-  code: string;
-  nameEn: string;
-  nameGu: string;
-  edpNumber?: string;
-}
-
 export interface GTR44EDPCode {
   code: string;
   nameEn: string;

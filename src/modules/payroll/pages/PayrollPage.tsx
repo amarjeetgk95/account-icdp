@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import { useUIStore } from '@/core/stores/ui-store';
 import { payrollService } from '../services/payroll.service';
 import { useRoster, useSaveSalary, useQuarterReport, useMonthDataCheck, useClearMonth } from '../hooks/usePayroll';
@@ -33,7 +33,6 @@ import {
 type Mode = 'entry' | 'report' | 'reconciliation' | 'employees' | 'budget' | 'lookup';
 
 export function PayrollPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { tab } = useParams<{ tab: string }>();
   const validModes: Mode[] = ['entry', 'report', 'reconciliation', 'employees', 'budget', 'lookup'];
@@ -350,21 +349,10 @@ export function PayrollPage() {
                   type="button"
                   onClick={() => setShowExcelImport(true)}
                   className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-sm hover:shadow-md transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-                  title="Import pension/bank payout Excel sheet"
+                  title="Upload the salary/pension Excel file downloaded from the Karmayogi portal"
                 >
                   <FileSpreadsheet size={15} />
                   <span>Excel Import</span>
-                </button>
-
-                {/* Pay Bill PDF Import Button */}
-                <button
-                  type="button"
-                  onClick={() => navigate('/paybill/matrix')}
-                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs shadow-sm hover:shadow-md transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-                  title="Upload Pay Bill Inner Sheet PDF (Earning Side)"
-                >
-                  <FileText size={15} />
-                  <span>PDF Pay Bill Import</span>
                 </button>
 
                 <button
@@ -555,7 +543,7 @@ export function PayrollPage() {
       <PreviewModal
         isOpen={showExcelImport}
         onClose={() => setShowExcelImport(false)}
-        title="Excel Salary Import"
+        title="Karmayogi Portal Excel Salary Import"
       >
         <SalaryExcelImport onImported={handleImported} />
       </PreviewModal>

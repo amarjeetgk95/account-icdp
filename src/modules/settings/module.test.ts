@@ -22,7 +22,7 @@ describe('settings module contract', () => {
     expect(childPaths).toContain('/settings/office');
     expect(childPaths).toContain('/settings/gtr30');
     expect(childPaths).toContain('/settings/gtr44');
-    expect(childPaths).toContain('/settings/establishment');
+    expect(childPaths).not.toContain('/settings/establishment');
     expect(childPaths).toContain('/settings/tax-rules');
     expect(childPaths).toContain('/settings/form16');
   });

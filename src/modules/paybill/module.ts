@@ -14,7 +14,6 @@ const moduleDefinition: ModuleDefinition = {
   children: [
     { path: '/paybill/matrix', label: 'Monthly Register', icon: 'bar-chart' },
     { path: '/paybill/employee', label: 'Employee Ledger', icon: 'user' },
-    { path: '/paybill/legacy-edit', label: 'Legacy Data Editor', icon: 'edit' },
     { path: '/paybill/form16', label: 'Form-16', icon: 'file-text' },
     { path: '/paybill/history', label: 'Import History', icon: 'history' },
     { path: '/paybill/components', label: 'Component Master', icon: 'layers' },

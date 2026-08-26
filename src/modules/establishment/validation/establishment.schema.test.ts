@@ -3,7 +3,6 @@ import {
   establishmentEmployeeDbSchema,
   establishmentListDbSchema,
   establishmentPostsDbSchema,
-  establishmentBackfillDbSchema,
 } from './establishment.schema';
 
 describe('establishmentEmployeeDbSchema', () => {
@@ -113,15 +112,5 @@ describe('establishmentPostDbSchema', () => {
   it('rejects negative sanctioned counts', () => {
     const result = establishmentPostsDbSchema.safeParse([{ id: 'p1', sanctioned: -1 }]);
     expect(result.success).toBe(false);
-  });
-});
-
-describe('establishmentBackfillDbSchema', () => {
-  it('parses backfill results', () => {
-    const result = establishmentBackfillDbSchema.safeParse({ inserted: 5, updated: 0, total: 5 });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.inserted).toBe(5);
-    }
   });
 });

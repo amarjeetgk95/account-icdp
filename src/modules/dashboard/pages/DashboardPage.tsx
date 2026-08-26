@@ -12,7 +12,7 @@ import {
   Landmark,
   ListTodo,
 } from 'lucide-react';
-import { StatCard } from '../components/StatCard';
+import { StatCard } from '@/shared/components/StatCard';
 import { QuickLaunchDock } from '../components/QuickLaunchDock';
 import { SalaryMatrixQuadrant } from '../components/SalaryMatrixQuadrant';
 import { TreasuryBillsQuadrant } from '../components/TreasuryBillsQuadrant';
@@ -226,8 +226,6 @@ export function DashboardPage() {
           {/* Quadrant 1: Salary TDS & 12-Month IT Matrix */}
           <SalaryMatrixQuadrant
             roadmap={data.monthlyRoadmap ?? []}
-            currentMonthName={data.entryMonthName}
-            activeEmployees={data.activeEmployees ?? 0}
             pendingEmployees={data.pendingEmployees ?? 0}
           />
 
@@ -240,7 +238,6 @@ export function DashboardPage() {
           {/* Quadrant 3: Vendor TDS (26Q) & GST */}
           <VendorTdsQuadrant
             vendorTds={data.vendorTds}
-            fy={data.fy}
           />
 
           {/* Quadrant 4: Compliance Audit & Utilities */}

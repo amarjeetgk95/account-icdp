@@ -4,25 +4,16 @@ import { gtr30BillCodeMappingsBackendRepository } from '../repositories/gtr30Bil
 
 const SYNC_DEBOUNCE_MS = 600;
 
-export type Gtr30BillCodeMappingsSyncPhase = 'idle' | 'pending' | 'syncing' | 'synced' | 'error';
+export type Gtr30BillCodeMappingsSyncPhase = 'idle' | 'syncing' | 'synced' | 'error';
 
 let billCodeMappingsSyncPhase: Gtr30BillCodeMappingsSyncPhase = 'idle';
-const billCodeMappingsSyncListeners = new Set<() => void>();
 
 function setBillCodeMappingsSyncPhase(phase: Gtr30BillCodeMappingsSyncPhase): void {
   billCodeMappingsSyncPhase = phase;
-  for (const listener of billCodeMappingsSyncListeners) listener();
 }
 
-export function getGtr30BillCodeMappingsSyncStatus(): Gtr30BillCodeMappingsSyncPhase {
+function getBillCodeMappingsSyncStatusInternal(): Gtr30BillCodeMappingsSyncPhase {
   return billCodeMappingsSyncPhase;
-}
-
-export function subscribeGtr30BillCodeMappingsSync(listener: () => void): () => void {
-  billCodeMappingsSyncListeners.add(listener);
-  return () => {
-    billCodeMappingsSyncListeners.delete(listener);
-  };
 }
 
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -87,9 +78,9 @@ class Gtr30BillCodeMappingsService {
     if (remote === null) return;
 
     const local = this.list();
-    const phase = getGtr30BillCodeMappingsSyncStatus();
+    const phase = getBillCodeMappingsSyncStatusInternal();
 
-    if (phase === 'pending' || phase === 'syncing' || phase === 'error') {
+    if (phase === 'syncing' || phase === 'error') {
       return;
     }
 

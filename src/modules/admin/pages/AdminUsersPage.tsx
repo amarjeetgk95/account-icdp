@@ -251,5 +251,3 @@ export function AdminUsersPage() {
     </AdminLayout>
   );
 }
-
-export default AdminUsersPage;

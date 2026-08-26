@@ -253,7 +253,7 @@ export function Header({ modules }: HeaderProps) {
 
   // Dynamic scroll shadow — listens to the main content area
   useEffect(() => {
-    const main = document.querySelector('main .app-scroll');
+    const main = document.querySelector('main.app-scroll') || document.querySelector('main .app-scroll') || document.querySelector('main');
     if (!main) return;
     const onScroll = () => setScrolled(main.scrollTop > 4);
     main.addEventListener('scroll', onScroll);

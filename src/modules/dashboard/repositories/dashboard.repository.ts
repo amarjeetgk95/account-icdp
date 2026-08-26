@@ -5,14 +5,12 @@ import { MONTHS, QUARTER_MONTHS, type Quarter } from '@/shared/constants';
 import { isActiveInEntryMonth } from '@/modules/payroll/utils/employeeDates';
 import { gtr30BillRegisterRepository } from '@/modules/gtr30/repositories/billRegister.repository';
 import { gtr44BillsBackendRepository } from '@/modules/gtr44/repositories/gtr44BillsBackend.repository';
-import { paybillRepository } from '@/modules/paybill/repositories/paybill.repository';
 import type {
   DashboardData,
   MonthlyRoadmapData,
   Task,
   TreasurySummary,
   VendorTdsSummary,
-  PaybillSummary,
   StatutoryDeadlineInfo,
 } from '../types';
 
@@ -122,11 +120,6 @@ function calculateStatutoryDeadlines(fy: number, currentQuarter: Quarter): Statu
   const diffTime = filingDeadlineDate.getTime() - now.getTime();
   const daysUntilFiling = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  let currentQuarterStatus: StatutoryDeadlineInfo['currentQuarterStatus'] = 'on-track';
-  if (daysUntilFiling < 0) currentQuarterStatus = 'overdue';
-  else if (daysUntilFiling <= 14) currentQuarterStatus = 'due-soon';
-  else if (daysUntilFiling <= 30) currentQuarterStatus = 'approaching';
-
   const nextQuarterFilingDate = filingDeadlineDate.toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
@@ -138,7 +131,6 @@ function calculateStatutoryDeadlines(fy: number, currentQuarter: Quarter): Statu
     nextQuarterFilingDate,
     nextQuarterName: `Form 24Q/26Q (${currentQuarter})`,
     daysUntilFiling,
-    currentQuarterStatus,
   };
 }
 
@@ -165,7 +157,7 @@ export const dashboardRepository = {
     if (salError) throw salError;
 
     // 2. Fetch Cross-Module Data in parallel with graceful fallbacks
-    const [gtr30Result, gtr44Result, partiesResult, partyTxResult, paybillImportsResult] =
+    const [gtr30Result, gtr44Result, partiesResult, partyTxResult] =
       await Promise.allSettled([
         gtr30BillRegisterRepository.list(),
         gtr44BillsBackendRepository.list(),
@@ -184,14 +176,12 @@ export const dashboardRepository = {
           const { data } = await q;
           return (data || []) as PartyTxRow[];
         })(),
-        paybillRepository.listImports(fy),
       ]);
 
     // Parse Treasury summaries
     let treasury: TreasurySummary = {
       gtr30Count: 0,
       gtr30GrossTotal: 0,
-      gtr30NetTotal: 0,
       gtr30PendingCount: 0,
       gtr44Count: 0,
       gtr44GrossTotal: 0,
@@ -202,7 +192,6 @@ export const dashboardRepository = {
       const bills = gtr30Result.value;
       treasury.gtr30Count = bills.length;
       treasury.gtr30GrossTotal = money(bills.reduce((sum, b) => sum + (Number(b.grossTotal) || 0), 0));
-      treasury.gtr30NetTotal = money(bills.reduce((sum, b) => sum + (Number(b.netTotal) || 0), 0));
       treasury.gtr30PendingCount = bills.filter((b) => b.status !== 'passed').length;
     }
 
@@ -232,22 +221,6 @@ export const dashboardRepository = {
       vendorTds.totalVendorAmount = money(txs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0));
       vendorTds.totalVendorIncomeTax = money(txs.reduce((sum, t) => sum + (Number(t.income_tax) || 0), 0));
       vendorTds.totalGstTds = money(txs.reduce((sum, t) => sum + (Number(t.total_gst) || 0), 0));
-    }
-
-    // Parse Paybill Import summaries
-    let paybillStats: PaybillSummary = {
-      importedBatchesCount: 0,
-      lastImportedMonth: null,
-      totalEarningsRecorded: 0,
-    };
-
-    if (paybillImportsResult.status === 'fulfilled' && Array.isArray(paybillImportsResult.value)) {
-      const imports = paybillImportsResult.value;
-      paybillStats.importedBatchesCount = imports.length;
-      if (imports.length > 0) {
-        paybillStats.lastImportedMonth = imports[0].month;
-        paybillStats.totalEarningsRecorded = imports.reduce((sum, i) => sum + (i.totalRecords || 0), 0);
-      }
     }
 
     // 3. Process Payroll & Salary Roster
@@ -454,7 +427,6 @@ export const dashboardRepository = {
       entryMonthName,
       treasury,
       vendorTds,
-      paybillStats,
       statutoryDeadlines,
     };
   },

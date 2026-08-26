@@ -1,4 +1,4 @@
-import { GTR44FormData, GTR44Entry, GTR44ObjectExpenditureItem, GTR44BudgetHead, GTR44EDPCode, GTR44DeductionTemplate, GTR44NumberingSettings, GTR44PrintSettings } from '../types';
+import { GTR44FormData, GTR44Entry, GTR44ObjectExpenditureItem, GTR44EDPCode, GTR44DeductionTemplate, GTR44NumberingSettings, GTR44PrintSettings } from '../types';
 
 export const DEFAULT_EXPENDITURE_ITEMS: GTR44ObjectExpenditureItem[] = [
   { code: '0200', name: 'Wages', edpCode: '0 2 0 1 +', amount: null, nameGu: '', isActive: true, sortOrder: 0 },
@@ -99,10 +99,6 @@ export const EDP_CODE_SUGGESTIONS: string[] = Array.from(
     // GST deduction does not have a fixed EDP minus code — GST is handled separately on Page 3
   ])
 );
-
-export function normalizeEDPCodeEntry(code: string): string {
-  return String(code ?? '').trim().toUpperCase().replace(/\s+/g, '');
-}
 
 export function normalizeDeductionTemplate(template: GTR44DeductionTemplate): GTR44DeductionTemplate {
   return {
@@ -321,42 +317,6 @@ export const DEFAULT_GTR44_FORM_DATA: GTR44FormData = {
   agTotalAmount: 7320,
   agAdmittedAmount: 7320,
 };
-
-// Budget Head defaults — extended with versioned fields (isActive, effectiveFrom/To, grantRef, updatedAt/By)
-// Kept for backward compat: existing bills with old heads (without new fields) still load via store normalization
-export const DEFAULT_BUDGET_HEADS_EXTENDED: GTR44BudgetHead[] = [
-  {
-    id: 'bh-1',
-    name: 'ANH-06 Intensive Cattle Development Programme',
-    headChargeableCode: '2403001020500',
-    sector: 'C-Economic Services',
-    demandNo: '04',
-    demandNoLabel: '004',
-    majorHead: '2403 Animal Husbandry',
-    subMajorHead: '00',
-    minorHead: '102 Cattle and Buffalo Development',
-    subHead: '05 ANH-06 Intensive Cattle Development Programme',
-    detailedHead: '00',
-    isActive: true,
-    effectiveFrom: undefined,
-    effectiveTo: undefined,
-    grantRef: undefined,
-    updatedAt: new Date().toISOString().split('T')[0],
-    updatedBy: undefined,
-  },
-];
-
-export function normalizeBudgetHeadDefaults(head: GTR44BudgetHead): GTR44BudgetHead {
-  return {
-    ...head,
-    isActive: head.isActive ?? true,
-    effectiveFrom: head.effectiveFrom ?? undefined,
-    effectiveTo: head.effectiveTo ?? undefined,
-    grantRef: head.grantRef ?? undefined,
-    updatedAt: head.updatedAt ?? undefined,
-    updatedBy: head.updatedBy ?? undefined,
-  };
-}
 
 // S5 Numbering & Series defaults
 export const DEFAULT_GTR44_NUMBERING_SETTINGS: GTR44NumberingSettings = {

@@ -11,8 +11,6 @@ import type { MonthlyRoadmapData } from '../types';
 
 interface SalaryMatrixQuadrantProps {
   roadmap: MonthlyRoadmapData[];
-  currentMonthName?: string;
-  activeEmployees?: number;
   pendingEmployees: number;
 }
 

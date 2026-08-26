@@ -8,10 +8,8 @@ import {
   monthStart,
   monthEnd,
   monthStartFromKey,
-  monthKeyFromDate,
   formatDate,
   normalizePayEntries,
-  resolveBasicPayForDate,
   resolveBasicPayForMonth,
 } from './gtr30PayMatrix';
 
@@ -45,11 +43,6 @@ describe('date helpers', () => {
     expect(monthStartFromKey('April-2026')).toBe('2026-04-01');
     expect(monthStartFromKey('March-2027')).toBe('2027-03-01');
     expect(monthStartFromKey('garbage')).toBeNull();
-  });
-
-  it('monthKeyFromDate round-trips', () => {
-    expect(monthKeyFromDate('2026-07-01')).toBe('July-2026');
-    expect(monthKeyFromDate('2026-04-15')).toBe('April-2026');
   });
 
   it('formatDate renders DD-MM-YYYY', () => {
@@ -110,23 +103,6 @@ describe('normalizePayEntries', () => {
   it('handles null/undefined input', () => {
     expect(normalizePayEntries(null)).toEqual([]);
     expect(normalizePayEntries(undefined)).toEqual([]);
-  });
-});
-
-describe('resolveBasicPayForDate', () => {
-  const entries = [
-    { id: 'a', startDate: '2026-07-01', basicPay: 39900 },
-    { id: 'b', startDate: '2027-02-01', basicPay: 42500 },
-  ];
-
-  it('returns the active entry on an exact date', () => {
-    expect(resolveBasicPayForDate(entries, '2026-07-01')?.basicPay).toBe(39900);
-    expect(resolveBasicPayForDate(entries, '2027-02-01')?.basicPay).toBe(42500);
-  });
-
-  it('falls back to the latest entry with startDate <= date', () => {
-    expect(resolveBasicPayForDate(entries, '2026-06-15')?.basicPay).toBe(39900);
-    expect(resolveBasicPayForDate(entries, '2027-06-15')?.basicPay).toBe(42500);
   });
 });
 

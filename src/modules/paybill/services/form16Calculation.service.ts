@@ -2,6 +2,7 @@ import {
   DEFAULT_TAX_RULES_CONFIG,
   type Form16Certificate,
   type Form16ComputedTotals,
+  type Form16PartA,
   type Form16PartB,
   type Form16TaxRulesSettings,
   type AssessmentYearTaxConfig,
@@ -25,17 +26,33 @@ export interface TaxRules {
 }
 
 export function configToTaxRules(cfg: AssessmentYearTaxConfig): TaxRules {
+  const rawSlabs = cfg.slabs || [];
   return {
     ay: cfg.ay,
-    slabs: cfg.slabs.map((s) => ({ upto: Number(s.upto), rate: Number(s.rate) })),
-    basicExemption: Number(cfg.basicExemption),
-    standardDeduction: Number(cfg.standardDeduction),
-    rebate87ALimit: Number(cfg.rebate87ALimit),
-    rebate87AMaxAmount: Number(cfg.rebate87AMaxAmount),
+    slabs: rawSlabs.map((s, idx) => {
+      const isLast = idx === rawSlabs.length - 1;
+      const rawUpto = s.upto;
+      const upto =
+        rawUpto === null ||
+        rawUpto === undefined ||
+        rawUpto === 0 ||
+        rawUpto === Infinity ||
+        (isLast && (Number(rawUpto) <= 0 || !isFinite(Number(rawUpto))))
+          ? Infinity
+          : Number(rawUpto);
+      return {
+        upto,
+        rate: Number(s.rate) || 0,
+      };
+    }),
+    basicExemption: Number(cfg.basicExemption) || 0,
+    standardDeduction: Number(cfg.standardDeduction) || 0,
+    rebate87ALimit: Number(cfg.rebate87ALimit) || 0,
+    rebate87AMaxAmount: Number(cfg.rebate87AMaxAmount) || 0,
     cessRate: Number(cfg.cessRate) || 4,
-    surchargeThresholds: cfg.surchargeThresholds.map((sc) => ({
-      above: Number(sc.above),
-      rate: Number(sc.rate),
+    surchargeThresholds: (cfg.surchargeThresholds || []).map((sc) => ({
+      above: Number(sc.above) || 0,
+      rate: Number(sc.rate) || 0,
     })),
   };
 }
@@ -55,10 +72,6 @@ export function setActiveTaxRulesConfig(config: Form16TaxRulesSettings | null | 
   }
 }
 
-export function getActiveTaxRulesConfig(): Form16TaxRulesSettings {
-  return activeTaxRulesConfig;
-}
-
 export const DEFAULT_AY = '2026-27';
 
 /** Latest AY key present in rules (sorted ascending). */
@@ -66,11 +79,6 @@ export function latestConfiguredAy(customSettings?: Form16TaxRulesSettings | nul
   const source = customSettings?.assessmentYears || activeTaxRulesConfig.assessmentYears || DEFAULT_TAX_RULES_CONFIG.assessmentYears;
   const keys = Object.keys(source).sort();
   return keys[keys.length - 1] || DEFAULT_AY;
-}
-
-export function hasTaxRules(assessmentYear: string | number, customSettings?: Form16TaxRulesSettings | null): boolean {
-  const source = customSettings?.assessmentYears || activeTaxRulesConfig.assessmentYears || DEFAULT_TAX_RULES_CONFIG.assessmentYears;
-  return Object.prototype.hasOwnProperty.call(source, String(assessmentYear));
 }
 
 export function getTaxRules(
@@ -106,14 +114,97 @@ export function taxOnIncome(taxableIncome: number, rules: TaxRules): number {
   let remaining = Math.max(0, taxableIncome);
   let prev = 0;
   let tax = 0;
-  for (const slab of rules.slabs) {
-    const span = Math.min(remaining, slab.upto - prev);
+  for (let i = 0; i < rules.slabs.length; i++) {
+    const slab = rules.slabs[i];
+    const isLast = i === rules.slabs.length - 1;
+    const slabUpto =
+      slab.upto == null || slab.upto <= 0 || !isFinite(slab.upto) || isLast
+        ? Infinity
+        : Number(slab.upto);
+
+    const span = Math.min(remaining, slabUpto - prev);
     if (span <= 0) break;
-    tax += (span * slab.rate) / 100;
+    tax += (span * (Number(slab.rate) || 0)) / 100;
     remaining -= span;
-    prev = slab.upto;
+    prev = slabUpto;
+    if (remaining <= 0) break;
   }
   return Math.ceil(tax);
+}
+
+/**
+ * Calculates Section 87A rebate with statutory marginal relief under Section 87A proviso.
+ */
+export function calculateRebate87A(
+  taxableIncome: number,
+  taxOnIncomeAmount: number,
+  rules: TaxRules
+): number {
+  if (taxableIncome < rules.basicExemption || taxOnIncomeAmount <= 0) {
+    return 0;
+  }
+
+  // 1. Full rebate within threshold
+  if (taxableIncome <= rules.rebate87ALimit) {
+    return Math.min(taxOnIncomeAmount, rules.rebate87AMaxAmount);
+  }
+
+  // 2. Marginal relief under Section 87A proviso (New Tax Regime)
+  // Tax payable cannot exceed excess taxable income above rebate limit
+  const excessIncome = taxableIncome - rules.rebate87ALimit;
+  if (taxOnIncomeAmount > excessIncome) {
+    const marginalRebate = taxOnIncomeAmount - excessIncome;
+    return Math.min(taxOnIncomeAmount, Math.max(0, Math.ceil(marginalRebate)));
+  }
+
+  return 0;
+}
+
+/**
+ * Calculates Income Tax Surcharge with statutory Marginal Relief for High-Net-Worth individuals.
+ */
+export function calculateSurchargeWithMarginalRelief(
+  taxableIncome: number,
+  taxOnIncomeAmount: number,
+  rules: TaxRules
+): number {
+  if (!rules.surchargeThresholds || rules.surchargeThresholds.length === 0 || taxOnIncomeAmount <= 0) {
+    return 0;
+  }
+
+  const sorted = [...rules.surchargeThresholds].sort((a, b) => a.above - b.above);
+
+  let activeThreshold: { above: number; rate: number } | null = null;
+  for (const t of sorted) {
+    if (taxableIncome > t.above) {
+      activeThreshold = t;
+    }
+  }
+
+  if (!activeThreshold || activeThreshold.rate <= 0) {
+    return 0;
+  }
+
+  const rawSurcharge = (taxOnIncomeAmount * activeThreshold.rate) / 100;
+  const totalTaxWithRawSurcharge = taxOnIncomeAmount + rawSurcharge;
+
+  // Marginal relief check:
+  // (Tax on threshold limit) + (Prior surcharge on threshold limit) + (Excess income over threshold)
+  const taxAtThreshold = taxOnIncome(activeThreshold.above, rules);
+  const priorThreshold = sorted.filter((t) => t.above < activeThreshold!.above).pop();
+  const priorSurchargeAtThreshold = priorThreshold
+    ? (taxAtThreshold * priorThreshold.rate) / 100
+    : 0;
+
+  const maxTotalPayable =
+    taxAtThreshold + priorSurchargeAtThreshold + (taxableIncome - activeThreshold.above);
+
+  if (totalTaxWithRawSurcharge > maxTotalPayable) {
+    const relievedSurcharge = Math.max(0, maxTotalPayable - taxOnIncomeAmount);
+    return Math.ceil(relievedSurcharge);
+  }
+
+  return Math.ceil(rawSurcharge);
 }
 
 export interface ComputeForm16Input {
@@ -122,6 +213,7 @@ export interface ComputeForm16Input {
   taxRegime: TaxRegime;
   earnings: Pick<PayBillStoredEarning, 'grossAmount'>[];
   deductions: Pick<PayBillStoredDeduction, 'incomeTax'>[];
+  partA?: Partial<Form16PartA>;
   partB: Partial<Form16PartB>;
   taxRulesSettings?: Form16TaxRulesSettings | null;
 }
@@ -130,10 +222,11 @@ export function computeForm16Totals(input: ComputeForm16Input): Form16ComputedTo
   const ayKey = input.assessmentYear ?? assessmentYearFor(input.financialYear);
   const rules = getTaxRules(ayKey, input.taxRegime, input.taxRulesSettings);
 
-  // 1. Gross Salary
+  // 1. Gross Salary (Strictly fetched from Paybill Employee Ledger with respect to HRPN)
   const grossSalary17_1 = round2(
     input.earnings.reduce((s, e) => s + (Number(e.grossAmount) || 0), 0)
   );
+
   const perquisites17_2 = round2(Number(input.partB?.perquisites17_2) || 0);
   const profitsInLieu17_3 = round2(Number(input.partB?.profitsInLieu17_3) || 0);
   const totalGrossSalary1d = round2(grossSalary17_1 + perquisites17_2 + profitsInLieu17_3);
@@ -173,23 +266,13 @@ export function computeForm16Totals(input: ComputeForm16Input): Form16ComputedTo
   // 11. Tax on total income
   const taxOnTotalIncome = taxOnIncome(totalTaxableIncome, rules);
 
-  // 12. Rebate under section 87A
-  let rebate87A = 0;
-  if (
-    totalTaxableIncome <= rules.rebate87ALimit &&
-    totalTaxableIncome >= rules.basicExemption
-  ) {
-    rebate87A = Math.min(taxOnTotalIncome, rules.rebate87AMaxAmount);
-  }
+  // 12. Rebate under section 87A (with marginal relief)
+  const rebate87A = calculateRebate87A(totalTaxableIncome, taxOnTotalIncome, rules);
 
-  // 13. Surcharge
-  let surcharge = 0;
-  for (const t of rules.surchargeThresholds) {
-    if (totalTaxableIncome > t.above) surcharge = (taxOnTotalIncome * t.rate) / 100;
-  }
-  surcharge = Math.ceil(surcharge);
+  // 13. Surcharge (with marginal relief)
+  const surcharge = calculateSurchargeWithMarginalRelief(totalTaxableIncome, taxOnTotalIncome, rules);
 
-  // 14. Health and education cess
+  // 14. Health and education cess (4%)
   const afterRebate = Math.max(0, taxOnTotalIncome - rebate87A + surcharge);
   const cessRate = (rules.cessRate ?? 4) / 100;
   const cess4 = round2(afterRebate * cessRate);
@@ -200,9 +283,9 @@ export function computeForm16Totals(input: ComputeForm16Input): Form16ComputedTo
   // 16. Less: Relief under section 89
   const relief89 = round2(Number(input.partB?.relief89) || 0);
 
-  // 17. Less: Tax deducted at source
+  // 17. Less: Tax deducted at source (Strictly fetched from Paybill Employee Ledger with respect to HRPN)
   const tdsDeducted = round2(
-    input.deductions.reduce((s, d) => s + (Number(d.incomeTax) || 0), 0)
+    (input.deductions || []).reduce((s, d) => s + (Number(d.incomeTax) || 0), 0)
   );
 
   // 18. Less: Tax collected at source
@@ -254,6 +337,64 @@ export const QUARTER_MONTHS: Record<string, string[]> = {
   Q3: ['September', 'October', 'November'],
   Q4: ['December', 'January', 'February'],
 };
+
+export interface PayrollMonthlySalaryRecord {
+  month: string;
+  gross: number;
+  da?: number;
+  tax: number;
+}
+
+/**
+ * Derives Q1-Q4 quarterly breakdown from Payroll module (employee_salaries).
+ * Supports both work month and paid month conventions.
+ */
+export function derivePayrollQuarterlySummary(
+  salaries: PayrollMonthlySalaryRecord[]
+): Record<string, { amountPaid: number; taxDeducted: number }> {
+  const out: Record<string, { amountPaid: number; taxDeducted: number }> = {
+    Q1: { amountPaid: 0, taxDeducted: 0 },
+    Q2: { amountPaid: 0, taxDeducted: 0 },
+    Q3: { amountPaid: 0, taxDeducted: 0 },
+    Q4: { amountPaid: 0, taxDeducted: 0 },
+  };
+
+  const monthMap: Record<string, 'Q1' | 'Q2' | 'Q3' | 'Q4'> = {
+    April: 'Q1',
+    May: 'Q1',
+    June: 'Q1',
+    July: 'Q2',
+    August: 'Q2',
+    September: 'Q2',
+    October: 'Q3',
+    November: 'Q3',
+    December: 'Q3',
+    January: 'Q4',
+    February: 'Q4',
+    March: 'Q4',
+  };
+
+  for (const s of salaries) {
+    const rawMonth = (s.month || '').trim();
+    if (!rawMonth) continue;
+    const normalized = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1).toLowerCase();
+    const qKey = monthMap[normalized] || monthMap[rawMonth];
+    if (qKey && out[qKey]) {
+      const grossPaid = Number(s.gross) || 0;
+      const daPaid = Number(s.da) || 0;
+      const taxPaid = Number(s.tax) || 0;
+      out[qKey].amountPaid += grossPaid + daPaid;
+      out[qKey].taxDeducted += taxPaid;
+    }
+  }
+
+  for (const k of ['Q1', 'Q2', 'Q3', 'Q4']) {
+    out[k].amountPaid = Math.round(out[k].amountPaid * 100) / 100;
+    out[k].taxDeducted = Math.round(out[k].taxDeducted * 100) / 100;
+  }
+
+  return out;
+}
 
 export function deriveQuarterlySummary(
   earnings: Array<Pick<PayBillStoredEarning, 'month' | 'grossAmount'>>,

@@ -170,6 +170,11 @@ function listFromLocalCache(officeId?: string | null, financialYear?: number): F
   } catch {
     return [];
   }
+}const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(str?: string | null): boolean {
+  if (!str) return false;
+  return UUID_REGEX.test(str.trim());
 }
 
 export const form16Repository = {
@@ -184,7 +189,10 @@ export const form16Repository = {
         .eq('financial_year', financialYear)
         .ilike('hrpn', hrpn.trim())
         .limit(1);
-      if (!scope.all && scope.officeId) q = q.eq('office_id', scope.officeId);
+
+      if (!scope.all && scope.officeId) {
+        q = q.eq('office_id', scope.officeId);
+      }
 
       const { data, error } = await q.maybeSingle();
       if (!error && data) {
@@ -193,25 +201,28 @@ export const form16Repository = {
         return mapped;
       }
     } catch (err) {
-      console.warn('[Form16Repository] getCertificate DB error; checking local fallback:', err);
+      console.warn('[Form16Repository] DB query failed, falling back to local cache:', err);
     }
 
+    // Offline / unpersisted fallback
     return loadFromLocalCache(officeId, financialYear, hrpn);
   },
 
   async getCertificateById(id: string): Promise<Form16Certificate | null> {
     const scope = getOfficeScope();
-    try {
-      let q = supabase.from('form16_certificates').select('*').eq('id', id).limit(1);
-      if (!scope.all && scope.officeId) q = q.eq('office_id', scope.officeId);
-      const { data, error } = await q.maybeSingle();
-      if (!error && data) {
-        const mapped = mapRow(data as Form16DbRow);
-        saveToLocalCache(mapped);
-        return mapped;
+    if (isValidUuid(id)) {
+      try {
+        let q = supabase.from('form16_certificates').select('*').eq('id', id).limit(1);
+        if (!scope.all && scope.officeId) q = q.eq('office_id', scope.officeId);
+        const { data, error } = await q.maybeSingle();
+        if (!error && data) {
+          const mapped = mapRow(data as Form16DbRow);
+          saveToLocalCache(mapped);
+          return mapped;
+        }
+      } catch (err) {
+        console.warn('[Form16Repository] getCertificateById DB error:', err);
       }
-    } catch (err) {
-      console.warn('[Form16Repository] getCertificateById DB error:', err);
     }
 
     const allCached = listFromLocalCache(scope.officeId);
@@ -262,7 +273,7 @@ export const form16Repository = {
 
     // Prepare local draft entity first to guarantee data persistence
     const localCert: Form16Certificate = {
-      id: cert.id || `local_f16_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: isValidUuid(cert.id) ? (cert.id as string) : `local_f16_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       officeId: String(officeId),
       employeeId: cert.employeeId ?? null,
       hrpn: certHrpn,
@@ -312,7 +323,7 @@ export const form16Repository = {
 
     try {
       // Find existing certificate for this office + employee HRPN + financial year
-      let existingId = cert.id && !cert.id.startsWith('local_') ? cert.id : null;
+      let existingId: string | null = isValidUuid(cert.id) ? (cert.id as string) : null;
 
       if (!existingId) {
         const { data: existing } = await supabase
@@ -323,7 +334,7 @@ export const form16Repository = {
           .ilike('hrpn', certHrpn)
           .maybeSingle();
 
-        if (existing?.id) {
+        if (existing?.id && isValidUuid(existing.id)) {
           existingId = existing.id;
         }
       }
@@ -382,7 +393,7 @@ export const form16Repository = {
       saveToLocalCache(cached);
     }
 
-    if (officeId && !id.startsWith('local_')) {
+    if (officeId && isValidUuid(id)) {
       const { error } = await supabase
         .from('form16_certificates')
         .update(patch)
@@ -398,7 +409,7 @@ export const form16Repository = {
   ): Promise<void> {
     try {
       const officeId = requireOfficeId();
-      if (!certificateId || certificateId.startsWith('local_')) return;
+      if (!certificateId || !isValidUuid(certificateId)) return;
       const { error } = await supabase.from('form16_audit_log').insert({
         certificate_id: certificateId,
         office_id: officeId,
@@ -412,35 +423,10 @@ export const form16Repository = {
     }
   },
 
-  async listAudit(certificateId: string): Promise<
-    Array<{ id: string; action: string; details: Record<string, unknown>; createdAt: string }>
-  > {
-    const scope = getOfficeScope();
-    if (!certificateId || certificateId.startsWith('local_')) return [];
-    try {
-      let q = supabase
-        .from('form16_audit_log')
-        .select('*')
-        .eq('certificate_id', certificateId)
-        .order('created_at', { ascending: false });
-      if (!scope.all && scope.officeId) q = q.eq('office_id', scope.officeId);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data || []).map((r) => ({
-        id: r.id,
-        action: r.action,
-        details: (r.details as Record<string, unknown>) || {},
-        createdAt: r.created_at,
-      }));
-    } catch {
-      return [];
-    }
-  },
-
   async deleteCertificate(id: string): Promise<void> {
     try {
       await requireOfficeId();
-      if (!id.startsWith('local_')) {
+      if (isValidUuid(id)) {
         await supabase
           .from('form16_certificates')
           .delete()
@@ -474,7 +460,7 @@ export const form16Repository = {
           id,
           status === 'ISSUED' ? 'ISSUED' : status === 'REVIEWED' ? 'REVIEWED' : 'VOIDED',
           { batch: true }
-        ).catch(() => {});
+        );
       } catch (err) {
         console.warn(`[Form16Repository] batchUpdateStatus error for id ${id}:`, err);
       }
@@ -622,6 +608,7 @@ export const form16Repository = {
     const officeId = requireOfficeId();
     const clean: Form16DeductorDefaults = {
       employerName: (defaults.employerName || '').trim(),
+      employerAddress: (defaults.employerAddress || '').trim(),
       employerPan: (defaults.employerPan || '').toUpperCase().replace(/[^A-Z0-9]/g, ''),
       employerTan: (defaults.employerTan || '').toUpperCase().replace(/[^A-Z0-9]/g, ''),
       citTds: (defaults.citTds || '').trim(),

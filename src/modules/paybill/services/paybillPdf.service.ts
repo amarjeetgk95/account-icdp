@@ -1,24 +1,8 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import type {
-  PayBillStoredEarning,
-  PayBillStoredDeduction,
-  PayBillAllowanceMatrixReport,
-  PayBillParameterMatrixRow,
   PayBillMonthlyEmployeeMatrixReport,
 } from '../types';
-
-type PdfWithTableMeta = jsPDF & { lastAutoTable?: { finalY?: number } };
-
-interface MonthlyPdfOptions {
-  month: string;
-  financialYear: number;
-  billNo: string;
-  majorHead?: string | null;
-  voucherNo?: string;
-  earnings: PayBillStoredEarning[];
-  deductions?: PayBillStoredDeduction[];
-}
 
 const fmt = (n: number): string => `Rs. ${(n || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 2,
@@ -36,188 +20,32 @@ function headerLines(doc: jsPDF, lines: string[]) {
   return y;
 }
 
-function sum(list: PayBillStoredEarning[], pick: (r: PayBillStoredEarning) => number): number {
-  return list.reduce((acc, r) => acc + (pick(r) || 0), 0);
-}
-
-function sumDed(list: PayBillStoredDeduction[], pick: (r: PayBillStoredDeduction) => number): number {
-  return list.reduce((acc, r) => acc + (pick(r) || 0), 0);
+export interface EmployeeLedgerPdfExportOptions {
+  officeName?: string;
+  financialYear: number;
+  fyLabel: string;
+  employee: {
+    hrpn: string;
+    name: string;
+    designation?: string | null;
+    payScale?: string | null;
+  };
+  rows: Array<{
+    key: string;
+    label: string;
+    group: 'EARNING' | 'DEDUCTION';
+    values: number[];
+    total: number;
+    isManual?: boolean;
+  }>;
+  summary: {
+    annualGross: number;
+    annualDeductions: number;
+    netTakeHome: number;
+  };
 }
 
 export const paybillPdfService = {
-  /**
-   * Export the monthly pay bill summary (earning side + deduction side + totals) as a PDF.
-   * Note: standard PDF fonts cannot render the Rupee symbol, so amounts use "Rs." prefix.
-   */
-  exportMonthlyBillPdf(options: MonthlyPdfOptions) {
-    const { month, financialYear, billNo, majorHead, voucherNo, earnings, deductions } = options;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-
-    const y = headerLines(doc, [
-      'PAY BILL SUMMARY',
-      `Month: ${month}  |  Financial Year: ${financialYear}  |  Bill No: ${billNo || '-'}  |  Major Head: ${majorHead || '-'}`,
-      voucherNo ? `Ledger Voucher No: ${voucherNo}` : '',
-    ]);
-
-    let cursorY = y + 6;
-
-    const totalBasic = sum(earnings, (r) => r.basicPay);
-    const totalDa = sum(earnings, (r) => r.da);
-    const totalHra = sum(earnings, (r) => r.hra);
-    const totalCla = sum(earnings, (r) => r.cla);
-    const totalMed = sum(earnings, (r) => r.medicalAllowance);
-    const totalTrans = sum(earnings, (r) => r.transportAllowance);
-    const totalSpecial = sum(earnings, (r) => r.specialPay || 0);
-    const totalWashing = sum(earnings, (r) => r.washingAllowance || 0);
-    const totalNpp = sum(earnings, (r) => r.nppAllowance);
-    const totalGross = sum(earnings, (r) => r.grossAmount);
-
-    if (earnings.length > 0) {
-      doc.setFontSize(10);
-      doc.setTextColor(20);
-      doc.text('EARNING SIDE', 40, cursorY);
-      cursorY += 4;
-
-      autoTable(doc, {
-        startY: cursorY,
-        head: [['HRPN', 'Employee Name', 'Designation', 'Basic Pay', 'DA', 'HRA', 'CLA', 'Med', 'Trans', 'Special', 'Washing', 'NPP', 'Gross Amt']],
-        body: earnings.map((r) => [
-          r.hrpn,
-          r.employeeName,
-          r.designation || '-',
-          fmt(r.basicPay),
-          fmt(r.da),
-          fmt(r.hra),
-          fmt(r.cla),
-          fmt(r.medicalAllowance),
-          fmt(r.transportAllowance),
-          fmt(r.specialPay || 0),
-          fmt(r.washingAllowance || 0),
-          fmt(r.nppAllowance),
-          fmt(r.grossAmount),
-        ]),
-        foot: [['Total', '', '', fmt(totalBasic), fmt(totalDa), fmt(totalHra), fmt(totalCla), fmt(totalMed), fmt(totalTrans), fmt(totalSpecial), fmt(totalWashing), fmt(totalNpp), fmt(totalGross)]],
-        theme: 'grid',
-        headStyles: { fillColor: [31, 58, 95], fontSize: 8 },
-        footStyles: { fillColor: [222, 226, 230], textColor: [20, 20, 20], fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { fontSize: 8 },
-        styles: { cellPadding: 2.5, lineColor: [200, 200, 200] },
-      });
-
-      const tbl = (doc as PdfWithTableMeta).lastAutoTable;
-      cursorY = tbl && tbl.finalY ? tbl.finalY + 24 : cursorY + 160;
-    }
-
-    if (deductions && deductions.length > 0) {
-      const totalIncomeTax = sumDed(deductions, (r) => r.incomeTax);
-      const totalProfTax = sumDed(deductions, (r) => r.profTax);
-      const totalHba = sumDed(deductions, (r) => r.hbaInterest);
-      const totalGpf = sumDed(deductions, (r) => r.gpfRegular);
-      const totalGpf4 = sumDed(deductions, (r) => r.gpfClass4);
-      const totalNps = sumDed(deductions, (r) => r.npsRegular);
-      const totalFund = sumDed(deductions, (r) => r.gisGovtFund);
-      const totalSaving = sumDed(deductions, (r) => r.gisGovtSaving);
-      const totalDed = sumDed(deductions, (r) => r.totalDeductions);
-      const totalNet = sumDed(deductions, (r) => r.netPay);
-
-      if (cursorY > 420) {
-        doc.addPage('a4', 'landscape');
-        cursorY = 50;
-      }
-
-      doc.setFontSize(10);
-      doc.setTextColor(20);
-      doc.text('DEDUCTION SIDE', 40, cursorY);
-      cursorY += 4;
-
-      autoTable(doc, {
-        startY: cursorY,
-        head: [['HRPN', 'Employee Name', 'Income Tax', 'Prof Tax', 'HBA Int', 'GPF', 'GPF C4', 'NPS', 'Govt Fund', 'Govt Sav', 'Total Ded', 'Net Pay']],
-        body: deductions.map((r) => [
-          r.hrpn,
-          r.employeeName,
-          fmt(r.incomeTax),
-          fmt(r.profTax),
-          fmt(r.hbaInterest),
-          fmt(r.gpfRegular),
-          fmt(r.gpfClass4),
-          fmt(r.npsRegular),
-          fmt(r.gisGovtFund),
-          fmt(r.gisGovtSaving),
-          fmt(r.totalDeductions),
-          fmt(r.netPay),
-        ]),
-        foot: [['Total', '', fmt(totalIncomeTax), fmt(totalProfTax), fmt(totalHba), fmt(totalGpf), fmt(totalGpf4), fmt(totalNps), fmt(totalFund), fmt(totalSaving), fmt(totalDed), fmt(totalNet)]],
-        theme: 'grid',
-        headStyles: { fillColor: [31, 58, 95], fontSize: 8 },
-        footStyles: { fillColor: [222, 226, 230], textColor: [20, 20, 20], fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { fontSize: 8 },
-        styles: { cellPadding: 2.5, lineColor: [200, 200, 200] },
-      });
-
-      const tbl = (doc as PdfWithTableMeta).lastAutoTable;
-      cursorY = tbl && tbl.finalY ? tbl.finalY + 20 : cursorY + 150;
-
-      doc.setFontSize(9);
-      doc.setTextColor(20);
-      doc.text(
-        `Net Payable: ${fmt(totalNet)}  |  Gross Pay: ${fmt(totalGross)}  |  Total Deductions: ${fmt(totalDed)}`,
-        40,
-        cursorY
-      );
-    } else {
-      doc.setFontSize(10);
-      doc.setTextColor(20);
-      doc.text(`Grand Total (Gross Pay): ${fmt(totalGross)}`, 40, cursorY + 8);
-    }
-
-    const fileName = `PayBill_Month_${month.replace(/[^A-Za-z0-9-]/g, '_')}.pdf`;
-    doc.save(fileName);
-  },
-
-  /**
-   * Export the allowance/deduction parameter matrix as a PDF
-   */
-  exportAllowanceMatrixPdf(report: PayBillAllowanceMatrixReport, title = 'Pay Bill Parameter Matrix') {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-
-    const months = report.monthLabels;
-    const y = headerLines(doc, [
-      'PAY BILL PARAMETER MATRIX',
-      `${title}  |  FY ${report.financialYear}-${report.financialYear + 1}`,
-      report.hrpn && report.employeeName
-        ? `Employee: ${report.employeeName} (HRPN ${report.hrpn})`
-        : report.hrpn
-          ? `HRPN: ${report.hrpn}`
-          : 'All Employees',
-    ]);
-
-    autoTable(doc, {
-      startY: y + 8,
-      head: [
-        ['Parameter', ...months, 'Q1', 'Q2', 'Q3', 'Q4', 'Total'],
-      ],
-      body: report.rows.map((row: PayBillParameterMatrixRow) => [
-        row.parameter,
-        ...months.map((m) => fmt(row.months[m] || 0)),
-        fmt(row.q1),
-        fmt(row.q2),
-        fmt(row.q3),
-        fmt(row.q4),
-        fmt(row.total),
-      ]),
-      foot: [['Grand Total (Gross)', ...months.map(() => ''), '', '', '', '', fmt(report.totalGross || 0)]],
-      theme: 'striped',
-      headStyles: { fillColor: [31, 58, 95], fontSize: 8 },
-      footStyles: { fillColor: [222, 226, 230], textColor: [20, 20, 20], fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 8 },
-      styles: { cellPadding: 2.5 },
-    });
-
-    const fileName = `PayBill_Matrix_FY${report.financialYear}-${report.financialYear + 1}.pdf`;
-    doc.save(fileName);
-  },
-
   /**
    * Export the monthly employee parameter matrix (earning + deduction columns) as a PDF
    */
@@ -269,6 +97,260 @@ export const paybillPdfService = {
     });
 
     const fileName = `PayBill_Matrix_${report.month.replace(/[^A-Za-z0-9-]/g, '_')}_FY${report.financialYear}.pdf`;
+    doc.save(fileName);
+  },
+
+  /**
+   * Export the complete 12-Month Employee Ledger Statement as a high-fidelity PDF
+   */
+  exportEmployeeLedgerPdf(options: EmployeeLedgerPdfExportOptions) {
+    const {
+      officeName = 'INTENSIVE CATTLE DEVELOPMENT PROJECT (ICDP)',
+      financialYear,
+      fyLabel,
+      employee,
+      rows,
+    } = options;
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth(); // 841.89 pt
+    const cleanHrpn = (employee.hrpn || '').trim() || 'Employee';
+
+    const marginX = 28;
+    const tableWidth = pageWidth - marginX * 2; // 785.89 pt
+
+    // 1. Official Header Block (Clean 2-Line Format)
+    doc.setTextColor(30, 58, 138); // Royal Navy 900
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text(officeName.toUpperCase(), pageWidth / 2, 22, { align: 'center' });
+
+    doc.setTextColor(71, 85, 105); // Slate 600
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`ANNUAL FINANCIAL STATEMENT — FY ${fyLabel}`, pageWidth / 2, 36, { align: 'center' });
+
+    // Subtle header separator line
+    doc.setDrawColor(226, 232, 240); // Slate 200
+    doc.setLineWidth(0.75);
+    doc.line(marginX, 43, marginX + tableWidth, 43);
+
+    // 2. Employee Profile & Metadata Table Box (Refined 2-Column Format)
+    const metaY = 48;
+    const metaH = 28;
+    doc.setFillColor(240, 247, 255); // Soft Ice Blue (Blue 50)
+    doc.setDrawColor(191, 219, 254); // Blue 200
+    doc.setLineWidth(0.6);
+    doc.roundedRect(marginX, metaY, tableWidth, metaH, 2, 2, 'FD');
+
+    // Left Column: Employee Name & Designation (Spacious 430 pt width)
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 138); // Navy 900
+    doc.text('Employee Name:', marginX + 10, metaY + 11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85); // Slate 700
+    doc.text(employee.name || '—', marginX + 80, metaY + 11, { maxWidth: 430 });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 138);
+    doc.text('Designation:', marginX + 10, metaY + 23);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    doc.text(employee.designation || '—', marginX + 80, metaY + 23, { maxWidth: 430 });
+
+    // Right Column: HRPN & Pay Scale
+    const rightColX = marginX + 530;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 138);
+    doc.text('HRPN:', rightColX, metaY + 11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    doc.text(employee.hrpn || '—', rightColX + 38, metaY + 11);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 138);
+    doc.text('Pay Scale:', rightColX, metaY + 23);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    doc.text(employee.payScale || '—', rightColX + 50, metaY + 23, { maxWidth: 190 });
+
+    // 3. Build Table Rows with Month-YY Labels
+    const startYearShort = String(financialYear || 2024).slice(-2);
+    const endYearShort = String((financialYear || 2024) + 1).slice(-2);
+    const months = [
+      `March-${startYearShort}`,
+      `April-${startYearShort}`,
+      `May-${startYearShort}`,
+      `June-${startYearShort}`,
+      `July-${startYearShort}`,
+      `Aug-${startYearShort}`,
+      `Sept-${startYearShort}`,
+      `Oct-${startYearShort}`,
+      `Nov-${startYearShort}`,
+      `Dec-${startYearShort}`,
+      `Jan-${endYearShort}`,
+      `Feb-${endYearShort}`,
+    ];
+
+    const fmtVal = (v: number) =>
+      v === 0 || !v ? '-' : (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+    const earningRows = rows.filter((r) => r.group === 'EARNING' && r.key !== 'grossAmount');
+    const grossRow = rows.find((r) => r.key === 'grossAmount');
+    const deductionRows = rows.filter(
+      (r) => r.group === 'DEDUCTION' && r.key !== 'totalDeductions' && r.key !== 'netPay'
+    );
+    const totalDedRow = rows.find((r) => r.key === 'totalDeductions');
+    const netPayRow = rows.find((r) => r.key === 'netPay');
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tableBody: any[] = [];
+
+    // Section 1: Earnings Header (Soft Navy Bar)
+    tableBody.push([
+      {
+        content: 'EARNINGS & ALLOWANCES',
+        colSpan: 14,
+        styles: {
+          fillColor: [224, 231, 255], // Light Indigo/Blue
+          textColor: [30, 58, 138], // Royal Navy
+          fontStyle: 'bold',
+          halign: 'left',
+          fontSize: 7.5,
+          cellPadding: 2.2,
+        },
+      },
+    ]);
+
+    for (const r of earningRows) {
+      tableBody.push([
+        r.label,
+        ...r.values.map(fmtVal),
+        fmtVal(r.total),
+      ]);
+    }
+
+    if (grossRow) {
+      tableBody.push([
+        {
+          content: 'GROSS SALARY (A)',
+          styles: { fontStyle: 'bold', fillColor: [209, 250, 229], textColor: [6, 95, 70] },
+        },
+        ...grossRow.values.map((v) => ({
+          content: fmtVal(v),
+          styles: { fontStyle: 'bold', fillColor: [209, 250, 229], textColor: [6, 95, 70] },
+        })),
+        {
+          content: fmtVal(grossRow.total),
+          styles: { fontStyle: 'bold', fillColor: [209, 250, 229], textColor: [6, 95, 70] },
+        },
+      ]);
+    }
+
+    // Section 2: Deductions Header (Soft Rose/Crimson Bar)
+    tableBody.push([
+      {
+        content: 'DEDUCTIONS & RECOVERIES',
+        colSpan: 14,
+        styles: {
+          fillColor: [255, 228, 230], // Light Rose/Crimson
+          textColor: [159, 18, 57], // Crimson Maroon
+          fontStyle: 'bold',
+          halign: 'left',
+          fontSize: 7.5,
+          cellPadding: 2.2,
+        },
+      },
+    ]);
+
+    for (const r of deductionRows) {
+      tableBody.push([
+        r.label,
+        ...r.values.map(fmtVal),
+        fmtVal(r.total),
+      ]);
+    }
+
+    if (totalDedRow) {
+      tableBody.push([
+        {
+          content: 'TOTAL DEDUCTIONS (B)',
+          styles: { fontStyle: 'bold', fillColor: [254, 226, 226], textColor: [153, 27, 27] },
+        },
+        ...totalDedRow.values.map((v) => ({
+          content: fmtVal(v),
+          styles: { fontStyle: 'bold', fillColor: [254, 226, 226], textColor: [153, 27, 27] },
+        })),
+        {
+          content: fmtVal(totalDedRow.total),
+          styles: { fontStyle: 'bold', fillColor: [254, 226, 226], textColor: [153, 27, 27] },
+        },
+      ]);
+    }
+
+    if (netPayRow) {
+      tableBody.push([
+        {
+          content: 'NET TAKE-HOME PAY (A - B)',
+          styles: { fontStyle: 'bold', fillColor: [219, 234, 254], textColor: [29, 78, 216] },
+        },
+        ...netPayRow.values.map((v) => ({
+          content: fmtVal(v),
+          styles: { fontStyle: 'bold', fillColor: [219, 234, 254], textColor: [29, 78, 216] },
+        })),
+        {
+          content: fmtVal(netPayRow.total),
+          styles: { fontStyle: 'bold', fillColor: [219, 234, 254], textColor: [29, 78, 216] },
+        },
+      ]);
+    }
+
+    // Proportional column sizing summing to 786 pt
+    const col0Width = 138;
+    const monthColWidth = 46; // 12 * 46 = 552
+    const totalColWidth = 96; // 138 + 552 + 96 = 786 pt
+
+    const columnStyles: Record<number, { halign: 'left' | 'right'; cellWidth: number; fontStyle?: 'normal' | 'bold' }> = {
+      0: { halign: 'left', cellWidth: col0Width, fontStyle: 'normal' },
+    };
+    for (let i = 1; i <= 12; i++) {
+      columnStyles[i] = { halign: 'right', cellWidth: monthColWidth };
+    }
+    columnStyles[13] = { halign: 'right', cellWidth: totalColWidth, fontStyle: 'bold' };
+
+    autoTable(doc, {
+      startY: 82,
+      margin: { left: marginX, right: marginX, top: 82, bottom: 20 },
+      tableWidth: 786,
+      head: [
+        ['Allowance / Deduction Parameter', ...months, 'Annual Total (Rs.)'],
+      ],
+      body: tableBody,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [30, 58, 138], // Royal Navy
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 7,
+        halign: 'center',
+        cellPadding: 2.4,
+      },
+      columnStyles,
+      styles: {
+        fontSize: 7.2,
+        cellPadding: { top: 2.6, bottom: 2.6, left: 3, right: 3 },
+        lineColor: [226, 232, 240],
+        lineWidth: 0.4,
+        textColor: [51, 65, 85],
+        valign: 'middle',
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+    });
+
+    const fileName = `Employee_Ledger_${cleanHrpn}_FY${fyLabel}.pdf`;
     doc.save(fileName);
   },
 };

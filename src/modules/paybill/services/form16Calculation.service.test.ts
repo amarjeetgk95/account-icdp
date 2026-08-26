@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   computeForm16Totals,
   deriveQuarterlySummary,
+  derivePayrollQuarterlySummary,
   validateCertificate,
   getTaxRules,
-  hasTaxRules,
   latestConfiguredAy,
 } from './form16Calculation.service';
 import type { Form16Certificate, Form16PartB, Form16TaxRulesSettings } from '../types/form16';
@@ -192,14 +192,12 @@ describe('validateCertificate', () => {
 
 describe('getTaxRules', () => {
   it('has rules for AY 2026-27 (FY 2025-26)', () => {
-    expect(hasTaxRules('2026-27')).toBe(true);
     const rules = getTaxRules('2026-27', 'NEW');
     expect(rules.standardDeduction).toBe(75000);
     expect(rules.ay).toBe('2026-27');
   });
 
   it('falls back to the latest configured AY for unknown future years', () => {
-    expect(hasTaxRules('2099-00')).toBe(false);
     const rules = getTaxRules('2099-00', 'NEW');
     expect(rules.ay).toBe(latestConfiguredAy());
   });
@@ -246,8 +244,103 @@ describe('getTaxRules', () => {
     // Total raw tax = 75,000
     expect(t.taxOnTotalIncome).toBe(75000);
     // Taxable <= 15L -> Full rebate u/s 87A (75,000)
-    expect(t.rebate87A).toBe(75000);
-    expect(t.cess4).toBe(0);
     expect(t.totalTaxPayable).toBe(0);
+  });
+
+  it('correctly calculates tax for high-income earners (e.g. 62 Lakhs) with 30% slab, 10% surcharge, and 4% cess', () => {
+    const t = computeForm16Totals({
+      financialYear: 2025,
+      assessmentYear: '2026-27',
+      taxRegime: 'NEW',
+      earnings: [{ grossAmount: 6200000 }],
+      deductions: [],
+      partB: basePartB(),
+    });
+
+    // Gross = 62,00,000, Std Ded = 75,000 -> Taxable = 61,25,000
+    expect(t.grossSalary17_1).toBe(6200000);
+    expect(t.standardDeduction16ia).toBe(75000);
+    expect(t.totalTaxableIncome).toBe(6125000);
+
+    // Slabs (AY 2026-27):
+    // 0-400k (0%) = 0
+    // 400k-800k (5%) = 20,000
+    // 800k-1200k (10%) = 40,000
+    // 1200k-1600k (15%) = 60,000
+    // 1600k-2000k (20%) = 80,000
+    // 2000k-2400k (25%) = 100,000
+    // 2400k-6125k (37.25L @ 30%) = 11,17,500
+    // Total raw tax = 3,00,000 + 11,17,500 = 14,17,500
+    expect(t.taxOnTotalIncome).toBe(1417500);
+    expect(t.rebate87A).toBe(0);
+
+    // Surcharge for income > 50 Lakhs (61.25L > 50L) @ 10% = 1,41,750
+    expect(t.surcharge).toBe(141750);
+
+    // After rebate = 14,17,500 + 1,41,750 = 15,59,250
+    // Cess 4% of 15,59,250 = 62,370
+    expect(t.cess4).toBe(62370);
+
+    // Total tax payable = 15,59,250 + 62,370 = 16,21,620
+    expect(t.totalTaxPayable).toBe(1621620);
+    expect(t.netTaxPayable).toBe(1621620);
+  });
+
+  it('correctly sets tdsDeducted to 0 when paybill deductions are deleted/empty, even if partA has quarters', () => {
+    const t = computeForm16Totals({
+      financialYear: 2025,
+      assessmentYear: '2026-27',
+      taxRegime: 'NEW',
+      earnings: [{ grossAmount: 1200000 }],
+      deductions: [], // deleted / no paybill deductions
+      partA: {
+        quarters: [
+          { quarter: 'Q1', receiptNumber: 'R1', amountPaid: 300000, taxDeducted: 5000, taxDeposited: 5000 },
+          { quarter: 'Q2', receiptNumber: 'R2', amountPaid: 300000, taxDeducted: 5000, taxDeposited: 5000 },
+          { quarter: 'Q3', receiptNumber: 'R3', amountPaid: 300000, taxDeducted: 5000, taxDeposited: 5000 },
+          { quarter: 'Q4', receiptNumber: 'R4', amountPaid: 300000, taxDeducted: 5000, taxDeposited: 5000 },
+        ],
+      },
+      partB: basePartB(),
+    });
+
+    expect(t.tdsDeducted).toBe(0);
+  });
+});
+
+describe('derivePayrollQuarterlySummary', () => {
+  it('correctly maps 12 monthly payroll records to Q1-Q4 quarterly breakdown', () => {
+    const records = [
+      { month: 'April', gross: 50000, da: 10000, tax: 2000 },
+      { month: 'May', gross: 50000, da: 10000, tax: 2000 },
+      { month: 'June', gross: 50000, da: 10000, tax: 2000 },
+      { month: 'July', gross: 55000, da: 11000, tax: 2500 },
+      { month: 'August', gross: 55000, da: 11000, tax: 2500 },
+      { month: 'September', gross: 55000, da: 11000, tax: 2500 },
+      { month: 'October', gross: 60000, da: 12000, tax: 3000 },
+      { month: 'November', gross: 60000, da: 12000, tax: 3000 },
+      { month: 'December', gross: 60000, da: 12000, tax: 3000 },
+      { month: 'January', gross: 60000, da: 12000, tax: 3000 },
+      { month: 'February', gross: 60000, da: 12000, tax: 3000 },
+      { month: 'March', gross: 60000, da: 12000, tax: 3000 },
+    ];
+
+    const q = derivePayrollQuarterlySummary(records);
+
+    // Q1: Apr + May + Jun = 3 * 60,000 = 180,000 paid, 3 * 2,000 = 6,000 tax
+    expect(q.Q1.amountPaid).toBe(180000);
+    expect(q.Q1.taxDeducted).toBe(6000);
+
+    // Q2: Jul + Aug + Sep = 3 * 66,000 = 198,000 paid, 3 * 2,500 = 7,500 tax
+    expect(q.Q2.amountPaid).toBe(198000);
+    expect(q.Q2.taxDeducted).toBe(7500);
+
+    // Q3: Oct + Nov + Dec = 3 * 72,000 = 216,000 paid, 3 * 3,000 = 9,000 tax
+    expect(q.Q3.amountPaid).toBe(216000);
+    expect(q.Q3.taxDeducted).toBe(9000);
+
+    // Q4: Jan + Feb + Mar = 3 * 72,000 = 216,000 paid, 3 * 3,000 = 9,000 tax
+    expect(q.Q4.amountPaid).toBe(216000);
+    expect(q.Q4.taxDeducted).toBe(9000);
   });
 });

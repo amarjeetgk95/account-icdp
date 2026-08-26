@@ -4,12 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { form16DefaultsSchema, type Form16DefaultsInput } from '../validation/settings.schema';
 import { useForm16Defaults } from '@/modules/paybill/hooks/useForm16';
+import { useOfficeDetails } from '../hooks/useOfficeDetails';
 import { SkeletonCard } from '@/shared/components/Skeleton';
 
 type Form16FormValues = z.input<typeof form16DefaultsSchema>;
 
 const EMPTY: Form16FormValues = {
   employerName: '',
+  employerAddress: '',
   employerPan: '',
   employerTan: '',
   citTds: '',
@@ -23,7 +25,8 @@ const EMPTY: Form16FormValues = {
  * Saved once here and auto-applied to every new Form 16 certificate.
  */
 export function Form16DefaultsForm() {
-  const { defaults, isLoading, saveAsync, isSaving } = useForm16Defaults();
+  const { defaults, isLoading: isF16Loading, saveAsync, isSaving } = useForm16Defaults();
+  const { details: officeDetails, isLoading: isOfficeLoading } = useOfficeDetails();
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   const {
@@ -38,8 +41,27 @@ export function Form16DefaultsForm() {
   });
 
   useEffect(() => {
-    if (defaults) reset({ ...EMPTY, ...defaults });
-  }, [defaults, reset]);
+    const fallbackName = officeDetails?.officeName || '';
+    const fallbackAddress = officeDetails?.address || '';
+    const fallbackTan = officeDetails?.tan || '';
+
+    if (defaults) {
+      reset({
+        ...EMPTY,
+        ...defaults,
+        employerName: defaults.employerName || fallbackName,
+        employerAddress: defaults.employerAddress || fallbackAddress,
+        employerTan: defaults.employerTan || fallbackTan,
+      });
+    } else if (officeDetails) {
+      reset({
+        ...EMPTY,
+        employerName: fallbackName,
+        employerAddress: fallbackAddress,
+        employerTan: fallbackTan,
+      });
+    }
+  }, [defaults, officeDetails, reset]);
 
   const onSubmit = async (data: Form16FormValues) => {
     try {
@@ -55,7 +77,7 @@ export function Form16DefaultsForm() {
     }
   };
 
-  if (isLoading) return <SkeletonCard />;
+  if (isF16Loading || isOfficeLoading) return <SkeletonCard />;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -68,14 +90,18 @@ export function Form16DefaultsForm() {
         Employer / Deductor
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
+        <div className="md:col-span-2">
           <label htmlFor="employerName" className="label">Office Name (Deductor)</label>
-          <input
+          <textarea
             id="employerName"
             {...register('employerName')}
-            className="input"
-            placeholder="Deputy Director of Animal Husbandry"
+            rows={2}
+            className="input resize-y min-h-[58px]"
+            placeholder="Office of the Deputy Director of Animal Husbandry&#10;ICDP, Surat"
           />
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            Press <strong>Enter</strong> to create a two-line office name (e.g. Line 1: Main Office, Line 2: Division / Scheme).
+          </p>
         </div>
 
         <div>
@@ -85,6 +111,16 @@ export function Form16DefaultsForm() {
             {...register('citTds')}
             className="input"
             placeholder="CIT(TDS), Surat"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label htmlFor="employerAddress" className="label">Deductor Office Address</label>
+          <input
+            id="employerAddress"
+            {...register('employerAddress')}
+            className="input"
+            placeholder="Jilla Seva Sadan-2, Athwalines, Surat - 395001"
           />
         </div>
 

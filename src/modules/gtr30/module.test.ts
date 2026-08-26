@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import moduleDefinition, { gtr30ModuleDefinition } from './module';
+import moduleDefinition from './module';
 import { gtr30Routes } from './routes';
 
 describe('gtr30 module contract', () => {
   it('exports a ModuleDefinition with the documented shape', () => {
     expect(moduleDefinition).toBeDefined();
-    expect(gtr30ModuleDefinition).toBe(moduleDefinition);
     expect(moduleDefinition.id).toBe('gtr30');
     expect(moduleDefinition.name).toBe('GTR-30 Pay Bills');
     expect(moduleDefinition.navGroup).toBe('bills');

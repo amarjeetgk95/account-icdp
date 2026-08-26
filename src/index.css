@@ -169,7 +169,8 @@
   /* Main scroll container: plain, dependency-free vertical scrolling */
   .app-scroll {
     overflow-y: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -429,7 +430,6 @@
     @apply bg-white border border-slate-200 overflow-hidden;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-card);
-    contain: layout paint;
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
   .card:hover {
@@ -464,7 +464,6 @@
     @apply bg-white border border-slate-200 p-5 relative overflow-hidden;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-card);
-    contain: layout paint;
   }
 
   .stat-tile::before {
@@ -2277,17 +2276,6 @@
     outline-offset: -2px;
   }
 
-  .ost-row-active,
-  .ost-row-active:hover {
-    background: #EEF2FF !important;
-    box-shadow: inset 3px 0 0 #4F46E5;
-  }
-  .dark .ost-row-active,
-  .dark .ost-row-active:hover {
-    background: rgba(79, 70, 229, 0.22) !important;
-    box-shadow: inset 3px 0 0 #6366F1;
-  }
-
   /* ============================================================
      ADMIN — DATA ENTRY & REPORTS (MATERIAL DESIGN 3)
      Scoped on-screen refinements for the Data Entry Summary
@@ -2461,48 +2449,6 @@
   .dark .um-field .label { color: #94A3B8; }
   .um-field-icon {
     @apply absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none;
-  }
-
-  /* ---- Material segmented control ---- */
-  .um-segmented {
-    @apply inline-flex items-center gap-1 p-1 rounded-xl w-full sm:w-auto;
-    background: #F1F5F9;
-    border: 1px solid #E2E8F0;
-  }
-  .dark .um-segmented {
-    background: rgba(30, 41, 59, 0.6);
-    border-color: #334155;
-  }
-  .um-seg-btn {
-    @apply inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all duration-150;
-    color: #64748B;
-  }
-  .um-seg-btn:hover { color: #0F172A; }
-  .dark .um-seg-btn { color: #94A3B8; }
-  .dark .um-seg-btn:hover { color: #F1F5F9; }
-  .um-seg-active,
-  .um-seg-active:hover {
-    background: #4F46E5;
-    color: #FFFFFF;
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.45);
-  }
-
-  /* ---- Tonal info chip (invite hint) ---- */
-  .um-info-chip {
-    @apply flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold leading-relaxed animate-fade-in;
-    background: #EEF2FF;
-    color: #4338CA;
-    border: 1px solid #E0E7FF;
-  }
-  .dark .um-info-chip {
-    background: rgba(79, 70, 229, 0.16);
-    color: #A5B4FC;
-    border-color: rgba(99, 102, 241, 0.28);
-  }
-
-  /* ---- Filled Material submit button ---- */
-  .um-submit {
-    @apply w-full py-2.5 rounded-xl text-sm font-bold shadow-primary;
   }
 
   /* ---- Material data tables (Users & Audit log) ---- */

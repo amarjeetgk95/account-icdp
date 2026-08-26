@@ -419,14 +419,6 @@ class ComponentMasterMatcher {
     return this.components;
   }
 
-  /** All active components that represent normal earning/deduction columns (not totals). */
-  getRegularComponents(type?: PayrollComponentType): PayrollComponent[] {
-    return this.components
-      .filter((c) => c.active && c.kind === 'COMPONENT')
-      .filter((c) => !type || c.type === type)
-      .sort((a, b) => a.displayOrder - b.displayOrder);
-  }
-
   findComponent(fragment: string): ComponentMatchResult {
     const raw = fragment.trim();
     if (!raw) {

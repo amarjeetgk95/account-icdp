@@ -27,7 +27,6 @@ export const useGTR44Bill = (id: string) => {
 
 export const useCreateGTR44Bill = () => {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
   return useMutation({
     mutationFn: async (newBill: GTR44Bill) => {
       const saved = await gtr44BillsBackendRepository.save(newBill);
@@ -35,7 +34,6 @@ export const useCreateGTR44Bill = () => {
       return saved;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gtr44Bills', officeId ?? null] });
       queryClient.invalidateQueries({ queryKey: ['gtr44Bills'] });
     },
   });
@@ -43,7 +41,6 @@ export const useCreateGTR44Bill = () => {
 
 export const useUpdateGTR44Bill = () => {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
   return useMutation({
     mutationFn: async ({ id, bill }: { id: string; bill: Partial<GTR44Bill> }) => {
       const existing = await gtr44BillsBackendRepository.get(id);
@@ -55,9 +52,7 @@ export const useUpdateGTR44Bill = () => {
       return saved;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['gtr44Bills', officeId ?? null] });
       queryClient.invalidateQueries({ queryKey: ['gtr44Bills'] });
-      queryClient.invalidateQueries({ queryKey: ['gtr44Bill', officeId ?? null, variables.id] });
       queryClient.invalidateQueries({ queryKey: ['gtr44Bill', variables.id] });
     },
   });
@@ -65,7 +60,6 @@ export const useUpdateGTR44Bill = () => {
 
 export const useDeleteGTR44Bill = () => {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
   return useMutation({
     mutationFn: async (id: string) => {
       const deleted = await gtr44BillsBackendRepository.delete(id);
@@ -73,7 +67,6 @@ export const useDeleteGTR44Bill = () => {
       return deleted;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gtr44Bills', officeId ?? null] });
       queryClient.invalidateQueries({ queryKey: ['gtr44Bills'] });
     },
   });

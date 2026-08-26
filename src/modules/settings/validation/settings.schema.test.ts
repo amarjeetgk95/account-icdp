@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { officeDetailsSchema, financialYearSchema } from './settings.schema';
+import { officeDetailsSchema } from './settings.schema';
 
 describe('officeDetailsSchema', () => {
   it('validates valid office details', () => {
@@ -29,27 +29,5 @@ describe('officeDetailsSchema', () => {
       expect(result.data.officeName).toBe('');
       expect(result.data.address).toBe('');
     }
-  });
-});
-
-describe('financialYearSchema', () => {
-  it('validates valid financial year', () => {
-    const result = financialYearSchema.safeParse({ newYear: 2025 });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects year below 2000', () => {
-    const result = financialYearSchema.safeParse({ newYear: 1999 });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects year above 2100', () => {
-    const result = financialYearSchema.safeParse({ newYear: 2101 });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects non-integer year', () => {
-    const result = financialYearSchema.safeParse({ newYear: 2025.5 });
-    expect(result.success).toBe(false);
   });
 });

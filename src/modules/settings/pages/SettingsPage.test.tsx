@@ -17,10 +17,6 @@ vi.mock('../components/Form16TaxRulesConfigForm', () => ({
   Form16TaxRulesConfigForm: () => <div data-testid="tax-rules-form">Tax Rules Component</div>,
 }));
 
-vi.mock('../components/EstablishmentSettingsView', () => ({
-  EstablishmentSettingsView: () => <div data-testid="establishment-settings">Establishment Settings Component</div>,
-}));
-
 vi.mock('@/modules/gtr30/components/GTR30SettingsView', () => ({
   GTR30SettingsView: () => <div data-testid="gtr30-settings">GTR-30 Settings Component</div>,
 }));
@@ -44,14 +40,14 @@ function renderWithRoute(initialEntry = '/settings/office') {
 }
 
 describe('SettingsPage', () => {
-  it('renders page header and all 6 tabs', () => {
+  it('renders page header and all 5 tabs', () => {
     renderWithRoute('/settings/office');
 
     expect(screen.getByText(/Master Settings & Module Defaults/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Office & DDO Master/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /GTR-30 Pay Bills/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /GTR-44 DC Bills/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Establishment Posts/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Establishment Posts/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Income Tax Slabs \(115BAC\)/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Form 16 Deductor/i })).toBeInTheDocument();
   });
@@ -71,9 +67,9 @@ describe('SettingsPage', () => {
     expect(screen.getByTestId('gtr44-settings')).toBeInTheDocument();
   });
 
-  it('renders EstablishmentSettingsView for establishment tab', () => {
+  it('falls back to office tab when an unknown or removed tab like establishment is accessed', () => {
     renderWithRoute('/settings/establishment');
-    expect(screen.getByTestId('establishment-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('office-form')).toBeInTheDocument();
   });
 
   it('renders Form16TaxRulesConfigForm for tax-rules tab', () => {

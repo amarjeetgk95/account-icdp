@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateEmployeeSalary, calculateGroupTotals } from './gtr30SalaryCalc';
+import { calculateEmployeeSalary } from './gtr30SalaryCalc';
 import { GTR30EmployeeMaster } from '../types/master';
 
 describe('GTR30 Salary Calculator', () => {
@@ -94,40 +94,6 @@ describe('GTR30 Salary Calculator', () => {
       expect(summary.grossPay).toBe(0);
       expect(summary.totalDeductions).toBe(0);
       expect(summary.netTakeHome).toBe(0);
-    });
-  });
-
-  describe('calculateGroupTotals', () => {
-    it('aggregates correctly for multiple employees', () => {
-      const emp1: GTR30EmployeeMaster = {
-        ...baseEmp,
-        currentPay: 10000,
-        hraPercent: 10 // DA 5300, HRA 1000, NPS 1530 -> Gross 16300, Net 14770
-      };
-      const emp2: GTR30EmployeeMaster = {
-        ...baseEmp,
-        currentPay: 20000,
-        hraPercent: 20,
-        da: 12000,
-        npsPension: 3500 // HRA 4000 -> Gross 36000, Net 32500
-      };
-
-      const totals = calculateGroupTotals([emp1, emp2]);
-      
-      expect(totals.basic).toBe(30000);
-      expect(totals.da).toBe(17300); // 5300 + 12000
-      expect(totals.hra).toBe(5000); // 1000 + 4000
-      expect(totals.grossPay).toBe(52300); // 16300 + 36000
-      expect(totals.nps).toBe(5030); // 1530 + 3500
-      expect(totals.totalDeductions).toBe(5030);
-      expect(totals.netTakeHome).toBe(47270); // 14770 + 32500
-    });
-    
-    it('returns zeroes for empty list', () => {
-      const totals = calculateGroupTotals([]);
-      expect(totals.basic).toBe(0);
-      expect(totals.grossPay).toBe(0);
-      expect(totals.netTakeHome).toBe(0);
     });
   });
 });

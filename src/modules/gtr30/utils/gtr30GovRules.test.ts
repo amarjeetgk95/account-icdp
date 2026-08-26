@@ -4,7 +4,6 @@ import {
   calculateNPS,
   calculateGujaratPT,
   getGISRatesForGroup,
-  findPayScaleMappingByGradePay,
   findPayScaleMappingByScale,
   DEFAULT_DA_PERCENT,
   GIS_RATES,
@@ -69,29 +68,7 @@ describe('gtr30GovRules', () => {
     });
   });
 
-  describe('findPayScaleMappingByGradePay and findPayScaleMappingByScale', () => {
-    it('finds 7th pay scale when Grade Pay 4200 is passed', () => {
-      const m = findPayScaleMappingByGradePay('GP:4200');
-      expect(m).not.toBeNull();
-      expect(m?.payScale).toBe('34,500-1,12,400');
-      expect(m?.cadreClass).toBe('૩');
-      expect(m?.defaultGISGroup).toBe('ખ');
-    });
-
-    it('finds 7th pay scale when Grade Pay 2400 is passed', () => {
-      const m = findPayScaleMappingByGradePay('2400');
-      expect(m).not.toBeNull();
-      expect(m?.payScale).toBe('25,500-81,100');
-      expect(m?.level).toBe('Level 4');
-    });
-
-    it('finds 7th pay scale when Grade Pay 4600 is passed', () => {
-      const m = findPayScaleMappingByGradePay('GP:4600');
-      expect(m).not.toBeNull();
-      expect(m?.payScale).toBe('44,900-1,42,400');
-      expect(m?.level).toBe('Level 7');
-    });
-
+  describe('findPayScaleMappingByScale', () => {
     it('finds Grade Pay when 7th Pay Scale is passed', () => {
       const m = findPayScaleMappingByScale('34,500-1,12,400');
       expect(m).not.toBeNull();
@@ -99,7 +76,6 @@ describe('gtr30GovRules', () => {
     });
 
     it('returns null for empty or invalid values', () => {
-      expect(findPayScaleMappingByGradePay('')).toBeNull();
       expect(findPayScaleMappingByScale('')).toBeNull();
     });
   });

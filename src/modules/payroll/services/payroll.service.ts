@@ -25,8 +25,8 @@ export class PayrollService {
 
   getEntryMonth(): string {
     const now = new Date();
-    const monthIdx = (now.getMonth() - 3 + 12) % 12;
-    const entryIdx = (monthIdx - 1 + 12) % 12;
+    // Month 0 is April in the financial year calendar
+    const entryIdx = (now.getMonth() - 3 + 12) % 12;
     return MONTHS[entryIdx];
   }
 
@@ -50,7 +50,8 @@ export class PayrollService {
     const monthIdx = MONTHS.indexOf(month);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
-    return payrollRepository.getPreviousMonthSalaries(prevMonth, fy);
+    const targetFy = monthIdx === 0 ? fy - 1 : fy;
+    return payrollRepository.getPreviousMonthSalaries(prevMonth, targetFy);
   }
 
   async clearMonth(month: string, fy: number): Promise<number> {
@@ -61,7 +62,8 @@ export class PayrollService {
     const monthIdx = MONTHS.indexOf(month);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
-    return payrollRepository.getEmployeeSalaryForMonth(employeeId, prevMonth, fy);
+    const targetFy = monthIdx === 0 ? fy - 1 : fy;
+    return payrollRepository.getEmployeeSalaryForMonth(employeeId, prevMonth, targetFy);
   }
 
   async getQuarterReport(quarter: string, fy: number, officeId?: string): Promise<QuarterReport> {

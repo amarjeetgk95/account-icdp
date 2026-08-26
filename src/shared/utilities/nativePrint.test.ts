@@ -4,8 +4,6 @@ import {
   syncClonedInputStates,
   buildAutoFitScript,
   popupNativePrint,
-  printElement,
-  printMultipleContainers,
   DEFAULT_AUTO_FIT_VARIABLES,
 } from './nativePrint';
 
@@ -126,30 +124,5 @@ describe('popupNativePrint and wrappers', () => {
 
     document.body.removeChild(container);
   });
-
-  it('prints multiple containers', () => {
-    const c1 = document.createElement('div');
-    c1.id = 'page1';
-    c1.className = 'page-container';
-    c1.innerHTML = '<h1>Part 1</h1>';
-
-    const c2 = document.createElement('div');
-    c2.id = 'page2';
-    c2.className = 'page-container';
-    c2.innerHTML = '<h1>Part 2</h1>';
-
-    document.body.appendChild(c1);
-    document.body.appendChild(c2);
-
-    const win = printMultipleContainers(['page1', 'page2'], { title: 'Full Case' });
-    expect(win).toBe(mockPrintWindow);
-
-    document.body.removeChild(c1);
-    document.body.removeChild(c2);
-  });
-
-  it('returns null if no elements are found', () => {
-    const win = printElement('non-existent-id');
-    expect(win).toBeNull();
-  });
 });
+

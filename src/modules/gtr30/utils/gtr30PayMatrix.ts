@@ -85,13 +85,6 @@ export function monthStartFromKey(monthKey: string): string | null {
   return toIso(Number(match[2]), monthNum, 1);
 }
 
-export function monthKeyFromDate(iso: string): string | null {
-  const p = parseIso(iso);
-  if (!p) return null;
-  const name = MONTHS[(p.m + 8) % 12];
-  return `${name}-${p.y}`;
-}
-
 export function formatDate(iso: string | undefined | null): string {
   if (!iso) return '—';
   const p = parseIso(iso);
@@ -125,23 +118,6 @@ export function normalizePayEntries(entries: PayEntryDraft[] | null | undefined)
     out.push({ ...entry });
   }
   return out;
-}
-
-export function resolveBasicPayForDate(
-  entries: GTR30PayEntry[] | null | undefined,
-  isoDate: string
-): GTR30PayEntry | null {
-  const norm = normalizePayEntries(entries);
-  for (const entry of norm) {
-    if (isoDate >= entry.startDate && (entry.endDate === undefined || isoDate <= entry.endDate)) {
-      return entry;
-    }
-  }
-  let best: GTR30PayEntry | null = null;
-  for (const entry of norm) {
-    if (entry.startDate <= isoDate && (!best || entry.startDate > best.startDate)) best = entry;
-  }
-  return best ?? norm[0] ?? null;
 }
 
 export function resolveBasicPayForMonth(

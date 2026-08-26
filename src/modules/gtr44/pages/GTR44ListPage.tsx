@@ -42,7 +42,7 @@ export function GTR44ListPage() {
       const matchesSearch =
         bill.billNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         bill.officeName?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTab = activeTab === 'all' || activeTab === 'ytd' || bill.status === activeTab;
+      const matchesTab = activeTab === 'all' || bill.status === activeTab;
       return matchesSearch && matchesTab;
     });
   }, [bills, searchTerm, activeTab]);

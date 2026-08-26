@@ -37,8 +37,10 @@ export function PayBillHistoryPage() {
   const [search, setSearch] = useState('');
   const [sheetFilter, setSheetFilter] = useState<'ALL' | 'EARNING' | 'DEDUCTION'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | PayBillImportStatus>('ALL');
+  const [monthFilter, setMonthFilter] = useState<string>('ALL');
   const [fyFilter, setFyFilter] = useState<number | 'ALL'>(fy);
   const [deleteTarget, setDeleteTarget] = useState<PayBillStoredImport | null>(null);
+  const [deleteMonthTarget, setDeleteMonthTarget] = useState<{ fy: number; month: string } | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -63,6 +65,7 @@ export function PayBillHistoryPage() {
     return imports.filter((row) => {
       if (sheetFilter !== 'ALL' && row.sheetType !== sheetFilter) return false;
       if (statusFilter !== 'ALL' && (row.status || 'IMPORTED') !== statusFilter) return false;
+      if (monthFilter !== 'ALL' && row.month.toLowerCase() !== monthFilter.toLowerCase()) return false;
       if (!q) return true;
       return (
         row.billNo.toLowerCase().includes(q) ||
@@ -71,7 +74,7 @@ export function PayBillHistoryPage() {
         (row.uploadedFile || '').toLowerCase().includes(q)
       );
     });
-  }, [imports, search, sheetFilter, statusFilter]);
+  }, [imports, search, sheetFilter, statusFilter, monthFilter]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -83,6 +86,21 @@ export function PayBillHistoryPage() {
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not delete import.');
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
+  const handleDeleteMonth = async () => {
+    if (!deleteMonthTarget) return;
+    setDeleteBusy(true);
+    try {
+      await paybillRepository.deleteMonthData(deleteMonthTarget.fy, deleteMonthTarget.month);
+      toast.success(`All imports and records for ${deleteMonthTarget.month} deleted.`);
+      setDeleteMonthTarget(null);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete month imports.');
     } finally {
       setDeleteBusy(false);
     }
@@ -136,6 +154,23 @@ export function PayBillHistoryPage() {
             </select>
 
             <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="ALL">All Months</option>
+              {[
+                'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October',
+                'November', 'December', 'January', 'February'
+              ].map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
               className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -151,6 +186,22 @@ export function PayBillHistoryPage() {
             <PbButton variant="ghost" icon={RefreshCw} onClick={() => void load()} disabled={isLoading}>
               Refresh
             </PbButton>
+
+            {monthFilter !== 'ALL' && filtered.length > 0 && (
+              <PbButton
+                variant="danger"
+                icon={Trash2}
+                onClick={() =>
+                  setDeleteMonthTarget({
+                    fy: fyFilter === 'ALL' ? (filtered[0]?.financialYear || fy) : Number(fyFilter),
+                    month: monthFilter,
+                  })
+                }
+                title={`Delete all bills and records for ${monthFilter}`}
+              >
+                Delete Month ({monthFilter})
+              </PbButton>
+            )}
           </>
         }
       >
@@ -297,6 +348,33 @@ export function PayBillHistoryPage() {
         }
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteMonthTarget)}
+        title={`Delete All Data for ${deleteMonthTarget?.month} (FY ${deleteMonthTarget?.fy})?`}
+        danger
+        icon={Trash2}
+        confirmLabel="Delete Month"
+        busy={deleteBusy}
+        message={
+          deleteMonthTarget ? (
+            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+              <p>
+                Are you sure you want to delete all imported paybill records, earnings, and deductions for{' '}
+                <strong className="text-rose-600 dark:text-rose-400 font-bold">
+                  {deleteMonthTarget.month} (FY {deleteMonthTarget.fy}-{String(deleteMonthTarget.fy + 1).slice(-2)})
+                </strong>
+                ?
+              </p>
+              <p className="text-xs text-slate-500">
+                All inner sheets (Earning and Deduction) and employee records for this month will be removed. This action cannot be undone.
+              </p>
+            </div>
+          ) : undefined
+        }
+        onConfirm={() => void handleDeleteMonth()}
+        onCancel={() => setDeleteMonthTarget(null)}
       />
     </div>
   );

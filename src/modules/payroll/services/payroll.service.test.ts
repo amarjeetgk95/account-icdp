@@ -81,11 +81,10 @@ describe('PayrollService.getEntryMonth', () => {
     expect(MONTHS).toContain(month);
   });
 
-  it('returns the month before the current financial year month', () => {
+  it('returns the current entry month in the financial year calendar', () => {
     const service = new PayrollService();
     const now = new Date();
-    const fyMonthIdx = (now.getMonth() - 3 + 12) % 12;
-    const expectedEntryIdx = (fyMonthIdx - 1 + 12) % 12;
+    const expectedEntryIdx = (now.getMonth() - 3 + 12) % 12;
     const expected = MONTHS[expectedEntryIdx];
     expect(service.getEntryMonth()).toBe(expected);
   });
@@ -115,12 +114,12 @@ describe('PayrollService.getPreviousMonthData', () => {
     expect(mockGetPrev).toHaveBeenCalledWith('December', 2025);
   });
 
-  it('handles FY boundary (April -> March)', async () => {
+  it('handles FY boundary (April 2025 -> March 2024)', async () => {
     mockGetPrev.mockResolvedValue([]);
 
     await service.getPreviousMonthData('April', 2025);
 
-    expect(mockGetPrev).toHaveBeenCalledWith('March', 2025);
+    expect(mockGetPrev).toHaveBeenCalledWith('March', 2024);
   });
 
   it('returns the result from the repository', async () => {
@@ -153,12 +152,12 @@ describe('PayrollService.getEmployeePreviousMonthData', () => {
     expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'July', 2025);
   });
 
-  it('handles FY boundary correctly', async () => {
+  it('handles FY boundary correctly (April 2025 -> March 2024)', async () => {
     mockGetEmp.mockResolvedValue({ gross: 30000, da: 5000, tax: 2000 });
 
     await service.getEmployeePreviousMonthData('emp-123', 'April', 2025);
 
-    expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'March', 2025);
+    expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'March', 2024);
   });
 
   it('returns null when no data found', async () => {

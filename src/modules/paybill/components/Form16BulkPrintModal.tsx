@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Modal } from '@/shared/components/Modal';
 import { popupNativePrint } from '@/shared/utilities/nativePrint';
-import { Form16Document, type Form16PartALayout } from './Form16Document';
-import { Printer, FileSpreadsheet, FileArchive } from 'lucide-react';
+import { Form16Document } from './Form16Document';
+import { Printer, FileSpreadsheet, FileArchive, Search, Filter } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
 import type { Form16Certificate } from '../types/form16';
@@ -15,6 +15,8 @@ interface Form16BulkPrintModalProps {
   financialYear: number;
 }
 
+type BulkFilterMode = 'all' | 'issued' | 'reviewed_issued' | 'tax_deducted' | 'zero_tax';
+
 export function Form16BulkPrintModal({
   open,
   onClose,
@@ -22,30 +24,39 @@ export function Form16BulkPrintModal({
   financialYear,
 }: Form16BulkPrintModalProps) {
   const [isExportingZip, setIsExportingZip] = useState(false);
-  const [filterMode, setFilterMode] = useState<'all' | 'issued'>('all');
-  const [partALayout, setPartALayout] = useState<Form16PartALayout>(() => {
-    try {
-      return (localStorage.getItem('form16_parta_layout') as Form16PartALayout) || 'traces';
-    } catch {
-      return 'traces';
-    }
-  });
-
-  const handleToggleLayout = (layout: Form16PartALayout) => {
-    setPartALayout(layout);
-    try {
-      localStorage.setItem('form16_parta_layout', layout);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const targetCerts = filterMode === 'issued'
-    ? certs.filter((c) => c.status === 'ISSUED')
-    : certs;
+  const [filterMode, setFilterMode] = useState<BulkFilterMode>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fyLabel = `${financialYear}-${String(financialYear + 1).slice(-2)}`;
   const ayLabel = assessmentYearFor(financialYear);
+
+  // Filter logic
+  const targetCerts = useMemo(() => {
+    return certs.filter((c) => {
+      // Status & tax filters
+      if (filterMode === 'issued' && c.status !== 'ISSUED') return false;
+      if (filterMode === 'reviewed_issued' && c.status !== 'ISSUED' && c.status !== 'REVIEWED') return false;
+      if (filterMode === 'tax_deducted') {
+        const tds = c.computedTotals?.tdsDeducted || 0;
+        if (tds <= 0) return false;
+      }
+      if (filterMode === 'zero_tax') {
+        const tax = c.computedTotals?.totalTaxPayable || 0;
+        if (tax > 0) return false;
+      }
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const n = (c.employee.name || '').toLowerCase();
+        const h = (c.hrpn || '').toLowerCase();
+        const p = (c.employee.pan || '').toLowerCase();
+        return n.includes(q) || h.includes(q) || p.includes(q);
+      }
+
+      return true;
+    });
+  }, [certs, filterMode, searchQuery]);
 
   const handlePrintAll = () => {
     const container = document.getElementById('form16-bulk-print-container');
@@ -77,21 +88,25 @@ export function Form16BulkPrintModal({
           break-after: auto !important;
         }
         @media print {
-          @page { size: A4 portrait; margin: 5mm 6mm !important; }
-          html, body { background: #fff !important; color: #000 !important; font-family: 'Times New Roman', Times, 'Liberation Serif', Georgia, serif !important; font-size: 10pt !important; }
-          .f16-title-main { font-size: 16.5pt !important; font-weight: 900 !important; }
-          .f16-parta-title { font-size: 13pt !important; font-weight: 900 !important; }
-          .f16-rule-sub { font-size: 10pt !important; font-weight: 600 !important; }
-          .f16-cert-desc { font-size: 9.2pt !important; font-weight: 600 !important; }
-          .f16-hdr-cell { font-size: 8.8pt !important; font-weight: 800 !important; }
-          .f16-val-cell { font-size: 10.5pt !important; font-weight: 700 !important; }
-          .f16-table th { font-size: 9.8pt !important; font-weight: 900 !important; padding: 1.3mm 2mm !important; }
-          .f16-table td { font-size: 10pt !important; padding: 1.2mm 2mm !important; }
-          .f16-num { font-size: 10.8pt !important; font-weight: 800 !important; }
-          .f16-verify-box { font-size: 9.8pt !important; }
-          .f16-verify-title { font-size: 10.5pt !important; font-weight: 900 !important; }
-          .f16-verify-text { font-size: 9.8pt !important; }
-          .f16-verify-grid { font-size: 10pt !important; }
+          @page { size: A4 portrait; margin: 4mm 5mm !important; }
+          html, body { background: #fff !important; color: #000 !important; font-family: 'Times New Roman', Times, 'Liberation Serif', Georgia, serif !important; }
+          .f16-title-main { font-size: 13pt !important; font-weight: 900 !important; margin-bottom: 0.1mm !important; }
+          .f16-parta-title { font-size: 10pt !important; font-weight: 900 !important; margin: 0.1mm 0 !important; }
+          .f16-rule-sub { font-size: 8pt !important; font-weight: 600 !important; margin-bottom: 0.2mm !important; }
+          .f16-cert-desc { font-size: 7.2pt !important; font-weight: 600 !important; line-height: 1.15 !important; margin-bottom: 0.8mm !important; }
+          .f16-cert-meta-strip { font-size: 7.5pt !important; padding: 0.6mm 1.5mm !important; }
+          .f16-table { border: 1.1px solid #000 !important; margin-bottom: 0.8mm !important; }
+          .f16-table th { font-size: 7.6pt !important; font-weight: 800 !important; padding: 0.5mm 1.2mm !important; background: #f2f2f2 !important; line-height: 1.15 !important; }
+          .f16-table td { font-size: 8pt !important; padding: 0.45mm 1.2mm !important; line-height: 1.18 !important; }
+          .f16-sec-hdr { font-size: 8pt !important; font-weight: 900 !important; background: #eaeaea !important; padding: 0.5mm !important; }
+          .f16-b-opt { font-size: 7.8pt !important; font-weight: 800 !important; padding: 0.4mm !important; margin-bottom: 0.5mm !important; }
+          .f16-num { font-size: 8.5pt !important; font-weight: 700 !important; }
+          .f16-verify-box { font-size: 7.4pt !important; border: none !important; padding: 1mm 1mm !important; margin-top: 0.8mm !important; }
+          .f16-verify-title { font-size: 8.2pt !important; font-weight: 900 !important; text-align: center !important; margin-bottom: 0.4mm !important; text-decoration: underline !important; }
+          .f16-verify-text { font-size: 7.2pt !important; line-height: 1.18 !important; margin-bottom: 0.5mm !important; }
+          .f16-sig-line { font-weight: 900 !important; font-size: 7.5pt !important; }
+          .f16-sig-caption { font-size: 6.8pt !important; margin-bottom: 0.3mm !important; }
+          .f16-sig-field { font-size: 7.4pt !important; }
         }
       `,
     });
@@ -110,105 +125,109 @@ export function Form16BulkPrintModal({
       'Std Deduction 16(ia)',
       'Chargeable Salary',
       'House Prop Income',
-      'Other Income',
+      'Other Sources Income',
       'Gross Total Income',
-      'NPS 80CCD(2)',
-      'Taxable Income',
-      'Tax on Income',
+      'Total Taxable Income',
+      'Tax on Total Income',
       'Rebate 87A',
       'Cess 4%',
       'Total Tax Payable',
-      'Relief 89',
       'TDS Deducted',
-      'TCS Collected',
       'Net Tax Payable',
+      'Q1 TDS',
+      'Q2 TDS',
+      'Q3 TDS',
+      'Q4 TDS',
+      'Total Part A TDS',
     ];
 
     const rows = targetCerts.map((c) => {
       const t = c.computedTotals;
+      const qMap = Object.fromEntries(c.partA.quarters.map((q) => [q.quarter, q.taxDeducted]));
+      const qTotal = c.partA.quarters.reduce((s, q) => s + (Number(q.taxDeducted) || 0), 0);
+
       return [
         `"${c.hrpn}"`,
-        `"${c.employee.name}"`,
-        `"${c.employee.designation}"`,
-        `"${c.employee.pan}"`,
-        `"${c.status}"`,
+        `"${c.employee.name || ''}"`,
+        `"${c.employee.designation || ''}"`,
+        `"${c.employee.pan || ''}"`,
+        c.status,
         t?.grossSalary17_1 || 0,
-        t?.perquisites17_2 || 0,
-        t?.profitsInLieu17_3 || 0,
+        c.partB.perquisites17_2 || 0,
+        c.partB.profitsInLieu17_3 || 0,
         t?.standardDeduction16ia || 0,
         t?.incomeChargeableSalaries || 0,
-        t?.housePropertyIncome || 0,
-        t?.otherSourcesIncome || 0,
+        c.partB.housePropertyIncome || 0,
+        c.partB.otherSourcesIncome || 0,
         t?.grossTotalIncome || 0,
-        t?.nps80CCD2 || 0,
         t?.totalTaxableIncome || 0,
         t?.taxOnTotalIncome || 0,
         t?.rebate87A || 0,
         t?.cess4 || 0,
         t?.totalTaxPayable || 0,
-        t?.relief89 || 0,
         t?.tdsDeducted || 0,
-        t?.taxCollectedAtSource || 0,
         t?.netTaxPayable || 0,
+        qMap.Q1 || 0,
+        qMap.Q2 || 0,
+        qMap.Q3 || 0,
+        qMap.Q4 || 0,
+        qTotal,
       ].join(',');
     });
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const csvContent = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `Form16_Register_FY${fyLabel}.csv`);
+    saveAs(blob, `Form16_Summary_Register_FY${fyLabel}.csv`);
   };
 
   const handleExportZip = async () => {
     setIsExportingZip(true);
     try {
       const zip = new JSZip();
-      const folder = zip.folder(`Form16_Certificates_FY${fyLabel}`);
+      const folder = zip.folder(`Form16_FY${fyLabel}`);
 
       for (const cert of targetCerts) {
         const pan = cert.employee.pan || cert.hrpn || 'EMP';
-        const cleanName = (cert.employee.name || 'Employee').replace(/[^a-zA-Z0-9_-]/g, '_');
-        const filename = `Form16_${pan}_${cleanName}_AY${ayLabel}.html`;
+        const filename = `Form16_${pan}_${cert.employee.name.replace(/[^a-zA-Z0-9]/g, '_')}.html`;
 
-        // Render HTML package with styling embedded
         const singleHtml = `<!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<title>Form 16 - ${cert.employee.name} (AY ${ayLabel})</title>
-<style>
-@page { size: A4 portrait; margin: 6mm 8mm; }
-body { font-family: 'Times New Roman', serif; margin: 0; padding: 8mm 10mm; color: #000; line-height: 1.25; }
-table { width: 100%; border-collapse: collapse; margin-bottom: 2.5mm; }
-th, td { border: 1px solid #000; padding: 1.5mm 2.5mm; font-size: 9.5pt; }
-th { background: #fbfbfb; }
-.text-center { text-align: center; }
-.text-right { text-align: right; font-family: 'Courier New', monospace; font-weight: 600; }
-.font-bold { font-weight: bold; }
-</style>
+  <meta charset="utf-8">
+  <title>Form 16 - ${cert.employee.name}</title>
+  <style>
+    body { font-family: 'Times New Roman', Times, serif; margin: 15mm; color: #000; }
+    table { width: 100%; border-collapse: collapse; margin-top: 5mm; }
+    th, td { border: 1px solid #333; padding: 4px 8px; font-size: 10pt; }
+    th { background: #f2f2f2; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .font-bold { font-weight: bold; }
+    .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 4mm; }
+  </style>
 </head>
 <body>
-  <div style="text-align: center; font-weight: bold; font-size: 13pt;">FORM NO. 16</div>
-  <div style="text-align: center; font-size: 8.5pt;">[See rule 31(1)(a)]</div>
-  <div style="text-align: center; font-weight: bold; font-size: 11pt; margin-top: 1mm;">PART A & PART B (New Regime u/s 115BAC)</div>
-  <div style="text-align: center; font-size: 8.5pt; margin-bottom: 3mm;">Assessment Year: ${ayLabel} · Financial Year: ${fyLabel}</div>
-  
-  <table>
+  <div class="header">
+    <h2>FORM NO. 16</h2>
+    <p>Certificate under section 203 of the Income-tax Act, 1961 for tax deducted at source on salary</p>
+    <b>Financial Year: ${fyLabel} &nbsp;|&nbsp; Assessment Year: ${ayLabel}</b>
+  </div>
+
+  <table style="margin-top: 6mm;">
     <tr>
-      <td width="50%"><b>Employer:</b> ${cert.employer.name}<br/>PAN: ${cert.employer.pan}<br/>TAN: ${cert.employer.tan}</td>
-      <td width="50%"><b>Employee:</b> ${cert.employee.name}<br/>PAN: ${cert.employee.pan}<br/>HRPN: ${cert.hrpn}<br/>Designation: ${cert.employee.designation}</td>
+      <td width="50%"><b>Employer / Deductor:</b><br/>${(cert.employer.name || '').replace(/\n/g, '<br/>')}<br/>${(cert.employer.address || '').replace(/\n/g, '<br/>')}<br/><b>TAN:</b> ${cert.employer.tan} &nbsp; <b>PAN:</b> ${cert.employer.pan}</td>
+      <td width="50%"><b>Employee:</b><br/>${cert.employee.name} (${cert.employee.designation})<br/>${cert.employee.address}<br/><b>PAN:</b> ${cert.employee.pan} &nbsp; <b>HRPN:</b> ${cert.hrpn}</td>
     </tr>
   </table>
 
+  <h3 style="margin-top: 6mm; margin-bottom: 2mm;">PART B: Details of Salary Paid and any other income and tax deducted</h3>
   <table>
     <thead>
-      <tr class="font-bold">
-        <th width="10%">Sl. No.</th>
-        <th width="68%">Particulars</th>
-        <th width="22%">Amount (₹)</th>
-      </tr>
+      <tr><th width="8%">Item</th><th>Particulars</th><th width="20%">Amount (Rs.)</th></tr>
     </thead>
     <tbody>
-      <tr><td class="text-center font-bold">1</td><td class="font-bold">Gross Salary u/s 17(1)</td><td class="text-right">${cert.computedTotals?.grossSalary17_1?.toFixed(2) || '0.00'}</td></tr>
+      <tr><td class="text-center font-bold">1(a)</td><td>Gross Salary u/s 17(1)</td><td class="text-right">${cert.computedTotals?.grossSalary17_1?.toFixed(2) || '0.00'}</td></tr>
+      <tr><td class="text-center font-bold">1(d)</td><td class="font-bold">Total Gross Salary</td><td class="text-right font-bold">${cert.computedTotals?.totalGrossSalary1d?.toFixed(2) || '0.00'}</td></tr>
       <tr><td class="text-center font-bold">2</td><td class="font-bold">Standard Deduction u/s 16(ia)</td><td class="text-right">${cert.computedTotals?.standardDeduction16ia?.toFixed(2) || '0.00'}</td></tr>
       <tr><td class="text-center font-bold">3</td><td class="font-bold">Income Chargeable under Salaries</td><td class="text-right">${cert.computedTotals?.incomeChargeableSalaries?.toFixed(2) || '0.00'}</td></tr>
       <tr><td class="text-center font-bold">6</td><td class="font-bold">Gross Total Income</td><td class="text-right">${cert.computedTotals?.grossTotalIncome?.toFixed(2) || '0.00'}</td></tr>
@@ -248,104 +267,124 @@ th { background: #fbfbfb; }
       maxWidth="full"
     >
       <div className="space-y-4">
-        {/* Controls Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Include:</span>
+        {/* Controls & Filter Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-xl">
+          {/* Filter Chips */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
+              <Filter size={12} /> Filter:
+            </span>
             <button
               type="button"
               onClick={() => setFilterMode('all')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
                 filterMode === 'all'
                   ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              All Certificates ({certs.length})
+              All ({certs.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode('reviewed_issued')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                filterMode === 'reviewed_issued'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Reviewed & Issued ({certs.filter((c) => c.status === 'ISSUED' || c.status === 'REVIEWED').length})
             </button>
             <button
               type="button"
               onClick={() => setFilterMode('issued')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
                 filterMode === 'issued'
                   ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               Issued Only ({certs.filter((c) => c.status === 'ISSUED').length})
             </button>
-
-            {/* Part A Layout Toggle */}
-            <div className="inline-flex items-center p-0.5 bg-slate-200/80 dark:bg-slate-700 rounded-lg ml-2">
-              <button
-                type="button"
-                onClick={() => handleToggleLayout('traces')}
-                className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
-                  partALayout === 'traces'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                }`}
-                title="Official TRACES CPC-TDS Government Layout"
-              >
-                🏛️ TRACES Format
-              </button>
-              <button
-                type="button"
-                onClick={() => handleToggleLayout('modern')}
-                className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
-                  partALayout === 'modern'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                }`}
-                title="Modern Executive Dual-Badge Layout"
-              >
-                📄 Executive Layout
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setFilterMode('tax_deducted')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                filterMode === 'tax_deducted'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Tax Deducted ({certs.filter((c) => (c.computedTotals?.tdsDeducted || 0) > 0).length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode('zero_tax')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                filterMode === 'zero_tax'
+                  ? 'bg-slate-700 text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Zero Tax ({certs.filter((c) => (c.computedTotals?.totalTaxPayable || 0) === 0).length})
+            </button>
           </div>
 
+          {/* Search Input & Action Buttons */}
           <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search name / HRPN..."
+                className="pl-7 pr-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 w-36 sm:w-48"
+              />
+            </div>
+
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-lg transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-lg transition cursor-pointer shadow-2xs"
             >
-              <FileSpreadsheet size={13} /> Export Excel / CSV
+              <FileSpreadsheet size={13} /> Excel
             </button>
             <button
               type="button"
               disabled={isExportingZip || targetCerts.length === 0}
               onClick={() => void handleExportZip()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 border border-purple-200 dark:border-purple-800 rounded-lg transition disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 border border-purple-200 dark:border-purple-800 rounded-lg transition disabled:opacity-50 cursor-pointer shadow-2xs"
             >
-              <FileArchive size={13} /> {isExportingZip ? 'Zipping…' : 'Download ZIP'}
+              <FileArchive size={13} /> {isExportingZip ? 'Zipping…' : 'ZIP'}
             </button>
             <button
               type="button"
               disabled={targetCerts.length === 0}
               onClick={handlePrintAll}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
             >
-              <Printer size={13} /> Print All ({targetCerts.length})
+              <Printer size={13} /> Print ({targetCerts.length})
             </button>
           </div>
         </div>
 
         {/* Preview List Box */}
-        <div className="max-h-[60vh] overflow-y-auto app-scroll bg-slate-100 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div className="max-h-[64vh] overflow-y-auto app-scroll bg-slate-200/70 dark:bg-slate-950/80 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
           <div id="form16-bulk-print-container" className="space-y-6 f16-bulk-wrapper">
             {targetCerts.map((cert) => (
               <div
                 key={cert.id || cert.hrpn}
                 className="bg-white shadow-md rounded-sm overflow-hidden"
               >
-                <Form16Document cert={cert} layout={partALayout} />
+                <Form16Document cert={cert} />
               </div>
             ))}
 
             {targetCerts.length === 0 && (
-              <div className="text-center py-12 text-xs text-slate-400">
-                No certificates match the selected filter.
+              <div className="text-center py-16 text-xs text-slate-400">
+                No certificates match the selected filter / search query.
               </div>
             )}
           </div>

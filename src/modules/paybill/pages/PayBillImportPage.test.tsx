@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { PayBillImportPage } from './PayBillImportPage';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@/core/supabase/client', () => ({
   supabase: {
@@ -21,13 +22,16 @@ vi.mock('@/core/supabase/client', () => ({
   },
 }));
 
-vi.mock('@/core/auth/store', () => ({
-  useAuthStore: {
-    getState: () => ({
-      user: { id: 'test-user-123' },
-    }),
-  },
-}));
+vi.mock('@/core/auth/store', () => {
+  const store = (selector?: (s: { user: { id: string } }) => unknown) => {
+    const state = { user: { id: 'test-user-123' } };
+    return selector ? selector(state) : state;
+  };
+  store.getState = () => ({
+    user: { id: 'test-user-123' },
+  });
+  return { useAuthStore: store };
+});
 
 vi.mock('@/shared/utilities/office', () => ({
   getOfficeId: () => 'office-123',
@@ -74,14 +78,21 @@ describe('PayBillImportPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders default matrix view and upload button in header', () => {
-    render(
-      <MemoryRouter initialEntries={['/paybill/matrix']}>
-        <Routes>
-          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
-        </Routes>
-      </MemoryRouter>
+  const renderPage = (initialEntry: string) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <Routes>
+            <Route path="/paybill/:tab" element={<PayBillImportPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
     );
+  };
+
+  it('renders default matrix view and upload button in header', () => {
+    renderPage('/paybill/matrix');
 
     expect(screen.getByText(/Pay Bill PDF Import & Allowance System/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Upload PDF/i })).toBeInTheDocument();
@@ -89,13 +100,7 @@ describe('PayBillImportPage', () => {
   });
 
   it('opens upload popup modal on button click and extracts sample data', async () => {
-    render(
-      <MemoryRouter initialEntries={['/paybill/matrix']}>
-        <Routes>
-          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderPage('/paybill/matrix');
 
     const uploadBtn = screen.getByRole('button', { name: /Upload PDF/i });
     fireEvent.click(uploadBtn);
@@ -122,13 +127,7 @@ describe('PayBillImportPage', () => {
   });
 
   it('extracts sample deduction PDF data with 8 employees and reconciles net pay', async () => {
-    render(
-      <MemoryRouter initialEntries={['/paybill/matrix']}>
-        <Routes>
-          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderPage('/paybill/matrix');
 
     const uploadBtn = screen.getByRole('button', { name: /Upload PDF/i });
     fireEvent.click(uploadBtn);
@@ -151,26 +150,14 @@ describe('PayBillImportPage', () => {
   });
 
   it('switches between 12-Month Matrix and Employee Ledger via route params', () => {
-    render(
-      <MemoryRouter initialEntries={['/paybill/matrix']}>
-        <Routes>
-          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderPage('/paybill/matrix');
 
     expect(screen.getByText(/Pay Bill Allowance Matrix Report/i)).toBeInTheDocument();
 
     cleanup();
 
-    render(
-      <MemoryRouter initialEntries={['/paybill/employee']}>
-        <Routes>
-          <Route path="/paybill/:tab" element={<PayBillImportPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderPage('/paybill/employee');
 
-    expect(screen.getByRole('heading', { level: 3, name: /Employee Ledger/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Search employees by HRPN/i)).toBeInTheDocument();
   });
 });

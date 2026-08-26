@@ -445,31 +445,6 @@ export interface PayBillAuditReport {
   healthyRecordCount: number;
 }
 
-export interface PostToLedgerPayload {
-  month: string;
-  financialYear: number;
-  billNo: string;
-  voucherDate: string;
-  majorHead: string; // e.g. "2403-00-101-02-00"
-  basicPayTotal: number; // 0101
-  daTotal: number; // 0103
-  hraTotal: number; // 0110
-  claTotal: number; // 0111
-  medTotal: number; // 0107
-  transTotal: number; // 0113
-  specialPayTotal: number; // 0101/0102
-  washingTotal: number; // 0132
-  nppTotal: number; // 0128
-  grossTotal: number;
-  gpfTotal?: number;
-  npsTotal?: number;
-  incomeTaxTotal?: number;
-  ptTotal?: number;
-  gisTotal?: number;
-  netTotal?: number;
-  remarks?: string;
-}
-
 export type PayBillSortField =
   | 'hrpn'
   | 'employeeName'
@@ -508,19 +483,6 @@ export interface PayBillSettings {
   manualDeductions?: string[]; // custom deduction parameters entered manually in the employee ledger
   earningColumnOrder?: string[]; // display order of EARNING parameter keys (standard + `manual::label`); empty = default
   deductionColumnOrder?: string[]; // display order of DEDUCTION parameter keys (standard + `manual::label`); empty = default
-}
-
-export interface PayBillLedgerVoucher {
-  id: string;
-  voucherNo: string;
-  billNo: string;
-  month: string;
-  financialYear: number;
-  voucherDate: string;
-  majorHead: string | null;
-  grossTotal: number;
-  status: string;
-  createdAt: string;
 }
 
 export interface PayBillAuditConfig {

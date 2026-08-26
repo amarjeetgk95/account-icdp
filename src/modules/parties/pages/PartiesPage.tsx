@@ -64,9 +64,7 @@ export function PartiesPage() {
 
   const handleBulkSave = async (inputs: TransactionInput[]) => {
     const result = await saveBulkTransactions.mutateAsync(inputs);
-    if (result.errors.length > 0) {
-      console.warn('Bulk import errors:', result.errors);
-    }
+    return { failed: result.errors.length };
   };
 
   const exportGstCSV = () => {

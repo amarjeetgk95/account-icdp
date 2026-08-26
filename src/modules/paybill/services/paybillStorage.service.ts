@@ -510,75 +510,7 @@ class PayBillStorageService {
           }))
         );
 
-        // 3. Create a record in salary_imports for backward compatibility
-        const { data: importRecord } = await supabase
-          .from('salary_imports')
-          .insert({
-            office_id: officeId,
-            excel_filename: metadata.billNo ? `PayBill_${metadata.billNo}.pdf` : fileName,
-            financial_year: financialYear,
-            total_records: records.length,
-            matched_count: matchedRecords.length,
-            uploaded_by: userId || null,
-          })
-          .select()
-          .single();
-
-        const legacyImportId = importRecord?.id || importId;
-
-        // 4. Upsert employee_salary rows
-        const salaryRows = records.map((rec) => {
-          let statusStr: 'matched' | 'unmatched' | 'duplicate' | 'not_detected' = 'unmatched';
-          if (rec.mappingStatus === 'MATCHED') statusStr = 'matched';
-          else if (rec.mappingStatus === 'DUPLICATE') statusStr = 'duplicate';
-
-          return {
-            salary_import_id: legacyImportId,
-            employee_id: rec.matchedEmployee?.id || null,
-            hprn_no: rec.row.hrpn,
-            office_id: officeId,
-            name: rec.row.employeeName,
-            month: month,
-            financial_year: financialYear,
-            gross_salary: Math.round(rec.row.grossAmount * 100) / 100,
-            income_tax: 0,
-            status: statusStr,
-          };
-        });
-
-        if (salaryRows.length > 0) {
-          await supabase.from('employee_salary').upsert(salaryRows, {
-            onConflict: 'salary_import_id,hprn_no,month',
-          });
-        }
-
-        // 5. Upsert to employee_salaries for matched records
-        const payrollGridRows = matchedRecords
-          .filter((r) => r.matchedEmployee?.id)
-          .map((r) => ({
-            employee_id: r.matchedEmployee!.id,
-            office_id: officeId,
-            financial_year: financialYear,
-            month: month,
-            gross: Math.round(r.row.grossAmount * 100) / 100,
-            da: Math.round(r.row.da * 100) / 100,
-            tax: 0,
-          }));
-
-        if (payrollGridRows.length > 0) {
-          const { error: gridError } = await supabase
-            .from('employee_salaries')
-            .upsert(payrollGridRows, {
-              onConflict: 'employee_id,financial_year,month',
-            });
-
-          if (!gridError) {
-            appliedToPayrollGrid = payrollGridRows.length;
-          } else {
-            console.warn('[PayBillStorage] payrollGrid upsert warning:', gridError.message);
-          }
-        }
-        // Mark as synced if we reached here without throwing — even when no payroll grid rows (e.g. all NOT_FOUND)
+        // Mark as synced once Paybill records and components are persisted
         dbSync = true;
 
         // Audit trail: record successful import

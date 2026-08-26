@@ -1,6 +1,5 @@
 import { GTR44FormData, GTR44Deductions, GTR44Entry, GTR44ObjectExpenditureItem } from '../types';
 import { numberToWordsINR } from '../utils/gtr44Utils';
-import { useGTR44SettingsStore } from '../store/gtr44SettingsStore';
 
 export interface GTR44Totals {
   grossAmount: number;
@@ -113,23 +112,6 @@ export function aggregateExpenditureByEDPCode(
   const amounts = items.map(() => 0);
   const rowKeys = items.map((item) => normalizeEDPCode(item.edpCode));
 
-  // Build a set of known valid EDP codes from the store's catalog + current rows + deduction templates.
-  // This is used only to decide whether an unmatched code should be considered truly unmatched.
-  // Store access is wrapped in try/catch so aggregate remains pure during tests / SSR where store may not be initialized.
-  let knownEdpSet: Set<string> | null = null;
-  try {
-    const state = useGTR44SettingsStore?.getState?.();
-    if (state?.edpCodes && Array.isArray(state.edpCodes) && state.edpCodes.length > 0) {
-      const catalogCodes = state.edpCodes.filter((c) => c.isActive !== false).map((c) => normalizeEDPCode(c.code));
-      const deductionCodes = (state.deductionTemplates || [])
-        .filter((t) => !t.isGst)
-        .map((t) => normalizeEDPCode(`${t.code}-`));
-      knownEdpSet = new Set<string>([...catalogCodes, ...rowKeys.filter(Boolean), ...deductionCodes]);
-    }
-  } catch {
-    knownEdpSet = null;
-  }
-
   // Flexible EDP matching: exact, then digits-only (ignoring trailing +/-), then Budget Code fallback for user convenience
   const stripOperator = (s: string) => s.replace(/[+-]$/, '');
   const perCodeExact = new Map<string, number>();
@@ -151,12 +133,7 @@ export function aggregateExpenditureByEDPCode(
   const budgetCodeToIdx = new Map<string, number>();
   items.forEach((item, idx) => {
     const bCode = String(item.code ?? '').trim();
-    if (bCode) budgetCodeToIdx.set(bCode, idx);
-    // Also digits-only EDP without operator as budget fallback
-    const digitsFromEdp = stripOperator(rowKeys[idx] || '');
-    if (digitsFromEdp && !budgetCodeToIdx.has(digitsFromEdp)) {
-      // Prefer explicit budget code over EDP digits, so only set if not already present
-    }
+    if (bCode && !budgetCodeToIdx.has(bCode)) budgetCodeToIdx.set(bCode, idx);
   });
 
   const consumedExactKeys = new Set<string>();
@@ -209,11 +186,6 @@ export function aggregateExpenditureByEDPCode(
       if (lastIdx >= 0) amounts[lastIdx] += unmatched;
     }
   }
-
-  // knownEdpSet is currently informational; it ensures store's catalog is consulted for validation parity with
-  // gtr44Validation.service which also checks against store's EDP codes. No further branching needed here
-  // because rolling unmatched into Other Charges already handles unknown codes.
-  void knownEdpSet;
 
   return amounts;
 }

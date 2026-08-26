@@ -11,11 +11,16 @@ import type {
   PayBillSortDirection,
   PayBillSheetType,
   PayBillSettings,
-  PayBillLedgerVoucher,
-  PostToLedgerPayload,
   MappingStatus,
   PayBillValidationFlags,
 } from '../types';
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidUuid(value: string | null | undefined): value is string {
+  return typeof value === 'string' && UUID_REGEX.test(value);
+}
 
 const MONTH_ORDER = [
   'March', 'April', 'May',
@@ -102,7 +107,6 @@ interface OfficeCache {
   earnings: PayBillStoredEarning[];
   deductions: PayBillStoredDeduction[];
   settings: PayBillSettings | null;
-  vouchers: PayBillLedgerVoucher[];
   manualValues: ManualLedgerValuesMap | null;
 }
 
@@ -112,7 +116,6 @@ function emptyCache(): OfficeCache {
     earnings: [],
     deductions: [],
     settings: null,
-    vouchers: [],
     manualValues: null,
   };
 }
@@ -187,6 +190,10 @@ export const paybillRepository = {
         .from('paybill_imports')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (typeof (q as { range?: unknown }).range === 'function') {
+        q = q.range(0, 9999);
+      }
 
       if (!allOffices && officeId) {
         q = q.eq('office_id', officeId!);
@@ -293,6 +300,10 @@ export const paybillRepository = {
       let q = supabase
         .from('paybill_employee_earnings')
         .select('*');
+
+      if (typeof (q as { range?: unknown }).range === 'function') {
+        q = q.range(0, 49999);
+      }
 
       if (!allOffices && officeId) {
         q = q.eq('office_id', officeId!);
@@ -425,6 +436,76 @@ export const paybillRepository = {
   },
 
   /**
+   * Delete all imported paybill batches, employee earnings, and employee deductions
+   * for a specific financial year and month.
+   */
+  async deleteMonthData(financialYear: number, month: string): Promise<{ deletedImportsCount: number }> {
+    const officeId = await requireOfficeId();
+    const cleanMonth = (month || '').trim();
+
+    if (!cleanMonth) {
+      throw new Error('Month is required to delete month data.');
+    }
+
+    // 1. Delete from paybill_imports for this office + FY + month
+    const { data: deletedImports, error: importErr } = await supabase
+      .from('paybill_imports')
+      .delete()
+      .eq('office_id', officeId)
+      .eq('financial_year', financialYear)
+      .ilike('month', escapeLikePattern(cleanMonth))
+      .select('id');
+
+    if (importErr) {
+      throw new Error(`Failed to delete paybill imports for ${cleanMonth}: ${importErr.message}`);
+    }
+
+    // 2. Also clean up any direct employee earnings & deductions matching this month & FY
+    const { error: earnErr } = await supabase
+      .from('paybill_employee_earnings')
+      .delete()
+      .eq('office_id', officeId)
+      .eq('financial_year', financialYear)
+      .ilike('month', escapeLikePattern(cleanMonth));
+
+    if (earnErr) {
+      console.warn('[PayBillRepository] earnings delete notice:', earnErr);
+    }
+
+    const { error: dedErr } = await supabase
+      .from('paybill_employee_deductions')
+      .delete()
+      .eq('office_id', officeId)
+      .eq('financial_year', financialYear)
+      .ilike('month', escapeLikePattern(cleanMonth));
+
+    if (dedErr) {
+      console.warn('[PayBillRepository] deductions delete notice:', dedErr);
+    }
+
+    // 3. Update memory cache
+    const cache = resolveOfficeCache(officeId);
+    const deletedImportIds = new Set((deletedImports || []).map((i) => i.id));
+    cache.imports = cache.imports.filter(
+      (i) => !(i.financialYear === financialYear && i.month.toLowerCase() === cleanMonth.toLowerCase())
+    );
+    cache.earnings = cache.earnings.filter(
+      (e) =>
+        !(e.financialYear === financialYear && e.month.toLowerCase() === cleanMonth.toLowerCase()) &&
+        !deletedImportIds.has(e.importId)
+    );
+    cache.deductions = cache.deductions.filter(
+      (d) =>
+        !(d.financialYear === financialYear && d.month.toLowerCase() === cleanMonth.toLowerCase()) &&
+        !deletedImportIds.has(d.importId)
+    );
+
+    return {
+      deletedImportsCount: deletedImports?.length || 0,
+    };
+  },
+
+  /**
    * Save import and earnings records into database and local cache
    */
   saveToCache(importRecord: PayBillStoredImport, earnings: PayBillStoredEarning[]) {
@@ -461,6 +542,10 @@ export const paybillRepository = {
       let q = supabase
         .from('paybill_employee_deductions')
         .select('*');
+
+      if (typeof (q as { range?: unknown }).range === 'function') {
+        q = q.range(0, 49999);
+      }
 
       if (!allOffices && officeId) {
         q = q.eq('office_id', officeId!);
@@ -538,78 +623,6 @@ export const paybillRepository = {
       filtered = filtered.filter((r) => r.hrpn === params.hrpn!.trim());
     }
     return filtered;
-  },
-
-  /**
-   * Generate Deduction Parameter Matrix Report (Columns = Months, Rows = Deduction items + Total Ded + Net Pay)
-   */
-  async getDeductionMatrix(
-    financialYear: number,
-    hrpn?: string | null
-  ): Promise<PayBillAllowanceMatrixReport> {
-    const cleanHrpn = hrpn ? hrpn.trim() : null;
-    const deductions = await this.listDeductions({ financialYear, hrpn: cleanHrpn || undefined });
-
-    const parameterDefs: Array<{ label: string; key: keyof PayBillStoredDeduction }> = [
-      { label: 'Income Tax (9510)', key: 'incomeTax' },
-      { label: 'Prof Tax (9570)', key: 'profTax' },
-      { label: 'HBA Interest (9591)', key: 'hbaInterest' },
-      { label: 'GPF Regular (9670)', key: 'gpfRegular' },
-      { label: 'GPF Class 4 (9531)', key: 'gpfClass4' },
-      { label: 'NPS Regular (9534)', key: 'npsRegular' },
-      { label: 'Govt Fund (9581)', key: 'gisGovtFund' },
-      { label: 'Govt Saving (9582)', key: 'gisGovtSaving' },
-      { label: 'Total Deductions', key: 'totalDeductions' },
-      { label: 'Net Pay', key: 'netPay' },
-    ];
-
-    const rows: PayBillParameterMatrixRow[] = parameterDefs.map((def) => {
-      const monthVals: Record<string, number> = {
-        March: 0, April: 0, May: 0,
-        June: 0, July: 0, August: 0,
-        September: 0, October: 0, November: 0,
-        December: 0, January: 0, February: 0,
-      };
-
-      for (const d of deductions) {
-        if (monthVals[d.month] !== undefined) {
-          const val = Number(d[def.key]) || 0;
-          monthVals[d.month] = Math.round((monthVals[d.month] + val) * 100) / 100;
-        }
-      }
-
-      const q1 = Math.round((monthVals.March + monthVals.April + monthVals.May) * 100) / 100;
-      const q2 = Math.round((monthVals.June + monthVals.July + monthVals.August) * 100) / 100;
-      const q3 = Math.round((monthVals.September + monthVals.October + monthVals.November) * 100) / 100;
-      const q4 = Math.round((monthVals.December + monthVals.January + monthVals.February) * 100) / 100;
-      const total = Math.round((q1 + q2 + q3 + q4) * 100) / 100;
-
-      return {
-        parameter: def.label,
-        key: String(def.key),
-        months: monthVals as PayBillParameterMatrixRow['months'],
-        q1,
-        q2,
-        q3,
-        q4,
-        total,
-      };
-    });
-
-    const netRow = rows.find((r) => r.key === 'netPay');
-    let empName: string | null = null;
-    if (cleanHrpn && deductions.length > 0) {
-      empName = deductions[0].employeeName;
-    }
-
-    return {
-      financialYear,
-      hrpn: cleanHrpn,
-      employeeName: empName,
-      monthLabels: MONTH_ORDER,
-      rows,
-      totalGross: netRow ? netRow.total : 0,
-    };
   },
 
   /**
@@ -871,131 +884,6 @@ export const paybillRepository = {
   },
 
   /**
-   * Post Salary Expenditure to Ledger / Budget Voucher
-   * Creates a real `paybill_vouchers` row (salary journal entry). If the office
-   * already has a voucher for the same month, the existing voucher is returned
-   * instead of creating a duplicate.
-   */
-  async postPayBillToLedger(payload: PostToLedgerPayload): Promise<{ success: boolean; voucherNo: string }> {
-    const officeId = await requireOfficeId();
-    const voucherNo = `SAL/${payload.month.toUpperCase().slice(0, 3)}/${payload.billNo || '001'}`;
-
-    try {
-      const existing = await this.getPostedVoucher(payload.month, payload.financialYear);
-      if (existing) {
-        return { success: true, voucherNo: existing.voucherNo };
-      }
-
-      const { data, error } = await supabase
-        .from('paybill_vouchers')
-        .insert({
-          office_id: officeId,
-          voucher_no: voucherNo,
-          bill_no: payload.billNo,
-          month: payload.month,
-          financial_year: payload.financialYear,
-          voucher_date: payload.voucherDate || new Date().toISOString().slice(0, 10),
-          major_head: payload.majorHead || null,
-          gross_total: payload.grossTotal || 0,
-          basic_pay_total: payload.basicPayTotal || 0,
-          da_total: payload.daTotal || 0,
-          hra_total: payload.hraTotal || 0,
-          cla_total: payload.claTotal || 0,
-          med_total: payload.medTotal || 0,
-          trans_total: payload.transTotal || 0,
-          special_pay_total: payload.specialPayTotal || 0,
-          washing_total: payload.washingTotal || 0,
-          npp_total: payload.nppTotal || 0,
-          gpf_total: payload.gpfTotal || 0,
-          nps_total: payload.npsTotal || 0,
-          income_tax_total: payload.incomeTaxTotal || 0,
-          pt_total: payload.ptTotal || 0,
-          gis_total: payload.gisTotal || 0,
-          net_total: payload.netTotal || 0,
-          remarks: payload.remarks || null,
-          status: 'POSTED',
-        })
-        .select()
-        .single();
-
-      if (error) {
-        // Unique month+office constraint hit - another tab/user posted already
-        const already = await this.getPostedVoucher(payload.month, payload.financialYear);
-        if (already) return { success: true, voucherNo: already.voucherNo };
-        throw error;
-      }
-
-      if (data) {
-        const voucher: PayBillLedgerVoucher = {
-          id: data.id,
-          voucherNo: data.voucher_no,
-          billNo: data.bill_no,
-          month: data.month,
-          financialYear: data.financial_year,
-          voucherDate: data.voucher_date,
-          majorHead: data.major_head,
-          grossTotal: Number(data.gross_total) || 0,
-          status: data.status,
-          createdAt: data.created_at,
-        };
-        const cache = resolveOfficeCache(officeId);
-        cache.vouchers = [voucher, ...cache.vouchers.filter((v) => v.voucherNo !== voucher.voucherNo)];
-      }
-
-      return { success: true, voucherNo };
-    } catch (err) {
-      // Surface the real failure - swallowing it made callers report a
-      // successful posting that never reached the database.
-      console.warn('[PayBillRepository] postPayBillToLedger db error:', err);
-      throw err instanceof Error ? err : new Error('Failed to post pay bill to ledger.');
-    }
-  },
-
-  /**
-   * Fetch the posted ledger voucher for a month (if any)
-   */
-  async getPostedVoucher(month: string, financialYear: number): Promise<PayBillLedgerVoucher | null> {
-    const allOffices = isAllOfficesMode();
-    const officeId = await resolveOfficeId();
-    if (allOffices || officeId) {
-      try {
-        let q = supabase
-          .from('paybill_vouchers')
-          .select('*')
-          .eq('month', month)
-          .eq('financial_year', financialYear)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (!allOffices && officeId) {
-          q = q.eq('office_id', officeId!);
-        }
-
-        const { data, error } = await q.maybeSingle();
-
-        if (!error && data) {
-          return {
-            id: data.id,
-            voucherNo: data.voucher_no,
-            billNo: data.bill_no,
-            month: data.month,
-            financialYear: data.financial_year,
-            voucherDate: data.voucher_date,
-            majorHead: data.major_head,
-            grossTotal: Number(data.gross_total) || 0,
-            status: data.status,
-            createdAt: data.created_at,
-          };
-        }
-      } catch (err) {
-        console.warn('[PayBillRepository] getPostedVoucher db error:', err);
-      }
-    }
-    const cache = resolveOfficeCache(officeId);
-    return cache.vouchers.find((v) => v.month === month && v.financialYear === financialYear) || null;
-  },
-
-  /**
    * Load office-level paybill settings (DA rates, bill metadata defaults, audit tolerances)
    */
   async getSettings(): Promise<PayBillSettings> {
@@ -1148,51 +1036,6 @@ export const paybillRepository = {
   },
 
   /**
-   * Persist a single manual ledger cell value for an employee, parameter and month
-   */
-  async saveManualLedgerValue(
-    hrpn: string,
-    paramKey: string,
-    month: string,
-    value: number
-  ): Promise<void> {
-    const current = (await this.getManualLedgerValues()) || {};
-    const next: ManualLedgerValuesMap = {
-      ...current,
-      [hrpn]: {
-        ...(current[hrpn] || {}),
-        [paramKey]: {
-          ...(current[hrpn]?.[paramKey] || {}),
-          [month]: value,
-        },
-      },
-    };
-    const officeId = await requireOfficeId();
-    const cache = resolveOfficeCache(officeId);
-    cache.manualValues = next;
-
-    try {
-      localStorage.setItem(`paybill_manual_values_${officeId}`, JSON.stringify(next));
-    } catch {
-      // storage may be unavailable - non-fatal
-    }
-
-    try {
-      const { error } = await supabase
-        .from('paybill_settings')
-        .upsert(
-          { office_id: officeId, settings_key: 'manual_values', settings_value: next },
-          { onConflict: 'office_id,settings_key' }
-        );
-      if (error) {
-        console.warn('[PayBillRepository] saveManualLedgerValue db error:', error);
-      }
-    } catch (err) {
-      console.warn('[PayBillRepository] saveManualLedgerValue db error:', err);
-    }
-  },
-
-  /**
    * Persist multiple manual ledger month values for an employee and parameter
    */
   async saveBulkManualLedgerValues(
@@ -1234,110 +1077,6 @@ export const paybillRepository = {
     } catch (err) {
       console.warn('[PayBillRepository] saveBulkManualLedgerValues db error:', err);
     }
-  },
-
-  /**
-   * Fetch a single import by id (for history detail view)
-   */
-  async getImportById(importId: string): Promise<PayBillStoredImport | null> {
-    const officeId = await resolveOfficeId();
-    const allOffices = isAllOfficesMode();
-    if (!officeId && !allOffices) {
-      const cache = resolveOfficeCache(officeId);
-      return cache.imports.find((i) => i.id === importId) || null;
-    }
-    try {
-      let q = supabase.from('paybill_imports').select('*').eq('id', importId).limit(1);
-      if (!allOffices && officeId) q = q.eq('office_id', officeId);
-      const { data, error } = await q.maybeSingle();
-      if (!error && data) return mapImportRow(data as PaybillImportDbRow);
-    } catch (err) {
-      console.warn('[PayBillRepository] getImportById db error:', err);
-    }
-    const cache = resolveOfficeCache(officeId);
-    return cache.imports.find((i) => i.id === importId) || null;
-  },
-
-  /** Update import status lifecycle — audited via trigger/audit table elsewhere */
-  async updateImportStatus(importId: string, status: PayBillStoredImport['status']): Promise<void> {
-    const officeId = await requireOfficeId();
-    const { error } = await supabase
-      .from('paybill_imports')
-      .update({ status })
-      .eq('id', importId)
-      .eq('office_id', officeId);
-    if (error) throw new Error(error.message);
-    const cache = resolveOfficeCache(officeId);
-    cache.imports = cache.imports.map((i) => (i.id === importId ? { ...i, status } : i));
-  },
-
-  /** List manual adjustments from the new auditable table, with fallback to legacy settings */
-  async listManualAdjustments(params?: { hrpn?: string; financialYear?: number; month?: string }): Promise<
-    Array<{
-      id: string;
-      hrpn: string;
-      paramKey: string;
-      paramLabel: string;
-      month: string;
-      financialYear: number;
-      amount: number;
-      groupType: 'EARNING' | 'DEDUCTION';
-    }>
-  > {
-    const officeId = await resolveOfficeId();
-    if (!officeId) return [];
-    try {
-      let q = supabase.from('paybill_manual_adjustments').select('*').eq('office_id', officeId);
-      if (params?.hrpn) q = q.eq('hrpn', params.hrpn.trim());
-      if (params?.financialYear != null) q = q.eq('financial_year', params.financialYear);
-      if (params?.month) q = q.eq('month', params.month);
-      const { data, error } = await q;
-      if (!error && data) {
-        return data.map((r: Record<string, unknown>) => ({
-          id: String(r.id),
-          hrpn: String(r.hrpn),
-          paramKey: String(r.param_key),
-          paramLabel: String(r.param_label),
-          month: String(r.month),
-          financialYear: Number(r.financial_year),
-          amount: Number(r.amount) || 0,
-          groupType: (r.group_type as 'EARNING' | 'DEDUCTION') || 'EARNING',
-        }));
-      }
-    } catch (err) {
-      console.warn('[PayBillRepository] listManualAdjustments db error:', err);
-    }
-    // Fallback: derive from legacy manualValues map for backward compat
-    const legacy = await this.getManualLedgerValues();
-    const out: Array<{
-      id: string;
-      hrpn: string;
-      paramKey: string;
-      paramLabel: string;
-      month: string;
-      financialYear: number;
-      amount: number;
-      groupType: 'EARNING' | 'DEDUCTION';
-    }> = [];
-    for (const [hrpn, byParam] of Object.entries(legacy)) {
-      for (const [paramLabel, byMonth] of Object.entries(byParam as Record<string, Record<string, number>>)) {
-        for (const [month, amount] of Object.entries(byMonth as Record<string, number>)) {
-          if (params?.hrpn && hrpn !== params.hrpn) continue;
-          if (params?.month && month !== params.month) continue;
-          out.push({
-            id: `${hrpn}:${paramLabel}:${month}`,
-            hrpn,
-            paramKey: `manual::${paramLabel}`,
-            paramLabel,
-            month,
-            financialYear: params?.financialYear || 0,
-            amount: Number(amount) || 0,
-            groupType: 'EARNING',
-          });
-        }
-      }
-    }
-    return out;
   },
 
   /**
@@ -1463,120 +1202,178 @@ export const paybillRepository = {
    * Upsert a full earning row for legacy editor. Creates or overwrites the row
    * keyed by (office_id, hrpn, month, financial_year).
    */
-  async upsertEarningRecord(record: PayBillStoredEarning): Promise<void> {
+  /**
+   * Batch upsert earning records for legacy editor.
+   * Performs a single bulk HTTP upsert for all months at once.
+   */
+  async upsertEarningRecordsBatch(records: PayBillStoredEarning[]): Promise<void> {
+    if (records.length === 0) return;
     const officeId = await requireOfficeId();
-    const dbPayload = {
-      import_id: record.importId,
-      office_id: officeId,
-      employee_id: record.employeeId,
-      hrpn: record.hrpn,
-      employee_name: record.employeeName,
-      designation: record.designation,
-      pay_scale: record.payScale,
-      ph: record.ph,
-      slo: record.slo,
-      month: record.month,
-      financial_year: record.financialYear,
-      basic_pay: record.basicPay,
-      da: record.da,
-      hra: record.hra,
-      cla: record.cla,
-      medical_allowance: record.medicalAllowance,
-      transport_allowance: record.transportAllowance,
-      special_pay: record.specialPay,
-      washing_allowance: record.washingAllowance,
-      npp_allowance: record.nppAllowance,
-      gross_amount: record.grossAmount,
-      mapping_status: record.mappingStatus,
-    };
+
+    const dbPayloads = await Promise.all(
+      records.map(async (record) => {
+        let importId = record.importId;
+        if (!importId || !isValidUuid(importId)) {
+          importId = await this.getOrCreateManualImport(record.financialYear, record.month);
+        }
+        return {
+          import_id: importId,
+          office_id: officeId,
+          employee_id: record.employeeId || null,
+          hrpn: (record.hrpn || '').trim(),
+          employee_name: (record.employeeName || 'Employee').trim(),
+          designation: record.designation || null,
+          pay_scale: record.payScale || null,
+          ph: record.ph || null,
+          slo: record.slo || null,
+          month: record.month,
+          financial_year: record.financialYear,
+          basic_pay: Number(record.basicPay) || 0,
+          da: Number(record.da) || 0,
+          hra: Number(record.hra) || 0,
+          cla: Number(record.cla) || 0,
+          medical_allowance: Number(record.medicalAllowance) || 0,
+          transport_allowance: Number(record.transportAllowance) || 0,
+          special_pay: Number(record.specialPay) || 0,
+          washing_allowance: Number(record.washingAllowance) || 0,
+          npp_allowance: Number(record.nppAllowance) || 0,
+          gross_amount: Number(record.grossAmount) || 0,
+          mapping_status: record.mappingStatus || 'MATCHED',
+        };
+      })
+    );
+
     const { error } = await supabase
       .from('paybill_employee_earnings')
-      .upsert(dbPayload, { onConflict: 'office_id,hrpn,month,financial_year' });
-    if (error) throw new Error(`Failed to upsert earning record: ${error.message}`);
+      .upsert(dbPayloads, { onConflict: 'office_id,hrpn,month,financial_year' });
+    if (error) throw new Error(`Failed to save earnings: ${error.message}`);
 
     const cache = resolveOfficeCache(officeId);
-    const idx = cache.earnings.findIndex(
-      (e) =>
-        e.hrpn === record.hrpn &&
-        e.month === record.month &&
-        e.financialYear === record.financialYear &&
-        e.officeId === officeId
-    );
-    if (idx >= 0) {
-      cache.earnings[idx] = { ...cache.earnings[idx], ...record };
-    } else {
-      cache.earnings.push(record);
+    for (const record of records) {
+      const cleanHrpn = (record.hrpn || '').trim();
+      const idx = cache.earnings.findIndex(
+        (e) =>
+          e.hrpn === cleanHrpn &&
+          e.month === record.month &&
+          e.financialYear === record.financialYear &&
+          e.officeId === officeId
+      );
+      if (idx >= 0) {
+        cache.earnings[idx] = { ...cache.earnings[idx], ...record, hrpn: cleanHrpn };
+      } else {
+        cache.earnings.push({ ...record, hrpn: cleanHrpn });
+      }
     }
   },
 
   /**
-   * Upsert a full deduction row for legacy editor. Creates or overwrites the row
-   * keyed by (office_id, hrpn, month, financial_year).
+   * Batch upsert deduction records for legacy editor.
+   * Performs a single bulk HTTP upsert for all months at once.
    */
-  async upsertDeductionRecord(record: PayBillStoredDeduction): Promise<void> {
+  async upsertDeductionRecordsBatch(records: PayBillStoredDeduction[]): Promise<void> {
+    if (records.length === 0) return;
     const officeId = await requireOfficeId();
-    const dbPayload = {
-      import_id: record.importId,
-      office_id: officeId,
-      employee_id: record.employeeId,
-      hrpn: record.hrpn,
-      employee_name: record.employeeName,
-      designation: record.designation,
-      month: record.month,
-      financial_year: record.financialYear,
-      income_tax: record.incomeTax,
-      prof_tax: record.profTax,
-      hba_interest: record.hbaInterest,
-      gpf_regular: record.gpfRegular,
-      gpf_class4: record.gpfClass4,
-      nps_regular: record.npsRegular,
-      gis_govt_fund: record.gisGovtFund,
-      gis_govt_saving: record.gisGovtSaving,
-      other_deductions: record.otherDeductions,
-      total_deductions: record.totalDeductions,
-      net_pay: record.netPay,
-      mapping_status: record.mappingStatus,
-    };
+
+    const dbPayloads = await Promise.all(
+      records.map(async (record) => {
+        let importId = record.importId;
+        if (!importId || !isValidUuid(importId)) {
+          importId = await this.getOrCreateManualImport(record.financialYear, record.month);
+        }
+        return {
+          import_id: importId,
+          office_id: officeId,
+          employee_id: record.employeeId || null,
+          hrpn: (record.hrpn || '').trim(),
+          employee_name: (record.employeeName || 'Employee').trim(),
+          designation: record.designation || null,
+          month: record.month,
+          financial_year: record.financialYear,
+          income_tax: Number(record.incomeTax) || 0,
+          prof_tax: Number(record.profTax) || 0,
+          hba_interest: Number(record.hbaInterest) || 0,
+          gpf_regular: Number(record.gpfRegular) || 0,
+          gpf_class4: Number(record.gpfClass4) || 0,
+          nps_regular: Number(record.npsRegular) || 0,
+          gis_govt_fund: Number(record.gisGovtFund) || 0,
+          gis_govt_saving: Number(record.gisGovtSaving) || 0,
+          other_deductions: Number(record.otherDeductions) || 0,
+          total_deductions: Number(record.totalDeductions) || 0,
+          net_pay: Number(record.netPay) || 0,
+          mapping_status: record.mappingStatus || 'MATCHED',
+        };
+      })
+    );
+
     const { error } = await supabase
       .from('paybill_employee_deductions')
-      .upsert(dbPayload, { onConflict: 'office_id,hrpn,month,financial_year' });
-    if (error) throw new Error(`Failed to upsert deduction record: ${error.message}`);
+      .upsert(dbPayloads, { onConflict: 'office_id,hrpn,month,financial_year' });
+    if (error) throw new Error(`Failed to save deductions: ${error.message}`);
 
     const cache = resolveOfficeCache(officeId);
-    const idx = cache.deductions.findIndex(
-      (d) =>
-        d.hrpn === record.hrpn &&
-        d.month === record.month &&
-        d.financialYear === record.financialYear &&
-        d.officeId === officeId
-    );
-    if (idx >= 0) {
-      cache.deductions[idx] = { ...cache.deductions[idx], ...record };
-    } else {
-      cache.deductions.push(record);
+    for (const record of records) {
+      const cleanHrpn = (record.hrpn || '').trim();
+      const idx = cache.deductions.findIndex(
+        (d) =>
+          d.hrpn === cleanHrpn &&
+          d.month === record.month &&
+          d.financialYear === record.financialYear &&
+          d.officeId === officeId
+      );
+      if (idx >= 0) {
+        cache.deductions[idx] = { ...cache.deductions[idx], ...record, hrpn: cleanHrpn };
+      } else {
+        cache.deductions.push({ ...record, hrpn: cleanHrpn });
+      }
     }
   },
 
   /**
    * Find or create a manual adjustment import header for legacy editor entries.
+   * Scoped by month and financial year so that (import_id, hrpn) remains unique
+   * across different months on databases with idx_paybill_deductions_import_hrpn.
    */
-  async getOrCreateManualImport(financialYear: number): Promise<string> {
+  async getOrCreateManualImport(financialYear: number, month = 'March'): Promise<string> {
     const officeId = await requireOfficeId();
-    const { data: existing } = await supabase
-      .from('paybill_imports')
-      .select('id')
-      .eq('office_id', officeId)
-      .eq('financial_year', financialYear)
-      .eq('sheet_type', 'MANUAL')
-      .maybeSingle();
-    if (existing?.id) return existing.id;
+    const cleanMonth = (month || 'March').trim();
 
+    // 1. Check if an import already exists for this office and FY matching month case-insensitively
+    const { data: existingRows } = await supabase
+      .from('paybill_imports')
+      .select('id, month, bill_no, sheet_type, financial_year')
+      .eq('office_id', officeId)
+      .eq('financial_year', financialYear);
+
+    if (existingRows && existingRows.length > 0) {
+      const match =
+        existingRows.find(
+          (r) =>
+            r.sheet_type === 'MANUAL' &&
+            r.month &&
+            r.month.toLowerCase() === cleanMonth.toLowerCase()
+        ) ||
+        existingRows.find(
+          (r) =>
+            r.month &&
+            r.month.toLowerCase() === cleanMonth.toLowerCase()
+        ) ||
+        existingRows.find(
+          (r) =>
+            r.bill_no &&
+            r.bill_no.toLowerCase().includes(cleanMonth.toLowerCase())
+        );
+
+      if (match?.id) return match.id;
+    }
+
+    // 2. Try inserting with a scoped bill_no
+    const billNo = `MANUAL-${financialYear}-${cleanMonth}`;
     const { data: created, error } = await supabase
       .from('paybill_imports')
       .insert({
         office_id: officeId,
-        bill_no: 'MANUAL-ADJUSTMENT',
-        month: 'March',
+        bill_no: billNo,
+        month: cleanMonth,
         financial_year: financialYear,
         sheet_type: 'MANUAL',
         total_records: 0,
@@ -1584,9 +1381,83 @@ export const paybillRepository = {
         gross_total: 0,
       })
       .select('id')
-      .single();
-    if (error || !created) throw new Error(`Failed to create manual import: ${error?.message}`);
-    return created.id;
+      .maybeSingle();
+
+    if (created?.id) return created.id;
+
+    // 3. Fallback on duplicate constraint / collision: fetch ANY available import record for this office
+    const { data: retryList } = await supabase
+      .from('paybill_imports')
+      .select('id, month, financial_year, sheet_type')
+      .eq('office_id', officeId);
+
+    if (retryList && retryList.length > 0) {
+      const best =
+        retryList.find(
+          (r) =>
+            r.financial_year === financialYear &&
+            r.month?.toLowerCase() === cleanMonth.toLowerCase()
+        ) ||
+        retryList.find((r) => r.financial_year === financialYear) ||
+        retryList[0];
+
+      if (best?.id) return best.id;
+    }
+
+    throw new Error(
+      `Failed to create manual import for ${cleanMonth}: ${error?.message || 'Database rejected import header creation'}`
+    );
+  },
+
+  /**
+   * Batch get or create manual adjustment import IDs for all 12 months in a financial year.
+   */
+  async getOrCreateAllManualImports(financialYear: number): Promise<Record<string, string>> {
+    try {
+      const officeId = await requireOfficeId();
+      const { data: existingList } = await supabase
+        .from('paybill_imports')
+        .select('id, month, bill_no, sheet_type, financial_year')
+        .eq('office_id', officeId);
+
+      const result: Record<string, string> = {};
+      const officeFallbackId = existingList?.[0]?.id;
+
+      if (existingList) {
+        for (const item of existingList) {
+          if (!item.month) continue;
+          const matchedMonth = MONTH_ORDER.find(
+            (m) => m.toLowerCase() === item.month.toLowerCase()
+          );
+          if (matchedMonth) {
+            if (
+              !result[matchedMonth] ||
+              (item.financial_year === financialYear && item.sheet_type === 'MANUAL')
+            ) {
+              result[matchedMonth] = item.id;
+            }
+          }
+        }
+      }
+
+      for (const m of MONTH_ORDER) {
+        if (!result[m]) {
+          try {
+            const id = await this.getOrCreateManualImport(financialYear, m);
+            result[m] = id;
+          } catch {
+            if (officeFallbackId) {
+              result[m] = officeFallbackId;
+            }
+          }
+        }
+      }
+
+      return result;
+    } catch (err) {
+      console.warn('[PayBillRepository] getOrCreateAllManualImports fallback:', err);
+      return {};
+    }
   },
 
   /**

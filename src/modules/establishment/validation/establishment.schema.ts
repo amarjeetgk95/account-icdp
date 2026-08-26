@@ -82,11 +82,3 @@ export const establishmentPostDbSchema = establishmentPostSchema.passthrough();
 
 export const establishmentListDbSchema = z.array(establishmentEmployeeDbSchema);
 export const establishmentPostsDbSchema = z.array(establishmentPostDbSchema);
-
-export const establishmentBackfillDbSchema = z
-  .object({
-    inserted: z.coerce.number().int().default(0),
-    updated: z.coerce.number().int().default(0),
-    total: z.coerce.number().int().default(0),
-  })
-  .passthrough();

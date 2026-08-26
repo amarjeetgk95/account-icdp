@@ -386,7 +386,7 @@ export async function exportBudgetHeadExcel(report: BudgetHeadReport, office?: O
   ws2.addRow([]);
 
   const QUARTER_NAMES = ['Q1', 'Q2', 'Q3', 'Q4'];
-  const QUARTER_MONTHS = ['Mar-May', 'Jun-Aug', 'Sep-Nov', 'Dec-Feb'];
+  const QUARTER_MONTHS = ['Apr-Jun', 'Jul-Sep', 'Oct-Dec', 'Jan-Mar'];
 
   for (let qi = 0; qi < 4; qi++) {
     const startMonth = qi * 3;

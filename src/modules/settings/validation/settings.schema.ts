@@ -12,16 +12,9 @@ export const officeDetailsSchema = z.object({
 
 export type OfficeDetailsInput = z.output<typeof officeDetailsSchema>;
 
-export const financialYearSchema = z.object({
-  newYear: z
-    .number()
-    .int('Year must be a whole number')
-    .min(2000, 'Year must be 2000 or later')
-    .max(2100, 'Year must be 2100 or earlier'),
-});
-
 export const form16DefaultsSchema = z.object({
-  employerName: z.string().max(200).default(''),
+  employerName: z.string().max(300).default(''),
+  employerAddress: z.string().max(500).default(''),
   employerPan: z
     .string()
     .refine((v) => v === '' || /^[A-Za-z0-9]{10}$/.test(v), {

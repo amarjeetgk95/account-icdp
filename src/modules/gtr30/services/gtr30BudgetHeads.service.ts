@@ -4,25 +4,16 @@ import { gtr30BudgetHeadsBackendRepository } from '../repositories/gtr30BudgetHe
 
 const SYNC_DEBOUNCE_MS = 600;
 
-export type Gtr30BudgetHeadsSyncPhase = 'idle' | 'pending' | 'syncing' | 'synced' | 'error';
+export type Gtr30BudgetHeadsSyncPhase = 'idle' | 'syncing' | 'synced' | 'error';
 
 let budgetHeadsSyncPhase: Gtr30BudgetHeadsSyncPhase = 'idle';
-const budgetHeadsSyncListeners = new Set<() => void>();
 
 function setBudgetHeadsSyncPhase(phase: Gtr30BudgetHeadsSyncPhase): void {
   budgetHeadsSyncPhase = phase;
-  for (const listener of budgetHeadsSyncListeners) listener();
 }
 
-export function getGtr30BudgetHeadsSyncStatus(): Gtr30BudgetHeadsSyncPhase {
+function getBudgetHeadsSyncStatusInternal(): Gtr30BudgetHeadsSyncPhase {
   return budgetHeadsSyncPhase;
-}
-
-export function subscribeGtr30BudgetHeadsSync(listener: () => void): () => void {
-  budgetHeadsSyncListeners.add(listener);
-  return () => {
-    budgetHeadsSyncListeners.delete(listener);
-  };
 }
 
 let pendingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -82,9 +73,9 @@ class Gtr30BudgetHeadsService {
     if (remote === null) return;
 
     const local = this.list();
-    const phase = getGtr30BudgetHeadsSyncStatus();
+    const phase = getBudgetHeadsSyncStatusInternal();
 
-    if (phase === 'pending' || phase === 'syncing' || phase === 'error') {
+    if (phase === 'syncing' || phase === 'error') {
       return;
     }
 

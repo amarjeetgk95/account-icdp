@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUIStore } from '@/core/stores/ui-store';
 import { PayBillUploadModal } from '../components/PayBillUploadModal';
 import { PayBillAllowanceMatrixReport } from '../components/PayBillAllowanceMatrixReport';
-import { PayBillEmployeeLedgerView } from '../components/PayBillEmployeeLedgerView';
+import { EmployeeLedgerView } from '../components/employee-ledger/EmployeeLedgerView';
 import { PayBillSettingsModal } from '../components/PayBillSettingsModal';
+import { invalidatePaybillData } from '../hooks/invalidatePaybillData';
 import { PayrollComponentMasterPage } from './PayrollComponentMasterPage';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import {
@@ -21,13 +23,13 @@ export function PayBillImportPage() {
   const activeTab: ModuleTab = validTabs.includes(tab as ModuleTab) ? (tab as ModuleTab) : 'matrix';
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const queryClient = useQueryClient();
 
   const fy = useUIStore((s) => s.activeFinancialYear);
   const fyLabel = `${fy}-${String(fy + 1).slice(-2)}`;
 
   const handleImportSuccess = () => {
-    setRefreshTrigger((prev) => prev + 1);
+    void invalidatePaybillData(queryClient);
   };
 
   return (
@@ -60,13 +62,12 @@ export function PayBillImportPage() {
         <PayBillAllowanceMatrixReport
           financialYear={fy}
           onOpenUploadModal={() => setIsUploadModalOpen(true)}
-          refreshTrigger={refreshTrigger}
         />
       )}
 
       {/* TAB 2: Employee Ledger (governed by Employee HRPN search criteria) */}
       {activeTab === 'employee' && (
-        <PayBillEmployeeLedgerView financialYear={fy} refreshTrigger={refreshTrigger} />
+        <EmployeeLedgerView financialYear={fy} />
       )}
 
       {/* TAB 3: Payroll Component Master (configure PDF header / code aliases) */}

@@ -76,39 +76,4 @@ export function calculateEmployeeSalary(
   };
 }
 
-export function calculateGroupTotals(employees: GTR30EmployeeMaster[], opts?: { daPercent?: number; monthKey?: string }): GTR30SalarySummary {
-  const initial: GTR30SalarySummary = {
-    basic: 0,
-    da: 0,
-    hra: 0,
-    allowances: 0,
-    grossPay: 0,
-    professionalTax: 0,
-    nps: 0,
-    gisInsurance: 0,
-    gisSavings: 0,
-    rent: 0,
-    societyDeduction: 0,
-    totalDeductions: 0,
-    netTakeHome: 0,
-  };
 
-  return employees.reduce((acc, emp) => {
-    const salary = calculateEmployeeSalary(emp, opts);
-    return {
-      basic: acc.basic + salary.basic,
-      da: acc.da + salary.da,
-      hra: acc.hra + salary.hra,
-      allowances: acc.allowances + salary.allowances,
-      grossPay: acc.grossPay + salary.grossPay,
-      professionalTax: acc.professionalTax + salary.professionalTax,
-      nps: acc.nps + salary.nps,
-      gisInsurance: acc.gisInsurance + salary.gisInsurance,
-      gisSavings: acc.gisSavings + salary.gisSavings,
-      rent: acc.rent + salary.rent,
-      societyDeduction: acc.societyDeduction + salary.societyDeduction,
-      totalDeductions: acc.totalDeductions + salary.totalDeductions,
-      netTakeHome: acc.netTakeHome + salary.netTakeHome,
-    };
-  }, initial);
-}

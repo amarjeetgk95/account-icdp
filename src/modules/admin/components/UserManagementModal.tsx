@@ -954,4 +954,3 @@ export function UserManagementModal({
   );
 }
 
-export default UserManagementModal;

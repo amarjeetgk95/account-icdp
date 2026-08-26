@@ -165,7 +165,7 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
           <button onClick={printReport} className="btn btn-secondary btn-sm text-xs">
             <FileText size={14} className="mr-1" /> Print
           </button>
-          <button onClick={handleExcelExport} className="btn btn-emerald btn-sm text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+          <button onClick={handleExcelExport} className="btn btn-sm text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
             <FileSpreadsheet size={14} className="mr-1" /> Export Formatted Excel
           </button>
           <button onClick={exportCSV} className="btn btn-outline btn-sm text-xs">

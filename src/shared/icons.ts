@@ -1,11 +1,8 @@
-import { createElement } from 'react';
 import {
   LayoutDashboard,
-  Wallet,
   Users,
   FileBarChart,
   Settings,
-  Shield,
   Clock,
   Receipt,
   FileSpreadsheet,
@@ -32,21 +29,6 @@ import {
   History,
   type LucideIcon,
 } from 'lucide-react';
-
-const MODULE_ICONS: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  payroll: Wallet,
-  parties: Users,
-  reports: FileBarChart,
-  settings: Settings,
-  admin: Shield,
-  adminaudit: Clock,
-  gtr44: Receipt,
-  establishment: Users,
-  paybill: FileSpreadsheet,
-  'it-employee': FileSpreadsheet,
-  tools: ScanText,
-};
 
 const SECTION_ICONS: Record<string, LucideIcon> = {
   overview: LayoutDashboard,
@@ -81,30 +63,6 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
 
 const FALLBACK_ICON: LucideIcon = LayoutDashboard;
 
-function getModuleIcon(id: string): LucideIcon {
-  return MODULE_ICONS[id] || FALLBACK_ICON;
-}
-
 export function getSectionIcon(id: string): LucideIcon {
   return SECTION_ICONS[id] || FALLBACK_ICON;
-}
-
-interface ModuleIconProps {
-  id: string;
-  className?: string;
-  size?: number;
-}
-
-export function ModuleIcon({ id, className, size }: ModuleIconProps) {
-  return createElement(getModuleIcon(id), { className, size });
-}
-
-interface SectionIconProps {
-  id: string;
-  className?: string;
-  size?: number;
-}
-
-export function SectionIcon({ id, className, size }: SectionIconProps) {
-  return createElement(getSectionIcon(id), { className, size });
 }

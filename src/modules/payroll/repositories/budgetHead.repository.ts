@@ -94,19 +94,4 @@ export const budgetHeadRepository = {
 
     if (error) throw error;
   },
-
-  async getById(id: string): Promise<BudgetHeadRow | null> {
-    const scope = getOfficeScope();
-    if (!scope.all && !scope.officeId) throw new Error('No office selected');
-
-    const baseQuery = supabase.from('budget_heads').select('*').eq('id', id);
-    const q = (scope.all
-      ? baseQuery
-      : baseQuery.eq('office_id', scope.officeId!))
-      .maybeSingle();
-
-    const { data, error } = await q;
-    if (error) throw error;
-    return data;
-  },
 };

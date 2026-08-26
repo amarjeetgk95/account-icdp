@@ -33,7 +33,6 @@ export interface ModuleDefinition {
 export interface FeatureFlagKeys {
   auth_module: boolean;
   admin_module: boolean;
-  adminaudit_module: boolean;
   dashboard_module: boolean;
   settings_module: boolean;
   payroll_module: boolean;
@@ -43,5 +42,4 @@ export interface FeatureFlagKeys {
   gtr30_module: boolean;
   establishment_module: boolean;
   paybill_module: boolean;
-  paybill_component_master: boolean;
 }
