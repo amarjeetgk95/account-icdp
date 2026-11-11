@@ -36,7 +36,7 @@ export function ImportConfirmationDialog({
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs">
                 Confirm Pay Bill Import
               </h3>
               <p className="text-xs text-slate-500">
@@ -58,35 +58,35 @@ export function ImportConfirmationDialog({
         <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2.5 text-xs">
           <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
             <span className="text-slate-500 dark:text-slate-400">Total PDF Records:</span>
-            <span className="font-mono font-bold text-slate-900 dark:text-slate-100">{summary.totalRecords}</span>
+            <span className="num font-bold text-slate-900 dark:text-slate-100">{summary.totalRecords}</span>
           </div>
 
           <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
             <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Matched with Master Employee:
             </span>
-            <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300">{summary.matchedCount}</span>
+            <span className="num font-bold text-emerald-700 dark:text-emerald-300">{summary.matchedCount}</span>
           </div>
 
           <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
             <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <HelpCircle className="w-3.5 h-3.5 text-amber-600" /> Not Found in Master:
+              <HelpCircle className="w-3.5 h-3.5 text-red-600" /> Not in Establishment (blocked):
             </span>
-            <span className="font-mono font-bold text-amber-700 dark:text-amber-300">{summary.notFoundCount}</span>
+            <span className="num font-bold text-red-700 dark:text-red-300">{summary.notFoundCount}</span>
           </div>
 
           <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
             <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-orange-600" /> Duplicate HRPNs:
             </span>
-            <span className="font-mono font-bold text-orange-700 dark:text-orange-300">{summary.duplicateCount}</span>
+            <span className="num font-bold text-orange-700 dark:text-orange-300">{summary.duplicateCount}</span>
           </div>
 
           <div className="flex justify-between py-1">
             <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <AlertCircle className="w-3.5 h-3.5 text-red-600" /> Critical Math / Format Errors:
             </span>
-            <span className={`font-mono font-bold ${summary.errorCount > 0 ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'}`}>
+            <span className={`num font-bold ${summary.errorCount > 0 ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'}`}>
               {summary.errorCount}
             </span>
           </div>
@@ -98,7 +98,7 @@ export function ImportConfirmationDialog({
             <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">Duplicate Bill Already Imported</p>
-              <p className="text-[0.72rem] mt-0.5">
+              <p className="text-xs mt-0.5">
                 Bill <b className="font-mono">{existingBill?.billNo}</b> was already imported for{' '}
                 <b>{existingBill?.month}-{existingBill?.financialYear}</b>{' '}
                 ({existingBill?.totalRecords} records) on{' '}
@@ -114,17 +114,19 @@ export function ImportConfirmationDialog({
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">Cannot Proceed with Import</p>
-              <p className="text-[0.72rem] mt-0.5">
-                There are {summary.errorCount} critical validation errors. Please edit or remove invalid records in the review table before importing.
+              <p className="text-xs mt-0.5">
+                {hasUnmatched
+                  ? `${summary.notFoundCount} HRPN(s) not matched with Establishment employee directory (single source of truth). Register them in Establishment first — unmatched HRPNs block import.`
+                  : `There are ${summary.errorCount} critical validation errors. Please edit or remove invalid records in the review table before importing.`}
               </p>
             </div>
           </div>
         ) : (
           <div className="space-y-2 text-xs">
             {hasUnmatched && (
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-2.5 rounded-lg flex items-center gap-2 text-amber-800 dark:text-amber-300">
-                <HelpCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>{summary.notFoundCount} records are not yet registered in Master Data. They will be stored in paybill import history.</span>
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-2.5 rounded-lg flex items-center gap-2 text-red-800 dark:text-red-300">
+                <HelpCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span>{summary.notFoundCount} HRPN(s) not matched with Establishment directory — import is blocked until they are registered.</span>
               </div>
             )}
             {hasDuplicates && (
@@ -133,7 +135,7 @@ export function ImportConfirmationDialog({
                 <span>Duplicate HRPN detected in file. Ensure this is intentional.</span>
               </div>
             )}
-            <p className="text-slate-500 text-[0.72rem] leading-relaxed">
+            <p className="text-slate-500 text-xs leading-relaxed">
               Importing will store the original pay bill earning records and update monthly salary data for {summary.matchedCount} matched employees.
             </p>
           </div>

@@ -3,8 +3,6 @@ import { Modal } from '@/shared/components/Modal';
 import { popupNativePrint } from '@/shared/utilities/nativePrint';
 import { Form16Document } from './Form16Document';
 import { Printer, FileSpreadsheet, FileArchive, Search, Filter } from 'lucide-react';
-import { saveAs } from 'file-saver';
-import JSZip from 'jszip';
 import type { Form16Certificate } from '../types/form16';
 import { assessmentYearFor } from '../services/form16Calculation.service';
 
@@ -112,7 +110,7 @@ export function Form16BulkPrintModal({
     });
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     const headers = [
       'HRPN',
       'Employee Name',
@@ -177,12 +175,14 @@ export function Form16BulkPrintModal({
 
     const csvContent = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const { saveAs } = await import('file-saver');
     saveAs(blob, `Form16_Summary_Register_FY${fyLabel}.csv`);
   };
 
   const handleExportZip = async () => {
     setIsExportingZip(true);
     try {
+      const [{ default: JSZip }, { saveAs }] = await Promise.all([import('jszip'), import('file-saver')]);
       const zip = new JSZip();
       const folder = zip.folder(`Form16_FY${fyLabel}`);
 
@@ -346,7 +346,7 @@ export function Form16BulkPrintModal({
 
             <button
               type="button"
-              onClick={handleExportCsv}
+              onClick={() => void handleExportCsv()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-lg transition cursor-pointer shadow-2xs"
             >
               <FileSpreadsheet size={13} /> Excel

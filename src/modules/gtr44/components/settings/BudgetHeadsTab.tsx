@@ -190,7 +190,7 @@ export function BudgetHeadsTab() {
         <div className="flex items-center space-x-2">
           <ListTree className="h-5 w-5 text-primary" />
           <div>
-            <h3 className="font-bold text-base text-foreground">Budget Heads Master</h3>
+            <h3 className="font-bold text-xs text-foreground">Budget Heads Master</h3>
             <p className="text-xs text-muted-foreground">
               Define 13-digit head chargeable codes, major/minor heads, and demand numbers for bill charging.
             </p>
@@ -224,7 +224,7 @@ export function BudgetHeadsTab() {
             placeholder="Search by name, code, demand..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 text-sm"
+            className="pl-8 text-xs"
           />
         </div>
         <span className="text-xs text-muted-foreground">
@@ -236,7 +236,7 @@ export function BudgetHeadsTab() {
       {(isAddingHead || editingHeadId) && (
         <div className="bg-muted/30 p-5 rounded-xl border border-border space-y-4 animate-in fade-in duration-150">
           <div className="flex items-center justify-between border-b border-border pb-2">
-            <h4 className="font-bold text-sm text-foreground">
+            <h4 className="font-bold text-xs text-foreground">
               {editingHeadId ? 'Edit Budget Head' : 'Add New Budget Head'}
             </h4>
             <Button variant="ghost" size="sm" onClick={cancelHeadForm}>
@@ -244,7 +244,7 @@ export function BudgetHeadsTab() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
             <div>
               <Label className="text-xs">
                 Budget Head Name <span className="text-destructive">*</span>
@@ -266,7 +266,7 @@ export function BudgetHeadsTab() {
                 onChange={(e) => setHeadFormData({ ...headFormData, headChargeableCode: e.target.value })}
                 placeholder="2403001020000"
                 maxLength={13}
-                className="font-mono"
+                className="num"
               />
               {headFormErrors.headChargeableCode && (
                 <p className="text-xs text-destructive mt-1">{headFormErrors.headChargeableCode}</p>
@@ -281,7 +281,7 @@ export function BudgetHeadsTab() {
                 value={headFormData.demandNo}
                 onChange={(e) => setHeadFormData({ ...headFormData, demandNo: e.target.value })}
                 placeholder="04"
-                className="font-mono"
+                className="num"
               />
               {headFormErrors.demandNo && <p className="text-xs text-destructive mt-1">{headFormErrors.demandNo}</p>}
             </div>
@@ -303,7 +303,7 @@ export function BudgetHeadsTab() {
                 value={headFormData.majorHead}
                 onChange={(e) => setHeadFormData({ ...headFormData, majorHead: e.target.value })}
                 placeholder="2403"
-                className="font-mono"
+                className="num"
               />
               {headFormErrors.majorHead && (
                 <p className="text-xs text-destructive mt-1">{headFormErrors.majorHead}</p>
@@ -316,7 +316,7 @@ export function BudgetHeadsTab() {
                 value={headFormData.subMajorHead}
                 onChange={(e) => setHeadFormData({ ...headFormData, subMajorHead: e.target.value })}
                 placeholder="00"
-                className="font-mono"
+                className="num"
               />
             </div>
 
@@ -328,7 +328,7 @@ export function BudgetHeadsTab() {
                 value={headFormData.minorHead}
                 onChange={(e) => setHeadFormData({ ...headFormData, minorHead: e.target.value })}
                 placeholder="102"
-                className="font-mono"
+                className="num"
               />
               {headFormErrors.minorHead && (
                 <p className="text-xs text-destructive mt-1">{headFormErrors.minorHead}</p>
@@ -341,7 +341,7 @@ export function BudgetHeadsTab() {
                 value={headFormData.subHead}
                 onChange={(e) => setHeadFormData({ ...headFormData, subHead: e.target.value })}
                 placeholder="00"
-                className="font-mono"
+                className="num"
               />
             </div>
 
@@ -353,7 +353,7 @@ export function BudgetHeadsTab() {
                 value={headFormData.detailedHead}
                 onChange={(e) => setHeadFormData({ ...headFormData, detailedHead: e.target.value })}
                 placeholder="00"
-                className="font-mono"
+                className="num"
               />
               {headFormErrors.detailedHead && (
                 <p className="text-xs text-destructive mt-1">{headFormErrors.detailedHead}</p>
@@ -375,14 +375,14 @@ export function BudgetHeadsTab() {
       {/* Table */}
       <div className="border border-border rounded-xl overflow-hidden bg-card">
         {filteredBudgetHeads.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">
+          <p className="text-xs text-muted-foreground text-center py-8">
             {budgetHeads.length === 0
               ? 'No Budget Heads configured yet. Click "Add Head" to create one.'
               : `No Budget Heads match "${searchQuery}".`}
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border text-sm">
+            <table className="min-w-full divide-y divide-border text-xs">
               <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase">
                 <tr>
                   <th scope="col" className="px-4 py-3 text-left">Name</th>

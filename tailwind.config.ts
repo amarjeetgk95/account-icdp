@@ -13,11 +13,22 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
-        heading: ['Outfit', 'sans-serif'],
-        guj: ['"Noto Serif Gujarati"', 'Shruti', 'serif'],
-        gujSans: ['"Noto Sans Gujarati"', 'Shruti', 'sans-serif'],
-        plexGu: ['"IBM Plex Sans Gujarati"', 'sans-serif'],
+        // ── Uniform type system ──
+        // Screen UI: Inter (body + all figures) + Outfit (headings only).
+        // Gujarati UI & Formal: Lohit Gujarati.
+        // Figures (amounts / counts / dates): Inter + lining tabular figures
+        // (see body / .num in src/index.css). NEVER font-mono: mono is for
+        // codes only (PAN / HRPN / bill & EDP numbers), where fixed-width
+        // glyphs aid verification. Print areas are isolated in index.css
+        // (.report-print-area) and keep their own pt stack.
+        sans: ['Inter', '"Lohit Gujarati"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        heading: ['Outfit', 'Inter', '"Lohit Gujarati"', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', '"Liberation Mono"', 'monospace'],
+        guj: ['"Lohit Gujarati"', 'Shruti', 'serif'],
+        // Latin/digits come from Inter; the browser falls back to Lohit
+        // Gujarati per-glyph for Gujarati characters (Inter has no Gujarati).
+        gujSans: ['Inter', '"Lohit Gujarati"', 'Shruti', 'sans-serif'],
+        plexGu: ['"Lohit Gujarati"', 'sans-serif'],
       },
       colors: {
         border: "rgb(var(--border))",

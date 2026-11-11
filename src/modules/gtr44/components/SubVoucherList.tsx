@@ -147,7 +147,7 @@ export function SubVoucherList({
     <div className={`w-full ${className}`}>
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h3 className="text-base font-semibold text-foreground">Voucher Entry Details</h3>
+          <h3 className="text-xs font-semibold text-foreground">Voucher Entry Details</h3>
           <p className="text-xs text-muted-foreground">
             {subVouchers.length} sub-voucher{subVouchers.length === 1 ? '' : 's'} recorded
           </p>
@@ -199,33 +199,33 @@ export function SubVoucherList({
             ) : (
               subVouchers.map((sv, idx) => (
                 <tr key={sv.id} className="hover:bg-muted/40 transition-colors">
-                  <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground font-mono">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground num">
                     {idx + 1}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-foreground">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-foreground">
                     {sv.voucherNo}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground font-medium">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-foreground font-medium">
                     {sv.payee}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground font-mono">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground font-mono">
                     {sv.billNo || '—'}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
                     {sv.date || '—'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate" title={sv.details}>
+                  <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs truncate" title={sv.details}>
                     {sv.details || '—'}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-center">
                     <span className="inline-block px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-muted text-foreground border border-border">
                       {sv.edpCode || '—'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground text-right font-mono font-semibold">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-foreground text-right num font-semibold">
                     {formatCurrency(sv.amount)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-center">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-center">
                     <div className="flex items-center justify-center space-x-1">
                       {onReorder && (
                         <>
@@ -281,7 +281,7 @@ export function SubVoucherList({
                 <td colSpan={7} className="px-4 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">
                   Total Sub-Vouchers ({subVouchers.length}):
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-sm font-bold text-foreground">
+                <td className="px-4 py-3 text-right num text-xs font-bold text-foreground">
                   {formatCurrency(totalVoucherAmount)}
                 </td>
                 <td className="px-4 py-3 text-center">
@@ -306,10 +306,10 @@ export function SubVoucherList({
                 {editingItem ? <Edit2 size={18} /> : <Plus size={20} />}
               </div>
               <div>
-                <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                <DialogTitle className="text-xs font-bold text-foreground flex items-center gap-2">
                   {editingItem ? 'Edit Voucher' : 'Add New Voucher'}
                   <span
-                    className={`text-[0.68rem] font-semibold px-2 py-0.5 rounded-full ${
+                    className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                       editingItem
                         ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
                         : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
@@ -374,7 +374,7 @@ export function SubVoucherList({
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-muted-foreground">Amount</div>
-                      <div className="font-mono font-bold text-lg text-foreground">
+                      <div className="num font-bold text-xs text-foreground">
                         {formatCurrency(formData.amount || 0)}
                       </div>
                     </div>
@@ -483,7 +483,7 @@ export function SubVoucherList({
                       type="number"
                       min="0"
                       step="0.01"
-                      className="input font-mono font-semibold"
+                      className="input num font-semibold"
                       placeholder="0.00"
                       value={formData.amount !== undefined ? formData.amount : ''}
                       onChange={(e) => {

@@ -22,6 +22,7 @@ import { LedgerHeaderCard } from './LedgerHeaderCard';
 import { LedgerSummaryStrip } from './LedgerSummaryStrip';
 import { LedgerMatrixTable } from './LedgerMatrixTable';
 import { MonthDetailDrawer } from './MonthDetailDrawer';
+import { BulkPdfExportModal } from './BulkPdfExportModal';
 
 const RECENT_HRPNS_KEY = 'paybill-ledger-recent-hrpns';
 
@@ -45,6 +46,7 @@ export function EmployeeLedgerView({
   const [pickedHrpn, setPickedHrpnState] = useState<string>(urlHrpn || initialHrpn || '');
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [drawerMonth, setDrawerMonth] = useState<string | null>(null);
+  const [bulkPdfModalOpen, setBulkPdfModalOpen] = useState(false);
 
   const setSelectedHrpn = useCallback(
     (hrpn: string) => {
@@ -92,11 +94,22 @@ export function EmployeeLedgerView({
     [setSelectedHrpn, trackRecent]
   );
 
-  const { employees, isLoading: directoryLoading, isError: directoryIsError, error: directoryError, refetch: refetchDirectory } =
+  const { employees, unmatched, duplicateHrpns, isLoading: directoryLoading, isError: directoryIsError, error: directoryError, refetch: refetchDirectory } =
     useEmployeeDirectory(financialYear);
 
   // Effective selection: explicit pick (state/URL) or first known employee. Derived.
   const selectedHrpn = pickedHrpn || employees[0]?.hrpn || '';
+  const selectedKey = (selectedHrpn || '').trim().toUpperCase();
+
+  // HRPN single-source-of-truth checks: Establishment directory is canonical.
+  const currentEmployeeInfo = useMemo(
+    () => employees.find((e) => (e.hrpn || '').trim().toUpperCase() === selectedKey) ?? null,
+    [employees, selectedKey]
+  );
+  const selectedIsUnmatched =
+    Boolean(selectedKey) &&
+    (currentEmployeeInfo ? currentEmployeeInfo.isMatched === false : unmatched.some((u) => u.hrpn === selectedKey));
+  const unmatchedCount = unmatched.length;
 
   const {
     earnings,
@@ -263,11 +276,6 @@ export function EmployeeLedgerView({
     setTimeout(() => el.classList.remove('flash-row'), 1600);
   }, []);
 
-  const currentEmployeeInfo = useMemo(
-    () => employees.find((e) => e.hrpn === selectedHrpn) ?? null,
-    [employees, selectedHrpn]
-  );
-
   const { defaults: form16Defaults } = useForm16Defaults();
   const { details: officeDetails } = useOfficeDetails();
 
@@ -365,6 +373,7 @@ export function EmployeeLedgerView({
             employees={employees}
             selectedHrpn={selectedHrpn}
             onSelect={selectEmployee}
+            onExportAllPdfZip={() => setBulkPdfModalOpen(true)}
           />
         </aside>
       )}
@@ -382,6 +391,7 @@ export function EmployeeLedgerView({
               employees={employees}
               selectedHrpn={selectedHrpn}
               onSelect={selectEmployee}
+              onExportAllPdfZip={() => setBulkPdfModalOpen(true)}
             />
           </div>
         </>
@@ -402,14 +412,92 @@ export function EmployeeLedgerView({
             isFullscreen={isFullscreen}
             joinDate={currentEmployeeInfo?.joinDate ?? null}
             transferDate={currentEmployeeInfo?.transferDate ?? null}
+            totalEmployeesCount={employees.length}
             onRefresh={refetchEverything}
             onRetry={refetchEverything}
             onExportPdf={() => void exportPdf()}
+            onExportAllPdfZip={() => setBulkPdfModalOpen(true)}
             onExportExcel={() => void exportExcel()}
             onPrint={handlePrint}
             onToggleDirectory={() => setDirectoryOpen((o) => !o)}
             onToggleFullscreen={toggleFullscreen}
           />
+
+          {/* HRPN single-source-of-truth errors: Establishment directory is canonical */}
+          {!isLoading && duplicateHrpns.length > 0 && (
+            <div
+              className="shrink-0 px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl flex items-start gap-3 shadow-xs"
+              role="alert"
+            >
+              <span
+                className="mt-0.5 w-5 h-5 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center shrink-0"
+                aria-hidden="true"
+              >
+                !
+              </span>
+              <div className="flex-1 text-xs text-rose-700 dark:text-rose-300 min-w-0">
+                <div className="font-bold">Duplicate HRPN No. not allowed in Establishment directory</div>
+                <div className="mt-0.5 opacity-90 break-words">
+                  {duplicateHrpns.join(', ')} {duplicateHrpns.length === 1 ? 'appears' : 'appear'} more than once.
+                  Each HRPN No. must be unique — fix duplicates in Establishment before trusting the ledger.
+                </div>
+              </div>
+              <PbButton variant="ghost" size="xs" onClick={() => navigate('/establishment')}>
+                Open Establishment
+              </PbButton>
+            </div>
+          )}
+
+          {!isLoading && selectedIsUnmatched && selectedKey && (
+            <div
+              className="shrink-0 px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl flex items-start gap-3 shadow-xs"
+              role="alert"
+            >
+              <span
+                className="mt-0.5 w-5 h-5 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center shrink-0"
+                aria-hidden="true"
+              >
+                !
+              </span>
+              <div className="flex-1 text-xs text-rose-700 dark:text-rose-300 min-w-0">
+                <div className="font-bold">HRPN {selectedKey} not matched with Establishment employee directory</div>
+                <div className="mt-0.5 opacity-90 break-words">
+                  Establishment HRPN is the single source of truth. Register this employee in the Establishment
+                  directory first — paybill rows for an unmatched HRPN cannot be trusted.
+                </div>
+              </div>
+              <PbButton variant="ghost" size="xs" onClick={() => navigate('/establishment')}>
+                Open Establishment
+              </PbButton>
+            </div>
+          )}
+
+          {!isLoading && !selectedIsUnmatched && unmatchedCount > 0 && (
+            <div
+              className="shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl flex items-start gap-3 shadow-xs"
+              role="alert"
+            >
+              <span
+                className="mt-0.5 w-5 h-5 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center shrink-0"
+                aria-hidden="true"
+              >
+                !
+              </span>
+              <div className="flex-1 text-xs text-amber-800 dark:text-amber-300 min-w-0">
+                <div className="font-bold">
+                  {unmatchedCount} paybill HRPN{unmatchedCount === 1 ? '' : 's'} not matched with Establishment directory
+                </div>
+                <div className="mt-0.5 opacity-90 break-words">
+                  {unmatched.slice(0, 5).map((u) => u.hrpn).join(', ')}
+                  {unmatchedCount > 5 ? ` +${unmatchedCount - 5} more` : ''} — register{' '}
+                  {unmatchedCount === 1 ? 'them' : 'them'} in Establishment (HRPN is the single source of truth).
+                </div>
+              </div>
+              <PbButton variant="ghost" size="xs" onClick={() => navigate('/establishment')}>
+                Open Establishment
+              </PbButton>
+            </div>
+          )}
 
           {/* Loading skeleton — shown while fetching and nothing rendered yet */}
           {isLoading && !currentEmployeeInfo ? (
@@ -508,6 +596,16 @@ export function EmployeeLedgerView({
           deductions={employeeDeductions}
         />
       )}
+
+      {/* Bulk PDF Statement Export Modal (Separate PDF per employee in a ZIP) */}
+      <BulkPdfExportModal
+        open={bulkPdfModalOpen}
+        onClose={() => setBulkPdfModalOpen(false)}
+        financialYear={financialYear}
+        fyLabel={fyLabel}
+        officeName={resolvedOfficeName}
+        allEmployees={employees}
+      />
     </div>
   );
 }

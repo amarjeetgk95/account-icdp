@@ -57,7 +57,7 @@ export function LedgerMatrixTable({
         onMouseLeave={() => setHoveredCol(null)}
       >
         <table
-          className="w-full text-sm text-left border-separate border-spacing-0"
+          className="w-full text-xs text-left border-separate border-spacing-0"
           aria-label={`Employee ledger for ${employeeName}, HRPN ${hrpn}, FY ${fyLabel}`}
         >
           <caption className="sr-only">
@@ -65,7 +65,7 @@ export function LedgerMatrixTable({
           </caption>
 
           {/* Table Thead */}
-          <thead className="bg-slate-100/95 dark:bg-slate-850/95 text-slate-700 dark:text-slate-300 uppercase text-[11px] tracking-wider sticky top-0 z-30 backdrop-blur-xs">
+          <thead className="bg-slate-100/95 dark:bg-slate-850/95 text-slate-700 dark:text-slate-300 uppercase text-xs tracking-wider sticky top-0 z-30 backdrop-blur-xs">
             <tr>
               <th
                 scope="col"

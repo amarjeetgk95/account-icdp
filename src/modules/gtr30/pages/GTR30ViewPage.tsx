@@ -75,7 +75,7 @@ export function GTR30ViewPage() {
     return (
       <div className="max-w-7xl mx-auto py-16 flex flex-col items-center justify-center gap-3 text-slate-500">
         <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-        <div className="text-sm font-medium">Loading GTR-30 Pay Bill…</div>
+        <div className="text-xs font-medium">Loading GTR-30 Pay Bill…</div>
       </div>
     );
   }
@@ -122,7 +122,7 @@ export function GTR30ViewPage() {
             <ChevronLeft className="h-4 w-4 mr-1" /> Register
           </Button>
           <div>
-            <h1 className="text-base font-bold text-slate-900">
+            <h1 className="text-xs font-bold text-slate-900">
               GTR-30 Pay Bill · {bill.billRegisterNo || 'Draft'}
             </h1>
             <p className="text-xs text-slate-500">

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GTR44BudgetHead, GTR44FormData, GTR44ObjectExpenditureItem, GTR44EDPCode, GTR44DeductionTemplate, GTR44NumberingSettings, GTR44PrintSettings } from '../types';
+import { useUIStore } from '@/core/stores/ui-store';
 import {
   DEFAULT_GTR44_FORM_DATA,
   EMPTY_GTR44_FORM_DATA,
@@ -533,28 +534,27 @@ export const useGTR44SettingsStore = create<GTR44SettingsStoreState>()(
   )
 );
 
-// Hydrate from backend on load if local empty (like GTR30) — best-effort, no await at module top
-if (typeof window !== 'undefined') {
-  void (async () => {
-    try {
-      const raw = localStorage.getItem('gtr44-settings-v1');
-      if (raw) return;
-      const { gtr44SettingsBackendRepository } = await import('../repositories/gtr44SettingsBackend.repository');
-      const remote = await gtr44SettingsBackendRepository.load();
-      if (!remote) return;
-      useGTR44SettingsStore.setState({
-        settings: remote.settings,
-        budgetHeads: remote.budgetHeads,
-        expenditureItems: remote.expenditureItems,
-        edpCodes: remote.edpCodes,
-        deductionTemplates: remote.deductionTemplates,
-        numbering: remote.numbering,
-        printSettings: remote.printSettings,
-      });
-    } catch {
-      // ignore - backend unavailable or not yet configured (tests / local dev without supabase)
-    }
-  })();
+// Explicit on-demand backend hydration for GTR-44 settings
+export async function hydrateGTR44SettingsStoreFromBackend(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem('gtr44-settings-v1');
+    if (raw) return;
+    const { gtr44SettingsBackendRepository } = await import('../repositories/gtr44SettingsBackend.repository');
+    const remote = await gtr44SettingsBackendRepository.load();
+    if (!remote) return;
+    useGTR44SettingsStore.setState({
+      settings: remote.settings,
+      budgetHeads: remote.budgetHeads,
+      expenditureItems: remote.expenditureItems,
+      edpCodes: remote.edpCodes,
+      deductionTemplates: remote.deductionTemplates,
+      numbering: remote.numbering,
+      printSettings: remote.printSettings,
+    });
+  } catch {
+    // ignore - backend unavailable or not yet configured (tests / local dev without supabase)
+  }
 }
 
 export function buildNewBillFormData(): GTR44FormData {
@@ -612,5 +612,8 @@ export function buildNewBillFormData(): GTR44FormData {
     countersigningOffice: settings.countersigningOffice ?? EMPTY_GTR44_FORM_DATA.countersigningOffice,
     expenditureItems: finalExpenditureItems,
     partyEntries: [],
+    // Budget grant year always follows the governed active FY (Master Settings) for new bills
+    budgetGrantYearFrom: String(useUIStore.getState().activeFinancialYear),
+    budgetGrantYearTo: String((useUIStore.getState().activeFinancialYear + 1) % 100).padStart(2, '0'),
   };
 }

@@ -1,12 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { gtr44BillsBackendRepository } from '../repositories/gtr44BillsBackend.repository';
 import { GTR44Bill } from '../types';
-import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 
 export const useGTR44Bills = () => {
-  const officeId = useActiveOfficeId();
   return useQuery({
-    queryKey: ['gtr44Bills', officeId ?? null],
+    queryKey: ['gtr44Bills'],
     queryFn: async () => {
       const backend = await gtr44BillsBackendRepository.list();
       return backend ?? [];
@@ -15,9 +13,8 @@ export const useGTR44Bills = () => {
 };
 
 export const useGTR44Bill = (id: string) => {
-  const officeId = useActiveOfficeId();
   return useQuery({
-    queryKey: ['gtr44Bill', officeId ?? null, id],
+    queryKey: ['gtr44Bill', id],
     queryFn: async () => {
       return gtr44BillsBackendRepository.get(id);
     },

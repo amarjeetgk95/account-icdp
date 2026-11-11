@@ -55,10 +55,10 @@ export const GTR44Page2: React.FC<GTR44Page2Props> = ({ data }) => {
               >
                 <div>Details of Nos.</div>
                 <div>of Sub-voucher</div>
-                <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '10.5pt', fontWeight: 600, marginTop: '3px' }}>
+                <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '10.5pt', fontWeight: 600, marginTop: '3px' }}>
                   પેટા-વાઉચરની
                 </div>
-                <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '10.5pt', fontWeight: 600 }}>
+                <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '10.5pt', fontWeight: 600 }}>
                   વિગતો
                 </div>
               </th>
@@ -74,10 +74,10 @@ export const GTR44Page2: React.FC<GTR44Page2Props> = ({ data }) => {
               >
                 <div>Description of Charges and No. and date of Authority</div>
                 <div>for all charges requiring special sanction</div>
-                <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '10.5pt', fontWeight: 600, marginTop: '3px' }}>
+                <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '10.5pt', fontWeight: 600, marginTop: '3px' }}>
                   ખાસ મંજૂરીની જરૂર હોય તેવા તમામ ખર્ચની વિગત અને
                 </div>
-                <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '10.5pt', fontWeight: 600 }}>
+                <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '10.5pt', fontWeight: 600 }}>
                   આધાર હુકમના નંબર અને તારીખ
                 </div>
               </th>
@@ -85,16 +85,16 @@ export const GTR44Page2: React.FC<GTR44Page2Props> = ({ data }) => {
               <th style={{ width: '22%', padding: 0, verticalAlign: 'middle' }}>
                 <div style={{ textAlign: 'center', borderBottom: '1px solid #000', padding: '6px 0', fontSize: '11pt' }}>
                   <div>Amount</div>
-                  <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '10.5pt', fontWeight: 600 }}>રકમ</div>
+                  <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '10.5pt', fontWeight: 600 }}>રકમ</div>
                 </div>
                 <div style={{ display: 'flex', fontSize: '10.5pt', fontWeight: 700 }}>
                   <div style={{ flex: '1 1 65%', textAlign: 'center', borderRight: '1px solid #000', padding: '3px 0' }}>
                     <div>Rs.</div>
-                    <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '10pt' }}>રૂ.</div>
+                    <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '10pt' }}>રૂ.</div>
                   </div>
                   <div style={{ flex: '1 1 35%', textAlign: 'center', padding: '3px 0' }}>
                     <div>Ps.</div>
-                    <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '10pt' }}>પૈ.</div>
+                    <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '10pt' }}>પૈ.</div>
                   </div>
                 </div>
               </th>
@@ -130,7 +130,7 @@ export const GTR44Page2: React.FC<GTR44Page2Props> = ({ data }) => {
                           paddingRight: '8px',
                           paddingTop: '6px',
                           borderRight: '1px solid #000',
-                          fontFamily: "'Courier New', monospace",
+                          fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                           fontWeight: 700,
                           fontSize: '11pt',
                         }}
@@ -142,7 +142,7 @@ export const GTR44Page2: React.FC<GTR44Page2Props> = ({ data }) => {
                           flex: '1 1 35%',
                           textAlign: 'center',
                           paddingTop: '6px',
-                          fontFamily: "'Courier New', monospace",
+                          fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                           fontWeight: 700,
           fontSize: '11pt',
                         }}
@@ -175,7 +175,7 @@ export const GTR44Page2: React.FC<GTR44Page2Props> = ({ data }) => {
             <tr style={{ borderTop: '1px solid #000', height: '36px', fontWeight: 700 }}>
               <td colSpan={2} style={{ borderRight: '1px solid #000', textAlign: 'right', paddingRight: '20px', fontSize: '11.5pt' }}>
                 <span>Carried Over rupees&nbsp;&nbsp;</span>
-                <span style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '11pt' }}>આગળ ખેંચ્યા રૂપિયા</span>
+                <span style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '11pt' }}>આગળ ખેંચ્યા રૂપિયા</span>
               </td>
               <td style={{ padding: 0 }}>
                 <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
@@ -185,7 +185,7 @@ export const GTR44Page2: React.FC<GTR44Page2Props> = ({ data }) => {
                       textAlign: 'right',
                       paddingRight: '8px',
                       borderRight: '1px solid #000',
-                      fontFamily: "'Courier New', monospace",
+                      fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                       fontWeight: 700,
                       fontSize: '11pt',
                     }}
@@ -196,7 +196,7 @@ export const GTR44Page2: React.FC<GTR44Page2Props> = ({ data }) => {
                     style={{
                       flex: '1 1 35%',
                       textAlign: 'center',
-                      fontFamily: "'Courier New', monospace",
+                      fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                       fontWeight: 700,
                       fontSize: '11pt',
                     }}

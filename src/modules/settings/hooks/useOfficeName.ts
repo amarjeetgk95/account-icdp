@@ -1,17 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { officeService } from '../services/office.service';
-import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
-import { isAllOfficesMode } from '@/shared/utilities/office';
 
 export function useOfficeName(): string {
-  const officeId = useActiveOfficeId();
-
   const query = useQuery({
-    queryKey: ['office-name', officeId],
+    queryKey: ['office-name'],
     queryFn: () => officeService.getName(),
-    enabled: !!officeId && !isAllOfficesMode(),
+    staleTime: 5 * 60 * 1000,
   });
 
-  if (isAllOfficesMode()) return 'All Offices';
-  return query.data ?? '';
+  return query.data || 'ICDP SURAT, GUJARAT';
 }

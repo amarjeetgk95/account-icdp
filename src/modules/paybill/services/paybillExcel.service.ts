@@ -1,5 +1,4 @@
 import type ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 import type {
   PayBillAllowanceMatrixReport,
   PayBillMonthlyEmployeeMatrixReport,
@@ -82,6 +81,7 @@ async function createWorkbook(): Promise<ExcelJS.Workbook> {
 
 async function saveWorkbook(workbook: ExcelJS.Workbook, fileName: string) {
   const buffer = await workbook.xlsx.writeBuffer();
+  const { saveAs } = await import('file-saver');
   saveAs(new Blob([buffer]), fileName);
 }
 

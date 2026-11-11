@@ -33,7 +33,7 @@ export function DefaultsTab() {
         <div className="flex items-center space-x-2">
           <Building2 className="h-5 w-5 text-primary" />
           <div>
-            <h3 className="font-bold text-base text-foreground">Office &amp; Form Defaults</h3>
+            <h3 className="font-bold text-xs text-foreground">Office &amp; Form Defaults</h3>
             <p className="text-xs text-muted-foreground">
               These prefilled defaults automatically populate every new GTR-44 Contingent Bill.
             </p>
@@ -48,16 +48,16 @@ export function DefaultsTab() {
       <Card className="p-6 border border-border bg-card space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-2">
           <Tag className="h-4 w-4 text-primary" />
-          <h4 className="font-bold text-sm text-foreground uppercase tracking-wider">Default Entry Details</h4>
+          <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Default Entry Details</h4>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
           <div>
             <Label className="text-xs">DDO Cardex Code</Label>
             <Input
               value={formData.ddoCardexCode || ''}
               onChange={(e) => handleChange('ddoCardexCode', e.target.value)}
               placeholder="e.g. 66"
-              className="font-mono"
+              className="num"
             />
           </div>
           <div>
@@ -66,7 +66,7 @@ export function DefaultsTab() {
               value={formData.district || ''}
               onChange={(e) => handleChange('district', e.target.value)}
               placeholder="e.g. 07"
-              className="font-mono"
+              className="num"
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -76,7 +76,7 @@ export function DefaultsTab() {
                 value={formData.budgetGrantYearFrom || ''}
                 onChange={(e) => handleChange('budgetGrantYearFrom', e.target.value)}
                 placeholder="2026"
-                className="font-mono"
+                className="num"
               />
             </div>
             <div>
@@ -85,7 +85,7 @@ export function DefaultsTab() {
                 value={formData.budgetGrantYearTo || ''}
                 onChange={(e) => handleChange('budgetGrantYearTo', e.target.value)}
                 placeholder="2027"
-                className="font-mono"
+                className="num"
               />
             </div>
           </div>
@@ -96,9 +96,9 @@ export function DefaultsTab() {
       <Card className="p-6 border border-border bg-card space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-2">
           <Landmark className="h-4 w-4 text-primary" />
-          <h4 className="font-bold text-sm text-foreground uppercase tracking-wider">Office &amp; Treasury Details</h4>
+          <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Office &amp; Treasury Details</h4>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
           <div>
             <Label className="text-xs">Treasury Name</Label>
             <Input
@@ -137,7 +137,7 @@ export function DefaultsTab() {
           <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             Signatories &amp; Designations
           </h5>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
             <div>
               <Label className="text-xs">Drawing Officer Name</Label>
               <Input
@@ -178,14 +178,14 @@ export function DefaultsTab() {
       <Card className="p-6 border border-border bg-card space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-2">
           <Tag className="h-4 w-4 text-primary" />
-          <h4 className="font-bold text-sm text-foreground uppercase tracking-wider">Office Classification Codes (Page 1 Box)</h4>
+          <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Office Classification Codes (Page 1 Box)</h4>
         </div>
         <p className="text-xs text-muted-foreground">
           Pre-printed computer input boxes rendered at the top-left of Page 1.
         </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3 text-xs">
           <div>
-            <Label className="text-[11px]">Class Exp</Label>
+            <Label className="text-xs">Class Exp</Label>
             <Input
               value={formData.classOfExpenditure || ''}
               onChange={(e) => handleChange('classOfExpenditure', e.target.value)}
@@ -195,7 +195,7 @@ export function DefaultsTab() {
             />
           </div>
           <div>
-            <Label className="text-[11px]">Fund</Label>
+            <Label className="text-xs">Fund</Label>
             <Input
               value={formData.fund || ''}
               onChange={(e) => handleChange('fund', e.target.value)}
@@ -205,7 +205,7 @@ export function DefaultsTab() {
             />
           </div>
           <div>
-            <Label className="text-[11px]">Drawing</Label>
+            <Label className="text-xs">Drawing</Label>
             <Input
               value={formData.drawing || ''}
               onChange={(e) => handleChange('drawing', e.target.value)}
@@ -215,7 +215,7 @@ export function DefaultsTab() {
             />
           </div>
           <div>
-            <Label className="text-[11px]">Demand No</Label>
+            <Label className="text-xs">Demand No</Label>
             <Input
               value={formData.demandNo || ''}
               onChange={(e) => handleChange('demandNo', e.target.value)}
@@ -225,7 +225,7 @@ export function DefaultsTab() {
             />
           </div>
           <div>
-            <Label className="text-[11px]">Budget Type</Label>
+            <Label className="text-xs">Budget Type</Label>
             <Input
               value={formData.typeOfBudget || ''}
               onChange={(e) => handleChange('typeOfBudget', e.target.value)}
@@ -235,7 +235,7 @@ export function DefaultsTab() {
             />
           </div>
           <div>
-            <Label className="text-[11px]">Scheme No</Label>
+            <Label className="text-xs">Scheme No</Label>
             <Input
               value={formData.schemeNo || ''}
               onChange={(e) => handleChange('schemeNo', e.target.value)}
@@ -245,7 +245,7 @@ export function DefaultsTab() {
             />
           </div>
           <div>
-            <Label className="text-[11px]">Sub-Major</Label>
+            <Label className="text-xs">Sub-Major</Label>
             <Input
               value={formData.subMajorHead || ''}
               onChange={(e) => handleChange('subMajorHead', e.target.value)}
@@ -255,7 +255,7 @@ export function DefaultsTab() {
             />
           </div>
           <div>
-            <Label className="text-[11px]">Detailed</Label>
+            <Label className="text-xs">Detailed</Label>
             <Input
               value={formData.detailedHead || ''}
               onChange={(e) => handleChange('detailedHead', e.target.value)}

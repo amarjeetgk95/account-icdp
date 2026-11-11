@@ -1,26 +1,13 @@
 import type { GTR30BillCodeMapping } from '../types';
 import { DEFAULT_BILL_CODE_MAPPINGS } from '../constants';
-import { getOfficeScope, type OfficeScope } from '@/shared/utilities/office';
+import { isLegacyBillCode } from '../constants/billCodes';
 
-const STORAGE_KEY_PREFIX = 'gtr30-employee-master-v3-mappings';
+const STORAGE_KEY = 'gtr30-employee-master-v3-mappings-all';
 const LEGACY_STORAGE_KEY = 'gtr30-employee-master-v3-mappings';
 
 interface StoredMappings {
   configured: boolean;
   items: GTR30BillCodeMapping[];
-}
-
-function gtr30BillCodeMappingsStorageKey(scope: OfficeScope): string {
-  const suffix = scope.all ? 'all' : scope.officeId ?? 'default';
-  return `${STORAGE_KEY_PREFIX}-${suffix}`;
-}
-
-function resolveScope(): OfficeScope | null {
-  try {
-    return getOfficeScope();
-  } catch {
-    return null;
-  }
 }
 
 function readFrom(key: string): GTR30BillCodeMapping[] | null {
@@ -68,8 +55,7 @@ function isKeyConfigured(key: string): boolean {
 
 class Gtr30BillCodeMappingsLocalRepository {
   private storageKey(): string {
-    const scope = resolveScope();
-    return scope ? gtr30BillCodeMappingsStorageKey(scope) : `${STORAGE_KEY_PREFIX}-default`;
+    return STORAGE_KEY;
   }
 
   private migrateLegacyIfNeeded(key: string): void {
@@ -88,18 +74,19 @@ class Gtr30BillCodeMappingsLocalRepository {
   }
 
   loadAll(): GTR30BillCodeMapping[] {
-    const scope = resolveScope();
-    const key = scope ? gtr30BillCodeMappingsStorageKey(scope) : `${STORAGE_KEY_PREFIX}-default`;
-    if (scope) {
-      this.migrateLegacyIfNeeded(key);
-    }
+    const key = STORAGE_KEY;
+    this.migrateLegacyIfNeeded(key);
     const stored = readFrom(key);
     if (stored !== null) {
-      return stored;
+      // Intentional empty (configured wrapper with 0 items) must stay empty,
+      // not fall back to defaults — mirrors gtr30BudgetHeadsLocal logic.
+      if (stored.length === 0) return [];
+      const filtered = stored.filter((m) => !isLegacyBillCode(m.billCode));
+      if (filtered.length > 0) return filtered;
+      // Stored had only legacy dummies — replace with canonical defaults
+      if (stored.length > 0 && filtered.length === 0) return [...DEFAULT_BILL_CODE_MAPPINGS];
     }
-    if (isKeyConfigured(key)) {
-      return [];
-    }
+    if (isKeyConfigured(key)) return [];
     return [...DEFAULT_BILL_CODE_MAPPINGS];
   }
 

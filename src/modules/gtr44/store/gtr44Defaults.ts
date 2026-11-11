@@ -1,4 +1,5 @@
 import { GTR44FormData, GTR44Entry, GTR44ObjectExpenditureItem, GTR44EDPCode, GTR44DeductionTemplate, GTR44NumberingSettings, GTR44PrintSettings } from '../types';
+import { useUIStore } from '@/core/stores/ui-store';
 
 export const DEFAULT_EXPENDITURE_ITEMS: GTR44ObjectExpenditureItem[] = [
   { code: '0200', name: 'Wages', edpCode: '0 2 0 1 +', amount: null, nameGu: '', isActive: true, sortOrder: 0 },
@@ -137,6 +138,9 @@ const today = () => new Date().toISOString().split('T')[0];
 const currentYear = () => new Date().getFullYear().toString();
 const currentMonthYear = () =>
   String(new Date().getMonth() + 1).padStart(2, '0') + currentYear().slice(-2);
+// Budget grant year follows the governed active FY (Master Settings), not the calendar.
+const activeFYStart = () => String(useUIStore.getState().activeFinancialYear);
+const activeFYYend = () => String((useUIStore.getState().activeFinancialYear + 1) % 100).padStart(2, '0');
 
 export const EMPTY_GTR44_FORM_DATA: GTR44FormData = {
   // Page 1 Header Metadata
@@ -191,8 +195,8 @@ export const EMPTY_GTR44_FORM_DATA: GTR44FormData = {
   budgetHeadId: '',
 
   // Budget Grant & Expenditure
-  budgetGrantYearFrom: currentYear(),
-  budgetGrantYearTo: String(new Date().getFullYear() + 1).slice(-2),
+  budgetGrantYearFrom: activeFYStart(),
+  budgetGrantYearTo: activeFYYend(),
   budgetGrant: null,
   expenditureIncludingBill: null,
   balance: null,

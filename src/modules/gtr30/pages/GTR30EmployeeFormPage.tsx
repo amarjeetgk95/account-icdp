@@ -8,6 +8,7 @@ import {
   UserCheck,
   Users,
   ShieldAlert,
+  X,
 } from 'lucide-react';
 import { useUIStore } from '@/core/stores/ui-store';
 import {
@@ -26,9 +27,9 @@ export function GTR30EmployeeFormPage() {
   const { employeeId } = useParams<{ employeeId?: string }>();
   const [searchParams] = useSearchParams();
   const queryId = searchParams.get('id') || employeeId;
-  const initialBillCode = searchParams.get('billCode') || 'GTR30-SAL';
+  const initialBillCode = searchParams.get('billCode') || 'GTR-30-GO-STATS';
 
-  const activeFY = useUIStore((state) => state.activeFinancialYear) ?? 2026;
+  const activeFY = useUIStore((state) => state.activeFinancialYear);
   const monthKeyParam = searchParams.get('monthKey');
   const monthKey = monthKeyParam && gtr30ParseMonthKey(monthKeyParam) ? monthKeyParam : `July-${activeFY}`;
 
@@ -69,56 +70,76 @@ export function GTR30EmployeeFormPage() {
   const fallbackKey = gtr30GroupKey('master', activeBillCode);
   const currentEmployees = groups[currentGroupKey] ?? groups[fallbackKey] ?? [];
 
+  const isPopup = Boolean(window.opener || searchParams.get('popup') === 'true' || window.name);
+
+  const handleClose = () => {
+    try {
+      if (window.opener) {
+        try { window.opener.location.reload(); } catch {}
+      }
+    } catch {}
+    window.close();
+    setTimeout(() => {
+      if (!window.closed) {
+        navigate('/gtr30/employee-management');
+      }
+    }, 150);
+  };
+
   return (
-    <div className="max-w-7xl mx-auto space-y-5 pb-24 animate-in fade-in duration-200">
+    <div className="max-w-7xl mx-auto space-y-5 p-4 md:p-6 pb-24 animate-in fade-in duration-200 w-full">
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate('/gtr30/employee-management')}
-            className="text-xs font-semibold text-slate-700"
-            title="Back to Employee Management"
+            onClick={handleClose}
+            className="text-xs font-semibold text-slate-700 dark:text-slate-200"
+            title={isPopup ? 'Close Window' : 'Back to Employee Management'}
           >
-            <ChevronLeft className="h-4 w-4 mr-1" /> Back to List
+            <ChevronLeft className="h-4 w-4 mr-1" /> {isPopup ? 'Close Window' : 'Back to List'}
           </Button>
-          <div>
-            <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-              {isEditMode ? (
-                <>
-                  <UserCheck className="h-5 w-5 text-indigo-600" />
-                  Edit Employee Profile
-                  {foundEmployee && (
-                    <span className="text-xs font-bold font-mono px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200">
-                      {foundEmployee.name}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-5 w-5 text-blue-600" />
-                  New Employee Registration
-                </>
-              )}
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {isEditMode
-                ? 'Update salary matrix, allowances, deductions, and bill code assignment.'
-                : 'Register a new employee with 7th Pay Matrix, allowances, deductions, and statutory funds.'}
-            </p>
-          </div>
+          <h1 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            {isEditMode ? (
+              <>
+                <UserCheck className="h-4 w-4 text-indigo-600" />
+                Edit Employee Profile
+                {foundEmployee && (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200">
+                    {foundEmployee.name}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <UserPlus className="h-4 w-4 text-blue-600" />
+                New Employee Registration
+              </>
+            )}
+          </h1>
         </div>
 
         <div className="flex items-center gap-2">
           <GTR30SyncStatusBadge />
+          {!isPopup && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/gtr30/employee-management')}
+              className="text-xs font-semibold text-slate-700 dark:text-slate-200"
+            >
+              <Users className="h-3.5 w-3.5 mr-1 text-blue-600" /> View All Employees
+            </Button>
+          )}
           <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/gtr30/employee-management')}
-            className="text-xs font-semibold text-slate-700"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+            title="Close edit window"
+            onClick={handleClose}
           >
-            <Users className="h-3.5 w-3.5 mr-1 text-blue-600" /> View All Employees
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -128,7 +149,7 @@ export function GTR30EmployeeFormPage() {
         <Card className="p-6 border-amber-200 bg-amber-50/60 text-amber-900 rounded-2xl flex items-center gap-3">
           <ShieldAlert className="h-6 w-6 text-amber-600 shrink-0" />
           <div className="text-xs">
-            <p className="font-bold text-sm">Employee Not Found</p>
+            <p className="font-bold text-xs">Employee Not Found</p>
             <p className="mt-0.5">
               Could not locate the requested employee record with ID &ldquo;{queryId}&rdquo;. You can register a new employee below or return to the directory.
             </p>
@@ -145,7 +166,7 @@ export function GTR30EmployeeFormPage() {
         onSaved={() => {
           // Keep on page or provide easy navigation
         }}
-        onCancel={() => navigate('/gtr30/employee-management')}
+        onCancel={handleClose}
       />
     </div>
   );

@@ -52,7 +52,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     <span
       className={cn(
         'inline-flex items-center gap-1 font-semibold ring-1 ring-inset rounded-full whitespace-nowrap',
-        size === 'sm' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1',
+        size === 'sm' ? 'text-xs px-2 py-0.5' : 'text-xs px-2.5 py-1',
         config.className,
         className,
       )}

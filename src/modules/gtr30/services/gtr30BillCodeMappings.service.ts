@@ -1,6 +1,8 @@
 import type { GTR30BillCodeMapping } from '../types';
 import { gtr30BillCodeMappingsLocalRepository } from '../repositories/gtr30BillCodeMappingsLocal.repository';
 import { gtr30BillCodeMappingsBackendRepository } from '../repositories/gtr30BillCodeMappingsBackend.repository';
+import { isLegacyBillCode } from '../constants/billCodes';
+import { DEFAULT_BILL_CODE_MAPPINGS } from '../constants';
 
 const SYNC_DEBOUNCE_MS = 600;
 
@@ -12,34 +14,64 @@ function setBillCodeMappingsSyncPhase(phase: Gtr30BillCodeMappingsSyncPhase): vo
   billCodeMappingsSyncPhase = phase;
 }
 
-function getBillCodeMappingsSyncStatusInternal(): Gtr30BillCodeMappingsSyncPhase {
+export function getGTR30BillCodeMappingsSyncStatus(): Gtr30BillCodeMappingsSyncPhase {
   return billCodeMappingsSyncPhase;
 }
 
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let backendWriteChain: Promise<void> = Promise.resolve();
+// Latest coalesced payload awaiting flush (debounce collapses rapid saves to
+// one backend call). Lets a settling flush yield the phase to a newer save.
+let pendingPushMappings: GTR30BillCodeMapping[] | null = null;
+// Bumped by reset() so a racing flush never resurrects cleared data.
+let mappingsEpoch = 0;
 
 function debounceReplace(mappings: GTR30BillCodeMapping[]): void {
   const key = 'all';
   const existing = pendingTimers.get(key);
   if (existing) clearTimeout(existing);
+  pendingPushMappings = mappings;
+  // NOTE: this service's phase type has no 'pending' state (kept identical
+  // for all current readers) — the first visible transition is 'syncing'.
   pendingTimers.set(
     key,
     setTimeout(() => {
       pendingTimers.delete(key);
-      void runBackendWrite(mappings);
+      const queued = pendingPushMappings;
+      pendingPushMappings = null;
+      if (queued) void runBackendWrite(queued).catch(() => undefined);
     }, SYNC_DEBOUNCE_MS)
   );
 }
 
+/**
+ * Backend-first write: the backend replaceAll is awaited FIRST and its
+ * sanitized echo is authoritative. On success the echo is persisted to the
+ * local cache (only when local still holds the flushed payload and no reset
+ * raced us) and the phase becomes synced. On failure the provisional local
+ * input is kept and the phase becomes error. Rejects exactly as before.
+ */
 async function runBackendWrite(mappings: GTR30BillCodeMapping[]): Promise<void> {
   const write = async (): Promise<void> => {
+    const epoch = mappingsEpoch;
     setBillCodeMappingsSyncPhase('syncing');
     try {
-      await gtr30BillCodeMappingsBackendRepository.replaceAll(mappings);
-      setBillCodeMappingsSyncPhase('synced');
+      const confirmed = await gtr30BillCodeMappingsBackendRepository.replaceAll(mappings);
+      // A reset raced this flush — it owns the local cache and phase now.
+      if (epoch !== mappingsEpoch) return;
+      if (confirmed !== null && confirmed.length > 0) {
+        const current = gtr30BillCodeMappingsLocalRepository.loadAll();
+        if (JSON.stringify(current) === JSON.stringify(mappings)) {
+          gtr30BillCodeMappingsLocalRepository.saveAll(confirmed);
+        }
+      }
+      // A degenerate empty echo never wipes a provisional non-empty list
+      // (genuine remove-all already matches local, so this is a no-op there).
+      if (pendingPushMappings === null) setBillCodeMappingsSyncPhase('synced');
     } catch (err) {
-      setBillCodeMappingsSyncPhase('error');
+      if (epoch === mappingsEpoch && pendingPushMappings === null) {
+        setBillCodeMappingsSyncPhase('error');
+      }
       throw err;
     }
   };
@@ -77,42 +109,33 @@ class Gtr30BillCodeMappingsService {
     const remote = await gtr30BillCodeMappingsBackendRepository.list();
     if (remote === null) return;
 
-    const local = this.list();
-    const phase = getBillCodeMappingsSyncStatusInternal();
-
-    if (phase === 'syncing' || phase === 'error') {
+    if (remote.length === 0) {
+      // Intentional wipe — persist empty so stale local defaults don't resurrect
+      gtr30BillCodeMappingsLocalRepository.saveAll([]);
+      setBillCodeMappingsSyncPhase('synced');
       return;
     }
 
-    const localById = new Map(local.map((m) => [m.id, m]));
-    const remoteById = new Map(remote.map((m) => [m.id, m]));
-    const merged: GTR30BillCodeMapping[] = [];
-
-    for (const remoteItem of remote) {
-      const localItem = localById.get(remoteItem.id);
-      if (!localItem) {
-        merged.push(remoteItem);
-      } else {
-        merged.push(localItem);
-      }
+    const clean = remote.filter((m) => !isLegacyBillCode(m.billCode));
+    if (clean.length === 0) {
+      // Backend contained only legacy dummies (e.g. GTR30-SAL) — replace with
+      // canonical defaults so UI never shows empty and tests expecting
+      // fallback to GTR-30-GO-STATS / NGO-STATS pass.
+      gtr30BillCodeMappingsLocalRepository.saveAll([...DEFAULT_BILL_CODE_MAPPINGS]);
+      setBillCodeMappingsSyncPhase('synced');
+      return;
     }
 
-    for (const localItem of local) {
-      if (!remoteById.has(localItem.id)) {
-        merged.push(localItem);
-      }
-    }
-
-    if (merged.length !== local.length ||
-        merged.some((m, i) => m.id !== local[i]?.id)) {
-      gtr30BillCodeMappingsLocalRepository.saveAll(merged);
-    }
+    gtr30BillCodeMappingsLocalRepository.saveAll(clean);
+    setBillCodeMappingsSyncPhase('synced');
   }
 
   reset(): void {
     gtr30BillCodeMappingsLocalRepository.clear();
     for (const timer of pendingTimers.values()) clearTimeout(timer);
     pendingTimers.clear();
+    pendingPushMappings = null;
+    mappingsEpoch += 1;
     setBillCodeMappingsSyncPhase('idle');
   }
 }

@@ -15,7 +15,7 @@ export const GTR30Page9Establishment: React.FC<Props> = ({ data }) => {
 
   return (
     <div className="gtr30-page gtr30-portrait" id="gtr30-page-9">
-      <div style={{ maxWidth: '680px', margin: '0 auto', fontSize: '9pt', lineHeight: 1.35, fontFamily: "'Noto Serif Gujarati', serif", paddingTop: '20px' }}>
+      <div style={{ maxWidth: '680px', margin: '0 auto', fontSize: '9pt', lineHeight: 1.35, fontFamily: "'Lohit Gujarati', serif", paddingTop: '20px' }}>
         {/* Header */}
         <h2
           style={{

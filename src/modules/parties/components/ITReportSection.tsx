@@ -31,10 +31,12 @@ export function ITReportSection({ report, isLoading }: ITReportSectionProps) {
           <tr>
             <th>Sr. No.</th>
             <th style={{ textAlign: 'left' }}>Party Name</th>
-            <th>Bill No</th>
+            <th>PAN No.</th>
+            <th>DDO Bill No</th>
+            <th>Invoice No</th>
+            <th>Invoice Date</th>
             <th>Settlement Date</th>
             <th>Amount</th>
-            <th>PAN No.</th>
             <th>Income Tax (TDS)</th>
           </tr>
         </thead>
@@ -45,10 +47,12 @@ export function ITReportSection({ report, isLoading }: ITReportSectionProps) {
               <td className="font-bold" style={{ textAlign: 'left' }}>
                 {row.partyName}
               </td>
-              <td>{row.billNo}</td>
-              <td>{row.date}</td>
-              <td style={{ textAlign: 'right' }}>{formatCurrency(row.amount)}</td>
               <td className="font-bold">{row.panNo}</td>
+              <td>{row.ddoBillNo || '-'}</td>
+              <td>{row.billNo}</td>
+              <td>{row.invoiceDate || row.date}</td>
+              <td>{row.settlementDate || row.date}</td>
+              <td style={{ textAlign: 'right' }}>{formatCurrency(row.amount)}</td>
               <td className="font-bold" style={{ textAlign: 'right' }}>
                 {formatCurrency(row.incomeTax)}
               </td>
@@ -57,11 +61,10 @@ export function ITReportSection({ report, isLoading }: ITReportSectionProps) {
         </tbody>
         <tfoot>
           <tr className="total-row">
-            <td colSpan={4} style={{ textAlign: 'right' }}>
+            <td colSpan={7} style={{ textAlign: 'right' }}>
               Grand Total
             </td>
             <td style={{ textAlign: 'right' }}>{formatCurrency(report.totals.amount)}</td>
-            <td></td>
             <td style={{ textAlign: 'right' }}>{formatCurrency(report.totals.incomeTax)}</td>
           </tr>
         </tfoot>

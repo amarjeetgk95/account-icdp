@@ -144,10 +144,10 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
               <Settings2 size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">
                 Pay Bill Settings
               </h3>
-              <p className="text-[0.7rem] text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 DA rates & bill metadata defaults used by imports, audit and ledger posting
               </p>
             </div>
@@ -165,13 +165,13 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
             <div className="px-4 py-2.5 bg-gradient-to-r from-indigo-50/80 to-slate-50/40 dark:from-indigo-950/30 dark:to-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
               <Percent className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <h4 className="text-[0.7rem] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 DA Rates & Audit
               </h4>
             </div>
             <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="md:col-span-2">
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   DA Rates for this Financial Year (%)
                 </label>
                 <input
@@ -181,12 +181,12 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                   placeholder="e.g. 50, 53, 46, 42, 38"
                   className={fieldClass}
                 />
-                <p className="text-[0.65rem] text-slate-400 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   Comma-separated. Rates outside this list raise an audit INFO flag.
                 </p>
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   DA Hike Alert Above (%)
                 </label>
                 <input
@@ -197,7 +197,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Basic Pay Change Tolerance (%)
                 </label>
                 <input
@@ -206,7 +206,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                   onChange={(e) => set('basicPayChangeTolerance', e.target.value)}
                   className={fieldClass}
                 />
-                <p className="text-[0.65rem] text-slate-400 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   Month-over-month basic-pay delta that raises an audit WARNING.
                 </p>
               </div>
@@ -217,13 +217,13 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
             <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50/80 to-slate-50/40 dark:from-blue-950/30 dark:to-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
               <Landmark className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <h4 className="text-[0.7rem] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Bill Metadata Defaults
               </h4>
             </div>
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Default Bill No
                 </label>
                 <input
@@ -234,7 +234,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Major Head
                 </label>
                 <input
@@ -246,7 +246,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   DDO HRPN
                 </label>
                 <input
@@ -257,7 +257,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   DDO Name
                 </label>
                 <input
@@ -268,7 +268,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Office Name
                 </label>
                 <input
@@ -279,7 +279,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   DDO Code
                 </label>
                 <input
@@ -290,7 +290,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Department
                 </label>
                 <input
@@ -301,7 +301,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   TAN No
                 </label>
                 <input
@@ -312,7 +312,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Cardex No
                 </label>
                 <input
@@ -323,7 +323,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Address
                 </label>
                 <input
@@ -334,7 +334,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Mobile No
                 </label>
                 <input
@@ -351,19 +351,19 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
             <div className="px-4 py-2.5 bg-gradient-to-r from-emerald-50/80 to-slate-50/40 dark:from-emerald-950/30 dark:to-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
               <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <h4 className="text-[0.7rem] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Allowance Parameters
               </h4>
             </div>
             <div className="p-4">
             <div className="flex items-start justify-between gap-2 mb-2">
-              <p className="text-[0.65rem] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Use the arrows to set the display order in the Matrix &amp; Employee Ledger.
               </p>
               <button
                 type="button"
                 onClick={() => setEarningOrder([])}
-                className="inline-flex items-center gap-1 text-[0.68rem] font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition shrink-0"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition shrink-0"
               >
                 <RotateCcw className="w-3 h-3" /> Reset Order
               </button>
@@ -379,12 +379,12 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 const display = col?.label || manualLabel || key;
                 return (
                   <li key={key} className="flex items-center gap-2">
-                    <span className="w-5 text-right text-[0.68rem] text-slate-400 font-mono shrink-0">
+                    <span className="w-5 text-right text-xs text-slate-400 num shrink-0">
                       {idx + 1}.
                     </span>
                     {isManual ? (
                       <span
-                        className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 text-blue-800 dark:text-blue-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                        className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full px-2 py-0.5"
                         title="Manual parameter (editable in Employee Ledger)"
                       >
                         {manualLabel}
@@ -401,7 +401,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                       </span>
                     ) : (
                       <span
-                        className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                        className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-full px-2 py-0.5"
                         title="Standard parameter (extracted from PDF)"
                       >
                         {display}
@@ -433,11 +433,11 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
             </ol>
 
             <div className="flex flex-wrap items-center gap-1.5 mb-3">
-              <span className="text-[0.68rem] text-slate-400 font-medium">Always last:</span>
+              <span className="text-xs text-slate-400 font-medium">Always last:</span>
               {PAYBILL_EARNING_COLUMNS.filter((c) => c.key === 'grossAmount').map((c) => (
                 <span
                   key={c.key}
-                  className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                  className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold rounded-full px-2 py-0.5"
                 >
                   <Lock className="w-3 h-3" />
                   {c.label}
@@ -478,19 +478,19 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
             <div className="px-4 py-2.5 bg-gradient-to-r from-rose-50/80 to-slate-50/40 dark:from-rose-950/30 dark:to-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
               <ArrowDownCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-              <h4 className="text-[0.7rem] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Deduction Parameters
               </h4>
             </div>
             <div className="p-4">
             <div className="flex items-start justify-between gap-2 mb-2">
-              <p className="text-[0.65rem] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Use the arrows to set the display order in the Matrix &amp; Employee Ledger.
               </p>
               <button
                 type="button"
                 onClick={() => setDeductionOrder([])}
-                className="inline-flex items-center gap-1 text-[0.68rem] font-semibold text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition shrink-0"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition shrink-0"
               >
                 <RotateCcw className="w-3 h-3" /> Reset Order
               </button>
@@ -506,12 +506,12 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                 const display = col?.label || manualLabel || key;
                 return (
                   <li key={key} className="flex items-center gap-2">
-                    <span className="w-5 text-right text-[0.68rem] text-slate-400 font-mono shrink-0">
+                    <span className="w-5 text-right text-xs text-slate-400 num shrink-0">
                       {idx + 1}.
                     </span>
                     {isManual ? (
                       <span
-                        className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                        className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-xs font-semibold rounded-full px-2 py-0.5"
                         title="Manual parameter (editable in Employee Ledger)"
                       >
                         {manualLabel}
@@ -528,7 +528,7 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
                       </span>
                     ) : (
                       <span
-                        className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                        className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-full px-2 py-0.5"
                         title="Standard parameter (extracted from PDF)"
                       >
                         {display}
@@ -560,13 +560,13 @@ export const PayBillSettingsModal: React.FC<PayBillSettingsModalProps> = ({
             </ol>
 
             <div className="flex flex-wrap items-center gap-1.5 mb-3">
-              <span className="text-[0.68rem] text-slate-400 font-medium">Always last:</span>
+              <span className="text-xs text-slate-400 font-medium">Always last:</span>
               {PAYBILL_DEDUCTION_COLUMNS.filter(
                 (c) => c.key === 'totalDeductions' || c.key === 'netPay'
               ).map((c) => (
                 <span
                   key={c.key}
-                  className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[0.7rem] font-semibold rounded-full px-2 py-0.5"
+                  className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold rounded-full px-2 py-0.5"
                 >
                   <Lock className="w-3 h-3" />
                   {c.label}

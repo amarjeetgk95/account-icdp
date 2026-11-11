@@ -1,21 +1,7 @@
 import type { GTR30EmployeeMaster, GTR30MasterGroup } from '../types';
-import { getOfficeScope, type OfficeScope } from '@/shared/utilities/office';
 
-const STORAGE_KEY_PREFIX = 'gtr30-employee-master-v3-groups';
+const STORAGE_KEY = 'gtr30-employee-master-v3-groups-all';
 const LEGACY_STORAGE_KEY = 'gtr30-employee-master-v3-groups';
-
-export function gtr30EmployeeMasterStorageKey(scope: OfficeScope): string {
-  const suffix = scope.all ? 'all' : scope.officeId ?? 'default';
-  return `${STORAGE_KEY_PREFIX}-${suffix}`;
-}
-
-function resolveScope(): OfficeScope | null {
-  try {
-    return getOfficeScope();
-  } catch {
-    return null;
-  }
-}
 
 function indexKey(monthKey: string, billCode: string): string {
   return `${monthKey.trim().toLowerCase()}|${billCode.trim().toLowerCase()}`;
@@ -43,8 +29,7 @@ function writeTo(key: string, payload: Record<string, GTR30MasterGroup>): void {
 
 class Gtr30EmployeeMasterLocalRepository {
   private storageKey(): string {
-    const scope = resolveScope();
-    return scope ? gtr30EmployeeMasterStorageKey(scope) : `${STORAGE_KEY_PREFIX}-default`;
+    return STORAGE_KEY;
   }
 
   private migrateLegacyIfNeeded(key: string): void {
@@ -64,11 +49,8 @@ class Gtr30EmployeeMasterLocalRepository {
   }
 
   loadAll(): Record<string, GTR30MasterGroup> {
-    const scope = resolveScope();
-    const key = scope ? gtr30EmployeeMasterStorageKey(scope) : `${STORAGE_KEY_PREFIX}-default`;
-    if (scope) {
-      this.migrateLegacyIfNeeded(key);
-    }
+    const key = STORAGE_KEY;
+    this.migrateLegacyIfNeeded(key);
     return readFrom(key);
   }
 

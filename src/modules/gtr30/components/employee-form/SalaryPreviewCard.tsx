@@ -28,10 +28,10 @@ export const SalaryPreviewCard: React.FC<SalaryPreviewCardProps> = ({
             <Receipt className="h-6 w-6" />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-widest text-blue-300 flex items-center gap-1.5">
+            <div className="text-xs font-bold uppercase tracking-widest text-blue-300 flex items-center gap-1.5">
               <Coins className="h-3.5 w-3.5" /> Real-time Salary Overview
             </div>
-            <h3 className="text-base sm:text-lg font-black text-white tracking-tight mt-0.5 flex items-center gap-2">
+            <h3 className="text-xs sm:text-xs font-black text-white tracking-tight mt-0.5 flex items-center gap-2">
               {employeeName ? (
                 <span>{employeeName}</span>
               ) : (
@@ -61,37 +61,37 @@ export const SalaryPreviewCard: React.FC<SalaryPreviewCardProps> = ({
       {/* Real-time KPI Metric Tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mt-4 pt-3.5 border-t border-slate-700/80">
         <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-2.5 sm:p-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
             Basic Salary
           </span>
-          <span className="text-sm sm:text-base font-black font-mono text-white mt-0.5 block">
+          <span className="text-xs sm:text-xs font-black num text-white mt-0.5 block">
             ₹{basicPay.toLocaleString('en-IN')}
           </span>
         </div>
 
         <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-2.5 sm:p-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 block flex items-center justify-between">
             Gross Earnings <TrendingUp className="h-3 w-3" />
           </span>
-          <span className="text-sm sm:text-base font-black font-mono text-emerald-300 mt-0.5 block">
+          <span className="text-xs sm:text-xs font-black num text-emerald-300 mt-0.5 block">
             ₹{grossPay.toLocaleString('en-IN')}
           </span>
         </div>
 
         <div className="bg-rose-950/40 border border-rose-800/50 rounded-xl p-2.5 sm:p-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 block flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-rose-400 block flex items-center justify-between">
             Deductions <TrendingDown className="h-3 w-3" />
           </span>
-          <span className="text-sm sm:text-base font-black font-mono text-rose-300 mt-0.5 block">
+          <span className="text-xs sm:text-xs font-black num text-rose-300 mt-0.5 block">
             ₹{deductionsTotal.toLocaleString('en-IN')}
           </span>
         </div>
 
         <div className="bg-blue-950/60 border border-blue-700/60 rounded-xl p-2.5 sm:p-3 shadow-inner">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-300 block flex items-center justify-between">
             Take-Home Net <CheckCircle2 className="h-3 w-3" />
           </span>
-          <span className="text-sm sm:text-base font-black font-mono text-blue-100 mt-0.5 block">
+          <span className="text-xs sm:text-xs font-black num text-blue-100 mt-0.5 block">
             ₹{netTakeHome.toLocaleString('en-IN')}
           </span>
         </div>

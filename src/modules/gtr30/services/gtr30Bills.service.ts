@@ -7,6 +7,10 @@ class Gtr30BillsService {
     return gtr30BillRegisterRepository.list();
   }
 
+  async listFullBills(): Promise<GTR30Bill[]> {
+    return gtr30BillRegisterRepository.listFull();
+  }
+
   async getBill(id: string): Promise<GTR30Bill | null> {
     return gtr30BillRegisterRepository.get(id);
   }

@@ -64,7 +64,7 @@ export function TaxReconciliationSyncModal({
           <div className="flex items-center gap-2 p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/70 rounded-xl text-xs text-indigo-900 dark:text-indigo-300">
             <AlertTriangle size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span>
-              This will update <strong className="font-bold">employee_salaries</strong> (Gross, DA, and Tax) for the selected employees in {quarter}. This ensures 100% parity for 24Q e-TDS filing.
+              This will update <strong className="font-bold">employee_salaries</strong> (Gross, DA, and Tax + Pay-diff / DA-diff splits) for the selected employees in {quarter}. Regular monthly pay reconciles on its own; arrears persist separately so the next run shows which track still differs. This ensures 100% parity for 24Q e-TDS filing.
             </span>
           </div>
 
@@ -93,6 +93,7 @@ export function TaxReconciliationSyncModal({
                   <th className="px-3 py-2 text-right">Paybill IT</th>
                   <th className="px-3 py-2 text-right">Payroll IT</th>
                   <th className="px-3 py-2 text-right">Variance</th>
+                  <th className="px-3 py-2 text-right" title="Regular pay excl. diffs + arrears split that will be written">Regular / Arrears</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -117,7 +118,7 @@ export function TaxReconciliationSyncModal({
                       </td>
                       <td className="px-3 py-2">
                         <div className="font-bold text-slate-900 dark:text-slate-100">{r.employeeName}</div>
-                        <div className="text-[11px] font-mono text-slate-500">{r.hrpn} {r.pan ? `· ${r.pan}` : ''}</div>
+                        <div className="text-xs font-mono text-slate-500">{r.hrpn} {r.pan ? `· ${r.pan}` : ''}</div>
                       </td>
                       <td className="px-3 py-2 text-right font-semibold text-slate-800 dark:text-slate-200 tabular-nums">
                         {formatCurrency(r.quarterPaybillTax)}
@@ -127,6 +128,13 @@ export function TaxReconciliationSyncModal({
                       </td>
                       <td className="px-3 py-2 text-right font-bold text-rose-600 dark:text-rose-400 tabular-nums">
                         {formatCurrency(r.quarterTaxDiff)}
+                      </td>
+                      <td
+                        className="px-3 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400"
+                        title={`Regular PB ${(r.quarterPbRegular || 0).toLocaleString('en-IN')} / PR ${(r.quarterPrRegular || 0).toLocaleString('en-IN')} · DA-diff PB ${(r.quarterPbDaDiff || 0).toLocaleString('en-IN')} / PR ${(r.quarterPrDaDiff || 0).toLocaleString('en-IN')} · Pay-diff PB ${(r.quarterPbPayDiff || 0).toLocaleString('en-IN')} / PR ${(r.quarterPrPayDiff || 0).toLocaleString('en-IN')}`}
+                      >
+                        Reg {formatCurrency(r.quarterRegularDiff || 0)}
+                        <span className="text-slate-400"> + Arr {formatCurrency((r.quarterDaDiffDiff || 0) + (r.quarterPayDiffDiff || 0))}</span>
                       </td>
                     </tr>
                   );

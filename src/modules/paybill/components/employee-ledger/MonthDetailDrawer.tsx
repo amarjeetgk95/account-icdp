@@ -69,7 +69,7 @@ function RecordCard({
         {components.map((c) => (
           <div key={c.label} className="flex items-baseline justify-between gap-3 text-xs">
             <dt className="text-slate-600 dark:text-slate-400 font-medium">{c.label}</dt>
-            <dd className="font-mono tabular-nums font-semibold text-slate-800 dark:text-slate-200">
+            <dd className="num tabular-nums font-semibold text-slate-800 dark:text-slate-200">
               {formatInr(c.value)}
             </dd>
           </div>
@@ -79,11 +79,11 @@ function RecordCard({
           className={`flex items-baseline justify-between gap-3 pt-2 mt-2 border-t border-slate-100 dark:border-slate-800 ${emphasisClass}`}
         >
           <dt className="text-xs font-bold uppercase tracking-wider">{emphasisLabel}</dt>
-          <dd className="text-sm font-extrabold font-mono tabular-nums">{formatInr(emphasisValue)}</dd>
+          <dd className="text-xs font-extrabold num tabular-nums">{formatInr(emphasisValue)}</dd>
         </div>
       </dl>
 
-      <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+      <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 font-mono">
         <span className="truncate">Import {importIdShort}</span>
         <span className="truncate">{formatDate(String((record as Record<string, unknown>).createdAt ?? ''))}</span>
       </div>
@@ -113,7 +113,7 @@ function MonthSection({
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-1.5">
           <span
-            className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] ${
+            className={`w-4 h-4 rounded-md flex items-center justify-center text-xs ${
               isEarning
                 ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
                 : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
@@ -125,7 +125,7 @@ function MonthSection({
             {heading}
           </h4>
         </div>
-        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-full px-2 py-0.5 tabular-nums">
+        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-full px-2 py-0.5 tabular-nums">
           {records.length} record{records.length === 1 ? '' : 's'}
         </span>
       </div>
@@ -190,11 +190,11 @@ export function MonthDetailDrawer({
                 <span className="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 flex items-center justify-center">
                   <FileCheck className="w-3 h-3" />
                 </span>
-                <DialogPrimitive.Title className="text-sm font-extrabold text-slate-900 dark:text-slate-100 truncate">
+                <DialogPrimitive.Title className="text-xs font-extrabold text-slate-900 dark:text-slate-100 truncate">
                   {month} — {employeeName}
                 </DialogPrimitive.Title>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 pl-7 flex items-center gap-1.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 pl-7 flex items-center gap-1.5">
                 <Calendar className="w-3 h-3 text-slate-400" />
                 <span>Source salary & deduction slips for this month</span>
               </p>

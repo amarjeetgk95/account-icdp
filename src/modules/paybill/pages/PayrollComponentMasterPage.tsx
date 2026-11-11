@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { usePermissions } from '@/core/permissions/hooks';
 import { componentMasterService } from '../services/componentMaster.service';
 import type { PayrollComponent, PayrollComponentType } from '../types/componentMaster';
 import { PbPanel, PbButton, PbChip, type PbChipTone } from '../components/ui';
@@ -36,7 +35,6 @@ const TYPE_TONE: Record<PayrollComponentType, PbChipTone> = {
 };
 
 export function PayrollComponentMasterPage() {
-  const { isAdmin } = usePermissions();
   const [components, setComponents] = useState<PayrollComponent[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
@@ -153,10 +151,7 @@ export function PayrollComponentMasterPage() {
             <Layers size={14} strokeWidth={2.2} />
           </span>
           <div className="min-w-0">
-            <h1 className="page-title">Payroll Component Master</h1>
-            <p className="page-subtitle">
-              Configure PDF header aliases, codes and column order
-            </p>
+            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">Payroll Component Master</h1>
           </div>
         </div>
 
@@ -166,8 +161,7 @@ export function PayrollComponentMasterPage() {
             icon={RotateCcw}
             size="xs"
             onClick={() => setSeedConfirmOpen(true)}
-            disabled={!isAdmin}
-            title={isAdmin ? 'Restore defaults' : 'Only admins can modify the component master'}
+            title="Restore defaults"
             className="text-xs"
           >
             Restore Defaults
@@ -177,8 +171,7 @@ export function PayrollComponentMasterPage() {
             icon={Plus}
             size="xs"
             onClick={handleAdd}
-            disabled={!isAdmin}
-            title={isAdmin ? 'Add component' : 'Only admins can modify the component master'}
+            title="Add component"
           >
             Add Component
           </PbButton>
@@ -261,8 +254,7 @@ export function PayrollComponentMasterPage() {
                   variant="primary"
                   icon={RotateCcw}
                   onClick={() => setSeedConfirmOpen(true)}
-                  disabled={!isAdmin}
-                  title={isAdmin ? 'Load default components' : 'Only admins can modify the component master'}
+                  title="Load default components"
                 >
                   Load Default Components
                 </PbButton>
@@ -270,8 +262,7 @@ export function PayrollComponentMasterPage() {
                   variant="secondary"
                   icon={Plus}
                   onClick={handleAdd}
-                  disabled={!isAdmin}
-                  title={isAdmin ? 'Add component' : 'Only admins can modify the component master'}
+                  title="Add component"
                 >
                   Add Component
                 </PbButton>
@@ -282,7 +273,7 @@ export function PayrollComponentMasterPage() {
           <div className="overflow-x-auto -mx-4 -my-4">
             <table className="w-full text-xs whitespace-nowrap">
               <thead>
-                <tr className="text-left text-[0.65rem] uppercase tracking-wider text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                <tr className="text-left text-xs uppercase tracking-wider text-slate-400 border-b border-slate-200 dark:border-slate-800">
                   <th className="px-4 py-2.5 font-bold">Code</th>
                   <th className="px-4 py-2.5 font-bold">Name</th>
                   <th className="px-4 py-2.5 font-bold">Type</th>
@@ -299,7 +290,7 @@ export function PayrollComponentMasterPage() {
                     key={c.id}
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                   >
-                    <td className="px-4 py-2.5 font-mono font-semibold text-slate-700 dark:text-slate-200">
+                    <td className="px-4 py-2.5 num font-semibold text-slate-700 dark:text-slate-200">
                       {c.componentCode || '—'}
                     </td>
                     <td className="px-4 py-2.5">
@@ -307,7 +298,7 @@ export function PayrollComponentMasterPage() {
                         {c.componentName}
                       </div>
                       {c.shortName && (
-                        <div className="text-[0.68rem] text-slate-400">{c.shortName}</div>
+                        <div className="text-xs text-slate-400">{c.shortName}</div>
                       )}
                     </td>
                     <td className="px-4 py-2.5">
@@ -316,7 +307,7 @@ export function PayrollComponentMasterPage() {
                     <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">
                       {c.category || '—'}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-mono text-slate-600 dark:text-slate-300">
+                    <td className="px-4 py-2.5 text-right num text-slate-600 dark:text-slate-300">
                       {c.displayOrder}
                     </td>
                     <td className="px-4 py-2.5">
@@ -324,13 +315,13 @@ export function PayrollComponentMasterPage() {
                         {[...c.pdfHeaderAliases, ...c.pdfCodeAliases].slice(0, 4).map((a, i) => (
                           <span
                             key={`${a}-${i}`}
-                            className="px-1.5 py-0.5 rounded-md text-[0.65rem] font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                            className="px-1.5 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                           >
                             {a}
                           </span>
                         ))}
                         {c.pdfHeaderAliases.length + c.pdfCodeAliases.length > 4 && (
-                          <span className="text-[0.65rem] text-slate-400">
+                          <span className="text-xs text-slate-400">
                             +{c.pdfHeaderAliases.length + c.pdfCodeAliases.length - 4}
                           </span>
                         )}
@@ -347,8 +338,7 @@ export function PayrollComponentMasterPage() {
                           variant="ghost"
                           size="xs"
                           icon={Pencil}
-                          title={isAdmin ? 'Edit' : 'Only admins can modify the component master'}
-                          disabled={!isAdmin}
+                          title="Edit"
                           onClick={() => handleEdit(c)}
                         >
                           Edit
@@ -357,8 +347,7 @@ export function PayrollComponentMasterPage() {
                           variant="ghost"
                           size="xs"
                           icon={Power}
-                          title={isAdmin ? (c.active ? 'Deactivate' : 'Activate') : 'Only admins can modify the component master'}
-                          disabled={!isAdmin}
+                          title={c.active ? 'Deactivate' : 'Activate'}
                           onClick={() => handleToggleActive(c)}
                         >
                           {c.active ? 'Off' : 'On'}
@@ -368,8 +357,7 @@ export function PayrollComponentMasterPage() {
                           size="xs"
                           icon={Trash2}
                           className="hover:text-rose-600"
-                          title={isAdmin ? 'Delete' : 'Only admins can modify the component master'}
-                          disabled={!isAdmin}
+                          title="Delete"
                           onClick={() => setDeleteTarget(c)}
                         >
                           Delete

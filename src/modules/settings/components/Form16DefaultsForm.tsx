@@ -86,7 +86,7 @@ export function Form16DefaultsForm() {
         They can still be overridden per certificate in the Employee IT &rarr; Form-16 page.
       </p>
 
-      <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2">
+      <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2">
         Employer / Deductor
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -99,7 +99,7 @@ export function Form16DefaultsForm() {
             className="input resize-y min-h-[58px]"
             placeholder="Office of the Deputy Director of Animal Husbandry&#10;ICDP, Surat"
           />
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Press <strong>Enter</strong> to create a two-line office name (e.g. Line 1: Main Office, Line 2: Division / Scheme).
           </p>
         </div>
@@ -149,7 +149,7 @@ export function Form16DefaultsForm() {
         </div>
       </div>
 
-      <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 pt-2">
+      <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 pt-2">
         Default Signing Officer
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

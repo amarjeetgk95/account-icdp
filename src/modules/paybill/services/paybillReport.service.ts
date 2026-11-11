@@ -34,8 +34,10 @@ export const PAYBILL_DEDUCTION_COLUMNS: PayBillMonthlyMatrixColumn[] = [
 ];
 
 import { establishmentService } from '@/modules/establishment/services/establishment.service';
-import { servesInMonth } from '@/modules/establishment/types';
+import { employeeService } from '@/modules/payroll/services/employee.service';
+import { servesInMonth, establishmentOrderRank } from '@/modules/establishment/types';
 import type { EstablishmentEmployee } from '@/modules/establishment/types';
+import { isPlaceholderName, splitBundledNameAndDesignation } from './hrpnMapping.service';
 
 class PayBillReportService {
   /**
@@ -65,10 +67,62 @@ class PayBillReportService {
       estEmployees = establishmentService.loadEmployees();
     }
 
-    const [earningsList, deductionsList] = await Promise.all([
+    const [earningsList, deductionsList, payrollEmployees, fyEarnings, fyDeductions] = await Promise.all([
       paybillRepository.listEarnings({ financialYear, month }),
       paybillRepository.listDeductions({ financialYear, month }),
+      employeeService.listEmployees().catch(() => []),
+      paybillRepository.listEarnings({ financialYear }).catch(() => []),
+      paybillRepository.listDeductions({ financialYear }).catch(() => []),
     ]);
+
+    // Build canonical employee info map (HRPN -> { name, designation })
+    const canonicalMap = new Map<string, { name: string; designation?: string | null }>();
+
+    for (const p of payrollEmployees || []) {
+      const hrpn = (p.hprn_no || '').trim();
+      if (hrpn && !isPlaceholderName(p.name)) {
+        canonicalMap.set(hrpn, { name: p.name, designation: p.designation || null });
+      }
+    }
+
+    for (const est of estEmployees || []) {
+      const hrpn = (est.hrpnNo || '').trim();
+      if (hrpn && !isPlaceholderName(est.name)) {
+        const existing = canonicalMap.get(hrpn);
+        if (!existing) {
+          canonicalMap.set(hrpn, { name: est.name, designation: est.designation || null });
+        } else {
+          if (isPlaceholderName(existing.name)) existing.name = est.name;
+          if (!existing.designation && est.designation) existing.designation = est.designation;
+        }
+      }
+    }
+
+    for (const e of fyEarnings || []) {
+      const hrpn = (e.hrpn || '').trim();
+      if (hrpn && !isPlaceholderName(e.employeeName)) {
+        const existing = canonicalMap.get(hrpn);
+        if (!existing) {
+          canonicalMap.set(hrpn, { name: e.employeeName, designation: e.designation || null });
+        } else {
+          if (isPlaceholderName(existing.name)) existing.name = e.employeeName;
+          if (!existing.designation && e.designation) existing.designation = e.designation;
+        }
+      }
+    }
+
+    for (const d of fyDeductions || []) {
+      const hrpn = (d.hrpn || '').trim();
+      if (hrpn && !isPlaceholderName(d.employeeName)) {
+        const existing = canonicalMap.get(hrpn);
+        if (!existing) {
+          canonicalMap.set(hrpn, { name: d.employeeName, designation: d.designation || null });
+        } else {
+          if (isPlaceholderName(existing.name)) existing.name = d.employeeName;
+          if (!existing.designation && d.designation) existing.designation = d.designation;
+        }
+      }
+    }
 
     const columns = [...PAYBILL_EARNING_COLUMNS, ...PAYBILL_DEDUCTION_COLUMNS];
     const emptyRow: Record<string, number> = Object.fromEntries(
@@ -82,14 +136,38 @@ class PayBillReportService {
       designation: string | null,
       values: Record<string, number>
     ) => {
-      const existing = map.get(hrpn);
+      const cleanHrpn = hrpn.trim();
+      if (!cleanHrpn) return;
+      const canonical = canonicalMap.get(cleanHrpn);
+
+      let effectiveName = employeeName;
+      if (isPlaceholderName(effectiveName) && canonical?.name) {
+        effectiveName = canonical.name;
+      }
+
+      let effectiveDesignation = designation;
+      if ((!effectiveDesignation || effectiveDesignation === 'Staff') && canonical?.designation) {
+        effectiveDesignation = canonical.designation;
+      }
+
+      const existing = map.get(cleanHrpn);
       if (existing) {
-        Object.assign(existing.values, values);
+        for (const [k, v] of Object.entries(values)) {
+          if (typeof v === 'number') {
+            existing.values[k] = (existing.values[k] || 0) + v;
+          }
+        }
+        if (isPlaceholderName(existing.employeeName) && !isPlaceholderName(effectiveName)) {
+          existing.employeeName = effectiveName;
+        }
+        if ((!existing.designation || existing.designation === 'Staff') && effectiveDesignation) {
+          existing.designation = effectiveDesignation;
+        }
       } else {
-        map.set(hrpn, {
-          hrpn,
-          employeeName,
-          designation,
+        map.set(cleanHrpn, {
+          hrpn: cleanHrpn,
+          employeeName: !isPlaceholderName(effectiveName) ? effectiveName : (cleanHrpn ? `Employee ${cleanHrpn}` : 'Employee'),
+          designation: effectiveDesignation || null,
           values: { ...emptyRow, ...values },
         });
       }
@@ -136,9 +214,50 @@ class PayBillReportService {
       });
     }
 
-    const rows = Array.from(map.values()).sort((a, b) =>
-      a.employeeName.localeCompare(b.employeeName)
-    );
+    // 4. Final pass to ensure no row is left with a placeholder name if canonical info is available.
+    // As a last resort, recover a name bundled into the designation text
+    // (e.g. "Live Stock Inspector Sayan" -> name "Sayan").
+    for (const row of map.values()) {
+      const canonical = canonicalMap.get(row.hrpn);
+      if (canonical) {
+        if (isPlaceholderName(row.employeeName)) {
+          row.employeeName = canonical.name;
+        }
+        if ((!row.designation || row.designation === 'Staff') && canonical.designation) {
+          row.designation = canonical.designation;
+        }
+      }
+      if (isPlaceholderName(row.employeeName) && row.designation) {
+        const split = splitBundledNameAndDesignation(row.designation);
+        if (split) {
+          row.employeeName = split.name;
+          row.designation = split.designation;
+        }
+      }
+    }
+
+    // Establishment manual sequence (ક્રમ): backend already returns
+    // display_order first, but re-derive rank here so offline/legacy lists
+    // without display_order still fall back deterministically.
+    const orderByHrpn = new Map<string, number>();
+    [...estEmployees]
+      .sort(
+        (a, b) =>
+          establishmentOrderRank(a) - establishmentOrderRank(b) ||
+          (a.name || '').localeCompare(b.name || '')
+      )
+      .forEach((emp, idx) => {
+        const hrpn = (emp.hrpnNo || '').trim();
+        if (hrpn && !orderByHrpn.has(hrpn)) orderByHrpn.set(hrpn, idx);
+      });
+
+    const rows = Array.from(map.values()).sort((a, b) => {
+      // Office manual sequence (ક્રમ) from Establishment Directory first;
+      // employees missing from establishment (payroll-only rows) go last, A-Z.
+      const rankA = orderByHrpn.get(a.hrpn.trim()) ?? Number.MAX_SAFE_INTEGER;
+      const rankB = orderByHrpn.get(b.hrpn.trim()) ?? Number.MAX_SAFE_INTEGER;
+      return rankA - rankB || a.employeeName.localeCompare(b.employeeName);
+    });
 
     const totals: Record<string, number> = { ...emptyRow };
     for (const row of rows) {

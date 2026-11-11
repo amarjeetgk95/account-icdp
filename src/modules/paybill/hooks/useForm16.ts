@@ -10,8 +10,6 @@ import type {
   Form16TaxRulesSettings,
 } from '../types/form16';
 
-import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
-
 export function useForm16List(financialYear?: number) {
   return useQuery({
     queryKey: ['form16-list', financialYear],
@@ -83,19 +81,17 @@ export function useBatchDeleteCertificates() {
 }
 
 export function useForm16Defaults() {
-  const officeId = useActiveOfficeId();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['form16-defaults', officeId],
+    queryKey: ['form16-defaults'],
     queryFn: () => form16Repository.getDeductorDefaults(),
-    enabled: !!officeId,
   });
 
   const saveMutation = useMutation({
     mutationFn: (defaults: Form16DeductorDefaults) =>
       form16Repository.saveDeductorDefaults(defaults),
     onSuccess: (saved) => {
-      qc.setQueryData(['form16-defaults', officeId], saved);
+      qc.setQueryData(['form16-defaults'], saved);
       qc.invalidateQueries({ queryKey: ['form16-defaults'] });
       qc.invalidateQueries({ queryKey: ['form16-list'] });
       qc.invalidateQueries({ queryKey: ['form16-certs'] });
@@ -119,20 +115,19 @@ export function useForm16Defaults() {
 }
 
 export function useForm16Office24Q(financialYear: number) {
-  const officeId = useActiveOfficeId();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['form16-24q-settings', officeId, financialYear],
+    queryKey: ['form16-24q-settings', financialYear],
     queryFn: () => form16Repository.get24QSettings(financialYear),
-    enabled: !!officeId && !!financialYear,
+    enabled: !!financialYear,
   });
 
   const saveMutation = useMutation({
     mutationFn: (settings: Form16Office24QSettings) =>
       form16Repository.save24QSettings(settings),
     onSuccess: (saved) => {
-      qc.setQueryData(['form16-24q-settings', officeId, financialYear], saved);
-      qc.invalidateQueries({ queryKey: ['form16-24q-settings', officeId, financialYear] });
+      qc.setQueryData(['form16-24q-settings', financialYear], saved);
+      qc.invalidateQueries({ queryKey: ['form16-24q-settings', financialYear] });
     },
   });
 
@@ -156,10 +151,9 @@ export function useForm16Office24Q(financialYear: number) {
 }
 
 export function useForm16TaxRules() {
-  const officeId = useActiveOfficeId();
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['form16-tax-rules', officeId],
+    queryKey: ['form16-tax-rules'],
     queryFn: () => form16Repository.getTaxRulesSettings(),
     staleTime: 60 * 1000,
   });
@@ -168,7 +162,7 @@ export function useForm16TaxRules() {
     mutationFn: (settings: Form16TaxRulesSettings) =>
       form16Repository.saveTaxRulesSettings(settings),
     onSuccess: (saved) => {
-      qc.setQueryData(['form16-tax-rules', officeId], saved);
+      qc.setQueryData(['form16-tax-rules'], saved);
       qc.invalidateQueries({ queryKey: ['form16-tax-rules'] });
       qc.invalidateQueries({ queryKey: ['form16-list'] });
       qc.invalidateQueries({ queryKey: ['form16-certificate'] });

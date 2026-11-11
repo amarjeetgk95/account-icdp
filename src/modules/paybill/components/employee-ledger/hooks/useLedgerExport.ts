@@ -110,6 +110,26 @@ export function useLedgerExport({
     }
   };
 
+  const exportAllPdfZip = async (
+    employeesToExport: EmployeeExportInfo[],
+    onProgress?: (progress: import('../../../services/paybillPdf.service').BulkEmployeeExportProgress) => void,
+    signal?: AbortSignal
+  ) => {
+    setIsExporting(true);
+    try {
+      return await paybillPdfService.exportAllEmployeesLedgerPdfZip({
+        officeName,
+        financialYear,
+        fyLabel,
+        employees: employeesToExport,
+        onProgress,
+        signal,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const printLedger = (elementId: string, fileName: string) => {
     // Target only the ledger print area — not the page filter/search controls.
     // Generates a single-page landscape print: stat cards forced to 4-col row, table de-clipped and down-scaled.
@@ -128,6 +148,6 @@ export function useLedgerExport({
     }
   };
 
-  return { exportPdf, exportExcel, printLedger, isExporting };
+  return { exportPdf, exportExcel, exportAllPdfZip, printLedger, isExporting };
 }
 

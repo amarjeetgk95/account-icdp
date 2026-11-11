@@ -27,7 +27,7 @@ export const GTR30Page7InsuranceEmp: React.FC<Props> = ({ data }) => {
             textAlign: 'center',
             fontSize: '15pt',
             fontWeight: 800,
-            fontFamily: "'Noto Serif Gujarati', serif",
+            fontFamily: "'Lohit Gujarati', serif",
             margin: '0 0 10px 0',
             letterSpacing: '0.5px',
           }}
@@ -50,7 +50,7 @@ export const GTR30Page7InsuranceEmp: React.FC<Props> = ({ data }) => {
         {/* Table */}
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5pt', marginTop: '6px' }}>
           <thead>
-            <tr style={{ background: '#ffffff', textAlign: 'center', fontFamily: "'Noto Serif Gujarati', serif", fontWeight: 700 }}>
+            <tr style={{ background: '#ffffff', textAlign: 'center', fontFamily: "'Lohit Gujarati', serif", fontWeight: 700 }}>
               <th style={{ border: '1px solid #000', padding: '6px 2px', width: '32px', verticalAlign: 'middle' }}>અ.<br />નં.</th>
               <th style={{ border: '1px solid #000', padding: '6px 4px', width: '160px', verticalAlign: 'middle' }}>અધિકારી/<br />કર્મચારીનું નામ</th>
               <th style={{ border: '1px solid #000', padding: '6px 4px', width: '130px', verticalAlign: 'middle' }}>હોદ્દો</th>
@@ -91,10 +91,10 @@ export const GTR30Page7InsuranceEmp: React.FC<Props> = ({ data }) => {
                     <td style={{ border: '1px solid #000', padding: '5px 4px', fontWeight: 700 }}>
                       {emp.name}
                     </td>
-                    <td style={{ border: '1px solid #000', padding: '5px 4px', fontFamily: "'Noto Serif Gujarati', serif" }}>
+                    <td style={{ border: '1px solid #000', padding: '5px 4px', fontFamily: "'Lohit Gujarati', serif" }}>
                       {emp.designationGujarati || emp.designation || 'સંશોધન મદદનીશ'}
                     </td>
-                    <td style={{ border: '1px solid #000', padding: '5px 4px', textAlign: 'center', fontFamily: "'Noto Serif Gujarati', serif", fontWeight: 700 }}>
+                    <td style={{ border: '1px solid #000', padding: '5px 4px', textAlign: 'center', fontFamily: "'Lohit Gujarati', serif", fontWeight: 700 }}>
                       {emp.insuranceGroup || 'ખ'}
                     </td>
                     <td style={{ border: '1px solid #000', padding: '5px 4px', textAlign: 'right', fontWeight: 600 }}>

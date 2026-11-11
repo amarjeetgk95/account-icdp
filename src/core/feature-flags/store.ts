@@ -3,7 +3,6 @@ import { persist } from 'zustand/middleware';
 
 export interface FeatureFlags {
   auth_module: boolean;
-  admin_module: boolean;
   dashboard_module: boolean;
   settings_module: boolean;
   payroll_module: boolean;
@@ -13,6 +12,7 @@ export interface FeatureFlags {
   gtr30_module: boolean;
   establishment_module: boolean;
   paybill_module: boolean;
+  gr_repository_module: boolean;
 }
 
 interface FeatureFlagStore {
@@ -21,7 +21,6 @@ interface FeatureFlagStore {
 
 const defaultFlags: FeatureFlags = {
   auth_module: true,
-  admin_module: true,
   dashboard_module: true,
   settings_module: true,
   payroll_module: true,
@@ -31,6 +30,7 @@ const defaultFlags: FeatureFlags = {
   gtr30_module: true,
   establishment_module: true,
   paybill_module: true,
+  gr_repository_module: true,
 };
 
 const useFeatureFlags = create<FeatureFlagStore>()(
@@ -40,6 +40,12 @@ const useFeatureFlags = create<FeatureFlagStore>()(
     }),
     {
       name: 'icdp-feature-flags',
+      merge: (persistedState) => {
+        const persisted = (persistedState as Partial<FeatureFlagStore> | undefined)?.flags ?? {};
+        return {
+          flags: { ...defaultFlags, ...persisted },
+        };
+      },
     }
   )
 );

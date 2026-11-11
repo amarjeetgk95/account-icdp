@@ -1,13 +1,11 @@
 import { create } from 'zustand';
 import { supabase } from '@/core/supabase/client';
 import { logger } from '@/core/logging';
-import { useUIStore } from '@/core/stores/ui-store';
 
 interface User {
   id: string;
   email: string;
-  role?: 'admin' | 'office';
-  officeId?: string | null;
+  role?: 'office';
 }
 
 interface AuthState {
@@ -20,37 +18,18 @@ interface AuthState {
   signOut: () => Promise<void>;
 }
 
-async function loadProfileIntoStores(userId: string): Promise<void> {
-  try {
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('role, office_id')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      logger.warn('Could not load profile', 'auth', error);
-      useAuthStore.setState({ isRoleLoaded: true });
-      return;
-    }
-
-    if (profile) {
-      const current = useAuthStore.getState().user;
-      useAuthStore.setState({
-        user: {
-          id: current?.id || userId,
-          email: current?.email || '',
-          role: profile.role,
-          officeId: profile.office_id,
-        },
-        isRoleLoaded: true,
-      });
-      useUIStore.getState().initializeOffice(profile.office_id);
-    } else {
-      useAuthStore.setState({ isRoleLoaded: true });
-    }
-  } catch (error) {
-    logger.warn('Could not load profile', 'auth', error);
+// Single-office mode: no profiles/roles table. Everyone is an office user.
+async function markRoleLoaded(): Promise<void> {
+  const current = useAuthStore.getState().user;
+  if (current) {
+    useAuthStore.setState({
+      user: {
+        ...current,
+        role: 'office',
+      },
+      isRoleLoaded: true,
+    });
+  } else {
     useAuthStore.setState({ isRoleLoaded: true });
   }
 }
@@ -79,13 +58,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           user: { id: session.user.id, email: session.user.email || '' },
           isRoleLoaded: false,
         });
-        await loadProfileIntoStores(session.user.id);
+        await markRoleLoaded();
       } else {
         set({
           user: null,
           isRoleLoaded: true,
         });
-        useUIStore.getState().initializeOffice(null);
       }
       set({ isLoading: false, isInitialized: true });
 
@@ -111,17 +89,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 id: newSession.user.id,
                 email: newSession.user.email || '',
                 role: currentUser?.role,
-                officeId: currentUser?.officeId,
               },
               isRoleLoaded: false,
             });
-            await loadProfileIntoStores(newSession.user.id);
+            await markRoleLoaded();
           } else if (event === 'SIGNED_OUT' || !newSession) {
             set({
               user: null,
               isRoleLoaded: true,
             });
-            useUIStore.getState().initializeOffice(null);
           }
         });
       }
@@ -133,7 +109,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isInitialized: true,
         isRoleLoaded: true,
       });
-      useUIStore.getState().initializeOffice(null);
     }
   },
 
@@ -155,7 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           user: { id: data.user.id, email: data.user.email || '' },
           isRoleLoaded: false,
         });
-        await loadProfileIntoStores(data.user.id);
+        await markRoleLoaded();
         set({ isLoading: false, isInitialized: true });
       }
     } catch (err) {
@@ -173,7 +148,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } finally {
       set({ user: null, isRoleLoaded: true, isLoading: false });
-      useUIStore.getState().initializeOffice(null);
     }
   },
 }));

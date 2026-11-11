@@ -77,7 +77,7 @@ export function GTR30HeadPostsEditor({ posts, onChange }: Props) {
                 <Input
                   value={post.srNo}
                   onChange={(e) => updatePost(post.id, 'srNo', e.target.value)}
-                  className="h-8 text-xs font-serif"
+                  className="h-8 text-xs font-gujSans"
                 />
               </div>
               <div className="sm:col-span-2">
@@ -86,7 +86,7 @@ export function GTR30HeadPostsEditor({ posts, onChange }: Props) {
                   value={post.designation}
                   onChange={(e) => updatePost(post.id, 'designation', e.target.value)}
                   placeholder="e.g. આંકડા અધિકારી"
-                  className="h-8 text-xs font-serif font-bold"
+                  className="h-8 text-xs font-gujSans font-bold"
                 />
               </div>
               <div>
@@ -94,7 +94,7 @@ export function GTR30HeadPostsEditor({ posts, onChange }: Props) {
                 <Input
                   value={post.cadreClass}
                   onChange={(e) => updatePost(post.id, 'cadreClass', e.target.value)}
-                  className="h-8 text-xs font-serif"
+                  className="h-8 text-xs font-gujSans"
                 />
               </div>
               <div>

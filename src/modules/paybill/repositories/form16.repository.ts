@@ -26,7 +26,7 @@ import {
 
 interface Form16DbRow {
   id: string;
-  office_id: string;
+  office_id?: string | null;
   employee_id: string | null;
   hrpn: string;
   financial_year: number;
@@ -49,7 +49,7 @@ interface Form16DbRow {
 function mapRow(r: Form16DbRow): Form16Certificate {
   return {
     id: r.id,
-    officeId: String(r.office_id),
+    officeId: r.office_id ? String(r.office_id) : '',
     employeeId: r.employee_id ?? null,
     hrpn: r.hrpn,
     financialYear: r.financial_year,
@@ -111,13 +111,6 @@ function getUserId(): string | undefined {
 }
 
 const FORM16_DEFAULTS_KEY = 'form16_deductor_defaults';
-
-/** Office id without throwing — used by read-only defaults lookup. */
-async function resolveOfficeIdSafe(): Promise<string | null> {
-  const scope = getOfficeScope();
-  if (scope.all) return null;
-  return scope.officeId || null;
-}
 
 const STORAGE_PREFIX = 'form16_cert_v1';
 
@@ -190,10 +183,6 @@ export const form16Repository = {
         .ilike('hrpn', hrpn.trim())
         .limit(1);
 
-      if (!scope.all && scope.officeId) {
-        q = q.eq('office_id', scope.officeId);
-      }
-
       const { data, error } = await q.maybeSingle();
       if (!error && data) {
         const mapped = mapRow(data as Form16DbRow);
@@ -212,8 +201,7 @@ export const form16Repository = {
     const scope = getOfficeScope();
     if (isValidUuid(id)) {
       try {
-        let q = supabase.from('form16_certificates').select('*').eq('id', id).limit(1);
-        if (!scope.all && scope.officeId) q = q.eq('office_id', scope.officeId);
+        const q = supabase.from('form16_certificates').select('*').eq('id', id).limit(1);
         const { data, error } = await q.maybeSingle();
         if (!error && data) {
           const mapped = mapRow(data as Form16DbRow);
@@ -239,7 +227,6 @@ export const form16Repository = {
         .from('form16_certificates')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!scope.all && scope.officeId) q = q.eq('office_id', scope.officeId);
       if (financialYear != null) q = q.eq('financial_year', financialYear);
       const { data, error } = await q;
       if (!error && data) {
@@ -301,8 +288,8 @@ export const form16Repository = {
       return localCert;
     }
 
+    // Single-office live schema (043 dropped office_id): never send it.
     const dbPayload: Record<string, unknown> = {
-      office_id: officeId,
       employee_id: cert.employeeId ?? null,
       hrpn: certHrpn,
       financial_year: cert.financialYear,
@@ -329,7 +316,6 @@ export const form16Repository = {
         const { data: existing } = await supabase
           .from('form16_certificates')
           .select('id')
-          .eq('office_id', officeId)
           .eq('financial_year', cert.financialYear)
           .ilike('hrpn', certHrpn)
           .maybeSingle();
@@ -408,11 +394,9 @@ export const form16Repository = {
     details?: Record<string, unknown>
   ): Promise<void> {
     try {
-      const officeId = requireOfficeId();
       if (!certificateId || !isValidUuid(certificateId)) return;
       const { error } = await supabase.from('form16_audit_log').insert({
         certificate_id: certificateId,
-        office_id: officeId,
         action,
         actor_id: getUserId(),
         details: (details || {}) as Json,
@@ -481,15 +465,12 @@ export const form16Repository = {
    * Office-wide 24Q Quarterly Return settings for a financial year (Q1–Q4 Receipt Nos).
    */
   async get24QSettings(financialYear: number): Promise<Form16Office24QSettings> {
-    const officeId = await resolveOfficeIdSafe();
     const defaults = EMPTY_FORM16_24Q_SETTINGS(financialYear);
-    if (!officeId) return defaults;
     try {
       const settingsKey = `form16_24q_fy_${financialYear}`;
       const { data, error } = await supabase
         .from('paybill_settings')
         .select('settings_value')
-        .eq('office_id', officeId)
         .eq('settings_key', settingsKey)
         .maybeSingle();
       if (!error && data?.settings_value) {
@@ -512,7 +493,6 @@ export const form16Repository = {
   },
 
   async save24QSettings(settings: Form16Office24QSettings): Promise<Form16Office24QSettings> {
-    const officeId = requireOfficeId();
     const settingsKey = `form16_24q_fy_${settings.financialYear}`;
     const clean: Form16Office24QSettings = {
       financialYear: settings.financialYear,
@@ -543,11 +523,10 @@ export const form16Repository = {
 
     const { error } = await supabase.from('paybill_settings').upsert(
       {
-        office_id: officeId,
         settings_key: settingsKey,
         settings_value: clean as unknown as Json,
       },
-      { onConflict: 'office_id,settings_key' }
+      { onConflict: 'settings_key' }
     );
     if (error) throw new Error(`Could not save 24Q quarterly settings: ${error.message}`);
     return clean;
@@ -585,13 +564,10 @@ export const form16Repository = {
    * under settings_key 'form16_deductor_defaults' (same pattern as gtr30/gtr44).
    */
   async getDeductorDefaults(): Promise<Form16DeductorDefaults> {
-    const officeId = await resolveOfficeIdSafe();
-    if (!officeId) return { ...EMPTY_FORM16_DEDUCTOR_DEFAULTS };
     try {
       const { data, error } = await supabase
         .from('paybill_settings')
         .select('settings_value')
-        .eq('office_id', officeId)
         .eq('settings_key', FORM16_DEFAULTS_KEY)
         .maybeSingle();
       if (!error && data?.settings_value) {
@@ -605,7 +581,6 @@ export const form16Repository = {
   },
 
   async saveDeductorDefaults(defaults: Form16DeductorDefaults): Promise<Form16DeductorDefaults> {
-    const officeId = requireOfficeId();
     const clean: Form16DeductorDefaults = {
       employerName: (defaults.employerName || '').trim(),
       employerAddress: (defaults.employerAddress || '').trim(),
@@ -616,15 +591,21 @@ export const form16Repository = {
       signatoryDesignation: (defaults.signatoryDesignation || '').trim(),
       signatoryPlace: (defaults.signatoryPlace || '').trim(),
     };
-    const { error } = await supabase.from('paybill_settings').upsert(
-      {
-        office_id: officeId,
+    // Update-by-key then insert (constraint-agnostic: works with or without
+    // the UNIQUE(settings_key) from 046/048, unlike onConflict).
+    const { data: updated, error: updateError } = await supabase
+      .from('paybill_settings')
+      .update({ settings_value: clean as unknown as Json, updated_at: new Date().toISOString() })
+      .eq('settings_key', FORM16_DEFAULTS_KEY)
+      .select('settings_key');
+    if (updateError) throw new Error(`Could not save Form 16 defaults: ${updateError.message}`);
+    if (!updated || updated.length === 0) {
+      const { error } = await supabase.from('paybill_settings').insert({
         settings_key: FORM16_DEFAULTS_KEY,
         settings_value: clean as unknown as Json,
-      },
-      { onConflict: 'office_id,settings_key' }
-    );
-    if (error) throw new Error(`Could not save Form 16 defaults: ${error.message}`);
+      });
+      if (error) throw new Error(`Could not save Form 16 defaults: ${error.message}`);
+    }
     return clean;
   },
 
@@ -633,7 +614,6 @@ export const form16Repository = {
    * Stored under 'form16_tax_rules_config'.
    */
   async getTaxRulesSettings(): Promise<Form16TaxRulesSettings> {
-    const officeId = await resolveOfficeIdSafe();
     const fallbackLocal = () => {
       try {
         const raw = localStorage.getItem('form16_tax_rules_config');
@@ -644,17 +624,10 @@ export const form16Repository = {
       return DEFAULT_TAX_RULES_CONFIG;
     };
 
-    if (!officeId) {
-      const localCfg = fallbackLocal();
-      setActiveTaxRulesConfig(localCfg);
-      return localCfg;
-    }
-
     try {
       const { data, error } = await supabase
         .from('paybill_settings')
         .select('settings_value')
-        .eq('office_id', officeId)
         .eq('settings_key', 'form16_tax_rules_config')
         .maybeSingle();
 
@@ -683,7 +656,6 @@ export const form16Repository = {
   },
 
   async saveTaxRulesSettings(settings: Form16TaxRulesSettings): Promise<Form16TaxRulesSettings> {
-    const officeId = requireOfficeId();
     const clean: Form16TaxRulesSettings = {
       assessmentYears: settings.assessmentYears || {},
       updatedAt: new Date().toISOString(),
@@ -697,16 +669,20 @@ export const form16Repository = {
 
     setActiveTaxRulesConfig(clean);
 
-    const { error } = await supabase.from('paybill_settings').upsert(
-      {
-        office_id: officeId,
+    // Update-by-key then insert (constraint-agnostic, see saveDeductorDefaults).
+    const { data: updated, error: updateError } = await supabase
+      .from('paybill_settings')
+      .update({ settings_value: clean as unknown as Json, updated_at: new Date().toISOString() })
+      .eq('settings_key', 'form16_tax_rules_config')
+      .select('settings_key');
+    if (updateError) throw new Error(`Could not save Tax Rules settings: ${updateError.message}`);
+    if (!updated || updated.length === 0) {
+      const { error } = await supabase.from('paybill_settings').insert({
         settings_key: 'form16_tax_rules_config',
         settings_value: clean as unknown as Json,
-      },
-      { onConflict: 'office_id,settings_key' }
-    );
-
-    if (error) throw new Error(`Could not save Tax Rules settings: ${error.message}`);
+      });
+      if (error) throw new Error(`Could not save Tax Rules settings: ${error.message}`);
+    }
     return clean;
   },
 

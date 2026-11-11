@@ -45,7 +45,7 @@ export function GTR30SyncStatusBadge() {
       <button
         type="button"
         onClick={() => retryGtr30Sync()}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${PHASE_STYLES[phase]} hover:brightness-95 transition`}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${PHASE_STYLES[phase]} hover:brightness-95 transition`}
         title={title}
         aria-label="Retry sync"
       >
@@ -59,7 +59,7 @@ export function GTR30SyncStatusBadge() {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${PHASE_STYLES[phase]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${PHASE_STYLES[phase]}`}
       title={title}
       role="status"
     >

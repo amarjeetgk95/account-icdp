@@ -135,8 +135,11 @@ export function downloadCsv(filename: string, headers: string[], rows: Array<Arr
   setTimeout(() => URL.revokeObjectURL(link.href), 500);
 }
 
-export * from './excelExport';
 export * from './rpc';
 export * from './nativePrint';
 export * from './gujaratiFormat';
+// NOTE: excelExport intentionally NOT re-exported here. It pulls exceljs
+// (~900KB) via dynamic import and would bloat every barrel importer
+// (main.tsx, Header, Dashboard KPIs). Import it directly:
+//   import { export24QExcel } from '@/shared/utilities/excelExport';
 

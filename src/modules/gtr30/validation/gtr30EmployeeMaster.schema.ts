@@ -27,6 +27,9 @@ const basePayEntrySchema = z.object({
     .min(0, 'Basic pay cannot be negative')
     .max(99_999_999, 'Basic pay is too large')
     .default(0),
+  reason: z.enum(['increment', 'promotion', 'revision', 'da-revision', 'correction', 'other']).optional(),
+  orderNo: z.string().trim().max(50).optional(),
+  remark: z.string().trim().max(200).optional(),
 });
 
 const payEntryDbSchema = basePayEntrySchema.extend({

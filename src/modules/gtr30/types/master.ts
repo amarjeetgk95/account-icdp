@@ -5,6 +5,9 @@ export interface GTR30PayEntry {
   startDate: string;
   endDate?: string;
   basicPay: number;
+  reason?: 'increment' | 'promotion' | 'revision' | 'da-revision' | 'correction' | 'other';
+  orderNo?: string;
+  remark?: string;
 }
 
 export interface GTR30EmployeeMaster {

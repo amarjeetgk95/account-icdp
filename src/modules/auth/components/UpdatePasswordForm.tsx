@@ -91,7 +91,7 @@ export function UpdatePasswordForm() {
             onKeyUp={handleKeyEvents}
             placeholder="Min 8 characters"
             autoComplete="new-password"
-            className="pl-9 pr-10 bg-white border-slate-300 h-10 text-sm focus-visible:ring-slate-500"
+            className="pl-9 pr-10 bg-white border-slate-300 h-10 text-xs focus-visible:ring-slate-500"
           />
           <button
             type="button"
@@ -127,7 +127,7 @@ export function UpdatePasswordForm() {
                 }`}
               />
             </div>
-            <p className="text-[10px] text-slate-500">
+            <p className="text-xs text-slate-500">
               {strengthScore <= 1 && 'Weak: Use 8+ characters, mixed case & numbers'}
               {strengthScore === 2 && 'Fair: Add numbers or symbols'}
               {strengthScore === 3 && 'Good: Strong password'}
@@ -161,7 +161,7 @@ export function UpdatePasswordForm() {
             onKeyUp={handleKeyEvents}
             placeholder="Re-enter password"
             autoComplete="new-password"
-            className="pl-9 pr-10 bg-white border-slate-300 h-10 text-sm focus-visible:ring-slate-500"
+            className="pl-9 pr-10 bg-white border-slate-300 h-10 text-xs focus-visible:ring-slate-500"
           />
           <button
             type="button"
@@ -201,7 +201,7 @@ export function UpdatePasswordForm() {
       <Button
         type="submit"
         disabled={updatePasswordMutation.isPending}
-        className="w-full h-10 bg-slate-800 hover:bg-slate-900 text-white font-medium text-sm rounded-md transition-colors flex items-center justify-center gap-2"
+        className="w-full h-10 bg-slate-800 hover:bg-slate-900 text-white font-medium text-xs rounded-md transition-colors flex items-center justify-center gap-2"
       >
         {updatePasswordMutation.isPending ? (
           <>

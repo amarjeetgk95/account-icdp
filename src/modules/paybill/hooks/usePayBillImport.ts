@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
-import { pdfParserService } from '../services/pdfParser.service';
-import { hrpnMappingService } from '../services/hrpnMapping.service';
+import { pdfParserV2Service as pdfParserService, PDF_PARSER_BUILD } from '../services/pdfParserV2.service';
+import { hrpnMappingService, isPlaceholderName, splitBundledNameAndDesignation } from '../services/hrpnMapping.service';
 import { paybillValidationService } from '../services/paybillValidation.service';
-import { paybillStorageService } from '../services/paybillStorage.service';
+import { paybillStorageService, resolvePaybillFinancialYear } from '../services/paybillStorage.service';
 import { paybillAuditService } from '../services/paybillAudit.service';
 import { paybillRepository } from '../repositories/paybill.repository';
+import { componentMasterService } from '../services/componentMaster.service';
 import { PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/paybillReport.service';
+import { toast } from '@/shared/components/Toast';
 import { loadSamplePayBillData, loadSamplePayBillDeductionData } from '../utils/samplePayBillPdf';
 import type {
   PayBillMetadata,
@@ -39,7 +41,9 @@ const CALENDAR_MONTHS = [
 
 /**
  * Compute the previous calendar month + its financial year for "MonthName-YYYY" labels.
- * e.g. "April-2026" -> { month: 'March', financialYear: 2026 }
+ * FY follows the same payment-month rule as stored rows, e.g. "April-2026"
+ * -> { month: 'March', financialYear: 2026 }, "February-2026" ->
+ * { month: 'January', financialYear: 2025 }.
  */
 function previousMonthOf(monthLabel: string): { month: string; financialYear: number } | null {
   const match = monthLabel.trim().match(/^([A-Za-z]+)[-/ ](\d{4})$/);
@@ -48,8 +52,10 @@ function previousMonthOf(monthLabel: string): { month: string; financialYear: nu
   const year = parseInt(match[2], 10);
   const idx = CALENDAR_MONTHS.indexOf(name);
   if (idx < 0) return null;
-  if (idx === 0) return { month: 'December', financialYear: year - 1 };
-  return { month: CALENDAR_MONTHS[idx - 1], financialYear: year };
+  const prevIdx = (idx + 11) % 12;
+  const prevYear = idx === 0 ? year - 1 : year;
+  const prevMonth = CALENDAR_MONTHS[prevIdx];
+  return { month: prevMonth, financialYear: resolvePaybillFinancialYear(prevMonth, prevYear) };
 }
 
 const BATCH_MATRIX_COLUMNS = [...PAYBILL_EARNING_COLUMNS, ...PAYBILL_DEDUCTION_COLUMNS];
@@ -86,18 +92,46 @@ function buildBatchMatrix(items: BatchFileItem[]): PayBillBatchMatrix {
     }
 
     const upsert = (hrpn: string, employeeName: string, designation: string | null, values: Record<string, number>) => {
-      const existing = block!.employees.get(hrpn);
+      const cleanHrpn = hrpn.trim();
+      const existing = block!.employees.get(cleanHrpn);
       if (existing) {
-        Object.assign(existing.values, values);
+        for (const [k, v] of Object.entries(values)) {
+          if (typeof v === 'number') {
+            existing.values[k] = (existing.values[k] || 0) + v;
+          }
+        }
+        if (isPlaceholderName(existing.employeeName) && !isPlaceholderName(employeeName)) {
+          existing.employeeName = employeeName;
+        }
+        if ((!existing.designation || existing.designation === 'Staff') && designation) {
+          existing.designation = designation;
+        }
       } else {
         const emptyRow: Record<string, number> = Object.fromEntries(
           BATCH_MATRIX_COLUMNS.map((c) => [c.key, 0])
         );
-        block!.employees.set(hrpn, { hrpn, employeeName, designation, values: { ...emptyRow, ...values } });
+        let finalName = employeeName;
+        let finalDesignation = designation;
+        if (isPlaceholderName(finalName) && finalDesignation) {
+          const split = splitBundledNameAndDesignation(finalDesignation);
+          if (split) {
+            finalName = split.name;
+            finalDesignation = split.designation;
+          }
+        }
+        block!.employees.set(cleanHrpn, {
+          hrpn: cleanHrpn,
+          employeeName: !isPlaceholderName(finalName) ? finalName : (cleanHrpn ? `Employee ${cleanHrpn}` : 'Employee'),
+          designation: finalDesignation,
+          values: { ...emptyRow, ...values },
+        });
       }
     };
 
-    if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
+    const isDedSide = parsed.sheetType === 'DEDUCTION' || parsed.sheetType === 'COMBINED';
+    const isEarnSide = parsed.sheetType === 'EARNING' || parsed.sheetType === 'COMBINED';
+
+    if (isDedSide && parsed.deductionRows && parsed.deductionRows.length > 0) {
       for (const r of parsed.deductionRows) {
         upsert(r.hrpn, r.employeeName, r.designation, {
           incomeTax: r.incomeTax,
@@ -113,7 +147,8 @@ function buildBatchMatrix(items: BatchFileItem[]): PayBillBatchMatrix {
           netPay: r.netPay,
         });
       }
-    } else {
+    }
+    if (isEarnSide && parsed.rows && parsed.rows.length > 0) {
       for (const r of parsed.rows) {
         upsert(r.hrpn, r.employeeName, r.designation, {
           basicPay: r.basicPay,
@@ -159,6 +194,9 @@ export function usePayBillImport() {
   const [fileName, setFileName] = useState<string>('');
   const [fileSize, setFileSize] = useState<number>(0);
   const [sheetType, setSheetType] = useState<PayBillSheetType>('EARNING');
+  // 059 three-track: which treasury bill is being imported. Regular monthly pay
+  // (incl. regular DA) vs DA/Pay difference arrears vs generic supplementary.
+  const [billType, setBillType] = useState<string>('REGULAR');
 
   // Batch queue state
   const [batchQueue, setBatchQueue] = useState<BatchFileItem[]>([]);
@@ -227,6 +265,11 @@ export function usePayBillImport() {
       .catch(() => {
         // settings are non-critical; defaults apply
       });
+    // Warm the component-master cache so the parser sees live DB aliases
+    // (not just seed defaults) on the very first upload of the session.
+    componentMasterService.refresh().catch(() => {
+      // offline / DB unreachable — seed defaults apply
+    });
     return () => {
       cancelled = true;
     };
@@ -293,7 +336,13 @@ export function usePayBillImport() {
     setImportResult(null);
 
     try {
+      // Refresh live component master first so header detection uses current
+      // DB aliases (best-effort; seed defaults apply offline).
+      await componentMasterService.refresh().catch(() => undefined);
       // Stage 1: PDF Uploaded
+      console.info(
+        `[paybill] parser=${PDF_PARSER_BUILD} build=${typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev'}`
+      );
       updateStage('UPLOADED', 'PDF Uploaded', 15, `Uploaded ${uploadedFile.name} (${(uploadedFile.size / 1024).toFixed(1)} KB)`);
       await delay(120);
 
@@ -374,11 +423,18 @@ export function usePayBillImport() {
       const summ = paybillValidationService.computeSummary(validatedRecords, recon);
       await delay(100);
 
+      let validatedDeductions: PayBillDeductionExtractedRecord[] = [];
+      if (parsedResult.sheetType === 'COMBINED' && parsedResult.deductionRows) {
+        const mappedD = hrpnMappingService.mapDeductionRows(parsedResult.deductionRows, masterEmployees);
+        validatedDeductions = paybillValidationService.validateDeductionRecords(mappedD);
+      }
+
       // Stage 7: Ready for Review
       setMetadata(parsedResult.metadata);
       setRecords(validatedRecords);
-      setDeductionRecords([]);
+      setDeductionRecords(validatedDeductions);
       setPdfTotals(parsedResult.pdfTotals);
+      setPdfDeductionTotals(parsedResult.pdfDeductionTotals || null);
       setReconciliation(recon);
       setSummary(summ);
       void checkDuplicateBill(parsedResult.metadata, 'EARNING');
@@ -524,6 +580,7 @@ export function usePayBillImport() {
     setImportResult(null);
 
     try {
+      await componentMasterService.refresh().catch(() => undefined);
       updateStage('READING', 'Reading Text', 30, 'Parsing raw text format...');
       const parsedResult = pdfParserService.parseExtractedText(rawText);
       captureUnknownComponents(parsedResult);
@@ -642,15 +699,61 @@ export function usePayBillImport() {
       // duplicate check is best-effort; do not block import on a failed lookup
     }
 
+    if (sheetType === 'COMBINED') {
+      if (records.length === 0 && deductionRecords.length === 0) {
+        setError('No data to import.');
+        return null;
+      }
+      setIsImporting(true);
+      setError(null);
+      try {
+        let earnResult = null;
+        let dedResult = null;
+        if (records.length > 0) {
+          earnResult = await paybillStorageService.importPayBill(
+            metadata,
+            records,
+            fileName || 'PayBill.pdf',
+            file as unknown as File | null,
+            billType
+          );
+        }
+        if (deductionRecords.length > 0) {
+          dedResult = await paybillStorageService.importDeductions(
+            metadata,
+            deductionRecords,
+            fileName ? fileName.replace(/\.pdf$/i, '_Deduction.pdf') : 'PayBill_Deduction.pdf',
+            file as unknown as File | null,
+            billType
+          );
+        }
+        const result = earnResult || dedResult;
+        setImportResult(result);
+        return result;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Combined import failed.';
+        setError(msg);
+        return null;
+      } finally {
+        setIsImporting(false);
+      }
+    }
+
     if (sheetType === 'DEDUCTION') {
       if (deductionRecords.length === 0) {
         setError('No deduction data to import.');
         return null;
       }
-      // Deduction parity: block on critical validation errors (negatives, invalid HRPN, duplicates, total mismatch)
-      const dedCritical = deductionRecords.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'DUPLICATE');
+      // Deduction parity: block on critical validation errors (negatives, invalid HRPN, duplicates, total mismatch).
+      // NOT_FOUND (HRPN not in Establishment directory, the single source of truth) is an ERROR and blocks import.
+      const dedCritical = deductionRecords.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'DUPLICATE' || r.mappingStatus === 'NOT_FOUND');
       if (dedCritical) {
-        setError('Cannot import: deduction records have critical errors (check negatives / HRPN / duplicates / total deductions). Please resolve them first.');
+        const notFound = deductionRecords.filter((r) => r.mappingStatus === 'NOT_FOUND');
+        setError(
+          notFound.length > 0
+            ? `Cannot import: ${notFound.length} HRPN(s) not matched with Establishment employee directory (${notFound.slice(0, 5).map((r) => r.row.hrpn).join(', ')}${notFound.length > 5 ? '…' : ''}). Register them in Establishment first.`
+            : 'Cannot import: deduction records have critical errors (check negatives / HRPN / duplicates / total deductions). Please resolve them first.'
+        );
         return null;
       }
       setIsImporting(true);
@@ -660,7 +763,8 @@ export function usePayBillImport() {
           metadata,
           deductionRecords,
           fileName || 'PayBill_Deduction.pdf',
-          file as unknown as File | null
+          file as unknown as File | null,
+          billType
         );
         setImportResult(result);
         return result;
@@ -679,7 +783,12 @@ export function usePayBillImport() {
     }
 
     if (summary && summary.errorCount > 0) {
-      setError(`Cannot import: ${summary.errorCount} records have critical errors. Please resolve them first.`);
+      const notFound = records.filter((r) => r.mappingStatus === 'NOT_FOUND');
+      setError(
+        notFound.length > 0
+          ? `Cannot import: ${notFound.length} HRPN(s) not matched with Establishment employee directory (${notFound.slice(0, 5).map((r) => r.row.hrpn).join(', ')}${notFound.length > 5 ? '…' : ''}). Register them in Establishment first.`
+          : `Cannot import: ${summary.errorCount} records have critical errors. Please resolve them first.`
+      );
       return null;
     }
 
@@ -691,7 +800,8 @@ export function usePayBillImport() {
         metadata,
         records,
         fileName || 'PayBill.pdf',
-        file as unknown as File | null
+        file as unknown as File | null,
+        billType
       );
       setImportResult(result);
       return result;
@@ -702,7 +812,7 @@ export function usePayBillImport() {
     } finally {
       setIsImporting(false);
     }
-  }, [metadata, records, deductionRecords, sheetType, summary, fileName, file]);
+  }, [metadata, records, deductionRecords, sheetType, billType, summary, fileName, file]);
 
   /**
    * Add multiple PDF files to batch processing queue
@@ -745,6 +855,7 @@ export function usePayBillImport() {
     setIsBatchProcessing(true);
     setError(null);
 
+    await componentMasterService.refresh().catch(() => undefined);
     let masterEmployees: Awaited<ReturnType<typeof paybillStorageService.getMasterEmployees>> = [];
     try {
       masterEmployees = await paybillStorageService.getMasterEmployees();
@@ -797,72 +908,132 @@ export function usePayBillImport() {
           continue;
         }
 
-        if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
-          const mapped = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
-          const validated = paybillValidationService.validateDeductionRecords(mapped);
-          const hasCritical = validated.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN');
-          const hasDuplicates = validated.some((r) => r.mappingStatus === 'DUPLICATE');
-          const isBlocked = hasCritical || hasDuplicates || confidence < 50;
+        if (parsed.sheetType === 'COMBINED') {
+          const earnRowCount = parsed.rows?.length || 0;
+          const dedRowCount = parsed.deductionRows?.length || 0;
+          const mappedE = hrpnMappingService.mapRows(parsed.rows || [], masterEmployees);
+          const validatedE = paybillValidationService.validateRecords(mappedE);
+          const recon = paybillValidationService.reconcile(validatedE, parsed.pdfTotals);
+          const mappedD = hrpnMappingService.mapDeductionRows(parsed.deductionRows || [], masterEmployees);
+          const validatedD = paybillValidationService.validateDeductionRecords(mappedD);
+
+          const hasCriticalE = validatedE.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'NOT_FOUND');
+          const hasCriticalD = validatedD.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'NOT_FOUND');
+          const hasDuplicatesE = validatedE.some((r) => r.mappingStatus === 'DUPLICATE');
+          const hasDuplicatesD = validatedD.some((r) => r.mappingStatus === 'DUPLICATE');
+          const hasUnmatched = validatedE.some((r) => r.mappingStatus === 'NOT_FOUND') || validatedD.some((r) => r.mappingStatus === 'NOT_FOUND');
+          const hasReconciliationMismatch = recon.status === 'MISMATCH' && recon.diff !== 0 && Math.abs(recon.diff) > 1;
+          const hasZeroRecords = earnRowCount === 0 && dedRowCount === 0;
+          const isFailed = hasZeroRecords || hasCriticalE || hasCriticalD || hasDuplicatesE || hasDuplicatesD || (hasReconciliationMismatch && validatedE.length > 0) || confidence < 50;
 
           const updated: BatchFileItem = {
             ...item,
-            status: isBlocked ? 'BLOCKED' : 'SUCCESS',
+            status: isFailed ? 'ERROR' : 'SUCCESS',
+            month: parsed.metadata.month,
+            billNo: parsed.metadata.billNo,
+            sheetType: 'COMBINED',
+            parsedResult: parsed,
+            recordCount: Math.max(earnRowCount, dedRowCount),
+            grossTotal: parsed.pdfTotals?.grossAmount || parsed.pdfDeductionTotals?.totalDeductions || 0,
+            confidence,
+            hasCriticalErrors: hasCriticalE || hasCriticalD,
+            hasDuplicates: hasDuplicatesE || hasDuplicatesD,
+            error: isFailed
+              ? hasZeroRecords
+                ? 'Failed: 0 employee records found in file.'
+                : (hasDuplicatesE || hasDuplicatesD)
+                  ? 'Failed: Duplicate employee HRPNs in file.'
+                  : hasUnmatched
+                    ? 'Failed: HRPN(s) not matched with Establishment employee directory — register them in Establishment first.'
+                    : (hasCriticalE || hasCriticalD)
+                      ? 'Failed: Critical validation errors on employee records.'
+                      : confidence < 50
+                        ? `Failed: Low extraction confidence (${confidence}%).`
+                        : 'Failed to extract entries.'
+              : undefined,
+          };
+          setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
+          if (!isFailed) succeededItems.push(updated);
+        } else if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
+          const rowCount = parsed.deductionRows?.length || 0;
+          const mapped = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
+          const validated = paybillValidationService.validateDeductionRecords(mapped);
+          const hasCritical = validated.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'NOT_FOUND');
+          const hasDuplicates = validated.some((r) => r.mappingStatus === 'DUPLICATE');
+          const hasUnmatched = validated.some((r) => r.mappingStatus === 'NOT_FOUND');
+          const hasZeroRecords = rowCount === 0;
+          const isFailed = hasZeroRecords || hasCritical || hasDuplicates || confidence < 50;
+
+          const updated: BatchFileItem = {
+            ...item,
+            status: isFailed ? 'ERROR' : 'SUCCESS',
             month: parsed.metadata.month,
             billNo: parsed.metadata.billNo,
             sheetType: 'DEDUCTION',
             parsedResult: parsed,
-            recordCount: parsed.deductionRows?.length || 0,
+            recordCount: rowCount,
             grossTotal: parsed.pdfDeductionTotals?.totalDeductions || 0,
             confidence,
             hasCriticalErrors: hasCritical,
             hasDuplicates,
-            error: isBlocked
-              ? hasDuplicates
-                ? 'Duplicate HRPNs found in file — review before import.'
-                : hasCritical
-                  ? 'Critical validation errors present — review before import.'
-                  : confidence < 50
-                    ? `Low extraction confidence (${confidence}%) — verify via OCR fallback.`
-                    : undefined
+            error: isFailed
+              ? hasZeroRecords
+                ? 'Failed: 0 employee deduction records found in file.'
+                : hasDuplicates
+                  ? 'Failed: Duplicate employee HRPNs in file.'
+                  : hasUnmatched
+                    ? 'Failed: HRPN(s) not matched with Establishment employee directory — register them in Establishment first.'
+                    : hasCritical
+                    ? 'Failed: Critical validation errors on employee records.'
+                    : confidence < 50
+                      ? `Failed: Low extraction confidence (${confidence}%).`
+                      : 'Failed to extract deduction entries.'
               : undefined,
           };
           setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
-          if (!isBlocked) succeededItems.push(updated);
+          if (!isFailed) succeededItems.push(updated);
         } else {
-          const mapped = hrpnMappingService.mapRows(parsed.rows, masterEmployees);
+          const rowCount = parsed.rows?.length || 0;
+          const mapped = hrpnMappingService.mapRows(parsed.rows || [], masterEmployees);
           const validated = paybillValidationService.validateRecords(mapped);
           const recon = paybillValidationService.reconcile(validated, parsed.pdfTotals);
-          const hasCritical = validated.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN');
+          const hasCritical = validated.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'NOT_FOUND');
           const hasDuplicates = validated.some((r) => r.mappingStatus === 'DUPLICATE');
+          const hasUnmatched = validated.some((r) => r.mappingStatus === 'NOT_FOUND');
           const hasReconciliationMismatch = recon.status === 'MISMATCH' && recon.diff !== 0 && Math.abs(recon.diff) > 1;
-          const isBlocked = hasCritical || hasDuplicates || (hasReconciliationMismatch && validated.length > 0) || confidence < 50;
+          const hasZeroRecords = rowCount === 0;
+          const isFailed = hasZeroRecords || hasCritical || hasDuplicates || (hasReconciliationMismatch && validated.length > 0) || confidence < 50;
 
           const updated: BatchFileItem = {
             ...item,
-            status: isBlocked ? 'BLOCKED' : 'SUCCESS',
+            status: isFailed ? 'ERROR' : 'SUCCESS',
             month: parsed.metadata.month,
             billNo: parsed.metadata.billNo,
             sheetType: 'EARNING',
             parsedResult: parsed,
-            recordCount: parsed.rows.length,
+            recordCount: rowCount,
             grossTotal: parsed.pdfTotals?.grossAmount || 0,
             confidence,
             hasCriticalErrors: hasCritical,
             hasDuplicates,
-            error: isBlocked
-              ? hasDuplicates
-                ? 'Duplicate HRPNs found in file — review before import.'
-                : hasCritical
-                  ? 'Critical validation errors present — review before import.'
-                  : hasReconciliationMismatch
-                    ? recon.message
-                    : confidence < 50
-                      ? `Low extraction confidence (${confidence}%) — verify via OCR fallback.`
-                      : undefined
+            error: isFailed
+              ? hasZeroRecords
+                ? 'Failed: 0 employee records found in file.'
+                : hasDuplicates
+                  ? 'Failed: Duplicate employee HRPNs in file.'
+                  : hasUnmatched
+                    ? 'Failed: HRPN(s) not matched with Establishment employee directory — register them in Establishment first.'
+                    : hasCritical
+                    ? 'Failed: Critical validation errors on employee records.'
+                    : hasReconciliationMismatch
+                      ? `Failed: Gross amount mismatch (${recon.message})`
+                      : confidence < 50
+                        ? `Failed: Low extraction confidence (${confidence}%).`
+                        : 'Failed to extract employee entries.'
               : undefined,
           };
           setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
-          if (!isBlocked) succeededItems.push(updated);
+          if (!isFailed) succeededItems.push(updated);
         }
       } catch (err) {
         setBatchQueue((prev) =>
@@ -873,6 +1044,13 @@ export function usePayBillImport() {
           )
         );
       }
+    }
+
+    const failedCount = batchQueue.length - succeededItems.length;
+    if (failedCount > 0) {
+      toast.error(`Batch processing completed: ${succeededItems.length} parsed, ${failedCount} failed.`);
+    } else if (succeededItems.length > 0) {
+      toast.success(`Batch processing completed: all ${succeededItems.length} pay bills parsed successfully.`);
     }
 
     if (succeededItems.length > 0) {
@@ -949,21 +1127,38 @@ export function usePayBillImport() {
       for (const item of successItems) {
         const parsed = item.parsedResult!;
         try {
-          if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
+          if (parsed.sheetType === 'COMBINED') {
+            if (parsed.rows && parsed.rows.length > 0) {
+              const mappedE = hrpnMappingService.mapRows(parsed.rows, masterEmployees);
+              const valE = paybillValidationService.validateRecords(mappedE);
+              if (valE.some((r) => r.validationStatus === 'ERROR')) {
+                throw new Error('Critical validation errors in earnings — re-validate before saving.');
+              }
+              await paybillStorageService.importPayBill(parsed.metadata, valE, item.name, item.file, billType);
+            }
+            if (parsed.deductionRows && parsed.deductionRows.length > 0) {
+              const mappedD = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
+              const valD = paybillValidationService.validateDeductionRecords(mappedD);
+              if (valD.some((r) => r.validationStatus === 'ERROR')) {
+                throw new Error('Critical validation errors in deductions — re-validate before saving.');
+              }
+              await paybillStorageService.importDeductions(parsed.metadata, valD, item.name, item.file, billType);
+            }
+          } else if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
             const mapped = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
             const validated = paybillValidationService.validateDeductionRecords(mapped);
             // Final gate: if critical errors emerged since parsing, skip
             if (validated.some((r) => r.validationStatus === 'ERROR')) {
               throw new Error('Critical validation errors present — re-validate before saving.');
             }
-            await paybillStorageService.importDeductions(parsed.metadata, validated, item.name, item.file);
+            await paybillStorageService.importDeductions(parsed.metadata, validated, item.name, item.file, billType);
           } else {
             const mapped = hrpnMappingService.mapRows(parsed.rows, masterEmployees);
             const validated = paybillValidationService.validateRecords(mapped);
             if (validated.some((r) => r.validationStatus === 'ERROR')) {
               throw new Error('Critical validation errors present — re-validate before saving.');
             }
-            await paybillStorageService.importPayBill(parsed.metadata, validated, item.name, item.file);
+            await paybillStorageService.importPayBill(parsed.metadata, validated, item.name, item.file, billType);
           }
           imported += 1;
           // Mark item as imported in queue to prevent re-import
@@ -989,7 +1184,7 @@ export function usePayBillImport() {
 
     setIsImporting(false);
     return { imported, failed, total: successItems.length };
-  }, [batchQueue]);
+  }, [batchQueue, billType]);
 
   /**
    * Select a parsed batch item to review in the main table
@@ -1048,12 +1243,25 @@ export function usePayBillImport() {
   );
 
   /**
-   * 1-Click Quick Add unmapped employee into Master Employees table
+   * 1-Click Quick Add unmapped employee into the Establishment directory.
+   * Establishment HRPN is the single source of truth — new HRPNs must be
+   * registered there (not the legacy payroll master) so the ledger, the
+   * directory and future imports all resolve to one canonical record.
    */
   const quickAddEmployee = useCallback(
     async (row: PayBillEmployeeRow | PayBillDeductionRow) => {
       try {
-        await paybillRepository.createMasterEmployeeFromPayBill(row);
+        const { establishmentService } = await import('@/modules/establishment/services/establishment.service');
+        const { createBlankEstablishmentEmployee } = await import('@/modules/establishment/constants');
+        const blank = createBlankEstablishmentEmployee();
+        await establishmentService.saveEmployee({
+          ...blank,
+          hrpnNo: (row.hrpn || '').trim().toUpperCase(),
+          name: row.employeeName || `Employee ${row.hrpn}`,
+          designation: row.designation || '',
+          payScale: (row as PayBillEmployeeRow).payScale || '',
+          active: true,
+        });
         const masterEmployees = await paybillStorageService.getMasterEmployees();
 
         if (sheetType === 'DEDUCTION') {
@@ -1082,7 +1290,7 @@ export function usePayBillImport() {
           return validated;
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to add employee to master.');
+        setError(err instanceof Error ? err.message : 'Failed to add employee to Establishment directory.');
       }
     },
     [pdfTotals, sheetType]
@@ -1211,6 +1419,8 @@ export function usePayBillImport() {
     fileName,
     fileSize,
     sheetType,
+    billType,
+    setBillType,
     batchQueue,
     isBatchProcessing,
     selectedBatchId,

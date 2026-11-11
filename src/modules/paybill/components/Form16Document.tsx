@@ -1,5 +1,5 @@
 import type { Form16Certificate } from '../types/form16';
-import { numberToWordsINR } from '@/modules/gtr44/utils/gtr44Utils';
+import { numberToWordsINR } from '@/shared/domain/currency';
 
 const fmt = (n: number | undefined | null): string => {
   const val = Number(n) || 0;

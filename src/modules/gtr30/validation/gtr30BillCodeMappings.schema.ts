@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 const billCodeMappingSchema = z.object({
-  id: z.string(),
-  billCode: z.string(),
-  description: z.string(),
+  id: z.string().trim().min(1, 'id is required'),
+  billCode: z.string().trim().min(1, 'Bill code is required').max(50, 'Bill code must be at most 50 characters').transform((v) => v.toUpperCase()),
+  description: z.string().trim(),
   monthKey: z.string().optional(),
   budgetHeadId: z.string().optional(),
   controllingOfficer: z.string().optional(),

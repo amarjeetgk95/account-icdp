@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { paybillRepository } from '../repositories/paybill.repository';
 import { PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/paybillReport.service';
+import { isPlaceholderName } from '../services/hrpnMapping.service';
 import { establishmentService } from '@/modules/establishment/services/establishment.service';
 import type { EstablishmentEmployee } from '@/modules/establishment/types';
 import { latestPayOf } from '@/modules/establishment/types';
@@ -77,10 +78,17 @@ export function PayBillLegacyDataEditor() {
   const officeId = getOfficeId() || '';
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
+  const candidateNames = useMemo(() => {
+    return [
+      estEmployee?.name,
+      ...MONTH_ORDER.map((m) => earningByMonth[m]?.employeeName),
+      ...MONTH_ORDER.map((m) => deductionByMonth[m]?.employeeName),
+    ].filter(Boolean) as string[];
+  }, [estEmployee, earningByMonth, deductionByMonth]);
+
   const employeeName =
-    estEmployee?.name ||
-    earningByMonth[MONTH_ORDER.find((m) => earningByMonth[m]) || '']?.employeeName ||
-    deductionByMonth[MONTH_ORDER.find((m) => deductionByMonth[m]) || '']?.employeeName ||
+    candidateNames.find((n) => !isPlaceholderName(n)) ||
+    candidateNames[0] ||
     '';
   const designation =
     estEmployee?.designation ||
@@ -871,7 +879,7 @@ export function PayBillLegacyDataEditor() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                <h1 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
                   {baseEmployeeInfo.employeeName || 'Legacy Paybill Editor'}
                 </h1>
                 {baseEmployeeInfo.designation && (
@@ -880,8 +888,8 @@ export function PayBillLegacyDataEditor() {
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <span className="num font-semibold text-slate-700 dark:text-slate-300">
                   HRPN: {baseEmployeeInfo.hrpn || hrpn || '—'}
                 </span>
                 <span>·</span>
@@ -891,7 +899,7 @@ export function PayBillLegacyDataEditor() {
                 {baseEmployeeInfo.payScale && (
                   <>
                     <span>·</span>
-                    <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <span className="px-1.5 py-0.2 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                       {baseEmployeeInfo.payScale}
                     </span>
                   </>
@@ -927,7 +935,7 @@ export function PayBillLegacyDataEditor() {
           {/* Right: Actions */}
           <div className="flex items-center gap-2 shrink-0">
             {dirtyRows.size > 0 && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                 {dirtyRows.size} modified
               </span>
@@ -970,21 +978,21 @@ export function PayBillLegacyDataEditor() {
         <div className="shrink-0 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 px-4 py-1.5 flex items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-4 font-mono text-xs">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Gross:</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Gross:</span>
               <span className="font-extrabold text-slate-900 dark:text-slate-100">{formatInr(totalGross)}</span>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500">Deductions:</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-rose-500">Deductions:</span>
               <span className="font-extrabold text-rose-700 dark:text-rose-400">{formatInr(totalDeductions)}</span>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">Net Take-Home:</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-500">Net Take-Home:</span>
               <span className="font-extrabold text-emerald-700 dark:text-emerald-300">{formatInr(totalNet)}</span>
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 hidden sm:flex items-center gap-1.5">
-            <span>Excel Paste: <kbd className="font-mono px-1 py-0.2 bg-slate-200 dark:bg-slate-800 rounded text-[10px]">Ctrl+V</kbd></span>
+          <div className="text-xs text-slate-400 hidden sm:flex items-center gap-1.5">
+            <span>Excel Paste: <kbd className="font-mono px-1 py-0.2 bg-slate-200 dark:bg-slate-800 rounded text-xs">Ctrl+V</kbd></span>
           </div>
         </div>
 
@@ -1012,7 +1020,7 @@ export function PayBillLegacyDataEditor() {
 
               <thead className="bg-slate-100 dark:bg-slate-800/95 text-slate-700 dark:text-slate-300 uppercase tracking-wider sticky top-0 z-20 shadow-2xs">
                 <tr>
-                  <th className="py-2 px-3 font-bold border-b border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-slate-100 dark:bg-slate-800 z-30 truncate text-[11px]">
+                  <th className="py-2 px-3 font-bold border-b border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-slate-100 dark:bg-slate-800 z-30 truncate text-xs">
                     Parameter
                   </th>
                   {visibleMonths.map((m) => {
@@ -1026,7 +1034,7 @@ export function PayBillLegacyDataEditor() {
                         className="py-2 px-1.5 font-bold border-b border-r border-slate-200 dark:border-slate-700 text-right"
                       >
                         <div className="flex items-center justify-end gap-1 min-w-0">
-                          <span className="truncate text-[11px]" title={m}>{shortName}</span>
+                          <span className="truncate text-xs" title={m}>{shortName}</span>
                           {canCopy && (
                             <button
                               type="button"
@@ -1051,7 +1059,7 @@ export function PayBillLegacyDataEditor() {
                       </th>
                     );
                   })}
-                  <th className="py-2 px-2 font-bold border-b border-slate-200 dark:border-slate-700 text-right bg-slate-200/70 dark:bg-slate-700/70 text-[11px] truncate">
+                  <th className="py-2 px-2 font-bold border-b border-slate-200 dark:border-slate-700 text-right bg-slate-200/70 dark:bg-slate-700/70 text-xs truncate">
                     Annual
                   </th>
                 </tr>
@@ -1063,7 +1071,7 @@ export function PayBillLegacyDataEditor() {
                   <tr className="bg-blue-50/90 dark:bg-blue-950/60 sticky z-10">
                     <td
                       colSpan={visibleMonths.length + 2}
-                      className="py-1 px-3 font-bold text-[10px] uppercase tracking-wider text-blue-900 dark:text-blue-200"
+                      className="py-1 px-3 font-bold text-xs uppercase tracking-wider text-blue-900 dark:text-blue-200"
                     >
                       EARNING (₹)
                     </td>
@@ -1121,12 +1129,12 @@ export function PayBillLegacyDataEditor() {
                               onChange={(e) => handleEarningDraftChange(m, col.key as keyof PayBillStoredEarning, e.target.value)}
                               onPaste={(e) => handleCellPaste(e, col.key, 'EARNING', m)}
                               onKeyDown={(e) => handleCellKeyDown(e, col.key, m)}
-                              className="w-full text-right bg-transparent hover:bg-white/80 dark:hover:bg-slate-800/80 focus:bg-blue-50/90 dark:focus:bg-blue-950/70 border-0 focus:ring-1.5 focus:ring-blue-500 rounded-none px-1.5 py-1.5 font-mono text-xs text-slate-900 dark:text-slate-100 outline-none transition"
+                              className="w-full text-right bg-transparent hover:bg-white/80 dark:hover:bg-slate-800/80 focus:bg-blue-50/90 dark:focus:bg-blue-950/70 border-0 focus:ring-1.5 focus:ring-blue-500 rounded-none px-1.5 py-1.5 num text-xs text-slate-900 dark:text-slate-100 outline-none transition"
                             />
                           </td>
                         );
                       })}
-                      <td className="py-1.5 px-2 text-right font-mono font-bold text-slate-900 dark:text-slate-100 bg-slate-100/70 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 truncate text-xs">
+                      <td className="py-1.5 px-2 text-right num font-bold text-slate-900 dark:text-slate-100 bg-slate-100/70 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 truncate text-xs">
                         {total > 0 ? formatInr(total) : <span className="text-slate-400 font-sans font-normal">—</span>}
                       </td>
                     </tr>
@@ -1164,7 +1172,7 @@ export function PayBillLegacyDataEditor() {
                         <div className="flex items-center justify-between gap-1 min-w-0">
                           <div className="flex items-center gap-1.5 min-w-0 truncate">
                             <span className="truncate text-xs" title={label}>{label}</span>
-                            <span className="px-1.5 py-0.2 text-[9px] font-bold uppercase rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 shrink-0">
+                            <span className="px-1.5 py-0.2 text-xs font-bold uppercase rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 shrink-0">
                               Arr
                             </span>
                           </div>
@@ -1203,7 +1211,7 @@ export function PayBillLegacyDataEditor() {
                               onChange={(e) => handleManualDraftChange(m, label, e.target.value)}
                               onPaste={(e) => handleCellPaste(e, label, 'MANUAL', m)}
                               onKeyDown={(e) => handleCellKeyDown(e, label, m)}
-                              className={`w-full text-right px-1.5 py-1.5 font-mono text-xs outline-none transition ${
+                              className={`w-full text-right px-1.5 py-1.5 num text-xs outline-none transition ${
                                 val > 0
                                   ? 'font-bold text-amber-900 dark:text-amber-200 bg-amber-50/70 dark:bg-amber-950/40 border-0 focus:ring-1.5 focus:ring-amber-500'
                                   : 'bg-transparent hover:bg-white/80 dark:hover:bg-slate-800/80 border-0 focus:ring-1.5 focus:ring-blue-500 focus:bg-blue-50/90 dark:focus:bg-blue-950/70 text-slate-900 dark:text-slate-100'
@@ -1212,7 +1220,7 @@ export function PayBillLegacyDataEditor() {
                           </td>
                         );
                       })}
-                      <td className="py-1.5 px-2 text-right font-mono font-bold text-amber-900 dark:text-amber-200 bg-amber-50/80 dark:bg-amber-950/40 border-b border-slate-200/80 dark:border-slate-800 truncate text-xs">
+                      <td className="py-1.5 px-2 text-right num font-bold text-amber-900 dark:text-amber-200 bg-amber-50/80 dark:bg-amber-950/40 border-b border-slate-200/80 dark:border-slate-800 truncate text-xs">
                         {total > 0 ? formatInr(total) : <span className="text-slate-400 font-sans font-normal">—</span>}
                       </td>
                     </tr>
@@ -1228,12 +1236,12 @@ export function PayBillLegacyDataEditor() {
                     {visibleMonths.map((m) => {
                       const gross = getMonthGross(m);
                       return (
-                        <td key={m} className="py-2 px-1.5 text-right font-mono text-blue-800 dark:text-blue-200 border-r border-blue-200/60 dark:border-blue-900/60 truncate text-xs">
+                        <td key={m} className="py-2 px-1.5 text-right num text-blue-800 dark:text-blue-200 border-r border-blue-200/60 dark:border-blue-900/60 truncate text-xs">
                           {gross > 0 ? formatInr(gross) : <span className="text-slate-400 font-sans font-normal">—</span>}
                         </td>
                       );
                     })}
-                    <td className="py-2 px-2 text-right font-mono font-extrabold text-blue-900 dark:text-blue-100 bg-blue-200/80 dark:bg-blue-900/70 truncate text-xs">
+                    <td className="py-2 px-2 text-right num font-extrabold text-blue-900 dark:text-blue-100 bg-blue-200/80 dark:bg-blue-900/70 truncate text-xs">
                       {totalGross > 0 ? formatInr(totalGross) : <span className="text-slate-400 font-sans font-normal">—</span>}
                     </td>
                   </tr>
@@ -1244,7 +1252,7 @@ export function PayBillLegacyDataEditor() {
                   <tr className="bg-rose-50/90 dark:bg-rose-950/60 sticky z-10">
                     <td
                       colSpan={visibleMonths.length + 2}
-                      className="py-1.5 px-3 font-bold text-[10px] uppercase tracking-wider text-rose-900 dark:text-rose-200"
+                      className="py-1.5 px-3 font-bold text-xs uppercase tracking-wider text-rose-900 dark:text-rose-200"
                     >
                       DEDUCTION (₹)
                     </td>
@@ -1301,12 +1309,12 @@ export function PayBillLegacyDataEditor() {
                               onChange={(e) => handleDeductionDraftChange(m, col.key as keyof PayBillStoredDeduction, e.target.value)}
                               onPaste={(e) => handleCellPaste(e, col.key, 'DEDUCTION', m)}
                               onKeyDown={(e) => handleCellKeyDown(e, col.key, m)}
-                              className="w-full text-right bg-transparent hover:bg-white/80 dark:hover:bg-slate-800/80 focus:bg-rose-50/90 dark:focus:bg-rose-950/70 border-0 focus:ring-1.5 focus:ring-rose-500 rounded-none px-1.5 py-1.5 font-mono text-xs text-slate-900 dark:text-slate-100 outline-none transition"
+                              className="w-full text-right bg-transparent hover:bg-white/80 dark:hover:bg-slate-800/80 focus:bg-rose-50/90 dark:focus:bg-rose-950/70 border-0 focus:ring-1.5 focus:ring-rose-500 rounded-none px-1.5 py-1.5 num text-xs text-slate-900 dark:text-slate-100 outline-none transition"
                             />
                           </td>
                         );
                       })}
-                      <td className="py-1.5 px-2 text-right font-mono font-bold text-slate-900 dark:text-slate-100 bg-slate-100/70 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 truncate text-xs">
+                      <td className="py-1.5 px-2 text-right num font-bold text-slate-900 dark:text-slate-100 bg-slate-100/70 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 truncate text-xs">
                         {total > 0 ? formatInr(total) : <span className="text-slate-400 font-sans font-normal">—</span>}
                       </td>
                     </tr>
@@ -1322,12 +1330,12 @@ export function PayBillLegacyDataEditor() {
                     {visibleMonths.map((m) => {
                       const ded = draftDeductions[m]?.totalDeductions || 0;
                       return (
-                        <td key={m} className="py-2 px-1.5 text-right font-mono text-rose-800 dark:text-rose-200 border-r border-rose-200/60 dark:border-rose-900/60 truncate text-xs">
+                        <td key={m} className="py-2 px-1.5 text-right num text-rose-800 dark:text-rose-200 border-r border-rose-200/60 dark:border-rose-900/60 truncate text-xs">
                           {ded > 0 ? formatInr(ded) : <span className="text-slate-400 font-sans font-normal">—</span>}
                         </td>
                       );
                     })}
-                    <td className="py-2 px-2 text-right font-mono font-extrabold text-rose-900 dark:text-rose-100 bg-rose-200/80 dark:bg-rose-900/70 truncate text-xs">
+                    <td className="py-2 px-2 text-right num font-extrabold text-rose-900 dark:text-rose-100 bg-rose-200/80 dark:bg-rose-900/70 truncate text-xs">
                       {totalDeductions > 0 ? formatInr(totalDeductions) : <span className="text-slate-400 font-sans font-normal">—</span>}
                     </td>
                   </tr>
@@ -1345,12 +1353,12 @@ export function PayBillLegacyDataEditor() {
                       const net = gross - ded;
                       const hasData = gross > 0 || ded > 0;
                       return (
-                        <td key={m} className="py-2 px-1.5 text-right font-mono text-emerald-800 dark:text-emerald-200 border-r border-emerald-200/60 dark:border-emerald-900/60 truncate text-xs">
+                        <td key={m} className="py-2 px-1.5 text-right num text-emerald-800 dark:text-emerald-200 border-r border-emerald-200/60 dark:border-emerald-900/60 truncate text-xs">
                           {hasData ? formatInr(net) : <span className="text-slate-400 font-sans font-normal">—</span>}
                         </td>
                       );
                     })}
-                    <td className="py-2 px-2 text-right font-mono font-extrabold text-emerald-900 dark:text-emerald-100 bg-emerald-200/80 dark:bg-emerald-900/70 truncate text-xs">
+                    <td className="py-2 px-2 text-right num font-extrabold text-emerald-900 dark:text-emerald-100 bg-emerald-200/80 dark:bg-emerald-900/70 truncate text-xs">
                       {totalGross > 0 || totalDeductions > 0 ? formatInr(totalNet) : <span className="text-slate-400 font-sans font-normal">—</span>}
                     </td>
                   </tr>

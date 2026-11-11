@@ -10,21 +10,24 @@ import type { PayBillStoredEarning, PayBillStoredDeduction, PayBillSettings } fr
 import { buildEmployeeDirectory, useEmployeeDirectory } from './useEmployeeDirectory';
 import { useEmployeeLedger } from './useEmployeeLedger';
 
-vi.mock('@/core/supabase/client', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          order: () => Promise.resolve({ data: [], error: null }),
-        }),
+vi.mock('@/core/supabase/client', () => {
+  const queryBuilder: any = {
+    order: () => Promise.resolve({ data: [], error: null }),
+    eq: () => queryBuilder,
+  };
+  return {
+    supabase: {
+      from: () => ({
+        select: () => queryBuilder,
+        upsert: () => Promise.resolve({ data: null, error: null }),
       }),
-      upsert: () => Promise.resolve({ data: null, error: null }),
-    }),
-    rpc: () => Promise.resolve({ data: null, error: null }),
-  },
-}));
+      rpc: () => Promise.resolve({ data: null, error: null }),
+    },
+  };
+});
 
 vi.mock('@/shared/utilities/office', () => ({
+  DEFAULT_OFFICE_ID: '1',
   getOfficeId: () => 'office-123',
   isAllOfficesMode: () => false,
   resolveOfficeIdForUser: () => Promise.resolve('office-123'),
@@ -149,7 +152,7 @@ function createWrapper() {
 describe('buildEmployeeDirectory', () => {
   const FY = 2026;
 
-  it('prefers earnings over deductions over establishment for the same HRPN', () => {
+  it('treats Establishment as single source of truth keyed by HRPN', () => {
     const earnings = [makeEarning({ hrpn: 'E1', employeeName: 'From Earnings' })];
     const deductions = [
       makeDeduction({ hrpn: 'E1', employeeName: 'From Deductions' }),
@@ -162,26 +165,29 @@ describe('buildEmployeeDirectory', () => {
 
     const dir = buildEmployeeDirectory(earnings, deductions, estEmployees, FY);
 
-    expect(dir.map((e) => e.hrpn)).toEqual(['E1', 'D1', 'S1']);
-    // Earning entry wins wholesale (incl. payScale from the earning row)
-    expect(dir[0]).toEqual({
+    // Establishment seeds first (E1 matched + S1), paybill-only D1 last flagged unmatched.
+    expect(dir.map((e) => e.hrpn)).toEqual(['E1', 'S1', 'D1']);
+    // Canonical Establishment name wins; paybill only fills gaps.
+    expect(dir[0]).toMatchObject({
       hrpn: 'E1',
-      name: 'From Earnings',
-      designation: 'Earning Designation',
-      payScale: 'Level 10',
+      name: 'From Establishment',
+      isMatched: true,
     });
-    // Deduction-sourced entry carries payScale: null even if establishment could supply one
-    expect(dir[1]).toEqual({
+    // Paybill-only entry is flagged so the ledger shows the mismatch error.
+    expect(dir[2]).toMatchObject({
       hrpn: 'D1',
       name: 'Only Deductions',
       designation: 'Deduction Designation',
       payScale: null,
+      isMatched: false,
+      source: 'paybill',
     });
-    expect(dir[2]).toEqual({
+    expect(dir[1]).toMatchObject({
       hrpn: 'S1',
       name: 'Est Only',
       designation: 'Clerk',
       payScale: 'Level 4',
+      isMatched: true,
     });
   });
 
@@ -229,6 +235,50 @@ describe('buildEmployeeDirectory', () => {
     expect(dir.map((e) => e.hrpn)).toEqual(['X1', 'Y1']);
     expect(dir[0].name).toBe('First Wins');
   });
+
+  it('overwrites placeholder names from earnings or deductions with canonical establishment names', () => {
+    const earnings = [
+      makeEarning({ hrpn: '20111144', employeeName: 'Employee 20111144', designation: 'Staff' }),
+    ];
+    const deductions = [
+      makeDeduction({ hrpn: '20162024', employeeName: 'Employee', designation: '' }),
+    ];
+    const estEmployees = [
+      makeEstEmployee({
+        id: 'est-1',
+        name: 'K. M. Damor',
+        hrpnNo: '20111144',
+        designation: 'Live Stock Inspector Sayan',
+        payScale: 'Level 5',
+      }),
+      makeEstEmployee({
+        id: 'est-2',
+        name: 'R. S. Chaudhari',
+        hrpnNo: '20162024',
+        designation: 'Live Stock Inspector Vagech',
+        payScale: 'Level 5',
+      }),
+    ];
+
+    const dir = buildEmployeeDirectory(earnings, deductions, estEmployees, FY);
+
+    expect(dir).toMatchObject([
+      {
+        hrpn: '20111144',
+        name: 'K. M. Damor',
+        designation: 'Live Stock Inspector Sayan',
+        payScale: 'Level 5',
+        isMatched: true,
+      },
+      {
+        hrpn: '20162024',
+        name: 'R. S. Chaudhari',
+        designation: 'Live Stock Inspector Vagech',
+        payScale: 'Level 5',
+        isMatched: true,
+      },
+    ]);
+  });
 });
 
 describe('useEmployeeDirectory', () => {
@@ -236,7 +286,7 @@ describe('useEmployeeDirectory', () => {
     vi.clearAllMocks();
   });
 
-  it('merges paybill rows with synced establishment employees', async () => {
+  it('lists Establishment first and flags paybill HRPNs missing from Establishment', async () => {
     vi.mocked(paybillRepository.listEarnings).mockResolvedValue([
       makeEarning({ hrpn: 'E1', employeeName: 'Dr. Ramesh Patel' }),
     ]);
@@ -250,8 +300,11 @@ describe('useEmployeeDirectory', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.isError).toBe(false);
-    expect(result.current.employees.map((e) => e.hrpn)).toEqual(['E1', 'S1']);
-    expect(result.current.employees[0].name).toBe('Dr. Ramesh Patel');
+    // Establishment (S1) seeds first; paybill-only E1 follows flagged unmatched.
+    expect(result.current.employees.map((e) => e.hrpn)).toEqual(['S1', 'E1']);
+    expect(result.current.employees.find((e) => e.hrpn === 'E1')?.isMatched).toBe(false);
+    expect(result.current.employees.find((e) => e.hrpn === 'S1')?.isMatched).toBe(true);
+    expect(result.current.unmatched.map((u) => u.hrpn)).toEqual(['E1']);
     expect(paybillRepository.listEarnings).toHaveBeenCalledWith({ financialYear: 2026 });
     expect(paybillRepository.listDeductions).toHaveBeenCalledWith({ financialYear: 2026 });
   });

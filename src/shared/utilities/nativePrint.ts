@@ -35,7 +35,7 @@ export interface NativePrintOptions {
   lang?: string;
   /** Page size (default: 'A4') */
   pageSize?: 'A4' | 'Legal' | 'Letter';
-  /** Page margin (default: '5mm') */
+  /** Page margin (default: '8mm') */
   pageMargin?: string;
   /** Page orientation (default: 'portrait') */
   orientation?: 'portrait' | 'landscape';
@@ -213,7 +213,7 @@ export function popupNativePrint(options: NativePrintOptions): Window | null {
     title = 'Print Document',
     lang = 'gu',
     pageSize = 'A4',
-    pageMargin = '0mm',
+    pageMargin = '8mm',
     orientation = 'portrait',
     pageContainerSelector = '.page-container, .gtr-page, .gtr30-page, .report-print-area',
     signatureSelector = '.signature-block, .govt-stamp-row, .govt-footer-signatures',
@@ -328,6 +328,10 @@ export function popupNativePrint(options: NativePrintOptions): Window | null {
       display: block !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
+      /* Figures: tabular widths so every amount column aligns on paper.
+         Monospace grids (one char per box) keep their own font. */
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum' 1;
     }
 
     body * {
@@ -358,11 +362,19 @@ export function popupNativePrint(options: NativePrintOptions): Window | null {
       box-sizing: border-box !important;
     }
 
+    .page-container:last-child, .gtr-page:last-child, .gtr30-page:last-child, .report-print-area:last-child {
+      page-break-after: auto !important;
+      break-after: auto !important;
+    }
+
     .layout-table { margin-bottom: var(--table-mb, 12px) !important; }
     .layout-table td, .layout-table th, .service-table td, .service-table th {
       padding: var(--td-pad, 4px) 4px !important;
     }
-    .gujarati-text { margin-bottom: var(--text-mb, 8px) !important; }
+    :root { --gtr-gu: "Lohit Gujarati", Shruti, serif; --gtr-gu-sans: "Lohit Gujarati", Shruti, sans-serif; }
+    .font-guj { font-family: var(--gtr-gu) !important; }
+    .font-gujSans { font-family: var(--gtr-gu-sans) !important; }
+    .gujarati-text { font-family: var(--gtr-gu-sans) !important; margin-bottom: var(--text-mb, 8px) !important; }
     .signature-block, .govt-stamp-row { height: auto; }
     .signature-stamp { max-height: var(--stamp-h, 40px); }
     .no-print { display: none !important; }
@@ -381,7 +393,24 @@ export function popupNativePrint(options: NativePrintOptions): Window | null {
       <title>${title}</title>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Gujarati:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&display=swap" />
+      <style>
+        @font-face {
+          font-family: 'Lohit Gujarati';
+          src: local('Lohit Gujarati'),
+               local('Lohit-Gujarati'),
+               url('${originUrl}/fonts/Lohit-Gujarati.ttf') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Lohit Gujarati';
+          src: local('Lohit Gujarati'),
+               local('Lohit-Gujarati'),
+               url('${originUrl}/fonts/Lohit-Gujarati.ttf') format('truetype');
+          font-weight: bold;
+          font-style: normal;
+        }
+      </style>
       ${existingStyles}
       <style>
         ${defaultPrintStyles}

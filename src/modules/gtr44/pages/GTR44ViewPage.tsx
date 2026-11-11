@@ -119,7 +119,6 @@ export function GTR44ViewPage() {
     return (
       <div className="max-w-7xl mx-auto space-y-4">
         <WorkspaceHeader
-          eyebrow="Bill preview · GTR-44"
           title="View detailed contingent bill"
         />
         <div className="max-w-4xl mx-auto p-8 bg-card border border-border rounded-xl space-y-6 shadow-sm">
@@ -142,7 +141,6 @@ export function GTR44ViewPage() {
     return (
       <div className="max-w-7xl mx-auto space-y-4">
         <WorkspaceHeader
-          eyebrow="Bill preview · GTR-44"
           title="Bill not found"
         />
         <EmptyState
@@ -163,7 +161,6 @@ export function GTR44ViewPage() {
     <div className="max-w-7xl mx-auto space-y-4 print:p-0">
       <div className="print:hidden">
         <WorkspaceHeader
-          eyebrow="Bill preview · GTR-44"
           title={bill.billNo || 'View GTR-44 Bill'}
           context={<GTR44StatusBadge status={bill.status} />}
           actions={

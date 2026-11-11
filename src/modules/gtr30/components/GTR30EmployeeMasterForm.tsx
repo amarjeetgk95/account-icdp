@@ -23,9 +23,8 @@ import {
   CheckCircle2,
   Briefcase,
   Shield,
-  Plus,
-  Trash2,
   CalendarRange,
+  History,
 } from 'lucide-react';
 import {
   gtr30EmployeeMasterSchema,
@@ -33,12 +32,17 @@ import {
 } from '../validation/gtr30EmployeeMaster.schema';
 import { useSaveGTR30Employee } from '../hooks/useGTR30EmployeeMaster';
 import { useGTR30BillCodeMappings } from '../hooks/useGTR30BillCodeMappings';
+import { DEFAULT_BILL_CODE_MAPPINGS } from '../constants';
+import { buildGtr30BillCodeOptions } from '../utils/gtr30BillCodeOptions';
 import {
   normalizePayEntries,
   formatDate,
   dayAfter,
   type PayEntryDraft,
 } from '../utils/gtr30PayMatrix';
+import { PayTimeline } from './PayTimeline';
+import type { PayEntry } from '../utils/payHistory';
+import { normalizePayHistory as normalizePayHistoryGTR } from '../utils/payHistory';
 import {
   calculateDA,
   calculateNPS,
@@ -66,7 +70,7 @@ const TABS: Array<{ id: EmployeeFormTab; label: string; icon: React.ElementType;
 const EMPTY_VALUES: GTR30EmployeeMasterInput = {
   id: '',
   srNo: 0,
-  billCode: 'GTR30-SAL',
+  billCode: 'GTR-30-GO-STATS',
   hrpnNo: '',
   name: '',
   designation: '',
@@ -129,11 +133,22 @@ export function GTR30EmployeeMasterForm({
   const { toast } = useToast();
   const saveMutation = useSaveGTR30Employee();
   const mappingsQuery = useGTR30BillCodeMappings();
-  const mappings = mappingsQuery.data ?? [];
+  const rawMappings = mappingsQuery.data ?? [];
+  const mappings = rawMappings.length > 0 ? rawMappings : DEFAULT_BILL_CODE_MAPPINGS;
+
+  const availableBillCodes = useMemo(
+    () =>
+      buildGtr30BillCodeOptions(mappings, undefined, [
+        billCode,
+        editingEmployee?.billCode,
+      ]),
+    [mappings, billCode, editingEmployee?.billCode]
+  );
 
   const [activeTab, setActiveTab] = useState<EmployeeFormTab>('personal');
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isDropdownDismissed, setIsDropdownDismissed] = useState(false);
+  const [shouldCloseAfterSave, setShouldCloseAfterSave] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -148,7 +163,7 @@ export function GTR30EmployeeMasterForm({
     resolver: zodResolver(gtr30EmployeeMasterSchema),
     defaultValues: {
       ...EMPTY_VALUES,
-      billCode: billCode || 'GTR30-SAL',
+      billCode: billCode || 'GTR-30-GO-STATS',
     },
   });
 
@@ -162,7 +177,7 @@ export function GTR30EmployeeMasterForm({
       reset({
         id: editingEmployee.id,
         srNo: editingEmployee.srNo,
-        billCode: editingEmployee.billCode || billCode || 'GTR30-SAL',
+        billCode: editingEmployee.billCode || billCode || 'GTR-30-GO-STATS',
         hrpnNo: editingEmployee.hrpnNo || '',
         name: editingEmployee.name,
         designation: editingEmployee.designation || '',
@@ -244,7 +259,13 @@ export function GTR30EmployeeMasterForm({
       setValue('da', calcDA);
       setValue('npsPension', calcNPS);
       setValue('professionalTax', calcPT);
-      setValue('payLevelCell', `PAY=${pay} (LEVEL CELL-7)`);
+      const scale = (getValues('payScale') as string) || '';
+      const mapping = findPayScaleMappingByScale(scale);
+      const level = mapping?.level ?? 'Level 7';
+      const cur = (getValues('payLevelCell') as string) || '';
+      const cellM = /CELL\s*0*([0-9]{1,2})/i.exec(cur);
+      const cell = cellM ? `Cell ${cellM[1]}` : 'Cell 1';
+      setValue('payLevelCell', `${level} — ${cell} • ₹${pay.toLocaleString('en-IN')}`);
     }
   };
 
@@ -370,6 +391,7 @@ export function GTR30EmployeeMasterForm({
     setNewPayStart('');
     setNewPayAmount('');
   };
+  void handlePayDateChange; void newPayError; void updateEntryRaw; void normalizeNow; void deletePayEntry; void confirmAddPayEntry; void syncFromEntries; void applyPayAutoCalc; void openNewPayRow; void showNewPayRow; void newPayStart; void newPayAmount; void handlePayChange; void PAY_SCALE_CATALOG;
 
   // Auto-calculate GIS Insurance & Savings amounts when GIS Group changes
   const handleGISGroupChange = (groupStr: string) => {
@@ -398,10 +420,14 @@ export function GTR30EmployeeMasterForm({
       if (pay === 0) {
         handlePayChange(String(mapping.entryPay));
       } else {
-        setValue('payLevelCell', `PAY=${pay} (${mapping.level.toUpperCase()} CELL-7)`);
+        const cur = (getValues('payLevelCell') as string) || '';
+        const cellM = /CELL\s*0*([0-9]{1,2})/i.exec(cur);
+        const cell = cellM ? `Cell ${cellM[1]}` : 'Cell 1';
+        setValue('payLevelCell', `${mapping.level} — ${cell} • ₹${pay.toLocaleString('en-IN')}`);
       }
     }
   };
+  void handlePayScaleSelect;
 
   const searchResults = useMemo<SearchOption[]>(() => {
     if (!nameValue || nameValue.trim().length < 1) return [];
@@ -440,7 +466,7 @@ export function GTR30EmployeeMasterForm({
     reset({
       id: emp.id,
       srNo: emp.srNo,
-      billCode: emp.billCode || billCode || 'GTR30-SAL',
+      billCode: emp.billCode || billCode || 'GTR-30-GO-STATS',
       hrpnNo: emp.hrpnNo || '',
       name: emp.name,
       designation: emp.designation || '',
@@ -482,21 +508,52 @@ export function GTR30EmployeeMasterForm({
         id: editingEmployee?.id || data.id || '',
         srNo: data.srNo || Math.max(0, ...employees.map((e) => e.srNo)) + 1,
       };
-      const targetBillCode = data.billCode || billCode || 'GTR30-SAL';
+      const targetBillCode = data.billCode || billCode || 'GTR-30-GO-STATS';
       await saveMutation.mutateAsync({ monthKey, billCode: targetBillCode, employee });
       toast({
         title: editingEmployee ? 'Employee Updated' : 'Employee Added',
-        description: `${employee.name} saved under ${targetBillCode}.`,
+        description: `${employee.name} saved under ${targetBillCode} — pay history updated.`,
       });
-      reset({
-        ...EMPTY_VALUES,
-        billCode: targetBillCode,
-      });
-      onCancelEdit?.();
-      onCancel?.();
-      setSubmitStatus(null);
-      onSaved?.();
-      setActiveTab('personal');
+      const doClose = shouldCloseAfterSave;
+      setShouldCloseAfterSave(false);
+      if (doClose) {
+        try {
+          if (window.opener) {
+            try {
+              window.opener.postMessage({ type: 'GTR30_EMPLOYEE_SAVED', employeeId: employee.id }, '*');
+              window.opener.location.reload();
+            } catch {}
+          }
+        } catch {}
+        onSaved?.();
+        window.close();
+        setTimeout(() => {
+          if (!window.closed) {
+            onCancel?.();
+            window.location.href = '/gtr30/employee-management';
+          }
+        }, 150);
+        return;
+      }
+      if (editingEmployee) {
+        // Stay on form and show saved pay — no reload needed. Keep saved values visible.
+        reset({
+          ...employee,
+          billCode: targetBillCode,
+        } as never);
+        setSubmitStatus({ type: 'success', message: 'Saved — pay timeline updated (no reload needed).' });
+        (onSaved as unknown as (e: typeof employee) => void)?.(employee as never);
+      } else {
+        reset({
+          ...EMPTY_VALUES,
+          billCode: targetBillCode,
+        });
+        onCancelEdit?.();
+        onCancel?.();
+        setSubmitStatus(null);
+        onSaved?.();
+        setActiveTab('personal');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save employee';
       setSubmitStatus({ type: 'error', message });
@@ -527,6 +584,29 @@ export function GTR30EmployeeMasterForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      {editingEmployee && (
+        <div className="flex items-center justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 rounded-full border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+            onClick={() => {
+              onCancelEdit?.();
+              onCancel?.();
+              if (window.opener) {
+                try { window.opener.location.reload(); } catch {}
+                window.close();
+              } else {
+                window.location.href = '/gtr30/employee-management';
+              }
+            }}
+            title="Close edit and reload employee management"
+          >
+            <X className="h-3.5 w-3.5" /> Close
+          </Button>
+        </div>
+      )}
       {/* 1. Live Salary & Statutory Overview Banner */}
       <SalaryPreviewCard
         employeeName={nameValue}
@@ -537,40 +617,6 @@ export function GTR30EmployeeMasterForm({
         effectiveDaPercent={effectiveDaPercent}
         onRecalculate={() => handlePayChange(String(basic))}
       />
-
-      {/* 2. Robust Segmented Horizontal Navigation Bar */}
-      <div className="bg-slate-100/90 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-left ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 ring-1 ring-blue-500'
-                    : 'bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700'
-                }`}
-              >
-                <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-blue-600'}`} />
-                <div className="truncate">
-                  <div className="leading-tight">{tab.label}</div>
-                  <div
-                    className={`text-[10px] font-normal truncate hidden sm:block ${
-                      isActive ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'
-                    }`}
-                  >
-                    {tab.desc}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       {submitStatus && (
         <div
@@ -589,6 +635,36 @@ export function GTR30EmployeeMasterForm({
         </div>
       )}
 
+      {/* 2. Section Navigation Bar (Direct Section Switcher) */}
+      <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto app-scroll">
+        <nav className="flex items-center gap-2 min-w-max" aria-label="Form Sections">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all select-none ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <div className="text-left">
+                  <div className="leading-tight">{tab.label}</div>
+                  <div className={`text-xs font-normal leading-none mt-0.5 ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>
+                    {tab.desc}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
       {/* 3. Tab Contents Container */}
       <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm min-h-[340px]">
         {/* TAB 1: 👤 Personal Profile & Identification */}
@@ -596,9 +672,9 @@ export function GTR30EmployeeMasterForm({
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">Personal &amp; Designation Details</h3>
+              <h3 className="text-xs font-bold text-slate-900">Personal &amp; Designation Details</h3>
             </div>
-            <span className="text-[11px] text-slate-500">Step 1 of 5</span>
+            <span className="text-xs text-slate-500">Step 1 of 5</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -615,7 +691,7 @@ export function GTR30EmployeeMasterForm({
                 <Input
                   id="name"
                   {...register('name')}
-                  className="pl-9 text-sm font-bold"
+                  className="pl-9 text-xs font-bold"
                   placeholder="e.g. Shri R.B.Makvana"
                   autoComplete="off"
                   onChange={(e) => {
@@ -624,7 +700,7 @@ export function GTR30EmployeeMasterForm({
                   }}
                 />
               </div>
-              {errors.name && <p className="text-red-500 text-[11px] mt-1">{errors.name.message}</p>}
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
               {showDropdown && (
                 <div className="absolute z-30 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
                   {searchResults.map((option) => (
@@ -634,12 +710,12 @@ export function GTR30EmployeeMasterForm({
                       onClick={() => selectOption(option)}
                       className="w-full text-left px-3 py-2.5 hover:bg-blue-50/70 border-b border-slate-100 last:border-0 transition-colors flex items-center justify-between gap-2"
                     >
-                      <span className="font-semibold text-sm text-slate-800 truncate">{option.name}</span>
+                      <span className="font-semibold text-xs text-slate-800 truncate">{option.name}</span>
                       <span className="flex items-center gap-2 shrink-0">
                         {option.hrpnNo && (
                           <span className="text-slate-500 font-mono text-xs">{option.hrpnNo}</span>
                         )}
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                        <span className="text-xs font-bold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
                           GTR-30 Master
                         </span>
                       </span>
@@ -657,11 +733,11 @@ export function GTR30EmployeeMasterForm({
               <Input
                 id="hrpnNo"
                 {...register('hrpnNo')}
-                className="mt-1 font-mono uppercase text-sm"
+                className="mt-1 font-mono uppercase text-xs"
                 placeholder="e.g. 100123"
                 maxLength={50}
               />
-              {errors.hrpnNo && <p className="text-red-500 text-[11px] mt-1">{errors.hrpnNo.message}</p>}
+              {errors.hrpnNo && <p className="text-red-500 text-xs mt-1">{errors.hrpnNo.message}</p>}
             </div>
 
             {/* Cadre Class */}
@@ -672,7 +748,7 @@ export function GTR30EmployeeMasterForm({
               <select
                 id="cadreClass"
                 {...register('cadreClass')}
-                className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-serif font-bold"
+                className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs font-gujSans font-bold"
               >
                 <option value="૧">વર્ગ ૧ (Class 1 - Gazetted Officer)</option>
                 <option value="૨">વર્ગ ૨ (Class 2 - Gazetted Officer)</option>
@@ -691,7 +767,7 @@ export function GTR30EmployeeMasterForm({
                 <Input
                   id="designation"
                   {...register('designation')}
-                  className="pl-9 text-sm"
+                  className="pl-9 text-xs"
                   placeholder="e.g. Research Assistant"
                 />
               </div>
@@ -705,7 +781,7 @@ export function GTR30EmployeeMasterForm({
               <Input
                 id="designationGujarati"
                 {...register('designationGujarati')}
-                className="mt-1 text-sm font-serif font-medium"
+                className="mt-1 text-xs font-gujSans font-medium"
                 placeholder="e.g. સંશોધન મદદનીશ"
               />
             </div>
@@ -718,7 +794,7 @@ export function GTR30EmployeeMasterForm({
               <Input
                 id="ppaNo"
                 {...register('ppaNo')}
-                className="mt-1 text-sm font-mono"
+                className="mt-1 text-xs num"
                 placeholder="Applied"
               />
             </div>
@@ -731,10 +807,10 @@ export function GTR30EmployeeMasterForm({
               <select
                 id="billCode"
                 {...register('billCode')}
-                className="mt-1 w-full h-9 rounded-md border border-blue-300 bg-white px-2.5 text-xs font-mono font-bold text-blue-950"
+                className="mt-1 w-full h-9 rounded-md border border-blue-300 bg-white px-2.5 text-xs num font-bold text-blue-950"
               >
-                {mappings.map((m) => (
-                  <option key={m.id} value={m.billCode}>
+                {availableBillCodes.map((m) => (
+                  <option key={m.billCode} value={m.billCode}>
                     {m.billCode} — {m.description}
                   </option>
                 ))}
@@ -748,309 +824,62 @@ export function GTR30EmployeeMasterForm({
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">7th Pay Matrix &amp; Basic Pay Configuration</h3>
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
-                {payEntriesValue.length} entr{payEntriesValue.length === 1 ? 'y' : 'ies'}
+              <h3 className="text-xs font-bold text-slate-900">7th Pay Matrix — Pay History</h3>
+              <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                {payEntriesValue.length} {payEntriesValue.length===1?'entry':'entries'}
               </span>
+              <span className="hidden sm:inline text-xs text-slate-500">• Current pay from history</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-500">Step 2 of 5</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 h-7 text-xs"
-                onClick={openNewPayRow}
-                disabled={showNewPayRow}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" /> New Pay Entry
-              </Button>
-            </div>
+            <span className="text-xs text-slate-500">Step 2 of 5</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Current Pay */}
-            <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200">
-              <div className="flex items-center gap-1">
-                <Label htmlFor="currentPay" className="text-xs font-bold text-blue-900">
-                  Current Pay (₹)
-                </Label>
-                <span className="text-red-500 text-xs">*</span>
-              </div>
-              <Input
-                id="currentPay"
-                type="number"
-                step="any"
-                {...register('currentPay')}
-                onChange={(e) => handlePayChange(e.target.value)}
-                className="mt-1.5 font-mono text-base font-black border-blue-300 bg-white text-blue-950"
-                placeholder="39900"
-              />
-              <p className="text-[11px] text-blue-700 mt-1">
-                Auto-calculates DA ({effectiveDaPercent}%), NPS (10%), and Gujarat Professional Tax.
-              </p>
-              {(() => {
-                const latestEntry = payEntriesValue[payEntriesValue.length - 1];
-                if (!latestEntry) return null;
-                return (
-                  <p className="text-[10px] text-blue-800 mt-0.5 font-semibold">
-                    Current in matrix: ₹{(latestEntry.basicPay ?? 0).toLocaleString('en-IN')}
-                    {latestEntry.startDate ? ` since ${formatDate(latestEntry.startDate)}` : ''}
-                  </p>
-                );
-              })()}
-              {errors.currentPay && <p className="text-red-500 text-[11px] mt-1">{errors.currentPay.message}</p>}
-            </div>
+          {/* Hidden single-source fields — Current Pay is derived from Pay History */}
+          <input type="hidden" {...register('currentPay')} />
+          <input type="hidden" {...register('currentPayDate')} />
+          {errors.currentPay && <p className="text-red-500 text-xs">{errors.currentPay.message}</p>}
+          {errors.currentPayDate && <p className="text-red-500 text-xs">{errors.currentPayDate.message}</p>}
 
-            {/* Pay Increment Date */}
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <Label htmlFor="currentPayDate" className="text-xs font-semibold text-slate-700">
-                Pay Increment Date
-              </Label>
-              <Input
-                id="currentPayDate"
-                type="date"
-                {...register('currentPayDate')}
-                onChange={(e) => handlePayDateChange(e.target.value)}
-                className="mt-1 text-sm font-mono"
-              />
-              {errors.currentPayDate && (
-                <p className="text-red-500 text-[11px] mt-1">{errors.currentPayDate.message}</p>
-              )}
+              <div className="text-xs font-bold text-indigo-900">Pay managed via History Timeline below</div>
+              <div className="text-xs text-indigo-700">Current Pay auto from last entry • DA {effectiveDaPercent}% • NPS 10% • {payEntriesValue.length} {payEntriesValue.length===1?'entry':'entries'}</div>
             </div>
-
-            {/* 7th Pay Scale Selector */}
-            <div>
-              <Label htmlFor="payScale" className="text-xs font-semibold text-slate-700">
-                Pay Scale
-              </Label>
-              <Input
-                id="payScale"
-                {...register('payScale')}
-                className="mt-1 text-sm font-semibold"
-                placeholder="34,500-1,12,400"
-                onChange={(e) => {
-                  setValue('payScale', e.target.value);
-                  const m = findPayScaleMappingByScale(e.target.value);
-                  if (m) {
-                    setValue('gradePay', m.gradePay);
-                    setValue('cadreClass', m.cadreClass);
-                  }
-                }}
-              />
-              <select
-                className="mt-1.5 w-full text-xs h-7 rounded border border-slate-300 bg-slate-50 px-2 font-medium text-slate-700 truncate"
-                onChange={(e) => {
-                  if (e.target.value) handlePayScaleSelect(e.target.value);
-                }}
-                defaultValue=""
-              >
-                <option value="" disabled>Select 7th Pay Scale preset...</option>
-                {PAY_SCALE_CATALOG.map((m) => (
-                  <option key={m.id} value={m.payScale}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Grade Pay */}
-            <div>
-              <Label htmlFor="gradePay" className="text-xs font-semibold text-slate-700">
-                Grade Pay
-              </Label>
-              <Input
-                id="gradePay"
-                {...register('gradePay')}
-                className="mt-1 text-sm font-semibold font-mono"
-                placeholder="e.g. GP:4200"
-              />
-            </div>
-
-            {/* Pay Level / Cell */}
-            <div className="sm:col-span-2">
-              <Label htmlFor="payLevelCell" className="text-xs font-semibold text-slate-700">
-                Pay Level / Cell String (Schedule P3)
-              </Label>
-              <Input
-                id="payLevelCell"
-                {...register('payLevelCell')}
-                className="mt-1 text-sm font-mono"
-                placeholder="PAY=39900 (LEVEL CELL-7)"
-              />
-            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-indigo-700 border border-indigo-200">
+              <History size={12} /> {payEntriesValue.length ? `₹${(payEntriesValue[payEntriesValue.length-1]?.basicPay ?? 0).toLocaleString('en-IN')}` : 'No pay yet'} {payEntriesValue.length ? `• ${formatDate(payEntriesValue[payEntriesValue.length-1]?.startDate)}` : ''}
+            </span>
           </div>
 
-          {/* Integrated Pay Matrix: current entry on top, history below — all editable */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-500">
-                  <th className="px-2 py-2 text-left font-semibold">#</th>
-                  <th className="px-2 py-2 text-left font-semibold">Effective From</th>
-                  <th className="px-2 py-2 text-left font-semibold">Valid Until</th>
-                  <th className="px-2 py-2 text-right font-semibold">Basic Pay (₹)</th>
-                  <th className="px-2 py-2 text-left font-semibold">Status</th>
-                  <th className="px-2 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {showNewPayRow && (
-                  <tr className="bg-indigo-50/70 border-t border-indigo-200">
-                    <td className="px-2 py-2 text-[11px] text-indigo-400 font-mono align-middle">
-                      <Plus className="h-3.5 w-3.5" />
-                    </td>
-                    <td className="px-2 py-2">
-                      <Label htmlFor="newPayStart" className="text-[10px] font-semibold text-indigo-900">
-                        Effective From
-                      </Label>
-                      <Input
-                        id="newPayStart"
-                        type="date"
-                        value={newPayStart}
-                        onChange={(e) => setNewPayStart(e.target.value)}
-                        className="mt-0.5 h-8 text-xs font-mono border-indigo-300 bg-white"
-                      />
-                    </td>
-                    <td className="px-2 py-2">
-                      <Label htmlFor="newPayAmount" className="text-[10px] font-semibold text-indigo-900">
-                        New Basic Pay (₹)
-                      </Label>
-                      <Input
-                        id="newPayAmount"
-                        type="number"
-                        step="any"
-                        value={newPayAmount}
-                        onChange={(e) => setNewPayAmount(e.target.value)}
-                        className="mt-0.5 h-8 text-xs font-mono border-indigo-300 bg-white"
-                        placeholder="42500"
-                      />
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      {newPayError && (
-                        <p className="text-red-500 text-[10px] flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" /> {newPayError}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-2 py-2">
-                      <span className="text-[10px] font-semibold text-indigo-500">New</span>
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white h-8 text-xs"
-                          onClick={confirmAddPayEntry}
-                        >
-                          Add
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 text-xs text-slate-500"
-                          onClick={() => setShowNewPayRow(false)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
+          {/* Pay Scale / Grade / Level hidden — kept for Schedule P3 print but not shown in minimal pay matrix */}
+          <input type="hidden" {...register('payScale')} />
+          <input type="hidden" {...register('gradePay')} />
+          <input type="hidden" {...register('payLevelCell')} />
 
-                {payEntriesValue.length === 0 && !showNewPayRow && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-xs text-slate-500">
-                      No pay entries yet. Enter a pay increment date above, or add your first entry —
-                      the bill generator automatically uses the pay active on the bill month.
-                    </td>
-                  </tr>
-                )}
-
-                {[...payEntriesValue].reverse().map((entry, displayIdx) => {
-                  const actualIdx = payEntriesValue.length - 1 - displayIdx;
-                  const isOpen = !entry.endDate;
-                  const isCurrent = actualIdx === payEntriesValue.length - 1;
-                  return (
-                    <tr
-                      key={entry.id}
-                      className={`border-t border-slate-100 ${
-                        isCurrent ? 'bg-indigo-50/50' : 'bg-white'
-                      }`}
-                    >
-                      <td className="px-2 py-1.5 text-[11px] text-slate-500 font-mono">
-                        {displayIdx + 1}
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <Input
-                          type="date"
-                          value={entry.startDate}
-                          onChange={(e) => updateEntryRaw(actualIdx, 'startDate', e.target.value)}
-                          onBlur={normalizeNow}
-                          className="h-8 text-xs font-mono"
-                        />
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <Input
-                          type="date"
-                          value={entry.endDate ?? ''}
-                          onChange={(e) => updateEntryRaw(actualIdx, 'endDate', e.target.value)}
-                          onBlur={normalizeNow}
-                          className="h-8 text-xs font-mono"
-                        />
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <Input
-                          type="number"
-                          step="any"
-                          value={entry.basicPay}
-                          onChange={(e) => updateEntryRaw(actualIdx, 'basicPay', e.target.value)}
-                          onBlur={normalizeNow}
-                          className="h-8 text-xs font-mono text-right"
-                        />
-                      </td>
-                      <td className="px-2 py-1.5">
-                        {isCurrent ? (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                            Current
-                          </span>
-                        ) : isOpen ? (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">
-                            Open
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">
-                            History
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5 text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => deletePayEntry(actualIdx)}
-                          title="Delete this pay entry"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Refined Pay History — single source for pay changes (gtr30/payHistory integrated) */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+            <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+              <History className="h-3.5 w-3.5" /> Pay History Timeline
+              <span className="ml-auto hidden text-xs font-normal normal-case tracking-normal text-slate-500 sm:inline">Current Pay is derived from last entry — edit history to change pay</span>
+            </div>
+            <PayTimeline
+              value={(payEntriesValue as unknown as PayEntry[]) ?? []}
+              onChange={(next) => {
+                const norm = normalizePayHistoryGTR(next as unknown as PayEntry[]);
+                setValue('payEntries', norm as never, { shouldDirty: true, shouldValidate: true });
+                const last = norm[norm.length - 1];
+                if (last) {
+                  setValue('currentPay', last.basicPay as never, { shouldDirty: true });
+                  setValue('currentPayDate', last.startDate as never, { shouldDirty: true });
+                } else {
+                  setValue('currentPay', 0 as never, { shouldDirty: true });
+                  setValue('currentPayDate', '' as never, { shouldDirty: true });
+                }
+              }}
+            />
           </div>
-          {payEntriesValue.length > 0 && (
-            <p className="text-[11px] text-slate-500 flex items-center gap-1">
-              <CalendarRange className="h-3 w-3" />
-              The top row is the current pay. Bills use the pay active on the bill month — mid-month
-              changes are split day-by-day (e.g. ₹39,900 until 30-01-2027 → ₹42,500 from 01-02-2027).
-            </p>
-          )}
+          <p className="text-xs text-slate-500 flex items-center gap-1">
+            <CalendarRange className="h-3 w-3" />
+            Pay History is the single source: bills use pay active on bill month (prorated). Reason / Order No kept for audit.
+          </p>
         </div>
 
         {/* TAB 3: 📈 Allowances & Earnings */}
@@ -1058,9 +887,9 @@ export function GTR30EmployeeMasterForm({
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-emerald-600" />
-              <h3 className="text-sm font-bold text-slate-900">Monthly Allowances &amp; Earnings (₹)</h3>
+              <h3 className="text-xs font-bold text-slate-900">Monthly Allowances &amp; Earnings (₹)</h3>
             </div>
-            <span className="text-[11px] text-slate-500">Step 3 of 5</span>
+            <span className="text-xs text-slate-500">Step 3 of 5</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1070,7 +899,7 @@ export function GTR30EmployeeMasterForm({
                 <Label htmlFor="da" className="text-xs font-bold text-emerald-900">
                   Dearness Allowance (DA {effectiveDaPercent}%)
                 </Label>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
                   {effectiveDaPercent}% Auto
                 </span>
               </div>
@@ -1079,7 +908,7 @@ export function GTR30EmployeeMasterForm({
                 type="number"
                 step="any"
                 {...register('da')}
-                className="mt-1.5 font-mono text-sm font-bold bg-white"
+                className="mt-1.5 num text-xs font-bold bg-white"
                 placeholder="21147"
               />
             </div>
@@ -1090,14 +919,14 @@ export function GTR30EmployeeMasterForm({
                 <Label htmlFor="hraPercent" className="text-xs font-bold text-emerald-900">
                   HRA %
                 </Label>
-                <span className="text-[10px] font-semibold text-emerald-700">₹{hraAmt.toLocaleString('en-IN')} (Calculated on Basic)</span>
+                <span className="text-xs font-semibold text-emerald-700">₹{hraAmt.toLocaleString('en-IN')} (Calculated on Basic)</span>
               </div>
               <Input
                 id="hraPercent"
                 type="number"
                 step="any"
                 {...register('hraPercent')}
-                className="mt-1.5 font-mono text-sm font-bold bg-white"
+                className="mt-1.5 num text-xs font-bold bg-white"
                 placeholder="0"
               />
               <select
@@ -1124,13 +953,13 @@ export function GTR30EmployeeMasterForm({
                 Transport Allowance (TA)
               </Label>
               <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs num">₹</span>
                 <Input
                   id="transportAllowance"
                   type="number"
                   step="any"
                   {...register('transportAllowance')}
-                  className="pl-7 font-mono text-sm tabular-nums"
+                  className="pl-7 num text-xs tabular-nums"
                   placeholder="3,600"
                 />
               </div>
@@ -1142,13 +971,13 @@ export function GTR30EmployeeMasterForm({
                 Medical Allowance
               </Label>
               <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs num">₹</span>
                 <Input
                   id="medicalAllowance"
                   type="number"
                   step="any"
                   {...register('medicalAllowance')}
-                  className="pl-7 font-mono text-sm tabular-nums"
+                  className="pl-7 num text-xs tabular-nums"
                   placeholder="1,000"
                 />
               </div>
@@ -1160,13 +989,13 @@ export function GTR30EmployeeMasterForm({
                 City Compensatory (CLA)
               </Label>
               <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs num">₹</span>
                 <Input
                   id="claAllowance"
                   type="number"
                   step="any"
                   {...register('claAllowance')}
-                  className="pl-7 font-mono text-sm tabular-nums"
+                  className="pl-7 num text-xs tabular-nums"
                   placeholder="270"
                 />
               </div>
@@ -1179,9 +1008,9 @@ export function GTR30EmployeeMasterForm({
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <TrendingDown className="h-4 w-4 text-rose-600" />
-              <h3 className="text-sm font-bold text-slate-900">Statutory Deductions &amp; Recoveries (₹)</h3>
+              <h3 className="text-xs font-bold text-slate-900">Statutory Deductions &amp; Recoveries (₹)</h3>
             </div>
-            <span className="text-[11px] text-slate-500">Step 4 of 5</span>
+            <span className="text-xs text-slate-500">Step 4 of 5</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1191,7 +1020,7 @@ export function GTR30EmployeeMasterForm({
                 <Label htmlFor="npsPension" className="text-xs font-bold text-amber-950">
                   NPS Pension (9534 - 10%)
                 </Label>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900">
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900">
                   10% (Basic+DA)
                 </span>
               </div>
@@ -1200,7 +1029,7 @@ export function GTR30EmployeeMasterForm({
                 type="number"
                 step="any"
                 {...register('npsPension')}
-                className="mt-1.5 font-mono text-sm font-bold bg-white"
+                className="mt-1.5 num text-xs font-bold bg-white"
                 placeholder="6105"
               />
             </div>
@@ -1211,14 +1040,14 @@ export function GTR30EmployeeMasterForm({
                 <Label htmlFor="professionalTax" className="text-xs font-bold text-amber-950">
                   Professional Tax (9570)
                 </Label>
-                <span className="text-[10px] font-semibold text-amber-800">Gujarat Slab</span>
+                <span className="text-xs font-semibold text-amber-800">Gujarat Slab</span>
               </div>
               <Input
                 id="professionalTax"
                 type="number"
                 step="any"
                 {...register('professionalTax')}
-                className="mt-1.5 font-mono text-sm font-bold bg-white"
+                className="mt-1.5 num text-xs font-bold bg-white"
                 placeholder="200"
               />
             </div>
@@ -1229,13 +1058,13 @@ export function GTR30EmployeeMasterForm({
                 ICDP Credit Society
               </Label>
               <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs num">₹</span>
                 <Input
                   id="societyDeduction"
                   type="number"
                   step="any"
                   {...register('societyDeduction')}
-                  className="pl-7 font-mono text-sm tabular-nums"
+                  className="pl-7 num text-xs tabular-nums"
                   placeholder="4,154"
                 />
               </div>
@@ -1258,7 +1087,7 @@ export function GTR30EmployeeMasterForm({
                     id="insuranceGroup"
                     {...register('insuranceGroup')}
                     onChange={(e) => handleGISGroupChange(e.target.value)}
-                    className="mt-1 w-full h-9 rounded-md border border-purple-300 bg-white px-2.5 text-sm font-serif font-bold text-purple-950"
+                    className="mt-1 w-full h-9 rounded-md border border-purple-300 bg-white px-2.5 text-xs font-gujSans font-bold text-purple-950"
                   >
                     <option value="ક">ક — Class 1 (Ins: ₹480 / Sav: ₹1120)</option>
                     <option value="ખ">ખ — Class 2 (Ins: ₹240 / Sav: ₹560)</option>
@@ -1272,13 +1101,13 @@ export function GTR30EmployeeMasterForm({
                     GIS Ins. Fund (9581)
                   </Label>
                   <div className="relative mt-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs num">₹</span>
                     <Input
                       id="gis1981Insurance"
                       type="number"
                       step="any"
                       {...register('gis1981Insurance')}
-                      className="pl-7 font-mono text-sm tabular-nums bg-white"
+                      className="pl-7 num text-xs tabular-nums bg-white"
                       placeholder="240"
                     />
                   </div>
@@ -1289,13 +1118,13 @@ export function GTR30EmployeeMasterForm({
                     GIS Sav. Fund (9582)
                   </Label>
                   <div className="relative mt-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs num">₹</span>
                     <Input
                       id="gis1981Savings"
                       type="number"
                       step="any"
                       {...register('gis1981Savings')}
-                      className="pl-7 font-mono text-sm tabular-nums bg-white"
+                      className="pl-7 num text-xs tabular-nums bg-white"
                       placeholder="560"
                     />
                   </div>
@@ -1310,9 +1139,9 @@ export function GTR30EmployeeMasterForm({
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <Home className="h-4 w-4 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">Govt. Quarters, Rent &amp; Additional Information</h3>
+              <h3 className="text-xs font-bold text-slate-900">Govt. Quarters, Rent &amp; Additional Information</h3>
             </div>
-            <span className="text-[11px] text-slate-500">Step 5 of 5</span>
+            <span className="text-xs text-slate-500">Step 5 of 5</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1322,13 +1151,13 @@ export function GTR30EmployeeMasterForm({
                 Rent of Building Recovery (9550)
               </Label>
               <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs num">₹</span>
                 <Input
                   id="rentOfBuilding"
                   type="number"
                   step="any"
                   {...register('rentOfBuilding')}
-                  className="pl-7 font-mono text-sm tabular-nums"
+                  className="pl-7 num text-xs tabular-nums"
                   placeholder="300"
                 />
               </div>
@@ -1342,7 +1171,7 @@ export function GTR30EmployeeMasterForm({
               <select
                 id="insuranceType"
                 {...register('insuranceType')}
-                className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+                className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs"
               >
                 <option value="savings_and_insurance">Savings &amp; Insurance Combined</option>
                 <option value="insurance_only">Insurance Only</option>
@@ -1357,7 +1186,7 @@ export function GTR30EmployeeMasterForm({
               <Input
                 id="quarterAddress"
                 {...register('quarterAddress')}
-                className="mt-1 text-sm"
+                className="mt-1 text-xs"
                 placeholder="H-7, Government Quarters, Khatodara, Nr. Sub Jail, Surat"
               />
               {Number(rentValue || 0) > 0 && !addressValue && (
@@ -1376,7 +1205,7 @@ export function GTR30EmployeeMasterForm({
               <Input
                 id="remarks"
                 {...register('remarks')}
-                className="mt-1 text-sm"
+                className="mt-1 text-xs"
                 placeholder="e.g. Promoted to Senior Scale w.e.f. July 2026"
               />
             </div>
@@ -1425,19 +1254,37 @@ export function GTR30EmployeeMasterForm({
             type="submit"
             disabled={isSubmitting}
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 shadow-sm shadow-blue-600/20"
+            onClick={() => setShouldCloseAfterSave(false)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 shadow-sm shadow-blue-600/20"
           >
-            {isSubmitting ? (
+            {isSubmitting && !shouldCloseAfterSave ? (
               <>
                 <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Saving...
               </>
             ) : editingEmployee ? (
               <>
-                <Save className="h-3.5 w-3.5 mr-1.5" /> Update Employee Master
+                <Save className="h-3.5 w-3.5 mr-1.5" /> Save
               </>
             ) : (
               <>
-                <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Add Employee Master
+                <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Save
+              </>
+            )}
+          </Button>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            size="sm"
+            onClick={() => setShouldCloseAfterSave(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 shadow-sm shadow-emerald-600/20"
+          >
+            {isSubmitting && shouldCloseAfterSave ? (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-3.5 w-3.5 mr-1.5" /> Save &amp; Close
               </>
             )}
           </Button>

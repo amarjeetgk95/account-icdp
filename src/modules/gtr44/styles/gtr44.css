@@ -92,9 +92,11 @@
 }
 
 .gtr44-summary-value {
-  font-family: 'Courier New', monospace;
+  font-family: inherit;
   font-weight: 700;
   font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 .gtr44-summary-gross {

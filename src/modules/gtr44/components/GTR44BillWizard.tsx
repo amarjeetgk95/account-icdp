@@ -317,7 +317,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                 <h3
                   ref={stepHeadingRef}
                   tabIndex={-1}
-                  className="font-semibold text-foreground text-sm uppercase focus:outline-none"
+                  className="font-semibold text-foreground text-xs uppercase focus:outline-none"
                 >
                   Voucher Entry
                 </h3>
@@ -329,7 +329,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
               </div>
               <div className="shrink-0 text-right">
                 <div className="text-xs text-muted-foreground">Gross Total</div>
-                <div className="font-mono font-bold text-lg text-foreground">
+                <div className="num font-bold text-xs text-foreground">
                   {formatCurrency(grossAmount)}
                 </div>
               </div>
@@ -368,7 +368,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
               <h3
                 ref={stepHeadingRef}
                 tabIndex={-1}
-                className="font-semibold text-foreground text-sm uppercase focus:outline-none"
+                className="font-semibold text-foreground text-xs uppercase focus:outline-none"
               >
                 Budget Head Selection
               </h3>
@@ -385,7 +385,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
             )}
             {budgetHeads.length === 0 && (
               <Card className="border border-border p-6 text-center bg-card">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   No Budget Heads available. Add one from the GTR-44 Settings page.
                 </p>
                 <Button
@@ -420,14 +420,14 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="font-semibold text-foreground text-sm">{head.name}</div>
+                      <div className="font-semibold text-foreground text-xs">{head.name}</div>
                       {selected && (
                         <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground shrink-0">
                           <Check className="h-3 w-3" />
                         </span>
                       )}
                     </div>
-                    <div className="mt-3 space-y-1 text-xs text-muted-foreground font-mono">
+                    <div className="mt-3 space-y-1 text-xs text-muted-foreground num">
                       <div>
                         Head Chargeable:{' '}
                         <strong className="text-foreground font-bold">{head.headChargeableCode}</strong>
@@ -487,29 +487,29 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
             <div className="grid grid-cols-3 gap-3 text-xs">
               <div className="bg-muted/50 border border-border rounded-xl p-3">
                 <div className="text-muted-foreground">Gross Amount</div>
-                <div className="font-mono font-bold text-sm text-foreground">{formatCurrency(grossAmount)}</div>
+                <div className="num font-bold text-xs text-foreground">{formatCurrency(grossAmount)}</div>
               </div>
               <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl p-3">
                 <div className="text-amber-800 dark:text-amber-300">Total Deductions</div>
-                <div className="font-mono font-bold text-sm text-amber-900 dark:text-amber-200">{formatCurrency(totalDeduction)}</div>
-                <div className="text-[11px] text-muted-foreground mt-1">GST total {formatCurrency(gstTotalComputed)} incl. CGST/SGST</div>
+                <div className="num font-bold text-xs text-amber-900 dark:text-amber-200">{formatCurrency(totalDeduction)}</div>
+                <div className="text-xs text-muted-foreground mt-1">GST total {formatCurrency(gstTotalComputed)} incl. CGST/SGST</div>
               </div>
               <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-xl p-3">
                 <div className="text-emerald-800 dark:text-emerald-300">Net Payable</div>
-                <div className="font-mono font-bold text-sm text-emerald-900 dark:text-emerald-200">{formatCurrency(Math.max(0, netAmount))}</div>
-                <div className="text-[11px] text-muted-foreground mt-1">Total A (9510+9520+9600) {formatCurrency(totalA)}</div>
+                <div className="num font-bold text-xs text-emerald-900 dark:text-emerald-200">{formatCurrency(Math.max(0, netAmount))}</div>
+                <div className="text-xs text-muted-foreground mt-1">Total A (9510+9520+9600) {formatCurrency(totalA)}</div>
               </div>
             </div>
 
             <Card className="border border-border p-6 bg-card">
-              <h3 className="font-semibold text-foreground text-sm uppercase mb-1">
+              <h3 className="font-semibold text-foreground text-xs uppercase mb-1">
                 Deductions — Page 1 (EDP 9510 / 9520 / 9600 / 9910)
               </h3>
               <p className="text-xs text-muted-foreground mb-4">
                 All 5 deduction rows from Page 1 of GTR-44. Values flow to the expenditure table deduction
                 rows and to totals.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 <div className="space-y-2">
                   <Label>{labelFor('9510', 'Income Tax')} (EDP 9510-) (₹)</Label>
                   <Input
@@ -521,10 +521,10 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                       const v = parseFloat(e.target.value) || 0;
                       updateDeduction('incomeTax', v);
                     }}
-                    className="font-mono font-bold"
+                    className="num font-bold"
                     placeholder="0.00"
                   />
-                  <p className="text-[11px] text-muted-foreground">Maps to incomeTax + tds9510 (legacy)</p>
+                  <p className="text-xs text-muted-foreground">Maps to incomeTax + tds9510 (legacy)</p>
                 </div>
                 <div className="space-y-2">
                   <Label>{labelFor('9520', 'Surcharge')} (EDP 9520-) (₹)</Label>
@@ -534,7 +534,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                     min="0"
                     value={formData.deductions.surcharge9520 || 0}
                     onChange={(e) => updateDeduction('surcharge9520', parseFloat(e.target.value) || 0)}
-                    className="font-mono font-bold"
+                    className="num font-bold"
                     placeholder="0.00"
                   />
                 </div>
@@ -546,7 +546,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                     min="0"
                     value={formData.deductions.sd9600 || 0}
                     onChange={(e) => updateDeduction('sd9600', parseFloat(e.target.value) || 0)}
-                    className="font-mono font-bold"
+                    className="num font-bold"
                     placeholder="0.00"
                   />
                 </div>
@@ -558,7 +558,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                     min="0"
                     value={formData.deductions.misc9910 || 0}
                     onChange={(e) => updateDeduction('misc9910', parseFloat(e.target.value) || 0)}
-                    className="font-mono font-bold"
+                    className="num font-bold"
                     placeholder="0.00"
                   />
                 </div>
@@ -566,27 +566,27 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
               <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                 <div className="bg-muted/50 border border-border rounded-lg p-2.5">
                   <div className="text-muted-foreground">Total A (9510+9520+9600)</div>
-                  <div className="font-mono font-bold text-foreground">{formatCurrency(totalA)}</div>
+                  <div className="num font-bold text-foreground">{formatCurrency(totalA)}</div>
                 </div>
                 <div className="bg-muted/50 border border-border rounded-lg p-2.5">
                   <div className="text-muted-foreground">Misc (9910)</div>
-                  <div className="font-mono font-bold text-foreground">{formatCurrency(formData.deductions.misc9910 || 0)}</div>
+                  <div className="num font-bold text-foreground">{formatCurrency(formData.deductions.misc9910 || 0)}</div>
                 </div>
                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-2.5">
                   <div className="text-amber-800 dark:text-amber-300">GST Total (incl. splits)</div>
-                  <div className="font-mono font-bold text-amber-900 dark:text-amber-200">{formatCurrency(gstTotalComputed)}</div>
+                  <div className="num font-bold text-amber-900 dark:text-amber-200">{formatCurrency(gstTotalComputed)}</div>
                 </div>
               </div>
             </Card>
 
             <Card className="border border-border p-6 bg-card">
-              <h3 className="font-semibold text-foreground text-sm uppercase mb-1">
+              <h3 className="font-semibold text-foreground text-xs uppercase mb-1">
                 GST Deduction — splits &amp; GSTIN
               </h3>
               <p className="text-xs text-muted-foreground mb-4">
                 GST deduction is reflected in the checklist on Page 3. Total GST = GST base + CGST + SGST.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 <div className="space-y-2">
                   <Label>GST Base (₹)</Label>
                   <Input
@@ -595,7 +595,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                     min="0"
                     value={formData.deductions.gst || 0}
                     onChange={(e) => updateDeduction('gst', parseFloat(e.target.value) || 0)}
-                    className="font-mono font-bold"
+                    className="num font-bold"
                   />
                 </div>
                 <div className="space-y-2">
@@ -615,7 +615,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                     min="0"
                     value={formData.deductions.gstCgst || 0}
                     onChange={(e) => updateDeduction('gstCgst', parseFloat(e.target.value) || 0)}
-                    className="font-mono font-bold"
+                    className="num font-bold"
                   />
                 </div>
                 <div className="space-y-2">
@@ -626,13 +626,13 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                     min="0"
                     value={formData.deductions.gstSgst || 0}
                     onChange={(e) => updateDeduction('gstSgst', parseFloat(e.target.value) || 0)}
-                    className="font-mono font-bold"
+                    className="num font-bold"
                   />
                 </div>
                 <div className="col-span-2">
                   <div className="flex items-center justify-between bg-muted/50 border border-border rounded-lg p-2.5 text-xs">
                     <span className="text-muted-foreground">Computed GST Total (gst + CGST + SGST)</span>
-                    <span className="font-mono font-bold text-foreground">{formatCurrency(gstTotalComputed)}</span>
+                    <span className="num font-bold text-foreground">{formatCurrency(gstTotalComputed)}</span>
                   </div>
                 </div>
               </div>
@@ -649,7 +649,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
                 <h3
                   ref={stepHeadingRef}
                   tabIndex={-1}
-                  className="font-semibold text-foreground text-sm uppercase focus:outline-none"
+                  className="font-semibold text-foreground text-xs uppercase focus:outline-none"
                 >
                   Live Preview
                 </h3>
@@ -660,7 +660,7 @@ export function GTR44BillWizard({ initialData, onSubmit, isSubmitting = false }:
               </div>
               <div className="shrink-0 text-right">
                 <div className="text-xs text-muted-foreground">Net Payable</div>
-                <div className="font-mono font-bold text-lg text-foreground">
+                <div className="num font-bold text-xs text-foreground">
                   {formatCurrency(Math.max(0, netAmount))}
                 </div>
               </div>

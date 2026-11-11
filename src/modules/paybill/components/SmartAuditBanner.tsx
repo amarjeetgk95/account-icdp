@@ -39,7 +39,7 @@ export const SmartAuditBanner: React.FC<SmartAuditBannerProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
                 Smart Salary Audit &amp; Anomaly Detection
               </h4>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800">
@@ -105,7 +105,7 @@ export const SmartAuditBanner: React.FC<SmartAuditBannerProps> = ({
                       <Info size={14} className="text-blue-500 shrink-0" />
                     )}
                     <span>{a.title}</span>
-                    <span className="font-mono text-[0.7rem] bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                    <span className="font-mono text-xs bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded">
                       {a.hrpn}
                     </span>
                   </div>
@@ -113,7 +113,7 @@ export const SmartAuditBanner: React.FC<SmartAuditBannerProps> = ({
                   {a.type === 'NEW_EMPLOYEE' && onQuickAddEmployee && (
                     <button
                       onClick={() => onQuickAddEmployee(a.hrpn)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[0.7rem] font-bold bg-blue-600 text-white hover:bg-blue-700 transition shadow-2xs"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition shadow-2xs"
                     >
                       <UserPlus size={10} /> Quick Add
                     </button>
@@ -125,7 +125,7 @@ export const SmartAuditBanner: React.FC<SmartAuditBannerProps> = ({
                 </p>
 
                 {a.oldValue && a.newValue && (
-                  <div className="mt-1.5 flex items-center gap-2 text-[0.7rem] text-slate-500">
+                  <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-500">
                     <span>Master: <strong className="text-slate-700 dark:text-slate-300">{String(a.oldValue)}</strong></span>
                     &rarr;
                     <span>PDF: <strong className="text-indigo-600 dark:text-indigo-400">{String(a.newValue)}</strong></span>

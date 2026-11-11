@@ -1,5 +1,4 @@
 import type ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 import type { QuarterReport, BudgetHeadReport, TaxReconciliationReport } from '@/modules/payroll/types';
 import type { IncomeTaxReport, GSTReport } from '@/modules/parties/types';
 
@@ -31,6 +30,7 @@ const THEME = {
 
 async function saveWorkbook(workbook: ExcelJS.Workbook, fileName: string) {
   const buffer = await workbook.xlsx.writeBuffer();
+  const { saveAs } = await import('file-saver');
   saveAs(new Blob([buffer]), fileName);
 }
 
@@ -231,8 +231,8 @@ export async function export26QExcel(report: IncomeTaxReport, office?: OfficeHea
   ws.addRow([]);
 
   const headerRow = ws.addRow([
-    'S.No', 'Party / Vendor Name', 'PAN', 'Bill / Invoice No',
-    'Payment Date', 'Gross Amount Paid (₹)', 'TDS / Income Tax Deducted (₹)',
+    'S.No', 'Party / Vendor Name', 'PAN', 'DDO Bill No', 'Invoice No',
+    'Invoice Date', 'Settlement Date', 'Gross Amount Paid (₹)', 'TDS / Income Tax Deducted (₹)',
   ]);
   applyHeaderStyle(headerRow);
 
@@ -240,13 +240,23 @@ export async function export26QExcel(report: IncomeTaxReport, office?: OfficeHea
   report.rows.forEach((r, idx) => {
     sumAmount += r.amount || 0;
     sumTds += r.incomeTax || 0;
-    const row = ws.addRow([idx + 1, r.partyName, r.panNo, r.billNo, r.date, r.amount, r.incomeTax]);
+    const row = ws.addRow([
+      idx + 1,
+      r.partyName,
+      r.panNo,
+      r.ddoBillNo || '-',
+      r.billNo,
+      r.invoiceDate || r.date,
+      r.settlementDate || r.date,
+      r.amount,
+      r.incomeTax,
+    ]);
     applyDataStyle(row);
   });
 
-  const totalRow = ws.addRow(['TOTAL', '', '', '', '', sumAmount, sumTds]);
+  const totalRow = ws.addRow(['TOTAL', '', '', '', '', '', '', sumAmount, sumTds]);
   applyTotalStyle(totalRow);
-  ws.mergeCells(`A${totalRow.number}:E${totalRow.number}`);
+  ws.mergeCells(`A${totalRow.number}:G${totalRow.number}`);
 
   autoFitColumns(ws);
   await saveWorkbook(workbook, `Form26Q_${report.quarter}_FY${report.fy}.xlsx`);
@@ -270,23 +280,34 @@ export async function exportGSTExcel(report: GSTReport, office?: OfficeHeaderDet
 
   const headerRow = ws.addRow([
     'S.No', 'Vendor / Party Name', 'GSTIN', 'CPIN / Challan No',
-    'Bill No', 'Date', 'Taxable Amount (₹)', 'CGST (₹)', 'SGST (₹)',
-    'IGST (₹)', 'Total GST (₹)',
+    'DDO Bill No', 'Invoice No', 'Invoice Date', 'Settlement Date',
+    'Taxable Amount (₹)', 'CGST (₹)', 'SGST (₹)', 'IGST (₹)', 'Total GST (₹)',
   ]);
   applyHeaderStyle(headerRow);
 
   report.rows.forEach((r, idx) => {
     const row = ws.addRow([
-      idx + 1, r.partyName, r.gstNo, r.cpinNo, r.billNo, r.date,
-      r.amount, r.cgst, r.sgst, r.igst, r.totalGst,
+      idx + 1,
+      r.partyName,
+      r.gstNo,
+      r.cpinNo,
+      r.ddoBillNo || '-',
+      r.billNo,
+      r.invoiceDate || r.date,
+      r.settlementDate || r.date,
+      r.amount,
+      r.cgst,
+      r.sgst,
+      r.igst,
+      r.totalGst,
     ]);
     applyDataStyle(row);
   });
 
   const t = report.totals;
-  const totalRow = ws.addRow(['TOTAL', '', '', '', '', '', t.amount, t.cgst, t.sgst, t.igst, t.totalGst]);
+  const totalRow = ws.addRow(['TOTAL', '', '', '', '', '', '', '', t.amount, t.cgst, t.sgst, t.igst, t.totalGst]);
   applyTotalStyle(totalRow);
-  ws.mergeCells(`A${totalRow.number}:F${totalRow.number}`);
+  ws.mergeCells(`A${totalRow.number}:H${totalRow.number}`);
 
   autoFitColumns(ws);
   await saveWorkbook(workbook, `GST_Statement_${report.quarter}_FY${report.fy}.xlsx`);
@@ -454,6 +475,41 @@ export async function exportBudgetHeadExcel(report: BudgetHeadReport, office?: O
   }
 
   autoFitColumns(ws2);
+
+  // ==========================================
+  // Sheet 3: Employee-wise breakup per head
+  // ==========================================
+  const ws3 = workbook.addWorksheet('Employee-wise');
+  ws3.addRow(['BUDGET HEAD WISE SALARY STATEMENT — EMPLOYEE BREAKUP']).font = THEME.titleFont;
+  ws3.addRow([`Office Name: ${officeName}`]).font = THEME.boldFont;
+  ws3.addRow([`TAN: ${tan} | Address: ${address}`]);
+  ws3.addRow([`Financial Year: ${fyLabel}`]);
+  ws3.addRow([]);
+
+  const h3 = ws3.addRow([
+    'Budget Head Code', 'Budget Head Name', 'Employee Name', 'HRPN', 'PAN',
+    'Q1 Gross (₹)', 'Q1 IT (₹)', 'Q2 Gross (₹)', 'Q2 IT (₹)',
+    'Q3 Gross (₹)', 'Q3 IT (₹)', 'Q4 Gross (₹)', 'Q4 IT (₹)',
+    'FY Gross (₹)', 'FY IT (₹)', 'FY Net (₹)',
+  ]);
+  applyHeaderStyle(h3);
+
+  for (const g of report.groups) {
+    for (const m of g.members) {
+      const cells: Array<string | number> = [
+        g.code || 'UNASSIGNED', g.name, m.name, m.hprnNo || '-', m.pan,
+      ];
+      for (let qi = 0; qi < 4; qi++) {
+        const q = m.quarters[qi] || { gross: 0, da: 0, tax: 0, net: 0 };
+        cells.push(q.gross + q.da, q.tax);
+      }
+      cells.push(m.totals.gross + m.totals.da, m.totals.tax, m.totals.gross + m.totals.da - m.totals.tax);
+      const row = ws3.addRow(cells);
+      applyDataStyle(row);
+    }
+  }
+
+  autoFitColumns(ws3);
   await saveWorkbook(workbook, `BudgetHead_Statement_FY${fyLabel}.xlsx`);
 }
 
@@ -493,6 +549,8 @@ export async function exportTaxReconciliationExcel(
     'Total Employees:', s.totalEmployees,
     'Matched:', s.matchedCount,
     'Tax Mismatch:', s.taxMismatchCount,
+    'Regular Mismatch:', s.regularMismatchCount || 0,
+    'Arrears Mismatch:', s.arrearsMismatchCount || 0,
     'Missing in Payroll:', s.missingInPayrollCount,
     'Paybill Total TDS (₹):', s.totalPaybillTax,
     'Payroll Total TDS (₹):', s.totalPayrollTax,
@@ -500,6 +558,21 @@ export async function exportTaxReconciliationExcel(
   ]);
   sumRow1.font = THEME.boldFont;
   sumRow1.eachCell((cell) => {
+    cell.fill = slateFill;
+    cell.border = THEME.border;
+  });
+  const sumRow2 = ws.addRow([
+    'Regular PB:', s.totalPbRegular || 0,
+    'Regular PR:', s.totalPrRegular || 0,
+    'Regular Diff:', s.netRegularDiff || 0,
+    'DA-diff PB:', s.totalPbDaDiff || 0,
+    'DA-diff PR:', s.totalPrDaDiff || 0,
+    'Pay-diff PB:', s.totalPbPayDiff || 0,
+    'Pay-diff PR:', s.totalPrPayDiff || 0,
+    'Net Gross Diff (₹):', s.netGrossDiff,
+  ]);
+  sumRow2.font = THEME.boldFont;
+  sumRow2.eachCell((cell) => {
     cell.fill = slateFill;
     cell.border = THEME.border;
   });
@@ -512,20 +585,22 @@ export async function exportTaxReconciliationExcel(
 
   const h1 = ws.addRow([
     'Sr.', 'HRPN', 'Employee Name', 'PAN No.',
-    `Month 1: ${m1.work} (paid in ${m1.paid})`, '', '', '', '', '',
-    `Month 2: ${m2.work} (paid in ${m2.paid})`, '', '', '', '', '',
-    `Month 3: ${m3.work} (paid in ${m3.paid})`, '', '', '', '', '',
+    `Month 1: ${m1.work} (paid in ${m1.paid})`, '', '', '', '', '', '', '',
+    `Month 2: ${m2.work} (paid in ${m2.paid})`, '', '', '', '', '', '', '',
+    `Month 3: ${m3.work} (paid in ${m3.paid})`, '', '', '', '', '', '', '',
     'Quarterly Gross Salary', '', '',
+    'Quarterly Regular / Arrears', '', '', '', '',
     'Quarterly Tax (TDS)', '', '',
     'Reconciliation Status',
   ]);
 
   const h2 = ws.addRow([
     '', '', '', '',
-    'PB Gross', 'PR Gross', 'Gross Diff', 'PB IT', 'PR IT', 'Tax Diff',
-    'PB Gross', 'PR Gross', 'Gross Diff', 'PB IT', 'PR IT', 'Tax Diff',
-    'PB Gross', 'PR Gross', 'Gross Diff', 'PB IT', 'PR IT', 'Tax Diff',
+    'PB Gross', 'PR Gross', 'Gross Diff', 'Reg Diff', 'Arr Diff', 'PB IT', 'PR IT', 'Tax Diff',
+    'PB Gross', 'PR Gross', 'Gross Diff', 'Reg Diff', 'Arr Diff', 'PB IT', 'PR IT', 'Tax Diff',
+    'PB Gross', 'PR Gross', 'Gross Diff', 'Reg Diff', 'Arr Diff', 'PB IT', 'PR IT', 'Tax Diff',
     'Paybill Gross', 'Payroll Gross', 'Net Gross Diff',
+    'Reg PB', 'Reg PR', 'Reg Diff', 'DA+Pay Arr Diff', 'Arr PB-PR',
     'Paybill Total', 'Payroll Total', 'Net Tax Diff',
     '',
   ]);
@@ -537,33 +612,38 @@ export async function exportTaxReconciliationExcel(
   ws.mergeCells(`B${h1.number}:B${h2.number}`);
   ws.mergeCells(`C${h1.number}:C${h2.number}`);
   ws.mergeCells(`D${h1.number}:D${h2.number}`);
-  ws.mergeCells(`E${h1.number}:J${h1.number}`);
-  ws.mergeCells(`K${h1.number}:P${h1.number}`);
-  ws.mergeCells(`Q${h1.number}:V${h1.number}`);
-  ws.mergeCells(`W${h1.number}:Y${h1.number}`);
-  ws.mergeCells(`Z${h1.number}:AB${h1.number}`);
-  ws.mergeCells(`AC${h1.number}:AC${h2.number}`);
+  ws.mergeCells(`E${h1.number}:L${h1.number}`);
+  ws.mergeCells(`M${h1.number}:T${h1.number}`);
+  ws.mergeCells(`U${h1.number}:AB${h1.number}`);
+  ws.mergeCells(`AC${h1.number}:AE${h1.number}`);
+  ws.mergeCells(`AF${h1.number}:AJ${h1.number}`);
+  ws.mergeCells(`AK${h1.number}:AM${h1.number}`);
+  ws.mergeCells(`AN${h1.number}:AN${h2.number}`);
 
   // Data Rows
   report.rows.forEach((r, idx) => {
     const m = r.months;
+    const arrDiff = (x: (typeof m)[number]) => (x.daDiffDiff || 0) + (x.payDiffDiff || 0);
     const row = ws.addRow([
       idx + 1,
       r.hrpn,
       r.employeeName,
       r.pan,
-      m[0].paybillGross, m[0].payrollGross, m[0].grossDiff, m[0].paybillTax, m[0].payrollTax, m[0].taxDiff,
-      m[1].paybillGross, m[1].payrollGross, m[1].grossDiff, m[1].paybillTax, m[1].payrollTax, m[1].taxDiff,
-      m[2].paybillGross, m[2].payrollGross, m[2].grossDiff, m[2].paybillTax, m[2].payrollTax, m[2].taxDiff,
+      m[0].paybillGross, m[0].payrollGross, m[0].grossDiff, m[0].regularDiff || 0, arrDiff(m[0]), m[0].paybillTax, m[0].payrollTax, m[0].taxDiff,
+      m[1].paybillGross, m[1].payrollGross, m[1].grossDiff, m[1].regularDiff || 0, arrDiff(m[1]), m[1].paybillTax, m[1].payrollTax, m[1].taxDiff,
+      m[2].paybillGross, m[2].payrollGross, m[2].grossDiff, m[2].regularDiff || 0, arrDiff(m[2]), m[2].paybillTax, m[2].payrollTax, m[2].taxDiff,
       r.quarterPaybillGross, r.quarterPayrollGross, r.quarterGrossDiff,
+      r.quarterPbRegular || 0, r.quarterPrRegular || 0, r.quarterRegularDiff || 0,
+      (r.quarterDaDiffDiff || 0) + (r.quarterPayDiffDiff || 0),
+      ((r.quarterPbDaDiff || 0) + (r.quarterPbPayDiff || 0)) - ((r.quarterPrDaDiff || 0) + (r.quarterPrPayDiff || 0)),
       r.quarterPaybillTax, r.quarterPayrollTax, r.quarterTaxDiff,
       r.status,
     ]);
 
     applyDataStyle(row);
 
-    // Color code monthly and total diff cells (Gross Diff: 7, 13, 19, 25; Tax Diff: 10, 16, 22, 28)
-    const taxDiffCols = [10, 16, 22, 28];
+    // Color code monthly and total diff cells (Tax Diff: 12, 20, 28, 39; Gross/Reg/Arr: 7-9, 15-17, 23-25, 31, 34-35)
+    const taxDiffCols = [12, 20, 28, 39];
     taxDiffCols.forEach((colIdx) => {
       const cell = row.getCell(colIdx);
       const val = Number(cell.value) || 0;
@@ -573,7 +653,7 @@ export async function exportTaxReconciliationExcel(
       }
     });
 
-    const grossDiffCols = [7, 13, 19, 25];
+    const grossDiffCols = [7, 8, 9, 15, 16, 17, 23, 24, 25, 31, 34, 35];
     grossDiffCols.forEach((colIdx) => {
       const cell = row.getCell(colIdx);
       const val = Number(cell.value) || 0;
@@ -583,15 +663,15 @@ export async function exportTaxReconciliationExcel(
       }
     });
 
-    // Color code status column (Col 29 / AC)
-    const statusCell = row.getCell(29);
+    // Color code status column (Col 40 / AN)
+    const statusCell = row.getCell(40);
     if (r.status === 'MATCHED') {
       statusCell.fill = greenFill;
       statusCell.font = greenFont;
     } else if (r.status === 'TAX_MISMATCH') {
       statusCell.fill = roseFill;
       statusCell.font = roseFont;
-    } else if (r.status === 'GROSS_MISMATCH') {
+    } else if (r.status === 'GROSS_MISMATCH' || r.status === 'REGULAR_MISMATCH' || r.status === 'ARREARS_MISMATCH') {
       statusCell.fill = amberFill;
       statusCell.font = amberFont;
     } else if (r.status === 'MISSING_IN_PAYROLL' || r.status === 'MISSING_IN_PAYBILL') {
@@ -608,6 +688,8 @@ export async function exportTaxReconciliationExcel(
     report.rows.reduce((s, r) => s + r.months[0].paybillGross, 0),
     report.rows.reduce((s, r) => s + r.months[0].payrollGross, 0),
     report.rows.reduce((s, r) => s + r.months[0].grossDiff, 0),
+    report.rows.reduce((s, r) => s + (r.months[0].regularDiff || 0), 0),
+    report.rows.reduce((s, r) => s + (r.months[0].daDiffDiff || 0) + (r.months[0].payDiffDiff || 0), 0),
     report.rows.reduce((s, r) => s + r.months[0].paybillTax, 0),
     report.rows.reduce((s, r) => s + r.months[0].payrollTax, 0),
     report.rows.reduce((s, r) => s + r.months[0].taxDiff, 0),
@@ -615,6 +697,8 @@ export async function exportTaxReconciliationExcel(
     report.rows.reduce((s, r) => s + r.months[1].paybillGross, 0),
     report.rows.reduce((s, r) => s + r.months[1].payrollGross, 0),
     report.rows.reduce((s, r) => s + r.months[1].grossDiff, 0),
+    report.rows.reduce((s, r) => s + (r.months[1].regularDiff || 0), 0),
+    report.rows.reduce((s, r) => s + (r.months[1].daDiffDiff || 0) + (r.months[1].payDiffDiff || 0), 0),
     report.rows.reduce((s, r) => s + r.months[1].paybillTax, 0),
     report.rows.reduce((s, r) => s + r.months[1].payrollTax, 0),
     report.rows.reduce((s, r) => s + r.months[1].taxDiff, 0),
@@ -622,6 +706,8 @@ export async function exportTaxReconciliationExcel(
     report.rows.reduce((s, r) => s + r.months[2].paybillGross, 0),
     report.rows.reduce((s, r) => s + r.months[2].payrollGross, 0),
     report.rows.reduce((s, r) => s + r.months[2].grossDiff, 0),
+    report.rows.reduce((s, r) => s + (r.months[2].regularDiff || 0), 0),
+    report.rows.reduce((s, r) => s + (r.months[2].daDiffDiff || 0) + (r.months[2].payDiffDiff || 0), 0),
     report.rows.reduce((s, r) => s + r.months[2].paybillTax, 0),
     report.rows.reduce((s, r) => s + r.months[2].payrollTax, 0),
     report.rows.reduce((s, r) => s + r.months[2].taxDiff, 0),
@@ -629,6 +715,12 @@ export async function exportTaxReconciliationExcel(
     s.totalPaybillGross,
     s.totalPayrollGross,
     s.netGrossDiff,
+
+    s.totalPbRegular || 0,
+    s.totalPrRegular || 0,
+    s.netRegularDiff || 0,
+    (s.netDaDiffDiff || 0) + (s.netPayDiffDiff || 0),
+    ((s.totalPbDaDiff || 0) + (s.totalPbPayDiff || 0)) - ((s.totalPrDaDiff || 0) + (s.totalPrPayDiff || 0)),
 
     s.totalPaybillTax,
     s.totalPayrollTax,

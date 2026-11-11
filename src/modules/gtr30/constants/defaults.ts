@@ -188,9 +188,9 @@ export const sampleGTR30FormData: GTR30FormData = {
 
 export const DEFAULT_BILL_CODE_MAPPINGS: GTR30BillCodeMapping[] = [
   {
-    id: 'bc-1',
-    billCode: 'GTR30-SAL',
-    description: 'GTR-30 Regular Salary Bill',
+    id: 'bc-go-stats',
+    billCode: 'GTR-30-GO-STATS',
+    description: 'GTR-30 Gazetted Officers (Stats) Bill',
     controllingOfficer: '0101',
     classOfExpenditure: '1',
     fund: '3',
@@ -202,51 +202,31 @@ export const DEFAULT_BILL_CODE_MAPPINGS: GTR30BillCodeMapping[] = [
     sector: 'Sector-C-Economic Service',
     majorHead: 'Major Head-2403 Animal Husbandry',
     subMajorHead: '-',
-minorHead: 'Minor Head-113 Administrative Investigation and Statistics',
-  subHead:
-    'Sub Head-05 Scheme for Strengthening of Statistical Wing in Directorate of Animal Husbandry (Pay and Allowances for Centrally Sponsored Scheme)',
-  budgetYear: '2026-27',
-},
-{
-  id: 'bc-2',
-  billCode: 'GTR30-DA',
-  description: 'GTR-30 DA Arrears Bill',
-  controllingOfficer: '0101',
-  classOfExpenditure: '1',
-  fund: '3',
-  drawingOfficer: '299',
-  demandNo: '004',
-  typeOfBudget: '1',
-  schemeNo: '0000000',
-  headChargeable: '2403001139900',
-  sector: 'Sector-C-Economic Service',
-  majorHead: 'Major Head-2403 Animal Husbandry',
-  subMajorHead: '-',
-  minorHead: 'Minor Head-113 Administrative Investigation and Statistics',
-  subHead:
-    'Sub Head-05 Scheme for Strengthening of Statistical Wing in Directorate of Animal Husbandry (Pay and Allowances for Centrally Sponsored Scheme)',
-  budgetYear: '2026-27',
-},
-{
-  id: 'bc-3',
-  billCode: 'GTR30-BONUS',
-  description: 'GTR-30 Ad-hoc Bonus Bill',
-  controllingOfficer: '0101',
-  classOfExpenditure: '1',
-  fund: '3',
-  drawingOfficer: '299',
-  demandNo: '004',
-  typeOfBudget: '1',
-  schemeNo: '0000000',
-  headChargeable: '2403001139900',
-  sector: 'Sector-C-Economic Service',
-  majorHead: 'Major Head-2403 Animal Husbandry',
-  subMajorHead: '-',
-  minorHead: 'Minor Head-113 Administrative Investigation and Statistics',
-  subHead:
-    'Sub Head-05 Scheme for Strengthening of Statistical Wing in Directorate of Animal Husbandry (Pay and Allowances for Centrally Sponsored Scheme)',
-  budgetYear: '2026-27',
-},
+    minorHead: 'Minor Head-113 Administrative Investigation and Statistics',
+    subHead:
+      'Sub Head-05 Scheme for Strengthening of Statistical Wing in Directorate of Animal Husbandry (Pay and Allowances for Centrally Sponsored Scheme)',
+    budgetYear: '2026-27',
+  },
+  {
+    id: 'bc-ngo-stats',
+    billCode: 'GTR-30-NGO-STATS',
+    description: 'GTR-30 Non-Gazetted Staff (Stats) Bill',
+    controllingOfficer: '0101',
+    classOfExpenditure: '1',
+    fund: '3',
+    drawingOfficer: '299',
+    demandNo: '004',
+    typeOfBudget: '1',
+    schemeNo: '0000000',
+    headChargeable: '2403001139900',
+    sector: 'Sector-C-Economic Service',
+    majorHead: 'Major Head-2403 Animal Husbandry',
+    subMajorHead: '-',
+    minorHead: 'Minor Head-113 Administrative Investigation and Statistics',
+    subHead:
+      'Sub Head-05 Scheme for Strengthening of Statistical Wing in Directorate of Animal Husbandry (Pay and Allowances for Centrally Sponsored Scheme)',
+    budgetYear: '2026-27',
+  },
 ];
 
 export const DEFAULT_BUDGET_HEADS: GTR30BudgetHead[] = [
@@ -271,3 +251,4 @@ export const DEFAULT_BUDGET_HEADS: GTR30BudgetHead[] = [
     establishmentPosts: defaultEstablishmentPosts.map((post) => ({ ...post })),
   },
 ];
+

@@ -86,7 +86,7 @@ export const GTR30Page10Pramanpatra: React.FC<Props> = ({ data }) => {
           padding: '12mm 8mm',
           fontSize: '9.5pt',
           lineHeight: 1.65,
-          fontFamily: "'Noto Serif Gujarati', serif",
+          fontFamily: "'Lohit Gujarati', serif",
         }}
       >
         {/* Title */}
@@ -179,7 +179,7 @@ export const GTR30Page10Pramanpatra: React.FC<Props> = ({ data }) => {
             lineHeight: 1.35,
             width: '320px',
             marginLeft: 'auto',
-            fontFamily: "'Noto Serif Gujarati', serif",
+            fontFamily: "'Lohit Gujarati', serif",
           }}
         >
           <div style={{ fontWeight: 700 }}>({data.drawingOfficerNameGujarati || 'શ્રીમતિ એસ.વી.સોલંકી'})</div>

@@ -47,6 +47,8 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
     fileName,
     fileSize,
     sheetType,
+    billType,
+    setBillType,
     batchQueue,
     isBatchProcessing,
     selectedBatchId,
@@ -84,9 +86,17 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
     reset,
   } = usePayBillImport();
 
+  const BILL_TYPE_OPTIONS = [
+    { value: 'REGULAR', label: 'Regular Monthly', hint: 'Monthly pay incl. regular DA' },
+    { value: 'DA_ARREAR', label: 'DA Difference', hint: 'DA arrears bill only' },
+    { value: 'PAY_ARREAR', label: 'Pay Difference', hint: 'Pay/ROP arrears bill only' },
+    { value: 'SUPPLEMENTARY', label: 'Supplementary', hint: 'Generic arrears bill' },
+  ];
+
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showOcrModal, setShowOcrModal] = useState(false);
   const [showComponentForm, setShowComponentForm] = useState(false);
+  const [batchViewTab, setBatchViewTab] = useState<'MATRIX' | 'QUEUE'>('MATRIX');
   const [componentPreset, setComponentPreset] = useState<{
     componentCode: string | null;
     componentName: string;
@@ -94,6 +104,10 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
   } | null>(null);
 
   if (!isOpen) return null;
+
+  const failedQueueItems = batchQueue.filter(
+    (q) => q.status === 'ERROR' || q.status === 'BLOCKED'
+  );
 
   const isDeduction = sheetType === 'DEDUCTION';
   const isReady =
@@ -154,10 +168,10 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
               <Upload size={20} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 Upload &amp; Extract Pay Bill PDF
                 <span
-                  className={`text-[0.68rem] font-semibold px-2 py-0.5 rounded-full ${
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                     isDeduction
                       ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
                       : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
@@ -221,7 +235,7 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
                       {isDone ? <CheckCircle2 size={14} /> : <Icon size={14} />}
                     </span>
                     <span
-                      className={`text-[0.72rem] font-bold whitespace-nowrap ${
+                      className={`text-xs font-bold whitespace-nowrap ${
                         isActive
                           ? 'text-blue-700 dark:text-blue-300'
                           : isDone
@@ -239,7 +253,7 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="p-6 space-y-5 overflow-y-auto flex-1 app-scroll">
+        <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto flex-1 app-scroll">
           {/* Error Banner */}
           {error && (
             <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 p-4 rounded-xl flex items-start gap-3 text-xs text-red-800 dark:text-red-300">
@@ -251,9 +265,33 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
             </div>
           )}
 
+          {/* Bill Type Selector (059 three-track) */}
+          <div className="bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-amber-900 dark:text-amber-200">Bill type:</span>
+            <div className="flex items-center gap-1 flex-wrap">
+              {BILL_TYPE_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setBillType(o.value)}
+                  title={o.hint}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
+                    billType === o.value
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-400'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-amber-700 dark:text-amber-400">
+              Regular = monthly pay (regular DA inside). Arrears bills reconcile as their own track.
+            </span>
+          </div>
+
           {/* Unknown Component Detection Banner */}
-          {addableUnknownComponents.length > 0 && (
-            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-4 rounded-xl text-xs">
+          {addableUnknownComponents.length > 0 && (            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-4 rounded-xl text-xs">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="space-y-2 flex-1">
@@ -270,11 +308,11 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
                           key={`${c.order}-${c.detectedText}`}
                           className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700"
                         >
-                          <span className="font-mono text-amber-900 dark:text-amber-200">
+                          <span className="num text-amber-900 dark:text-amber-200">
                             {c.detectedText}
                             {c.componentCode ? ` (${c.componentCode})` : ''}
                           </span>
-                          <span className="text-[0.65rem] uppercase tracking-wide text-slate-500">
+                          <span className="text-xs uppercase tracking-wide text-slate-500">
                             {c.type}
                           </span>
                           <button
@@ -307,20 +345,106 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
             </div>
           )}
 
-          {/* Consolidated Batch Matrix (after Process All) */}
-          {batchMatrix && (
-            <div className="space-y-4 animate-in fade-in">
-              <BatchMatrixPreview matrix={batchMatrix} />
-            </div>
-          )}
+          {/* Consolidated Batch Matrix View or Queue Toggle */}
+          {batchMatrix ? (
+            <div className="space-y-3 animate-in fade-in">
+              {/* Failed Items Banner if any files failed */}
+              {failedQueueItems.length > 0 && (
+                <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-rose-900 dark:text-rose-200">
+                        {failedQueueItems.length} pay bill file(s) failed extraction and were excluded from this matrix
+                      </p>
+                      <p className="text-rose-700 dark:text-rose-400 truncate">
+                        {failedQueueItems.map((f) => f.name).join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBatchViewTab('QUEUE')}
+                    className="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-100 hover:bg-rose-200 dark:bg-rose-900/60 dark:hover:bg-rose-900 text-rose-800 dark:text-rose-200 transition"
+                  >
+                    View Failed Files ({failedQueueItems.length})
+                  </button>
+                </div>
+              )}
 
-          {/* Upload & Dropzone Area */}
-          {!batchMatrix && !isReady && (
-            <div className="space-y-4">
+              {/* View Switcher: Matrix vs Queue */}
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <div className="inline-flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setBatchViewTab('MATRIX')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
+                      batchViewTab === 'MATRIX'
+                        ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Consolidated Matrix
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBatchViewTab('QUEUE')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition flex items-center gap-1.5 ${
+                      batchViewTab === 'QUEUE'
+                        ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>File Queue ({batchQueue.length})</span>
+                    {failedQueueItems.length > 0 && (
+                      <span className="w-4 h-4 rounded-full bg-rose-600 text-white text-xs flex items-center justify-center font-bold">
+                        {failedQueueItems.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                <div className="text-xs text-slate-500">
+                  {batchMatrix.months.length} month(s) &bull; {batchMatrix.totalEmployees} employees
+                </div>
+              </div>
+
+              {batchViewTab === 'MATRIX' ? (
+                <BatchMatrixPreview matrix={batchMatrix} />
+              ) : (
+                <div className="space-y-3">
+                  <PdfUploader
+                    fileName={fileName}
+                    fileSize={fileSize}
+                    isProcessing={isProcessing}
+                    compact={true}
+                    onFileSelected={processFile}
+                    onBatchFilesSelected={addFilesToBatchQueue}
+                    onLoadSample={processSampleData}
+                    onLoadSampleDeduction={processSampleDeductionData}
+                    onOpenOcrFallback={() => setShowOcrModal(true)}
+                    onClear={reset}
+                  />
+                  <BatchImportQueue
+                    queue={batchQueue}
+                    isBatchProcessing={isBatchProcessing}
+                    onProcessQueue={processBatchQueue}
+                    onClearQueue={handleClearBatch}
+                    onRemoveItem={removeBatchItem}
+                    onSelectFileToPreview={selectBatchItem}
+                    selectedFileId={selectedBatchId}
+                    onRetryFailed={retryFailedBatchItems}
+                  />
+                </div>
+              )}
+            </div>
+          ) : !isReady ? (
+            <div className="space-y-3">
               <PdfUploader
                 fileName={fileName}
                 fileSize={fileSize}
                 isProcessing={isProcessing}
+                compact={batchQueue.length > 0}
                 onFileSelected={processFile}
                 onBatchFilesSelected={addFilesToBatchQueue}
                 onLoadSample={processSampleData}
@@ -341,7 +465,7 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
                 onRetryFailed={retryFailedBatchItems}
               />
             </div>
-          )}
+          ) : null}
 
           {/* Processing Status Stepper */}
           <PdfProcessingStatus state={processingState} />
@@ -382,7 +506,7 @@ export const PayBillUploadModal: React.FC<PayBillUploadModalProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs">
                         Employee Earnings Preview &amp; Verification
                       </h3>
                       <p className="text-xs text-slate-500">

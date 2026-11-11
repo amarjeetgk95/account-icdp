@@ -16,8 +16,7 @@ const moduleDefinition: ModuleDefinition = {
     { path: '/payroll/report', label: 'Quarterly Report', icon: 'file-text' },
     { path: '/payroll/reconciliation', label: 'Tax Reconciliation', icon: 'file-text' },
     { path: '/payroll/budget', label: 'Budget Head Report', icon: 'layers' },
-    { path: '/payroll/lookup', label: 'Employee Lookup', icon: 'users' },
-    { path: '/payroll/employees', label: 'Employee Registration', icon: 'users' },
+    { path: '/payroll/lookup', label: 'TDS Ledger View', icon: 'users', subtitle: '24Q salary view (read-only, by HRPN)' },
   ],
 };
 

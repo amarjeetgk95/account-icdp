@@ -228,7 +228,7 @@ export function Form16TaxRulesConfigForm() {
             <span className="p-1.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 rounded-lg">
               <Calculator size={18} />
             </span>
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+            <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">
               New Tax Regime Rules & Slab Engine (u/s 115BAC)
             </h3>
           </div>
@@ -280,7 +280,7 @@ export function Form16TaxRulesConfigForm() {
             <h4 className="text-xs font-bold text-indigo-900 dark:text-indigo-200">
               Add New Assessment Year
             </h4>
-            <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+            <p className="text-xs text-indigo-700 dark:text-indigo-300">
               When Finance Ministry passes a new budget, enter the new AY (e.g. 2028-29). It will clone current AY rules as starting template.
             </p>
           </div>
@@ -290,7 +290,7 @@ export function Form16TaxRulesConfigForm() {
               value={newAyInput}
               onChange={(e) => setNewAyInput(e.target.value)}
               placeholder="2028-29"
-              className="w-28 px-2.5 py-1.5 text-xs font-mono font-bold bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg focus:outline-indigo-500"
+              className="w-28 px-2.5 py-1.5 text-xs num font-bold bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg focus:outline-indigo-500"
             />
             <button
               type="button"
@@ -314,58 +314,58 @@ export function Form16TaxRulesConfigForm() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Standard Deduction */}
         <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 shadow-xs">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Standard Deduction u/s 16(ia)
           </label>
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-bold text-slate-400">₹</span>
+            <span className="text-xs font-bold text-slate-400">₹</span>
             <input
               type="number"
               value={currentAyConfig.standardDeduction}
               onChange={(e) => updateCurrentAyConfig({ standardDeduction: Number(e.target.value) || 0 })}
-              className="w-full text-sm font-bold font-mono text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-indigo-500"
+              className="w-full text-xs font-bold num text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
-          <span className="text-[11px] text-slate-400">Auto-deducted from salary head</span>
+          <span className="text-xs text-slate-400">Auto-deducted from salary head</span>
         </div>
 
         {/* Section 87A Rebate Income Ceiling */}
         <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 shadow-xs">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Sec 87A Taxable Income Ceiling
           </label>
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-bold text-slate-400">₹</span>
+            <span className="text-xs font-bold text-slate-400">₹</span>
             <input
               type="number"
               value={currentAyConfig.rebate87ALimit}
               onChange={(e) => updateCurrentAyConfig({ rebate87ALimit: Number(e.target.value) || 0 })}
-              className="w-full text-sm font-bold font-mono text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-indigo-500"
+              className="w-full text-xs font-bold num text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
-          <span className="text-[11px] text-slate-400">Zero tax up to this taxable limit</span>
+          <span className="text-xs text-slate-400">Zero tax up to this taxable limit</span>
         </div>
 
         {/* Max 87A Rebate */}
         <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 shadow-xs">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Max 87A Rebate Amount
           </label>
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-bold text-slate-400">₹</span>
+            <span className="text-xs font-bold text-slate-400">₹</span>
             <input
               type="number"
               value={currentAyConfig.rebate87AMaxAmount}
               onChange={(e) => updateCurrentAyConfig({ rebate87AMaxAmount: Number(e.target.value) || 0 })}
-              className="w-full text-sm font-bold font-mono text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-indigo-500"
+              className="w-full text-xs font-bold num text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
-          <span className="text-[11px] text-slate-400">Max tax deduction eligible</span>
+          <span className="text-xs text-slate-400">Max tax deduction eligible</span>
         </div>
 
         {/* Cess Rate */}
         <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 shadow-xs">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Health & Education Cess
           </label>
           <div className="flex items-center gap-1.5">
@@ -374,11 +374,11 @@ export function Form16TaxRulesConfigForm() {
               step="0.1"
               value={currentAyConfig.cessRate ?? 4}
               onChange={(e) => updateCurrentAyConfig({ cessRate: Number(e.target.value) || 0 })}
-              className="w-full text-sm font-bold font-mono text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-indigo-500"
+              className="w-full text-xs font-bold num text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-indigo-500"
             />
-            <span className="text-sm font-bold text-slate-500">%</span>
+            <span className="text-xs font-bold text-slate-500">%</span>
           </div>
-          <span className="text-[11px] text-slate-400">Applied on Tax after Rebate</span>
+          <span className="text-xs text-slate-400">Applied on Tax after Rebate</span>
         </div>
       </div>
 
@@ -389,7 +389,7 @@ export function Form16TaxRulesConfigForm() {
             <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">
               Tax Slabs & Rates — AY {selectedAy}
             </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Progressive income tax slabs. The top tier automatically covers all income above the previous ceiling.
             </p>
           </div>
@@ -406,7 +406,7 @@ export function Form16TaxRulesConfigForm() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400">
+              <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
                 <th className="py-2.5 px-4 w-12 text-center">#</th>
                 <th className="py-2.5 px-4 w-1/3">Income Range (From – To)</th>
                 <th className="py-2.5 px-4 w-1/3">Upper Ceiling (₹)</th>
@@ -422,7 +422,7 @@ export function Form16TaxRulesConfigForm() {
                 return (
                   <tr key={slab.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                     <td className="py-2.5 px-4 text-center font-bold text-slate-400">{idx + 1}</td>
-                    <td className="py-2.5 px-4 font-mono font-medium text-slate-700 dark:text-slate-300">
+                    <td className="py-2.5 px-4 num font-medium text-slate-700 dark:text-slate-300">
                       {inr(prevUpto)} &rarr; {isHighest ? 'Above' : inr(slab.upto)}
                     </td>
                     <td className="py-2.5 px-4">
@@ -439,7 +439,7 @@ export function Form16TaxRulesConfigForm() {
                             onChange={(e) =>
                               handleUpdateSlab(idx, { upto: Number(e.target.value) || 0 })
                             }
-                            className="w-36 font-mono text-xs font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1 focus:ring-1 focus:ring-indigo-500"
+                            className="w-36 num text-xs font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1 focus:ring-1 focus:ring-indigo-500"
                           />
                         </div>
                       )}
@@ -453,7 +453,7 @@ export function Form16TaxRulesConfigForm() {
                           onChange={(e) =>
                             handleUpdateSlab(idx, { rate: Number(e.target.value) || 0 })
                           }
-                          className="w-20 font-mono text-xs font-bold text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1 focus:ring-1 focus:ring-indigo-500"
+                          className="w-20 num text-xs font-bold text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1 focus:ring-1 focus:ring-indigo-500"
                         />
                         <span className="font-bold text-slate-500">%</span>
                       </div>
@@ -484,7 +484,7 @@ export function Form16TaxRulesConfigForm() {
             <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">
               High-Net-Worth Surcharge Tiers
             </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Additional percentage surcharge applicable on taxable income exceeding ₹1 Crore+.
             </p>
           </div>
@@ -514,7 +514,7 @@ export function Form16TaxRulesConfigForm() {
                     type="number"
                     value={sc.above}
                     onChange={(e) => handleUpdateSurcharge(idx, { above: Number(e.target.value) || 0 })}
-                    className="w-36 font-mono text-xs font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1"
+                    className="w-36 num text-xs font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1"
                   />
                 </div>
                 <span className="text-xs text-slate-600 dark:text-slate-300">Surcharge Rate:</span>
@@ -523,7 +523,7 @@ export function Form16TaxRulesConfigForm() {
                     type="number"
                     value={sc.rate}
                     onChange={(e) => handleUpdateSurcharge(idx, { rate: Number(e.target.value) || 0 })}
-                    className="w-16 font-mono text-xs font-bold text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1"
+                    className="w-16 num text-xs font-bold text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1"
                   />
                   <span className="font-bold text-slate-500">%</span>
                 </div>
@@ -546,7 +546,7 @@ export function Form16TaxRulesConfigForm() {
           <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-xs">
             <Sparkles size={15} /> Instant Live Rule Verification & Tax Sandbox
           </div>
-          <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
+          <span className="text-xs text-emerald-600 dark:text-emerald-400">
             Preview calculation with active AY {selectedAy} brackets
           </span>
         </div>
@@ -563,7 +563,7 @@ export function Form16TaxRulesConfigForm() {
                 step="10000"
                 value={testAnnualSalary}
                 onChange={(e) => setTestAnnualSalary(Number(e.target.value) || 0)}
-                className="w-36 font-mono text-xs font-bold bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-emerald-500"
+                className="w-36 num text-xs font-bold bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-emerald-500"
               />
             </div>
           </div>
@@ -571,42 +571,42 @@ export function Form16TaxRulesConfigForm() {
           <div className="flex flex-wrap items-center gap-3 text-xs bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800 shadow-xs">
             <div>
               <span className="text-slate-400">Std Ded 16(ia): </span>
-              <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
+              <span className="num font-bold text-slate-700 dark:text-slate-200">
                 {inr(testCalculation.stdDed)}
               </span>
             </div>
             <span className="text-slate-300">|</span>
             <div>
               <span className="text-slate-400">Taxable Income: </span>
-              <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
+              <span className="num font-bold text-slate-700 dark:text-slate-200">
                 {inr(testCalculation.taxable)}
               </span>
             </div>
             <span className="text-slate-300">|</span>
             <div>
               <span className="text-slate-400">Raw Slab Tax: </span>
-              <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
+              <span className="num font-bold text-slate-700 dark:text-slate-200">
                 {inr(testCalculation.rawTax)}
               </span>
             </div>
             <span className="text-slate-300">|</span>
             <div>
               <span className="text-slate-400">87A Rebate: </span>
-              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="num font-bold text-emerald-600 dark:text-emerald-400">
                 -{inr(testCalculation.rebate87A)}
               </span>
             </div>
             <span className="text-slate-300">|</span>
             <div>
               <span className="text-slate-400">Cess ({currentAyConfig.cessRate ?? 4}%): </span>
-              <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
+              <span className="num font-bold text-slate-700 dark:text-slate-200">
                 {inr(testCalculation.cess)}
               </span>
             </div>
             <span className="text-slate-300">|</span>
             <div className="font-bold text-indigo-600 dark:text-indigo-400">
               <span>Net Tax Payable: </span>
-              <span className="font-mono text-sm">{inr(testCalculation.totalTax)}</span>
+              <span className="num text-xs">{inr(testCalculation.totalTax)}</span>
             </div>
           </div>
         </div>

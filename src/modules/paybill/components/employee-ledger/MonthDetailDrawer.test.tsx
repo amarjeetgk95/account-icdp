@@ -20,6 +20,7 @@ vi.mock('../../repositories/paybill.repository', () => ({
 }));
 
 vi.mock('@/shared/utilities/office', () => ({
+  DEFAULT_OFFICE_ID: '1',
   getOfficeId: () => 'office-123',
   isAllOfficesMode: () => false,
   resolveOfficeIdForUser: () => Promise.resolve('office-123'),

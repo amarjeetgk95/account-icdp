@@ -20,7 +20,7 @@ describe('gtr30Query', () => {
     });
 
     it('rejects non-gtr30 keys', () => {
-      expect(isGtr30QueryKey(['admin', 'users'])).toBe(false);
+      expect(isGtr30QueryKey(['reports', 'yearly'])).toBe(false);
       expect(isGtr30QueryKey(['payroll'])).toBe(false);
       expect(isGtr30QueryKey([])).toBe(false);
       expect(isGtr30QueryKey([42])).toBe(false);
@@ -43,7 +43,7 @@ describe('gtr30Query', () => {
       expect(predicate({ queryKey: ['gtr30Bills'] })).toBe(true);
       expect(predicate({ queryKey: ['gtr30Bill', 'x'] })).toBe(true);
       expect(predicate({ queryKey: ['gtr30Settings'] })).toBe(true);
-      expect(predicate({ queryKey: ['admin', 'users'] })).toBe(false);
+      expect(predicate({ queryKey: ['reports', 'yearly'] })).toBe(false);
       expect(predicate({ queryKey: ['payroll'] })).toBe(false);
     });
   });

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useUIStore } from '@/core/stores/ui-store';
 import { supabase } from '@/core/supabase/client';
-import { getOfficeScope } from '@/shared/utilities/office';
 import { paybillRepository } from '../repositories/paybill.repository';
 import { form16Repository, isValidUuid } from '../repositories/form16.repository';
 import { establishmentService } from '@/modules/establishment/services/establishment.service';
@@ -57,7 +56,7 @@ import type {
 import type { EstablishmentEmployee } from '@/modules/establishment/types';
 import type { PayBillStoredEarning, PayBillStoredDeduction } from '../types';
 
-import { servesInFinancialYear } from '@/modules/establishment/types';
+import { servesInFinancialYear, establishmentOrderRank } from '@/modules/establishment/types';
 
 const inr = (n: number) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 
@@ -219,7 +218,25 @@ function unifyEmployees(
     registerOrMerge(cert.hrpn, cert.employee.name, cert.employee.designation, cert.employee.pan);
   }
 
-  return canonicalList;
+  // Office manual sequence (ક્રમ) from Establishment Directory first; others last, A-Z.
+  const orderByHrpn = new Map<string, number>();
+  [...estEmployees]
+    .sort(
+      (a, b) =>
+        establishmentOrderRank(a) - establishmentOrderRank(b) ||
+        (a.name || '').localeCompare(b.name || '')
+    )
+    .forEach((est, idx) => {
+      const h = String(est.hrpnNo || '').trim().toLowerCase();
+      if (h && !orderByHrpn.has(h)) orderByHrpn.set(h, idx);
+    });
+
+  return canonicalList.sort(
+    (a, b) =>
+      (orderByHrpn.get(a.hrpn.trim().toLowerCase()) ?? Number.MAX_SAFE_INTEGER) -
+        (orderByHrpn.get(b.hrpn.trim().toLowerCase()) ?? Number.MAX_SAFE_INTEGER) ||
+      a.name.localeCompare(b.name)
+  );
 }
 
 export function Form16Page() {
@@ -328,12 +345,10 @@ export function Form16Page() {
           paybillRepository.getSettings().catch(() => ({})),
           paybillRepository.getManualLedgerValues().catch(() => ({})),
           (async () => {
-            const scope = getOfficeScope();
-            let q = supabase
+            const q = supabase
               .from('employee_salaries')
               .select('employee_id, month, gross, da, tax, financial_year, employees(id, name, pan, hprn_no)')
               .eq('financial_year', fy);
-            if (!scope.all && scope.officeId) q = q.eq('office_id', scope.officeId);
             const { data, error } = await q;
             if (error) {
               console.warn('[Form16Page] Failed to fetch payroll salaries:', error);
@@ -835,12 +850,11 @@ export function Form16Page() {
     <div className="max-w-7xl mx-auto space-y-4 pb-12">
       {/* Workspace Header */}
       <WorkspaceHeader
-        eyebrow="Employee IT · Pay Bill"
         title="Form 16 TDS Certificates"
         context={
           <span className="flex items-center gap-2">
             <span>FY {fyLabel} · AY {ayLabel}</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300 px-2 py-0.5 rounded">
+            <span className="text-xs font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300 px-2 py-0.5 rounded">
               New Regime u/s 115BAC
             </span>
           </span>
@@ -897,10 +911,10 @@ export function Form16Page() {
             <span>Total Staff</span>
             <Users size={14} className="text-slate-500" />
           </div>
-          <div className="text-xl font-bold font-mono text-slate-800 dark:text-slate-100 mt-1">
+          <div className="text-xs font-bold num text-slate-800 dark:text-slate-100 mt-1">
             {stats.totalEmployees}
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Active in FY {fyLabel}</div>
+          <div className="text-xs text-slate-400 mt-0.5">Active in FY {fyLabel}</div>
         </div>
 
         <div className="p-3 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-xs">
@@ -908,10 +922,10 @@ export function Form16Page() {
             <span>Drafts</span>
             <FileBadge size={14} className="text-slate-500" />
           </div>
-          <div className="text-xl font-bold font-mono text-slate-700 dark:text-slate-300 mt-1">
+          <div className="text-xs font-bold num text-slate-700 dark:text-slate-300 mt-1">
             {stats.draftsCount}
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Awaiting Review</div>
+          <div className="text-xs text-slate-400 mt-0.5">Awaiting Review</div>
         </div>
 
         <div className="p-3 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-xs">
@@ -919,10 +933,10 @@ export function Form16Page() {
             <span>Reviewed</span>
             <ShieldCheck size={14} className="text-indigo-500" />
           </div>
-          <div className="text-xl font-bold font-mono text-indigo-600 dark:text-indigo-400 mt-1">
+          <div className="text-xs font-bold num text-indigo-600 dark:text-indigo-400 mt-1">
             {stats.reviewedCount}
           </div>
-          <div className="text-[10px] text-indigo-500/80 mt-0.5">Ready to Issue</div>
+          <div className="text-xs text-indigo-500/80 mt-0.5">Ready to Issue</div>
         </div>
 
         <div className="p-3 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-xs">
@@ -930,10 +944,10 @@ export function Form16Page() {
             <span>Issued</span>
             <CheckCircle2 size={14} className="text-emerald-500" />
           </div>
-          <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+          <div className="text-xs font-bold num text-emerald-600 dark:text-emerald-400 mt-1">
             {stats.issuedCount}
           </div>
-          <div className="text-[10px] text-emerald-500/80 mt-0.5">Locked & Formal</div>
+          <div className="text-xs text-emerald-500/80 mt-0.5">Locked & Formal</div>
         </div>
 
         <div className="p-3 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-xs">
@@ -941,10 +955,10 @@ export function Form16Page() {
             <span>Total TDS</span>
             <Calculator size={14} className="text-blue-500" />
           </div>
-          <div className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400 mt-1">
+          <div className="text-xs font-bold num text-blue-600 dark:text-blue-400 mt-1">
             {inr(stats.totalTdsDeposited)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Part A Deposited</div>
+          <div className="text-xs text-slate-400 mt-0.5">Part A Deposited</div>
         </div>
 
         <div
@@ -962,7 +976,7 @@ export function Form16Page() {
             />
           </div>
           <div
-            className={`text-xl font-bold font-mono mt-1 ${
+            className={`text-xs font-bold num mt-1 ${
               stats.missingPanCount > 0
                 ? 'text-amber-600 dark:text-amber-400'
                 : 'text-slate-700 dark:text-slate-300'
@@ -970,7 +984,7 @@ export function Form16Page() {
           >
             {stats.missingPanCount}
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">206AA Higher TDS alert</div>
+          <div className="text-xs text-slate-400 mt-0.5">206AA Higher TDS alert</div>
         </div>
       </div>
 
@@ -1020,7 +1034,7 @@ export function Form16Page() {
       {selectedHrpns.size > 0 && (
         <div className="p-3 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 rounded-xl flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+            <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
               {selectedHrpns.size}
             </span>
             <span className="text-xs font-semibold text-indigo-950 dark:text-indigo-200">
@@ -1066,7 +1080,7 @@ export function Form16Page() {
         <div className="overflow-x-auto app-scroll">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-900/40 text-[0.68rem] uppercase tracking-wider text-slate-400 font-bold">
+              <tr className="border-b border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-900/40 text-xs uppercase tracking-wider text-slate-400 font-bold">
                 <th className="py-3 px-3 w-10 text-center">
                   <input
                     type="checkbox"
@@ -1115,8 +1129,8 @@ export function Form16Page() {
                       >
                         {r.name}
                       </button>
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
-                        <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
+                        <span className="num font-semibold text-blue-600 dark:text-blue-400">
                           HRPN:{r.hrpn}
                         </span>
                         <span>·</span>
@@ -1126,39 +1140,39 @@ export function Form16Page() {
 
                     <td className="py-2.5 px-3">
                       {r.pan ? (
-                        <span className="font-mono text-[11px] font-bold tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                        <span className="font-mono text-xs font-bold tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
                           <CheckCircle2 size={11} /> {r.pan}
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
                           <AlertTriangle size={11} /> No PAN
                         </span>
                       )}
                     </td>
 
-                    <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
+                    <td className="py-2.5 px-3 text-right num font-semibold text-slate-800 dark:text-slate-200">
                       {inr(t?.grossSalary17_1 || r.grossAmount)}
                     </td>
 
-                    <td className="py-2.5 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <td className="py-2.5 px-3 text-right num text-emerald-600 dark:text-emerald-400 font-semibold">
                       {inr(t?.standardDeduction16ia || 75000)}
                     </td>
 
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                    <td className="py-2.5 px-3 text-right num font-bold text-slate-900 dark:text-slate-100">
                       {inr(t?.totalTaxableIncome ?? 0)}
                     </td>
 
-                    <td className="py-2.5 px-3 text-right font-mono text-rose-600 font-semibold">
+                    <td className="py-2.5 px-3 text-right num text-rose-600 font-semibold">
                       {inr(t?.tdsDeducted ?? 0)}
                     </td>
 
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                    <td className="py-2.5 px-3 text-right num font-bold text-slate-900 dark:text-slate-100">
                       {inr(t?.netTaxPayable ?? 0)}
                     </td>
 
                     <td className="py-2.5 px-3 text-center">
                       <span
-                        className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                        className={`inline-block text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
                           r.status === 'ISSUED'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                             : r.status === 'REVIEWED'

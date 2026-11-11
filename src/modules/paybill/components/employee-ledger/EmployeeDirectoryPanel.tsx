@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Search, UserCheck, Users } from 'lucide-react';
+import { FileArchive, Search, UserCheck, Users } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { PaybillDirectoryEntry } from '../../hooks/useEmployeeDirectory';
 
@@ -27,6 +27,7 @@ interface EmployeeDirectoryPanelProps {
   employees: PaybillDirectoryEntry[];
   selectedHrpn: string;
   onSelect: (hrpn: string) => void;
+  onExportAllPdfZip?: () => void;
 }
 
 /**
@@ -40,6 +41,7 @@ export function EmployeeDirectoryPanel({
   employees,
   selectedHrpn,
   onSelect,
+  onExportAllPdfZip,
 }: EmployeeDirectoryPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchIdx, setActiveSearchIdx] = useState(-1);
@@ -167,12 +169,25 @@ export function EmployeeDirectoryPanel({
             <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             <span>Directory</span>
           </div>
-          <span
-            className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-full px-2 py-0.5 tabular-nums shadow-2xs"
-            title="Employees matching current search & filters"
-          >
-            {filteredEmployeesList.length} employees
-          </span>
+          <div className="flex items-center gap-1">
+            <span
+              className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-full px-2 py-0.5 tabular-nums shadow-2xs"
+              title="Employees matching current search & filters"
+            >
+              {filteredEmployeesList.length} employees
+            </span>
+            {onExportAllPdfZip && (
+              <button
+                type="button"
+                onClick={onExportAllPdfZip}
+                title="Export all employee PDFs as ZIP"
+                aria-label="Export all employee PDFs as ZIP"
+                className="p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-md transition"
+              >
+                <FileArchive className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="relative">
@@ -214,7 +229,7 @@ export function EmployeeDirectoryPanel({
               ×
             </button>
           ) : (
-            <kbd className="hidden sm:inline-flex absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[9px] font-mono font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded pointer-events-none">
+            <kbd className="hidden sm:inline-flex absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-xs font-mono font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded pointer-events-none">
               /
             </kbd>
           )}
@@ -231,7 +246,7 @@ export function EmployeeDirectoryPanel({
               type="button"
               onClick={() => setActiveDesignations([])}
               aria-pressed={activeDesignations.length === 0}
-              className={`shrink-0 px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
+              className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-semibold border transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
                 activeDesignations.length === 0
                   ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
                   : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50'
@@ -248,7 +263,7 @@ export function EmployeeDirectoryPanel({
                   onClick={() => toggleDesignation(d)}
                   aria-pressed={pressed}
                   title={d}
-                  className={`shrink-0 max-w-[120px] truncate px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
+                  className={`shrink-0 max-w-[120px] truncate px-2 py-0.5 rounded-md text-xs font-semibold border transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
                     pressed
                       ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
                       : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50'
@@ -273,7 +288,7 @@ export function EmployeeDirectoryPanel({
         {filteredEmployeesList.length === 0 ? (
           <div className="p-6 text-center text-xs text-slate-400 dark:text-slate-500">
             <p className="font-medium text-slate-600 dark:text-slate-400">No employees found</p>
-            <p className="mt-1 text-[11px]">Try adjusting your search query or designation filter</p>
+            <p className="mt-1 text-xs">Try adjusting your search query or designation filter</p>
           </div>
         ) : (
           <div
@@ -314,6 +329,11 @@ export function EmployeeDirectoryPanel({
                   ref={measureRef}
                   onClick={() => selectEmployee(emp.hrpn)}
                   onMouseEnter={() => setActiveSearchIdx(index)}
+                  title={
+                    emp.isMatched === false
+                      ? `HRPN ${emp.hrpn} not matched with Establishment directory — register in Establishment first`
+                      : undefined
+                  }
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -331,7 +351,7 @@ export function EmployeeDirectoryPanel({
                 >
                   {/* Initials Avatar */}
                   <div
-                    className={`w-7 h-7 rounded-lg text-[10px] font-bold flex items-center justify-center shrink-0 transition-colors ${
+                    className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center shrink-0 transition-colors ${
                       isSelected
                         ? 'bg-blue-600 text-white shadow-2xs'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80'
@@ -347,7 +367,7 @@ export function EmployeeDirectoryPanel({
                         {emp.name}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] leading-none">
+                    <div className="flex items-center gap-1.5 mt-0.5 text-xs leading-none">
                       <span className="font-mono font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 px-1 py-0.2 rounded">
                         HRPN:{emp.hrpn}
                       </span>
@@ -358,14 +378,21 @@ export function EmployeeDirectoryPanel({
                     </div>
                   </div>
 
-                  {/* Active / Recent Status Badge */}
-                  {isSelected ? (
-                    <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold text-blue-700 dark:text-blue-300 bg-blue-100/90 dark:bg-blue-900/60 px-1.5 py-0.5 rounded-md">
+                  {/* Active / Recent / Unmatched Status Badge */}
+                  {emp.isMatched === false ? (
+                    <span
+                      className="shrink-0 text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/60 px-1.5 py-0.5 rounded"
+                      title={`HRPN ${emp.hrpn} not matched with Establishment directory`}
+                    >
+                      No EST match
+                    </span>
+                  ) : isSelected ? (
+                    <span className="shrink-0 flex items-center gap-1 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-100/90 dark:bg-blue-900/60 px-1.5 py-0.5 rounded-md">
                       <UserCheck className="w-2.5 h-2.5" />
                       Active
                     </span>
                   ) : isRecent ? (
-                    <span className="shrink-0 text-[9px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                    <span className="shrink-0 text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                       Recent
                     </span>
                   ) : null}

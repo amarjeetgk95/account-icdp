@@ -1,16 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense, lazy } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { useUIStore } from '@/core/stores/ui-store';
 import { payrollService } from '../services/payroll.service';
 import { useRoster, useSaveSalary, useQuarterReport, useMonthDataCheck, useClearMonth } from '../hooks/usePayroll';
 import { SalaryEntryGrid, type SalaryEntryGridHandle } from '../components/SalaryEntryGrid';
-import { EmployeeRegistration } from '../components/EmployeeRegistration';
-import { QuarterReportView } from '../components/QuarterReport';
-import { SalaryExcelImport } from '../components/SalaryExcelImport';
-import { SalaryLookup } from '../components/SalaryLookup';
-import { BudgetHeadManager } from '../components/BudgetHeadManager';
-import { BudgetHeadReport } from '../components/BudgetHeadReport';
-import { TaxReconciliationView } from '../components/TaxReconciliationView';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
@@ -18,7 +11,30 @@ import { EmptyState } from '@/shared/components/EmptyState';
 import { SkeletonTable } from '@/shared/components/Skeleton';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
-import { downloadCsv, export24QExcel } from '@/shared/utilities';
+import { downloadCsv, popupNativePrint } from '@/shared/utilities';
+
+// Heavy read-only panels stay out of the entry bundle until their tab opens.
+// Entry grid stays mounted (never lazy) to preserve unsaved edits/drafts.
+// NOTE: the payroll employee list is gone — single integrated register lives
+// in Establishment (/establishment). /payroll/employees redirects there.
+const QuarterReportView = lazy(() =>
+  import('../components/QuarterReport').then((m) => ({ default: m.QuarterReportView }))
+);
+const SalaryExcelImport = lazy(() =>
+  import('../components/SalaryExcelImport').then((m) => ({ default: m.SalaryExcelImport }))
+);
+const SalaryLookup = lazy(() =>
+  import('../components/SalaryLookup').then((m) => ({ default: m.SalaryLookup }))
+);
+const BudgetHeadManager = lazy(() =>
+  import('../components/BudgetHeadManager').then((m) => ({ default: m.BudgetHeadManager }))
+);
+const BudgetHeadReport = lazy(() =>
+  import('../components/BudgetHeadReport').then((m) => ({ default: m.BudgetHeadReport }))
+);
+const TaxReconciliationView = lazy(() =>
+  import('../components/TaxReconciliationView').then((m) => ({ default: m.TaxReconciliationView }))
+);
 import {
   ChevronDown,
   Download,
@@ -28,14 +44,15 @@ import {
   RefreshCw,
   AlertCircle,
   Banknote,
+  Printer,
 } from 'lucide-react';
 
-type Mode = 'entry' | 'report' | 'reconciliation' | 'employees' | 'budget' | 'lookup';
+type Mode = 'entry' | 'report' | 'reconciliation' | 'budget' | 'lookup';
 
 export function PayrollPage() {
   const [searchParams] = useSearchParams();
   const { tab } = useParams<{ tab: string }>();
-  const validModes: Mode[] = ['entry', 'report', 'reconciliation', 'employees', 'budget', 'lookup'];
+  const validModes: Mode[] = ['entry', 'report', 'reconciliation', 'budget', 'lookup'];
   const mode: Mode = validModes.includes(tab as Mode) ? (tab as Mode) : 'entry';
   const initialHrpn = searchParams.get('hrpn') || '';
   const monthParam = searchParams.get('month') || '';
@@ -65,12 +82,12 @@ export function PayrollPage() {
   const fy = useUIStore((state) => state.activeFinancialYear);
   const monthOptions = payrollService.getMonthOptions(fy);
 
-  const { data: roster = [], isLoading: rosterLoading, refetch: refetchRoster } = useRoster(selectedMonth, fy);
-  const { data: monthDataCheck } = useMonthDataCheck(selectedMonth, fy);
+  const { data: roster = [], isLoading: rosterLoading, refetch: refetchRoster } = useRoster(selectedMonth, fy, mode === 'entry');
+  const { data: monthDataCheck } = useMonthDataCheck(selectedMonth, fy, mode === 'entry');
   const saveSalary = useSaveSalary();
   const clearMonth = useClearMonth();
-  const { data: quarterReport, isLoading: reportLoading } = useQuarterReport(selectedQuarter, fy);
-  const { details: officeDetails } = useOfficeDetails();
+  const { data: quarterReport, isLoading: reportLoading } = useQuarterReport(selectedQuarter, fy, mode === 'report');
+  const { details: officeDetails } = useOfficeDetails(mode === 'report' || mode === 'reconciliation' || mode === 'budget');
 
   const office = officeDetails || { officeName: '', subtitle: '', address: '', phone: '', email: '', gst: '', tan: '' };
   const fyLabel = `${fy}-${String(fy + 1).slice(-2)}`;
@@ -115,6 +132,10 @@ export function PayrollPage() {
   };
 
   const handleImported = (records: ClassifiedSalaryRecord[]) => {
+    // The import already saved every matched month to the DB — reload the
+    // roster so the grid shows saved values even when none of the file's
+    // months is the currently selected one (draft only covers that month).
+    void refetchRoster();
     const applied = salaryGridRef.current?.applyImportedValues(records) ?? 0;
     const monthName = getMonthDisplay(selectedMonth);
     const matched = records.filter((r) => r.status === 'matched').length;
@@ -172,6 +193,23 @@ export function PayrollPage() {
     setShowPreview(true);
   };
 
+  const handlePrint24Q = () => {
+    if (!quarterReport || quarterReport.rows.length === 0) return;
+    const el = document.querySelector('.card-body .report-print-area') as HTMLElement | null;
+    if (el) {
+      popupNativePrint({
+        elements: [el],
+        title: `24Q_${fyLabel}_${selectedQuarter}`,
+        pageSize: 'A4',
+        orientation: 'landscape',
+        pageMargin: '8mm',
+        pageContainerSelector: '.report-print-area',
+      });
+    } else {
+      window.print();
+    }
+  };
+
   const handleSave = async (entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>) => {
     setSaveStatus({ type: 'info', message: 'Saving...' });
     try {
@@ -208,8 +246,7 @@ export function PayrollPage() {
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <WorkspaceHeader
-        eyebrow="Salary TDS · 24Q"
-        title="Payroll workspace"
+        title="Payroll Workspace"
         context={<>FY {y1}-{y2}</>}
       />
 
@@ -235,21 +272,12 @@ export function PayrollPage() {
         </div>
       )}
 
-      {mode === 'employees' && (
-        <div
-          ref={scrollRef}
-          className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1"
-        >
-          <div className="px-1 pb-4 space-y-4">
-            <EmployeeRegistration scrollRef={scrollRef} fy={fy} />
-          </div>
-        </div>
-      )}
-
       {mode === 'lookup' && (
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
           <div className="px-1 pb-4 space-y-4">
-            <SalaryLookup key={initialHrpn || 'default'} fy={fy} initialHrpn={initialHrpn} />
+            <Suspense fallback={<SkeletonTable rows={5} cols={4} />}>
+              <SalaryLookup key={initialHrpn || 'default'} fy={fy} initialHrpn={initialHrpn} />
+            </Suspense>
           </div>
         </div>
       )}
@@ -257,8 +285,10 @@ export function PayrollPage() {
       {mode === 'budget' && (
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
           <div className="px-1 pb-4 space-y-4">
-            <BudgetHeadManager />
-            <BudgetHeadReport fy={fy} />
+            <Suspense fallback={<SkeletonTable rows={5} cols={4} />}>
+              <BudgetHeadManager />
+              <BudgetHeadReport fy={fy} />
+            </Suspense>
           </div>
         </div>
       )}
@@ -266,7 +296,9 @@ export function PayrollPage() {
       {mode === 'reconciliation' && (
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
           <div className="px-1 pb-4 space-y-4">
-            <TaxReconciliationView fy={fy} />
+            <Suspense fallback={<SkeletonTable rows={5} cols={4} />}>
+              <TaxReconciliationView fy={fy} />
+            </Suspense>
           </div>
         </div>
       )}
@@ -442,7 +474,11 @@ export function PayrollPage() {
             <div className="flex items-center gap-2 shrink-0 ml-auto">
               <button
                 onClick={() => {
-                  if (quarterReport) export24QExcel(quarterReport, office);
+                  if (quarterReport) {
+                    void import('@/shared/utilities/excelExport').then(({ export24QExcel }) =>
+                      export24QExcel(quarterReport, office)
+                    );
+                  }
                 }}
                 disabled={!quarterReport || quarterReport.rows.length === 0}
                 className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-xs transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
@@ -453,15 +489,25 @@ export function PayrollPage() {
               <button
                 onClick={export24QCSV}
                 disabled={!quarterReport || quarterReport.rows.length === 0}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
               >
                 <Download size={14} />
                 <span>CSV</span>
               </button>
               <button
+                onClick={handlePrint24Q}
+                disabled={!quarterReport || quarterReport.rows.length === 0}
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-xs transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+                title="Print Form 24Q (A4 Landscape)"
+              >
+                <Printer size={14} />
+                <span>Print PDF</span>
+              </button>
+              <button
                 onClick={exportPDF}
                 disabled={!quarterReport || quarterReport.rows.length === 0}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-xs transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+                title="Preview in modal window"
               >
                 <FileImage size={14} />
                 <span>Preview</span>
@@ -494,8 +540,11 @@ export function PayrollPage() {
                   }
                   title="24Q Employee Salary & Tax Deduction Statement"
                   badgeClass="report-badge-emp"
+                  pageOrientation="landscape"
                 >
-                  <QuarterReportView report={quarterReport} isLoading={false} showHeader={false} />
+                  <Suspense fallback={<SkeletonTable rows={5} cols={5} />}>
+                    <QuarterReportView report={quarterReport} isLoading={false} showHeader={false} />
+                  </Suspense>
                 </ReportPrintArea>
               ) : (
                 <EmptyState
@@ -532,8 +581,11 @@ export function PayrollPage() {
             }
             title="24Q Employee Salary & Tax Deduction Statement"
             badgeClass="report-badge-emp"
+            pageOrientation="landscape"
           >
-            <QuarterReportView report={quarterReport} isLoading={false} showHeader={false} />
+            <Suspense fallback={<SkeletonTable rows={5} cols={5} />}>
+              <QuarterReportView report={quarterReport} isLoading={false} showHeader={false} />
+            </Suspense>
           </ReportPrintArea>
         ) : (
           <div className="text-center py-12 text-slate-500">No data to preview.</div>
@@ -545,7 +597,9 @@ export function PayrollPage() {
         onClose={() => setShowExcelImport(false)}
         title="Karmayogi Portal Excel Salary Import"
       >
-        <SalaryExcelImport onImported={handleImported} />
+        <Suspense fallback={<SkeletonTable rows={3} cols={3} />}>
+          <SalaryExcelImport fallbackMonth={selectedMonth} fallbackFinancialYear={fy} onImported={handleImported} />
+        </Suspense>
       </PreviewModal>
     </div>
   );

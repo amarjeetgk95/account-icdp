@@ -12,29 +12,59 @@ function setBudgetHeadsSyncPhase(phase: Gtr30BudgetHeadsSyncPhase): void {
   budgetHeadsSyncPhase = phase;
 }
 
-function getBudgetHeadsSyncStatusInternal(): Gtr30BudgetHeadsSyncPhase {
+export function getGTR30BudgetHeadsSyncStatus(): Gtr30BudgetHeadsSyncPhase {
   return budgetHeadsSyncPhase;
 }
 
 let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 let backendWriteChain: Promise<void> = Promise.resolve();
+// Latest coalesced payload awaiting flush (debounce collapses rapid saves to
+// one backend call). Lets a settling flush yield the phase to a newer save.
+let pendingPushHeads: GTR30BudgetHead[] | null = null;
+// Bumped by reset() so a racing flush never resurrects cleared data.
+let headsEpoch = 0;
 
 function debounceReplace(heads: GTR30BudgetHead[]): void {
   if (pendingTimer) clearTimeout(pendingTimer);
+  pendingPushHeads = heads;
+  // NOTE: this service's phase type has no 'pending' state (kept identical
+  // for all current readers) — the first visible transition is 'syncing'.
   pendingTimer = setTimeout(() => {
     pendingTimer = null;
-    void runBackendWrite(heads);
+    const queued = pendingPushHeads;
+    pendingPushHeads = null;
+    if (queued) void runBackendWrite(queued).catch(() => undefined);
   }, SYNC_DEBOUNCE_MS);
 }
 
+/**
+ * Backend-first write: the backend replaceAll is awaited FIRST and its echo
+ * is authoritative. On success the echo is persisted to the local cache
+ * (only when local still holds the flushed payload and no reset raced us)
+ * and the phase becomes synced. On failure the provisional local input is
+ * kept and the phase becomes error. Rejects exactly as before.
+ */
 async function runBackendWrite(heads: GTR30BudgetHead[]): Promise<void> {
   const write = async (): Promise<void> => {
+    const epoch = headsEpoch;
     setBudgetHeadsSyncPhase('syncing');
     try {
-      await gtr30BudgetHeadsBackendRepository.replaceAll(heads);
-      setBudgetHeadsSyncPhase('synced');
+      const confirmed = await gtr30BudgetHeadsBackendRepository.replaceAll(heads);
+      // A reset raced this flush — it owns the local cache and phase now.
+      if (epoch !== headsEpoch) return;
+      if (confirmed !== null && confirmed.length > 0) {
+        const current = gtr30BudgetHeadsLocalRepository.loadAll();
+        if (JSON.stringify(current) === JSON.stringify(heads)) {
+          gtr30BudgetHeadsLocalRepository.saveAll(confirmed);
+        }
+      }
+      // A degenerate empty echo never wipes a provisional non-empty list
+      // (genuine remove-all already matches local, so this is a no-op there).
+      if (pendingPushHeads === null) setBudgetHeadsSyncPhase('synced');
     } catch (err) {
-      setBudgetHeadsSyncPhase('error');
+      if (epoch === headsEpoch && pendingPushHeads === null) {
+        setBudgetHeadsSyncPhase('error');
+      }
       throw err;
     }
   };
@@ -72,35 +102,9 @@ class Gtr30BudgetHeadsService {
     const remote = await gtr30BudgetHeadsBackendRepository.list();
     if (remote === null) return;
 
-    const local = this.list();
-    const phase = getBudgetHeadsSyncStatusInternal();
-
-    if (phase === 'syncing' || phase === 'error') {
-      return;
-    }
-
-    const localById = new Map(local.map((h) => [h.id, h]));
-    const remoteById = new Map(remote.map((h) => [h.id, h]));
-    const merged: GTR30BudgetHead[] = [];
-
-    for (const remoteItem of remote) {
-      const localItem = localById.get(remoteItem.id);
-      if (!localItem) {
-        merged.push(remoteItem);
-      } else {
-        merged.push(localItem);
-      }
-    }
-
-    for (const localItem of local) {
-      if (!remoteById.has(localItem.id)) {
-        merged.push(localItem);
-      }
-    }
-
-    if (merged.length !== local.length ||
-        merged.some((h, i) => h.id !== local[i]?.id)) {
-      gtr30BudgetHeadsLocalRepository.saveAll(merged);
+    if (remote.length > 0) {
+      gtr30BudgetHeadsLocalRepository.saveAll(remote);
+      setBudgetHeadsSyncPhase('synced');
     }
   }
 
@@ -108,6 +112,8 @@ class Gtr30BudgetHeadsService {
     gtr30BudgetHeadsLocalRepository.clear();
     if (pendingTimer) clearTimeout(pendingTimer);
     pendingTimer = null;
+    pendingPushHeads = null;
+    headsEpoch += 1;
     setBudgetHeadsSyncPhase('idle');
   }
 }

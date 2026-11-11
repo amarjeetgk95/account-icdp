@@ -2,7 +2,7 @@ import type { ModuleDefinition } from '@/shared/types/module';
 import { isModuleEnabled } from '@/core/feature-flags/store';
 
 /**
- * Three-level hierarchical navigation model:
+ * Three-level hierarchical navigation model for Single-Office ICDP Application:
  *   Level 1 — Top navigation section (NavSection)
  *   Level 2 — Branch (NavBranch): major functional area under a section
  *   Level 3 — Sub-branch (NavSubBranch): child options of a branch
@@ -37,6 +37,7 @@ export interface NavSection {
 
 export interface NavigationModel {
   sections: NavSection[];
+  systemSection?: NavSection;
   dashboardEnabled: boolean;
 }
 
@@ -57,7 +58,6 @@ const NAV_GROUPS: NavGroupConfig[] = [
 ];
 
 const SYSTEM_GROUP: NavGroupConfig = { key: 'system', label: 'Master Settings', icon: 'settings', colorFamily: 'slate', match: () => true };
-const ADMIN_GROUP: NavGroupConfig = { key: 'admin', label: 'Admin Console', icon: 'users', colorFamily: 'amber', match: () => true };
 
 export function matchesRoute(routePath: string, currentBasePath: string): boolean {
   if (routePath === currentBasePath) return true;
@@ -85,22 +85,20 @@ function toBranch(module: ModuleDefinition): NavBranch {
   };
 }
 
-function isModuleVisible(m: ModuleDefinition, isAdmin: boolean): boolean {
+function isModuleVisible(m: ModuleDefinition): boolean {
   if (m.sidebar === false) return false;
   if (m.navGroup === 'overview' || m.navGroup === 'main') return false;
-  if (!m.featureFlag || !isModuleEnabled(m.featureFlag)) return false;
-  if (m.permissions?.includes('admin') && !isAdmin) return false;
-  if (isAdmin) return m.navGroup === 'admin';
+  if (m.featureFlag && !isModuleEnabled(m.featureFlag)) return false;
   return true;
 }
 
 export function buildNavigationModel(
   modules: ModuleDefinition[],
-  options: { isAdmin: boolean; isLoading: boolean }
+  options?: { isLoading?: boolean }
 ): NavigationModel {
-  if (options.isLoading) return { sections: [], dashboardEnabled: false };
+  if (options?.isLoading) return { sections: [], dashboardEnabled: false };
 
-  const visibleModules = modules.filter((m) => isModuleVisible(m, options.isAdmin));
+  const visibleModules = modules.filter(isModuleVisible);
 
   const sections: NavSection[] = NAV_GROUPS.map((group) => ({
     key: group.key,
@@ -114,8 +112,9 @@ export function buildNavigationModel(
   })).filter((section) => section.branches.length > 0);
 
   const systemModules = visibleModules.filter((m) => m.navGroup === 'system');
+  let systemSection: NavSection | undefined;
   if (systemModules.length > 0) {
-    sections.push({
+    systemSection = {
       key: SYSTEM_GROUP.key,
       label: SYSTEM_GROUP.label,
       icon: SYSTEM_GROUP.icon,
@@ -124,30 +123,15 @@ export function buildNavigationModel(
         ...toBranch(m),
         colorFamily: SYSTEM_GROUP.colorFamily,
       })),
-    });
-  }
-
-  const adminModules = visibleModules.filter((m) => m.navGroup === 'admin');
-  if (options.isAdmin && adminModules.length > 0) {
-    sections.push({
-      key: ADMIN_GROUP.key,
-      label: ADMIN_GROUP.label,
-      icon: ADMIN_GROUP.icon,
-      colorFamily: ADMIN_GROUP.colorFamily,
-      branches: adminModules.map((m) => ({
-        ...toBranch(m),
-        colorFamily: ADMIN_GROUP.colorFamily,
-      })),
-    });
+    };
   }
 
   const dashboardModule = modules.find((m) => m.id === 'dashboard');
   const dashboardEnabled =
-    !options.isAdmin &&
     !!dashboardModule &&
     (!dashboardModule.featureFlag || isModuleEnabled(dashboardModule.featureFlag));
 
-  return { sections, dashboardEnabled };
+  return { sections, systemSection, dashboardEnabled };
 }
 
 export interface ActiveNavigation {

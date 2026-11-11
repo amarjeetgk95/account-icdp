@@ -18,97 +18,97 @@ export function ValidationSummary({ summary, reconciliation }: ValidationSummary
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
         {/* Total */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-xl shadow-sm">
-          <span className="text-[0.7rem] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Total Extracted
           </span>
-          <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-0.5">
+          <div className="text-xs font-extrabold text-slate-900 dark:text-slate-100 mt-0.5">
             {summary.totalRecords}
           </div>
-          <span className="text-[0.65rem] text-slate-400">Employee rows</span>
+          <span className="text-xs text-slate-400">Employee rows</span>
         </div>
 
         {/* Matched */}
         <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 p-3 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[0.7rem] font-medium uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+            <span className="text-xs font-medium uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
               Matched
             </span>
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="text-xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-0.5">
+          <div className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 mt-0.5">
             {summary.matchedCount}
           </div>
-          <span className="text-[0.65rem] text-emerald-600/80 dark:text-emerald-400/80">In Master Data</span>
+          <span className="text-xs text-emerald-600/80 dark:text-emerald-400/80">In Master Data</span>
         </div>
 
-        {/* Not Found */}
-        <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 p-3 rounded-xl shadow-sm">
+        {/* Not Found — HRPN not in Establishment (blocks import) */}
+        <div className="bg-red-50/70 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 p-3 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[0.7rem] font-medium uppercase tracking-wider text-amber-800 dark:text-amber-300">
+            <span className="text-xs font-medium uppercase tracking-wider text-red-800 dark:text-red-300">
               Not Found
             </span>
-            <HelpCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <HelpCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
           </div>
-          <div className="text-xl font-extrabold text-amber-700 dark:text-amber-300 mt-0.5">
+          <div className="text-xs font-extrabold text-red-700 dark:text-red-300 mt-0.5">
             {summary.notFoundCount}
           </div>
-          <span className="text-[0.65rem] text-amber-600/80 dark:text-amber-400/80">New / Unlinked</span>
+          <span className="text-xs text-red-600/80 dark:text-red-400/80">No EST match · blocked</span>
         </div>
 
         {/* Duplicate */}
         <div className="bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/60 p-3 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[0.7rem] font-medium uppercase tracking-wider text-orange-800 dark:text-orange-300">
+            <span className="text-xs font-medium uppercase tracking-wider text-orange-800 dark:text-orange-300">
               Duplicate
             </span>
             <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
           </div>
-          <div className="text-xl font-extrabold text-orange-700 dark:text-orange-300 mt-0.5">
+          <div className="text-xs font-extrabold text-orange-700 dark:text-orange-300 mt-0.5">
             {summary.duplicateCount}
           </div>
-          <span className="text-[0.65rem] text-orange-600/80">Repeated HRPN</span>
+          <span className="text-xs text-orange-600/80">Repeated HRPN</span>
         </div>
 
         {/* Errors */}
         <div className="bg-red-50/70 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 p-3 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[0.7rem] font-medium uppercase tracking-wider text-red-800 dark:text-red-300">
+            <span className="text-xs font-medium uppercase tracking-wider text-red-800 dark:text-red-300">
               Errors
             </span>
             <AlertCircle className="w-3.5 h-3.5 text-red-600" />
           </div>
-          <div className="text-xl font-extrabold text-red-700 dark:text-red-300 mt-0.5">
+          <div className="text-xs font-extrabold text-red-700 dark:text-red-300 mt-0.5">
             {summary.errorCount}
           </div>
-          <span className="text-[0.65rem] text-red-600/80">Must resolve</span>
+          <span className="text-xs text-red-600/80">Must resolve</span>
         </div>
 
         {/* Warnings */}
         <div className="bg-yellow-50/70 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800/60 p-3 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[0.7rem] font-medium uppercase tracking-wider text-yellow-800 dark:text-yellow-300">
+            <span className="text-xs font-medium uppercase tracking-wider text-yellow-800 dark:text-yellow-300">
               Warnings
             </span>
             <AlertTriangle className="w-3.5 h-3.5 text-yellow-600" />
           </div>
-          <div className="text-xl font-extrabold text-yellow-700 dark:text-yellow-300 mt-0.5">
+          <div className="text-xs font-extrabold text-yellow-700 dark:text-yellow-300 mt-0.5">
             {summary.warningCount}
           </div>
-          <span className="text-[0.65rem] text-yellow-600/80">Informational</span>
+          <span className="text-xs text-yellow-600/80">Informational</span>
         </div>
 
         {/* Ready */}
         <div className="bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 p-3 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[0.7rem] font-medium uppercase tracking-wider text-blue-800 dark:text-blue-300">
+            <span className="text-xs font-medium uppercase tracking-wider text-blue-800 dark:text-blue-300">
               Ready
             </span>
             <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
           </div>
-          <div className="text-xl font-extrabold text-blue-700 dark:text-blue-300 mt-0.5">
+          <div className="text-xs font-extrabold text-blue-700 dark:text-blue-300 mt-0.5">
             {summary.readyCount}
           </div>
-          <span className="text-[0.65rem] text-blue-600/80">Ready to import</span>
+          <span className="text-xs text-blue-600/80">Ready to import</span>
         </div>
       </div>
 
@@ -135,7 +135,7 @@ export function ValidationSummary({ summary, reconciliation }: ValidationSummary
 
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                  <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">
                     Total Reconciliation Status:
                   </h4>
                   <span
@@ -154,17 +154,17 @@ export function ValidationSummary({ summary, reconciliation }: ValidationSummary
               </div>
             </div>
 
-            <div className="flex items-center gap-4 text-xs font-mono">
+            <div className="flex items-center gap-4 text-xs num">
               <div className="bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400 block text-[0.68rem]">PDF Gross Total</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                <span className="text-slate-500 dark:text-slate-400 block text-xs">PDF Gross Total</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
                   {formatInr(reconciliation.pdfGross)}
                 </span>
               </div>
 
               <div className="bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400 block text-[0.68rem]">Calculated Sum</span>
-                <span className="font-bold text-blue-700 dark:text-blue-300 text-sm">
+                <span className="text-slate-500 dark:text-slate-400 block text-xs">Calculated Sum</span>
+                <span className="font-bold text-blue-700 dark:text-blue-300 text-xs">
                   {formatInr(reconciliation.calculatedGross)}
                 </span>
               </div>
@@ -195,7 +195,7 @@ export function ValidationSummary({ summary, reconciliation }: ValidationSummary
                     <th className="text-center py-1 font-semibold">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 num">
                   {reconciliation.items.map((item) => (
                     <tr key={item.key} className="hover:bg-white/40 dark:hover:bg-slate-800/40">
                       <td className="py-1 text-slate-800 dark:text-slate-200 font-sans font-medium">{item.label}</td>
@@ -206,11 +206,11 @@ export function ValidationSummary({ summary, reconciliation }: ValidationSummary
                       </td>
                       <td className="py-1 text-center">
                         {item.isMatched ? (
-                          <span className="inline-flex items-center text-[0.65rem] text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded font-sans font-bold">
+                          <span className="inline-flex items-center text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded font-sans font-bold">
                             OK
                           </span>
                         ) : (
-                          <span className="inline-flex items-center text-[0.65rem] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-1.5 py-0.5 rounded font-sans font-bold">
+                          <span className="inline-flex items-center text-xs text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-1.5 py-0.5 rounded font-sans font-bold">
                             DIFF
                           </span>
                         )}

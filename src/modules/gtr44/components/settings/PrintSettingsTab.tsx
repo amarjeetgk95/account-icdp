@@ -66,7 +66,7 @@ export function PrintSettingsTab() {
         <div className="flex items-center space-x-2">
           <Printer className="h-5 w-5 text-primary" />
           <div>
-            <h3 className="font-bold text-base text-foreground">Print &amp; Statutory Certificates</h3>
+            <h3 className="font-bold text-xs text-foreground">Print &amp; Statutory Certificates</h3>
             <p className="text-xs text-muted-foreground">
               Customize Gujarat Treasury statutory certificate clauses 1–9, paper fidelity, and layout options.
             </p>
@@ -84,7 +84,7 @@ export function PrintSettingsTab() {
 
       {/* Formatting & Fidelity Options */}
       <Card className="p-6 border border-border bg-card space-y-4">
-        <h4 className="font-bold text-sm text-foreground uppercase tracking-wider">Historical Fidelity &amp; Typography</h4>
+        <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Historical Fidelity &amp; Typography</h4>
         <div className="space-y-3">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
@@ -116,7 +116,7 @@ export function PrintSettingsTab() {
                 Enable Gujarati Serif Typography
               </div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                Uses &apos;Noto Serif Gujarati&apos; font for bilingual headers and Page 1 expenditure titles.
+                Uses &apos;Lohit Gujarati&apos; font for bilingual headers and Page 1 expenditure titles.
               </div>
             </div>
           </label>
@@ -125,8 +125,8 @@ export function PrintSettingsTab() {
 
       {/* Office Stamp & Signatures */}
       <Card className="p-6 border border-border bg-card space-y-4">
-        <h4 className="font-bold text-sm text-foreground uppercase tracking-wider">Stamp &amp; Signature Placeholders</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Stamp &amp; Signature Placeholders</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div>
             <Label className="text-xs">Drawing Officer Signature Label</Label>
             <Input
@@ -188,17 +188,17 @@ export function PrintSettingsTab() {
       <Card className="p-6 border border-border bg-card space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-2">
           <FileText className="h-4 w-4 text-primary" />
-          <h4 className="font-bold text-sm text-foreground uppercase tracking-wider">Statutory Clauses 1 to 9</h4>
+          <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Statutory Clauses 1 to 9</h4>
         </div>
         <div className="space-y-4">
           {certDescriptions.map(({ key, label, note }) => (
             <div key={key} className="space-y-1">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold text-foreground">{label}</Label>
-                <span className="text-[11px] text-muted-foreground">{note}</span>
+                <span className="text-xs text-muted-foreground">{note}</span>
               </div>
               <textarea
-                className="input text-xs font-serif leading-relaxed"
+                className="input text-xs font-gujSans leading-relaxed"
                 rows={key === 'cert4Text' ? 4 : 2}
                 value={String(formData[key] || '')}
                 onChange={(e) => handleChange(key, e.target.value as never)}

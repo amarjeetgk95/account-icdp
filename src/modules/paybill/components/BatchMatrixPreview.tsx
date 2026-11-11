@@ -1,5 +1,6 @@
 import React from 'react';
 import { PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/paybillReport.service';
+import { PDF_PARSER_BUILD } from '../services/pdfParserV2.service';
 import type { PayBillBatchMatrix } from '../types';
 import { Layers } from 'lucide-react';
 
@@ -23,11 +24,17 @@ export const BatchMatrixPreview: React.FC<BatchMatrixPreviewProps> = ({ matrix }
             <Layers size={15} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">
               Consolidated Batch Matrix Preview
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {matrix.months.length} month(s) &bull; {matrix.totalEmployees} employee record(s) &bull; {matrix.totalFiles} file(s) &bull; merged Earning + Deduction
+              <span
+                className="ml-2 font-mono text-xs text-slate-400 dark:text-slate-500"
+                title={`Parser ${PDF_PARSER_BUILD} • build ${typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev'}`}
+              >
+                parser {PDF_PARSER_BUILD}
+              </span>
             </p>
           </div>
         </div>
@@ -87,7 +94,7 @@ export const BatchMatrixPreview: React.FC<BatchMatrixPreviewProps> = ({ matrix }
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[0.72rem]">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 num text-xs">
             {matrix.months.map((monthBlock) => (
               <React.Fragment key={monthBlock.monthLabel}>
                 {/* Month Section Header */}
@@ -108,7 +115,7 @@ export const BatchMatrixPreview: React.FC<BatchMatrixPreviewProps> = ({ matrix }
                       <div className="font-semibold text-slate-900 dark:text-slate-100 leading-snug">
                         {row.employeeName}
                       </div>
-                      <div className="text-[0.65rem] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                      <div className="text-xs num text-slate-500 dark:text-slate-400 mt-0.5">
                         {row.hrpn}
                         {row.designation ? `  •  ${row.designation}` : ''}
                       </div>

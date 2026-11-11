@@ -70,7 +70,7 @@ export function LedgerMatrixRow({
         <div className="flex items-center gap-1.5 min-w-[160px]">
           <span className="truncate">{row.label}</span>
           {isDiff && (
-            <span className="diff-badge px-1.5 py-0.2 text-[9px] font-bold uppercase rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200/80 dark:border-amber-900/80">
+            <span className="diff-badge px-1.5 py-0.2 text-xs font-bold uppercase rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200/80 dark:border-amber-900/80">
               Arrears
             </span>
           )}
@@ -112,7 +112,7 @@ export function LedgerMatrixRow({
             } ${anomaly ? 'bg-amber-100/60 dark:bg-amber-950/40' : ''}`}
           >
             <span
-              className="font-mono tabular-nums inline-flex items-center justify-end gap-1"
+              className="num tabular-nums inline-flex items-center justify-end gap-1"
               title={anomalyTitle}
             >
               {anomaly && (
@@ -131,7 +131,7 @@ export function LedgerMatrixRow({
       {/* Row Total (Sticky or End Column) */}
       <td
         onMouseEnter={() => setHoveredCol(null)}
-        className={`py-2 px-3 text-right font-mono font-bold whitespace-nowrap tabular-nums text-xs border-l border-slate-200/60 dark:border-slate-800/60 ${
+        className={`py-2 px-3 text-right num font-bold whitespace-nowrap tabular-nums text-xs border-l border-slate-200/60 dark:border-slate-800/60 ${
           isGross
             ? 'bg-blue-100/90 dark:bg-blue-950 text-blue-950 dark:text-blue-100 font-extrabold'
             : isNetPay

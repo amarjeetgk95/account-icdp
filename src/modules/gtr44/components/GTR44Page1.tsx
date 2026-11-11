@@ -225,19 +225,19 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
                 <span>
                   Budget Grant for 20{data.budgetGrantYearFrom?.slice(-2) || '26'}&nbsp;&nbsp;20{data.budgetGrantYearTo?.slice(-2) || '27'}&nbsp;&nbsp;Rs.
                 </span>
-                <span style={{ borderBottom: '1px solid #000', minWidth: '85px', textAlign: 'right', fontWeight: 700, fontFamily: "'Courier New', monospace" }}>
+                <span style={{ borderBottom: '1px solid #000', minWidth: '85px', textAlign: 'right', fontWeight: 700, fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums' }}>
                   {formatIndianCurrency(grant)}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '2px' }}>
                 <span>Expenditure including this Bill Rs.</span>
-                <span style={{ borderBottom: '1px solid #000', minWidth: '85px', textAlign: 'right', fontWeight: 700, fontFamily: "'Courier New', monospace" }}>
+                <span style={{ borderBottom: '1px solid #000', minWidth: '85px', textAlign: 'right', fontWeight: 700, fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums' }}>
                   {formatIndianCurrency(grossTotal)}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '2px' }}>
                 <span>Balance&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Rs.</span>
-                <span style={{ borderBottom: '1px solid #000', minWidth: '85px', textAlign: 'right', fontWeight: 700, fontFamily: "'Courier New', monospace" }}>
+                <span style={{ borderBottom: '1px solid #000', minWidth: '85px', textAlign: 'right', fontWeight: 700, fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums' }}>
                   {formatIndianCurrency(balance)}
                 </span>
               </div>
@@ -255,7 +255,7 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
                 {data.treasuryPayRsWords || (netAmount > 0 ? numberToWordsINR(netAmount) : '')}
               </span>
               <span style={{ whiteSpace: 'nowrap' }}>)&nbsp;Rs.</span>
-              <span style={{ borderBottom: '1px solid #000', minWidth: '78px', textAlign: 'right', fontWeight: 700, paddingRight: '2px', fontFamily: "'Courier New', monospace", fontSize: '8.5pt' }}>
+              <span style={{ borderBottom: '1px solid #000', minWidth: '78px', textAlign: 'right', fontWeight: 700, paddingRight: '2px', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontSize: '8.5pt' }}>
                 {formatIndianCurrency(netAmount)}
               </span>
             </div>
@@ -268,7 +268,7 @@ export const GTR44Page1: React.FC<GTR44Page1Props> = ({ data, readOnly = false }
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '14px' }}>
               <span>Total Rs.&nbsp;</span>
-              <span style={{ borderBottom: '1px solid #000', flex: 1, textAlign: 'right', fontWeight: 700, paddingRight: '2px', fontFamily: "'Courier New', monospace" }}>
+              <span style={{ borderBottom: '1px solid #000', flex: 1, textAlign: 'right', fontWeight: 700, paddingRight: '2px', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums' }}>
                 {formatIndianCurrency(grossTotal)}
               </span>
             </div>

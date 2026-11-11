@@ -89,7 +89,6 @@ describe('Header Cascading Flyout Navigation', () => {
         id: 'office-1',
         email: 'officer@account-icdp.gov.in',
         role: 'office',
-        officeId: 'office-1',
       },
       isRoleLoaded: true,
       isLoading: false,
@@ -104,7 +103,7 @@ describe('Header Cascading Flyout Navigation', () => {
   it('renders department emblem and level 1 module navigation buttons', () => {
     renderWithProviders(<Header modules={mockModules} />, '/dashboard');
 
-    expect(screen.getByText('ACCOUNT BRANCH')).toBeDefined();
+    expect(screen.getByText('ICDP ACCOUNT')).toBeDefined();
     expect(screen.getByText('ICDP SURAT, GUJARAT')).toBeDefined();
     expect(screen.getByText('Dashboard')).toBeDefined();
     expect(screen.getByText('Bill Creation')).toBeDefined();
@@ -154,5 +153,41 @@ describe('Header Cascading Flyout Navigation', () => {
     const signOut = screen.queryByRole('menuitem', { name: /sign out/i }) || screen.queryByRole('button', { name: /sign out/i });
     expect(signOut).toBeDefined();
     expect(signOut).not.toBeNull();
+  });
+
+  it('reflects financial year in top nav as a badge linking to settings and moves Master Settings to profile menu', () => {
+    const modulesWithSettings: ModuleDefinition[] = [
+      ...mockModules,
+      {
+        id: 'settings',
+        name: 'Master Settings',
+        icon: 'settings',
+        navGroup: 'system',
+        routes: [{ path: '/settings/office', element: <div>Settings</div> }],
+        sidebar: true,
+        featureFlag: 'settings_module',
+        order: 9,
+        children: [
+          { path: '/settings/office', label: 'Office & DDO Master', icon: 'settings' },
+        ],
+      },
+    ];
+
+    renderWithProviders(<Header modules={modulesWithSettings} />, '/dashboard');
+
+    // 1. Master Settings is NOT in the top nav buttons
+    expect(screen.queryByRole('button', { name: /master settings/i })).toBeNull();
+
+    // 2. Financial Year reflects in top nav as a link badge
+    const fyBadge = screen.getByTitle('Financial Year');
+    expect(fyBadge).toBeDefined();
+    expect(fyBadge.textContent).toContain('FY 2024-25');
+    expect(fyBadge.getAttribute('href')).toBe('/settings/office');
+
+    // 3. Opening profile menu reveals Master Settings
+    const userBtn = screen.getByTitle('User menu');
+    fireEvent.click(userBtn);
+    expect(screen.getByText('Master Settings')).toBeDefined();
+    expect(screen.getByText('Office & DDO Master')).toBeDefined();
   });
 });

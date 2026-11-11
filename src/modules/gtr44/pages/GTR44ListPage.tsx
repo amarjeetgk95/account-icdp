@@ -65,7 +65,6 @@ export function GTR44ListPage() {
     return (
       <div className="max-w-7xl mx-auto space-y-4">
         <WorkspaceHeader
-          eyebrow="Bill creation · GTR-44"
           title="Detailed contingent bills"
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -83,11 +82,10 @@ export function GTR44ListPage() {
     return (
       <div className="max-w-7xl mx-auto space-y-4">
         <WorkspaceHeader
-          eyebrow="Bill creation · GTR-44"
           title="Detailed contingent bills"
         />
         <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6 text-center space-y-3">
-          <p className="text-sm text-destructive font-medium">Failed to load GTR-44 bills.</p>
+          <p className="text-xs text-destructive font-medium">Failed to load GTR-44 bills.</p>
           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5">
             <RefreshCw className="h-4 w-4" /> Retry
           </Button>
@@ -99,7 +97,6 @@ export function GTR44ListPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-4">
       <WorkspaceHeader
-        eyebrow="Bill creation · GTR-44"
         title="Detailed contingent bills"
         actions={
           <Button onClick={() => navigate('/gtr44/create')} className="gap-1.5 font-semibold">
@@ -130,7 +127,7 @@ export function GTR44ListPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search Bill No or Office..."
-            className="pl-9 text-sm"
+            className="pl-9 text-xs"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -176,10 +173,10 @@ export function GTR44ListPage() {
                   <TableCell className="font-mono font-bold text-foreground">{bill.billNo}</TableCell>
                   <TableCell className="text-muted-foreground">{bill.billDate}</TableCell>
                   <TableCell className="font-medium text-foreground">{bill.officeName || '—'}</TableCell>
-                  <TableCell className="tabular-nums font-mono text-right font-semibold text-foreground">
+                  <TableCell className="tabular-nums num text-right font-semibold text-foreground">
                     {formatCurrency(bill.grossAmount || 0)}
                   </TableCell>
-                  <TableCell className="tabular-nums font-mono text-right font-bold text-foreground">
+                  <TableCell className="tabular-nums num text-right font-bold text-foreground">
                     {formatCurrency(bill.netAmount || 0)}
                   </TableCell>
                   <TableCell className="text-center">
@@ -236,7 +233,7 @@ export function GTR44ListPage() {
         message={
           <>
             Are you sure you want to delete bill{' '}
-            <strong className="font-mono font-bold text-foreground">
+            <strong className="num font-bold text-foreground">
               {bills.find((b) => b.id === deleteTarget)?.billNo ?? ''}
             </strong>
             ? This action cannot be undone.

@@ -3,51 +3,53 @@ import { gtr30BillCodeMappingsBackendRepository } from './gtr30BillCodeMappingsB
 
 vi.mock('@/core/supabase/client', () => ({
   supabase: {
-    rpc: vi.fn(),
+    from: vi.fn(),
   },
 }));
 
-vi.mock('./officeScope', () => ({
-  resolveOfficeIdStrict: vi.fn(),
-}));
-
 import { supabase } from '@/core/supabase/client';
-import { resolveOfficeIdStrict } from './officeScope';
 
 describe('gtr30BillCodeMappingsBackendRepository', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns null when officeId is null (all-offices mode)', async () => {
-    vi.mocked(resolveOfficeIdStrict).mockResolvedValue(null);
+  it('returns empty array when table query errors', async () => {
+    vi.mocked(supabase.from).mockReturnValue({
+      select: () => Promise.resolve({ data: null, error: { message: 'DB error' } }),
+    } as unknown as ReturnType<typeof supabase.from>);
 
     const result = await gtr30BillCodeMappingsBackendRepository.list();
-    expect(result).toBeNull();
+    expect(result).toEqual([]);
   });
 
   it('returns validated mappings on success', async () => {
-    vi.mocked(resolveOfficeIdStrict).mockResolvedValue('office-1');
-    const mockMappings = [
-      { id: 'm1', billCode: 'GTR30-SAL', description: 'Salary Bill' },
-      { id: 'm2', billCode: 'GTR30-ARR', description: 'Arrears Bill' },
+    const mockRows = [
+      { id: 'm1', bill_code: 'GTR-30-GO-STATS', description: 'Gazetted Officers (Stats) Bill', payload: {} },
+      { id: 'm2', bill_code: 'GTR-30-NGO-STATS', description: 'Non-Gazetted Staff (Stats) Bill', payload: {} },
     ];
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: mockMappings, error: null });
+    vi.mocked(supabase.from).mockReturnValue({
+      select: () => Promise.resolve({ data: mockRows, error: null }),
+    } as unknown as ReturnType<typeof supabase.from>);
 
     const result = await gtr30BillCodeMappingsBackendRepository.list();
     expect(result).not.toBeNull();
     expect(result).toHaveLength(2);
-    expect(result?.[0].billCode).toBe('GTR30-SAL');
+    expect(result?.[0].billCode).toBe('GTR-30-GO-STATS');
   });
 
-  it('returns null on validation failure', async () => {
-    vi.mocked(resolveOfficeIdStrict).mockResolvedValue('office-1');
-    vi.mocked(supabase.rpc).mockResolvedValue({
-      data: [{ id: 'm1', description: 'Missing billCode' }],
-      error: null,
-    });
+  it('filters legacy dummy bill codes from backend rows', async () => {
+    const mockRows = [
+      { id: 'm1', bill_code: 'GTR30-SAL', description: 'Salary Bill', payload: {} },
+      { id: 'm2', bill_code: 'GTR30-DA', description: 'DA Bill', payload: {} },
+      { id: 'm3', bill_code: 'GTR30-BONUS', description: 'Bonus Bill', payload: {} },
+      { id: 'm4', bill_code: 'GTR-30-GO-STATS', description: 'GO Stats Bill', payload: {} },
+    ];
+    vi.mocked(supabase.from).mockReturnValue({
+      select: () => Promise.resolve({ data: mockRows, error: null }),
+    } as unknown as ReturnType<typeof supabase.from>);
 
     const result = await gtr30BillCodeMappingsBackendRepository.list();
-    expect(result).toBeNull();
+    expect(result?.map((m) => m.billCode)).toEqual(['GTR-30-GO-STATS']);
   });
 });

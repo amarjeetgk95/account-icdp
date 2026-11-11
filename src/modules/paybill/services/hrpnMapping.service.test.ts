@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hrpnMappingService } from './hrpnMapping.service';
+import { hrpnMappingService, splitBundledNameAndDesignation } from './hrpnMapping.service';
 import type { PayBillEmployeeRow, PayBillDeductionRow, MasterEmployeeInfo } from '../types';
 
 describe('HrpnMappingService', () => {
@@ -227,5 +227,90 @@ describe('HrpnMappingService', () => {
     const records = hrpnMappingService.mapDeductionRows(deductionRows, masterEmployees);
     expect(records[0].mappingStatus).toBe('MATCHED');
     expect(records[0].matchedEmployee?.id).toBe('emp-2');
+  });
+
+  it('should adopt canonical master employee name and designation when row name is placeholder', () => {
+    const earningRows: PayBillEmployeeRow[] = [
+      {
+        hrpn: '20013826',
+        employeeName: 'Employee 20013826',
+        designation: 'Staff',
+        payScale: '',
+        ph: 'No',
+        slo: 'P',
+        basicPay: 105600,
+        da: 76032,
+        hra: 16896,
+        cla: 270,
+        medicalAllowance: 1000,
+        transportAllowance: 7200,
+        nonPrivatePracticeAllowance: 21120,
+        grossAmount: 228118,
+      },
+    ];
+
+    const mappedEarnings = hrpnMappingService.mapRows(earningRows, masterEmployees);
+    expect(mappedEarnings[0].mappingStatus).toBe('MATCHED');
+    expect(mappedEarnings[0].row.employeeName).toBe('Dr. Dineshbhai Chamabhai Chaudhari');
+    expect(mappedEarnings[0].row.designation).toBe('Deputy Director');
+    expect(mappedEarnings[0].nameMismatch).toBe(false);
+
+    const deductionRows: PayBillDeductionRow[] = [
+      {
+        hrpn: '20014113',
+        employeeName: 'Employee 20014113',
+        designation: 'Staff',
+        incomeTax: 10000,
+        profTax: 150,
+        hbaInterest: 5000,
+        gpfRegular: 2000,
+        gpfClass4: 0,
+        npsRegular: 18000,
+        gisGovtFund: 150,
+        gisGovtSaving: 0,
+        totalDeductions: 35800,
+        netPay: 217694,
+      },
+    ];
+
+    const mappedDeductions = hrpnMappingService.mapDeductionRows(deductionRows, masterEmployees);
+    expect(mappedDeductions[0].mappingStatus).toBe('MATCHED');
+    expect(mappedDeductions[0].row.employeeName).toBe('Dr. Hitendrabhai Manilal Patidar');
+    expect(mappedDeductions[0].row.designation).toBe('Assistant Director');
+    expect(mappedDeductions[0].nameMismatch).toBe(false);
+  });
+});
+
+describe('splitBundledNameAndDesignation', () => {
+  it('splits "<Name> <Designation>" order', () => {
+    expect(splitBundledNameAndDesignation('Ramesh Patel Live Stock Inspector')).toEqual({
+      name: 'Ramesh Patel',
+      designation: 'Live Stock Inspector',
+    });
+  });
+
+  it('splits "<Designation> <Name>" order so the PDF name reaches the name section', () => {
+    expect(splitBundledNameAndDesignation('Junior Clerk Ramesh Patel')).toEqual({
+      name: 'Ramesh Patel',
+      designation: 'Junior Clerk',
+    });
+  });
+
+  it('keeps single station words with designation instead of treating as person name', () => {
+    expect(splitBundledNameAndDesignation('Live Stock Inspector Sayan')).toBeNull();
+    expect(splitBundledNameAndDesignation('Live Stock Inspector Vagech')).toBeNull();
+  });
+
+
+  it('leaves clean designations untouched', () => {
+    expect(splitBundledNameAndDesignation('Live Stock Inspector')).toBeNull();
+    expect(splitBundledNameAndDesignation('Assistant Director')).toBeNull();
+    expect(splitBundledNameAndDesignation('')).toBeNull();
+    expect(splitBundledNameAndDesignation(null)).toBeNull();
+  });
+
+  it('never promotes grade/scale fragments into the name section', () => {
+    expect(splitBundledNameAndDesignation('Live Stock Inspector Class III')).toBeNull();
+    expect(splitBundledNameAndDesignation('Junior Clerk Level 5')).toBeNull();
   });
 });

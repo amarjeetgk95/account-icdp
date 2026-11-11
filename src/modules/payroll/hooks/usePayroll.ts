@@ -2,16 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { payrollService } from '../services/payroll.service';
 import { payrollRepository } from '../repositories/payroll.repository';
 import { taxReconciliationService } from '../services/taxReconciliation.service';
-import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 import type { SyncPaybillToPayrollPayload } from '../types/reconciliation';
 
-export function useRoster(month: string, fy: number) {
-  const officeId = useActiveOfficeId();
-
+export function useRoster(month: string, fy: number, enabled = true) {
   return useQuery({
-    queryKey: ['payroll-roster', month, fy, officeId],
+    queryKey: ['payroll-roster', month, fy],
     queryFn: () => payrollService.getRoster(month, fy),
-    enabled: !!month && !!officeId,
+    enabled: !!month && enabled,
   });
 }
 
@@ -39,6 +36,7 @@ export function useSaveSalary() {
       queryClient.invalidateQueries({ queryKey: ['payroll-quarter-report'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-tax-reconciliation'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['salary-lookup-details'] });
     },
   });
 }
@@ -60,48 +58,41 @@ export function useClearMonth() {
       queryClient.invalidateQueries({ queryKey: ['payroll-quarter-report'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-tax-reconciliation'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['salary-lookup-details'] });
     },
   });
 }
 
-export function useQuarterReport(quarter: string, fy: number) {
-  const officeId = useActiveOfficeId();
-
+export function useQuarterReport(quarter: string, fy: number, enabled = true) {
   return useQuery({
-    queryKey: ['payroll-quarter-report', quarter, fy, officeId],
+    queryKey: ['payroll-quarter-report', quarter, fy],
     queryFn: () => payrollService.getQuarterReport(quarter, fy),
-    enabled: !!quarter && !!officeId,
+    enabled: !!quarter && enabled,
   });
 }
 
-export function useBudgetHeadReport(fy: number) {
-  const officeId = useActiveOfficeId();
-
+export function useBudgetHeadReport(fy: number, enabled = true) {
   return useQuery({
-    queryKey: ['payroll-budget-head-report', fy, officeId],
+    queryKey: ['payroll-budget-head-report', fy],
     queryFn: () => payrollService.getBudgetHeadReport(fy),
-    enabled: !!officeId,
+    enabled,
   });
 }
 
-export function useMonthDataCheck(month: string, fy: number) {
-  const officeId = useActiveOfficeId();
-
+export function useMonthDataCheck(month: string, fy: number, enabled = true) {
   return useQuery({
-    queryKey: ['payroll-month-check', month, fy, officeId],
-    queryFn: () => payrollRepository.checkMonthData(month, fy, officeId || undefined),
-    enabled: !!month && !!officeId,
+    queryKey: ['payroll-month-check', month, fy],
+    queryFn: () => payrollRepository.checkMonthData(month, fy),
+    enabled: !!month && enabled,
     staleTime: 60000,
   });
 }
 
-export function useTaxReconciliation(quarter: string, fy: number) {
-  const officeId = useActiveOfficeId();
-
+export function useTaxReconciliation(quarter: string, fy: number, enabled = true) {
   return useQuery({
-    queryKey: ['payroll-tax-reconciliation', quarter, fy, officeId],
-    queryFn: () => taxReconciliationService.getQuarterTaxReconciliation(quarter, fy, officeId || undefined),
-    enabled: !!quarter && !!officeId,
+    queryKey: ['payroll-tax-reconciliation', quarter, fy],
+    queryFn: () => taxReconciliationService.getQuarterTaxReconciliation(quarter, fy),
+    enabled: !!quarter && enabled,
   });
 }
 

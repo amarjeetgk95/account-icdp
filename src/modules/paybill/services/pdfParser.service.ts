@@ -1,5 +1,5 @@
-import { extractText, getDocumentProxy } from 'unpdf';
 import { componentMasterService } from './componentMaster.service';
+import { splitBundledNameAndDesignation } from './hrpnMapping.service';
 import type {
   PayBillMetadata,
   PayBillEmployeeRow,
@@ -38,6 +38,94 @@ interface DetectedColumns {
   components?: DetectedComponentInfo[];
 }
 
+export interface PositionalEarningAmounts {
+  basicPay: number;
+  da: number;
+  hra: number;
+  cla: number;
+  medicalAllowance: number;
+  transportAllowance: number;
+  specialPay: number;
+  washingAllowance: number;
+  nonPrivatePracticeAllowance: number;
+  otherAllowance: number;
+  grossAmount: number;
+}
+
+/**
+ * Map left-to-right positional amounts of an earnings row to earning fields.
+ * Full bills carry 7+ amounts (Basic, DA, HRA, CLA, Med, Trans, [Special,
+ * Washing, NPP, ...], Gross). Minimal-column bills (e.g. a flat bill with
+ * only Basic Pay + Gross Amt) carry fewer: the first amount is Basic Pay,
+ * the last is Gross Amt, and any middle amounts map positionally
+ * (same fallback as the text extraction path).
+ */
+export function mapPositionalEarningAmounts(
+  amounts: number[],
+  detectedCols?: DetectedColumns
+): PositionalEarningAmounts {
+  const empty: PositionalEarningAmounts = {
+    basicPay: 0,
+    da: 0,
+    hra: 0,
+    cla: 0,
+    medicalAllowance: 0,
+    transportAllowance: 0,
+    specialPay: 0,
+    washingAllowance: 0,
+    nonPrivatePracticeAllowance: 0,
+    otherAllowance: 0,
+    grossAmount: 0,
+  };
+  if (!amounts || amounts.length === 0) return empty;
+
+  if (amounts.length >= 7) {
+    const len = amounts.length;
+    const mapped: PositionalEarningAmounts = {
+      ...empty,
+      basicPay: amounts[0],
+      da: amounts[1],
+      hra: amounts[2],
+      cla: amounts[3],
+      medicalAllowance: amounts[4],
+      transportAllowance: amounts[5],
+      grossAmount: amounts[len - 1],
+    };
+
+    const intermediateCount = len - 7;
+    if (intermediateCount === 1) {
+      const extra = amounts[6];
+      if (detectedCols?.hasSpecialPay) mapped.specialPay = extra;
+      else if (detectedCols?.hasWashing) mapped.washingAllowance = extra;
+      else mapped.nonPrivatePracticeAllowance = extra;
+    } else if (intermediateCount === 2) {
+      mapped.specialPay = amounts[6];
+      mapped.washingAllowance = amounts[7];
+    } else if (intermediateCount >= 3) {
+      mapped.specialPay = amounts[6];
+      mapped.washingAllowance = amounts[7];
+      mapped.nonPrivatePracticeAllowance = amounts[8];
+      if (intermediateCount > 3) {
+        mapped.otherAllowance = amounts.slice(9, len - 1).reduce((s, v) => s + v, 0);
+      }
+    }
+    return mapped;
+  }
+
+  // Minimal-column bill: first = Basic Pay, last = Gross Amt.
+  const len = amounts.length;
+  const mapped: PositionalEarningAmounts = {
+    ...empty,
+    basicPay: amounts[0],
+    grossAmount: amounts[len - 1],
+  };
+  if (len >= 3) mapped.da = amounts[1];
+  if (len >= 4) mapped.hra = amounts[2];
+  if (len >= 5) mapped.cla = amounts[3];
+  if (len >= 6) mapped.medicalAllowance = amounts[4];
+  return mapped;
+}
+
 class PdfParserService {
   /**
    * Parse Pay Bill PDF from ArrayBuffer or File
@@ -65,7 +153,17 @@ class PdfParserService {
     const warnings: string[] = [];
 
     // 1. Detect Sheet Type: Earning vs. Deduction Side
-    const isDeduction = /Deduction\s+Side|Income\s+Tax\s*\(9510\)|Total\s+Ded/i.test(rawText);
+    // Broadened: real Karmayogi PDFs vary ("Deduction", "DEDUCTION SIDE",
+    // "Income Tax" without code, Gujarati headers, split header items).
+    // Any deduction-only marker (codes 9510/9570, Net Pay, Total Ded) forces
+    // DEDUCTION so income-tax rows are never silently parsed as earnings.
+    const isDeduction =
+      /Deduct/i.test(rawText) ||
+      /9510/.test(rawText) ||
+      /9570/.test(rawText) ||
+      /Net\s*Pay/i.test(rawText) ||
+      /Total\s+Ded/i.test(rawText) ||
+      /Income\s*Tax/i.test(rawText);
     const sheetType: PayBillSheetType = isDeduction ? 'DEDUCTION' : 'EARNING';
 
     // 2. Extract Bill Metadata from header area
@@ -79,18 +177,34 @@ class PdfParserService {
     }
 
     if (sheetType === 'DEDUCTION') {
-      // 3. Extract Deduction Rows
+      // 3. Extract Deduction Rows — coordinate (header-X) path first, text
+      // path as cross-check. Real PDFs (e.g. gazetted March-2026) return rows
+      // from coordinates but can miss a single cell (IT) when its number is
+      // printed slightly off its header X. Merging fills such holes instead
+      // of silently leaving income-tax at 0.
       let deductionRows: PayBillDeductionRow[] = [];
+      let coordRows: PayBillDeductionRow[] = [];
       if (items && items.length > 0) {
         try {
-          deductionRows = this.extractDeductionRowsFromItems(items, warnings);
+          coordRows = this.extractDeductionRowsFromItems(items, warnings);
         } catch (err) {
           console.warn('[PdfParserService] Coordinate deduction extraction fallback:', err);
         }
       }
 
-      if (deductionRows.length === 0) {
-        deductionRows = this.extractDeductionRows(rawText, warnings);
+      let textRows: PayBillDeductionRow[] = [];
+      try {
+        textRows = this.extractDeductionRows(rawText, warnings);
+      } catch (err) {
+        console.warn('[PdfParserService] Text deduction extraction failed:', err);
+      }
+
+      if (coordRows.length === 0) {
+        deductionRows = textRows;
+      } else if (textRows.length === 0) {
+        deductionRows = coordRows;
+      } else {
+        deductionRows = this.mergeDeductionRows(coordRows, textRows, warnings);
       }
 
       if (deductionRows.length === 0) {
@@ -188,6 +302,7 @@ class PdfParserService {
     arrayBuffer: ArrayBuffer
   ): Promise<{ rawText: string; pageCount: number; items: RawTextItem[] }> {
     const data = new Uint8Array(arrayBuffer);
+    const { extractText, getDocumentProxy } = await import('unpdf');
 
     try {
       const pdfDoc = await getDocumentProxy(data);
@@ -466,10 +581,20 @@ class PdfParserService {
         if (/^HRPN$/i.test(s)) {
           hrpnHeaderItem = item;
           tableHeaderY = item.y;
-        } else if (/Employee\s+Name/i.test(s) || s === 'Name') {
+        } else if (
+          /Employee\s+Name/i.test(s) ||
+          /Name\s+of\s+(?:Govt\s+Servant|Government\s+Servant|Employee)/i.test(s) ||
+          /^(?:Emp\.?\s*Name|Employee|Name)$/i.test(s) ||
+          /કર્મચારીનું\s*નામ/i.test(s)
+        ) {
           nameHeaderItem = item;
           if (!tableHeaderY) tableHeaderY = item.y;
-        } else if (/Designation/i.test(s)) {
+        } else if (
+          /Designation/i.test(s) ||
+          /^Desig\.?$/i.test(s) ||
+          /Designation\s+of\s+Post/i.test(s) ||
+          /હોદ્દો/i.test(s)
+        ) {
           desigHeaderItem = item;
         } else if (/Pay\s+Scale/i.test(s) || s === 'Scale') {
           payScaleHeaderItem = item;
@@ -549,7 +674,7 @@ class PdfParserService {
       const minBasicX = Math.max(payScaleX + 60, phX + 40, sloX + 20);
       const basicX = Math.max(basicHeaderItem?.x || minBasicX, minBasicX);
 
-      const colBoundHrpnMax = (hrpnX + nameX) / 2;
+      const colBoundHrpnMax = Math.min((hrpnX + nameX) / 2, hrpnX + 25);
       const colBoundNameMax = (nameX + desigX) / 2;
       const colBoundDesigMax = (desigX + payScaleX) / 2;
       const colBoundPayScaleMax = (payScaleX + phX) / 2;
@@ -595,12 +720,45 @@ class PdfParserService {
           .filter((i) => i.x >= colBoundNameMax && i.x < colBoundDesigMax)
           .sort((a, b) => b.y - a.y || a.x - b.x);
 
-        const designation = desigItems
+        let designation = desigItems
           .map((i) => i.str.trim())
           .filter(Boolean)
           .join(' ')
           .replace(/^(Designation|Desig)\s+/i, '')
           .trim();
+
+        // Fallback for employee name if not captured in the strict column band
+        if (!employeeName) {
+          const fallbackNameItems = rowItems
+            .filter((i) => {
+              if (i.x <= hrpnX + 10 || i.x >= colBoundDesigMax) return false;
+              if (desigItems.some((d) => d.x === i.x && d.y === i.y)) return false;
+              const s = i.str.trim();
+              if (/^\d+(?:\.\d+)?$/.test(s)) return false;
+              if (designation && designation.includes(s)) return false;
+              return true;
+            })
+            .sort((a, b) => b.y - a.y || a.x - b.x);
+
+          employeeName = fallbackNameItems
+            .map((i) => i.str.trim())
+            .filter(Boolean)
+            .join(' ')
+            .replace(/Shri\.?\s*Dr\.?/gi, 'Shri.Dr ')
+            .replace(/[0-9/()\\-]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        }
+
+        // Check if designation accidentally bundled the employee name
+        // (handles both "Name Designation" and "Designation Name" orders)
+        if (!employeeName && designation) {
+          const split = splitBundledNameAndDesignation(designation);
+          if (split) {
+            employeeName = split.name;
+            designation = split.designation;
+          }
+        }
 
         // Extract Pay Scale (items strictly between Designation and PH columns, or containing pay scale patterns)
         const payScaleItems = rowItems
@@ -676,33 +834,19 @@ class PdfParserService {
         let otherAllowance = 0;
         let grossAmount = 0;
 
-        if (amounts.length >= 7) {
-          const len = amounts.length;
-          basicPay = amounts[0];
-          da = amounts[1];
-          hra = amounts[2];
-          cla = amounts[3];
-          medicalAllowance = amounts[4];
-          transportAllowance = amounts[5];
-          grossAmount = amounts[len - 1];
-
-          const intermediateCount = len - 7;
-          if (intermediateCount === 1) {
-            const extra = amounts[6];
-            if (detectedCols?.hasSpecialPay) specialPay = extra;
-            else if (detectedCols?.hasWashing) washingAllowance = extra;
-            else nonPrivatePracticeAllowance = extra;
-          } else if (intermediateCount === 2) {
-            specialPay = amounts[6];
-            washingAllowance = amounts[7];
-          } else if (intermediateCount >= 3) {
-            specialPay = amounts[6];
-            washingAllowance = amounts[7];
-            nonPrivatePracticeAllowance = amounts[8];
-            if (intermediateCount > 3) {
-              otherAllowance = amounts.slice(9, len - 1).reduce((s, v) => s + v, 0);
-            }
-          }
+        {
+          const mapped = mapPositionalEarningAmounts(amounts, detectedCols);
+          basicPay = mapped.basicPay;
+          da = mapped.da;
+          hra = mapped.hra;
+          cla = mapped.cla;
+          medicalAllowance = mapped.medicalAllowance;
+          transportAllowance = mapped.transportAllowance;
+          specialPay = mapped.specialPay;
+          washingAllowance = mapped.washingAllowance;
+          nonPrivatePracticeAllowance = mapped.nonPrivatePracticeAllowance;
+          otherAllowance = mapped.otherAllowance;
+          grossAmount = mapped.grossAmount;
         }
 
         allRows.push({
@@ -1184,10 +1328,20 @@ class PdfParserService {
         if (/^HRPN$/i.test(s)) {
           hrpnHeaderItem = item;
           tableHeaderY = item.y;
-        } else if (/Employee\s+Name/i.test(s) || s === 'Name') {
+        } else if (
+          /Employee\s+Name/i.test(s) ||
+          /Name\s+of\s+(?:Govt\s+Servant|Government\s+Servant|Employee)/i.test(s) ||
+          /^(?:Emp\.?\s*Name|Employee|Name)$/i.test(s) ||
+          /કર્મચારીનું\s*નામ/i.test(s)
+        ) {
           nameHeaderItem = item;
           if (!tableHeaderY) tableHeaderY = item.y;
-        } else if (/Designation/i.test(s)) {
+        } else if (
+          /Designation/i.test(s) ||
+          /^Desig\.?$/i.test(s) ||
+          /Designation\s+of\s+Post/i.test(s) ||
+          /હોદ્દો/i.test(s)
+        ) {
           desigHeaderItem = item;
         } else {
           const match = matcher.findComponent(s);
@@ -1239,20 +1393,41 @@ class PdfParserService {
       // 4. Calculate Column Intervals
       const nameX = nameHeaderItem?.x || hrpnX + 55;
       const desigX = desigHeaderItem?.x || nameX + 110;
-      const itX = this.findComponentHeaderX(headerBandItems, '9510') || desigX + 90;
-      const ptX = this.findComponentHeaderX(headerBandItems, '9570') || itX + 55;
-      const hbaX = this.findComponentHeaderX(headerBandItems, '9591') || ptX + 45;
-      const gpfX = this.findComponentHeaderX(headerBandItems, '9670') || hbaX + 55;
-      const gpf4X = this.findComponentHeaderX(headerBandItems, '9531') || gpfX + 60;
-      const npsX = this.findComponentHeaderX(headerBandItems, '9534') || gpf4X + 60;
-      const gisFundX = this.findComponentHeaderX(headerBandItems, '9581') || npsX + 55;
-      const gisSaveX = this.findComponentHeaderX(headerBandItems, '9582') || gisFundX + 50;
-      const totDedX = this.findComponentHeaderX(headerBandItems, 'TOTDED') || gisSaveX + 50;
-      const netPayX = this.findComponentHeaderX(headerBandItems, 'NETPAY') || totDedX + 55;
+      const itHit = this.findComponentHeaderX(headerBandItems, '9510');
+      const ptHit = this.findComponentHeaderX(headerBandItems, '9570');
+      const hbaHit = this.findComponentHeaderX(headerBandItems, '9591');
+      const gpfHit = this.findComponentHeaderX(headerBandItems, '9670');
+      const gpf4Hit = this.findComponentHeaderX(headerBandItems, '9531');
+      const npsHit = this.findComponentHeaderX(headerBandItems, '9534');
+      const gisFundHit = this.findComponentHeaderX(headerBandItems, '9581');
+      const gisSaveHit = this.findComponentHeaderX(headerBandItems, '9582');
+      const totDedHit = this.findComponentHeaderX(headerBandItems, 'TOTDED');
+      const netPayHit = this.findComponentHeaderX(headerBandItems, 'NETPAY');
+      // True when no deduction header was recognised (split/Gujarati headers,
+      // scanned PDFs). In that case positional fallback below is used so
+      // income-tax is never silently zeroed.
+      const hasRealDeductionHeaders =
+        itHit > 0 || ptHit > 0 || gpfHit > 0 || npsHit > 0 || totDedHit > 0 || netPayHit > 0;
+      const itX = itHit || desigX + 90;
+      const ptX = ptHit || itX + 55;
+      const hbaX = hbaHit || ptX + 45;
+      const gpfX = gpfHit || hbaX + 55;
+      const gpf4X = gpf4Hit || gpfX + 60;
+      const npsX = npsHit || gpf4X + 60;
+      const gisFundX = gisFundHit || npsX + 55;
+      const gisSaveX = gisSaveHit || gisFundX + 50;
+      const totDedX = totDedHit || gisSaveX + 50;
+      const netPayX = netPayHit || totDedX + 55;
 
-      const colBoundHrpnMax = (hrpnX + nameX) / 2;
+      const colBoundHrpnMax = Math.min((hrpnX + nameX) / 2, hrpnX + 25);
       const colBoundNameMax = (nameX + desigX) / 2;
-      const colBoundDesigMax = (desigX + itX) / 2;
+      // Boundary between Designation text and first deduction number uses the
+      // leftmost PRESENT header (not a guessed itX), so omitted columns never
+      // push IT numbers into the designation band.
+      const firstPresentDedX = [itHit, ptHit, hbaHit, gpfHit, gpf4Hit, npsHit, gisFundHit, gisSaveHit]
+        .filter((x) => x > 0)
+        .sort((a, b) => a - b)[0] || itX;
+      const colBoundDesigMax = (desigX + firstPresentDedX) / 2;
 
       // 5. Extract Each Deduction Row
       for (let r = 0; r < hrpnColumnItems.length; r++) {
@@ -1275,7 +1450,7 @@ class PdfParserService {
           .filter((i) => i.x >= colBoundHrpnMax && i.x < colBoundNameMax)
           .sort((a, b) => b.y - a.y || a.x - b.x);
 
-        const employeeName = nameItems
+        let employeeName = nameItems
           .map((i) => i.str.trim())
           .filter(Boolean)
           .join(' ')
@@ -1288,12 +1463,61 @@ class PdfParserService {
           .filter((i) => i.x >= colBoundNameMax && i.x < colBoundDesigMax)
           .sort((a, b) => b.y - a.y || a.x - b.x);
 
-        const designation = desigItems
+        let designation = desigItems
           .map((i) => i.str.trim())
           .filter(Boolean)
           .join(' ')
           .replace(/^(Designation|Desig)\s+/i, '')
           .trim();
+
+        // Pattern fallback: X bands miss "Assistant Director" when the name
+        // column runs wide. Search the row's own text for a known post —
+        // same pattern list as the earning side.
+        if (!designation || /^staff$/i.test(designation)) {
+          const rowTextForDesig = rowItems
+            .map((i) => i.str.trim())
+            .filter(Boolean)
+            .join(' ');
+          const found = this.findDesignationInText(rowTextForDesig);
+          if (found) {
+            designation = found;
+            if (employeeName && employeeName.includes(found)) {
+              employeeName = employeeName.replace(found, ' ').replace(/\s+/g, ' ').trim();
+            }
+          }
+        }
+
+        // Fallback for employee name if not captured in the strict column band
+        if (!employeeName) {
+          const fallbackNameItems = rowItems
+            .filter((i) => {
+              if (i.x <= hrpnX + 10 || i.x >= colBoundDesigMax) return false;
+              if (desigItems.some((d) => d.x === i.x && d.y === i.y)) return false;
+              const s = i.str.trim();
+              if (/^\d+(?:\.\d+)?$/.test(s)) return false;
+              if (designation && designation.includes(s)) return false;
+              return true;
+            })
+            .sort((a, b) => b.y - a.y || a.x - b.x);
+
+          employeeName = fallbackNameItems
+            .map((i) => i.str.trim())
+            .filter(Boolean)
+            .join(' ')
+            .replace(/[0-9/()\\-]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        }
+
+        // Check if designation accidentally bundled the employee name
+        // (handles both "Name Designation" and "Designation Name" orders)
+        if (!employeeName && designation) {
+          const split = splitBundledNameAndDesignation(designation);
+          if (split) {
+            employeeName = split.name;
+            designation = split.designation;
+          }
+        }
 
         // Deduction numeric items (all items to the right of designation boundary)
         const numericItems = rowItems
@@ -1332,16 +1556,118 @@ class PdfParserService {
           return 0;
         };
 
-        const incomeTax = findValNearX(itX);
-        const profTax = findValNearX(ptX);
-        const hbaInterest = findValNearX(hbaX);
-        const gpfRegular = findValNearX(gpfX);
-        const gpfClass4 = findValNearX(gpf4X);
-        const npsRegular = findValNearX(npsX);
-        const gisGovtFund = findValNearX(gisFundX);
-        const gisGovtSaving = findValNearX(gisSaveX);
-        const totalDeductions = findValNearX(totDedX);
-        const netPay = findValNearX(netPayX);
+        // Header-driven mapping (original idea): each value comes from its
+        // own header's X position. Headers absent from this sheet (e.g.
+        // gazetted March-2026 has no HBA 9591 / Class-4 9531) stay 0 WITHOUT
+        // claiming any number — that is what previously shifted IT into the
+        // wrong column. Query present headers left-to-right so each number is
+        // claimed once by its closest header.
+        const presentFields = [
+          { code: '9510', x: itHit, key: 'incomeTax' },
+          { code: '9570', x: ptHit, key: 'profTax' },
+          { code: '9591', x: hbaHit, key: 'hbaInterest' },
+          { code: '9670', x: gpfHit, key: 'gpfRegular' },
+          { code: '9531', x: gpf4Hit, key: 'gpfClass4' },
+          { code: '9534', x: npsHit, key: 'npsRegular' },
+          { code: '9581', x: gisFundHit, key: 'gisGovtFund' },
+          { code: '9582', x: gisSaveHit, key: 'gisGovtSaving' },
+        ]
+          .filter((f) => f.x > 0)
+          .sort((a, b) => a.x - b.x);
+        const fieldByKey: Record<string, number> = {
+          incomeTax: 0,
+          profTax: 0,
+          hbaInterest: 0,
+          gpfRegular: 0,
+          gpfClass4: 0,
+          npsRegular: 0,
+          gisGovtFund: 0,
+          gisGovtSaving: 0,
+        };
+        // Claim one number per present header, left-to-right.
+        for (const f of presentFields) {
+          fieldByKey[f.key] = findValNearX(f.x);
+        }
+        let incomeTax = fieldByKey.incomeTax;
+        let profTax = fieldByKey.profTax;
+        let hbaInterest = fieldByKey.hbaInterest;
+        let gpfRegular = fieldByKey.gpfRegular;
+        let gpfClass4 = fieldByKey.gpfClass4;
+        let npsRegular = fieldByKey.npsRegular;
+        let gisGovtFund = fieldByKey.gisGovtFund;
+        let gisGovtSaving = fieldByKey.gisGovtSaving;
+        // Total / Net from their own headers when present; else last numbers.
+        let totalDeductions = 0;
+        let netPay = 0;
+        const numericVals = numericItems.map((n) => parseNum(n.str));
+        if (totDedHit > 0) {
+          totalDeductions = findValNearX(totDedX);
+        } else if (numericVals.length >= 2) {
+          totalDeductions = numericVals[numericVals.length - 2] || 0;
+        }
+        if (netPayHit > 0) {
+          netPay = findValNearX(netPayX);
+        } else if (numericVals.length >= 1) {
+          netPay = numericVals[numericVals.length - 1] || 0;
+        }
+        // Blank Total column: derive from present fields.
+        if (totalDeductions === 0 && netPay !== 0 && presentFields.length > 0) {
+          const sum = presentFields.reduce((s, f) => s + (fieldByKey[f.key] || 0), 0);
+          if (sum > 0) totalDeductions = sum;
+        }
+
+        // Last-resort positional fallback only when NO header was recognised
+        // at all (scanned/Gujarati sheets) — never when headers exist.
+        const allZero =
+          incomeTax === 0 &&
+          profTax === 0 &&
+          hbaInterest === 0 &&
+          gpfRegular === 0 &&
+          gpfClass4 === 0 &&
+          npsRegular === 0 &&
+          gisGovtFund === 0 &&
+          gisGovtSaving === 0 &&
+          totalDeductions === 0 &&
+          netPay === 0;
+        if (!hasRealDeductionHeaders && allZero && numericItems.length >= 2) {
+          const vals = numericVals;
+          const len = vals.length;
+          if (len >= 10) {
+            incomeTax = vals[0];
+            profTax = vals[1];
+            hbaInterest = vals[2];
+            gpfRegular = vals[3];
+            gpfClass4 = vals[4];
+            npsRegular = vals[5];
+            gisGovtFund = vals[6];
+            gisGovtSaving = vals[7];
+            totalDeductions = vals[len - 2];
+            netPay = vals[len - 1];
+          } else if (len === 9) {
+            incomeTax = vals[0];
+            profTax = vals[1];
+            hbaInterest = vals[2];
+            gpfRegular = vals[3];
+            gpfClass4 = vals[4];
+            npsRegular = vals[5];
+            gisGovtFund = vals[6];
+            gisGovtSaving = vals[7];
+            totalDeductions =
+              vals[0] + vals[1] + vals[2] + vals[3] + vals[4] + vals[5] + vals[6] + vals[7];
+            netPay = vals[8];
+          } else if (len >= 8) {
+            incomeTax = vals[0] || 0;
+            profTax = vals[1] || 0;
+            hbaInterest = vals[2] || 0;
+            gpfRegular = vals[3] || 0;
+            gpfClass4 = vals[4] || 0;
+            npsRegular = vals[5] || 0;
+            gisGovtFund = vals[6] || 0;
+            gisGovtSaving = vals[7] || 0;
+            totalDeductions = vals[len - 2] || vals.slice(0, 8).reduce((s, v) => s + v, 0);
+            netPay = vals[len - 1] || 0;
+          }
+        }
 
         allRows.push({
           srNo,
@@ -1393,11 +1719,17 @@ class PdfParserService {
       return isNaN(num) ? 0 : num;
     };
 
+    // Anchor-based blocks (same as earning side) so multi-line wrapped
+    // names / pay-scales don't break income-tax extraction. A row runs from
+    // its HRPN line until the next HRPN line (or Total / certify footer).
+    const anchors: Array<{ lineIndex: number; hrpn: string }> = [];
     let inTable = false;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-
-      if (/^Sr\b|^HRPN\b|Employee\s+Name|Income\s+Tax/i.test(line)) {
+      // NOTE: do NOT trigger on "Deduction Side" alone — that line appears
+      // before the DDO header and would turn the DDO HRPN into a false row.
+      // Table starts at the column header (Sr / HRPN / Employee Name / tax cols).
+      if (/^Sr\b|^HRPN\b|Employee\s+Name|Income\s+Tax|Prof\s*Tax|Net\s*Pay/i.test(line)) {
         inTable = true;
         continue;
       }
@@ -1405,56 +1737,124 @@ class PdfParserService {
         break;
       }
       if (!inTable) continue;
+      const m = line.match(/\b(\d{7,10})\b/);
+      if (!m) continue;
+      if (/^(2403|0299)/.test(m[1])) continue;
+      // Skip header-area phone/DDO fragments: HRPN must be followed by a
+      // name or by deduction amounts within the block (checked below).
+      anchors.push({ lineIndex: i, hrpn: m[1] });
+    }
 
-      // Look for HRPN pattern
-      const hrpnMatch = line.match(/\b(20\d{6})\b/);
-      if (!hrpnMatch) continue;
+    // Present deduction columns in header order. Sheets omit irrelevant
+    // columns (e.g. gazetted March-2026 has 6: no HBA/Class-4), so amounts
+    // must map to present headers — never a fixed 8-slot layout.
+    const detectedHeader = componentMasterService.detectHeaderComponents(text, 'DEDUCTION');
+    const presentCodes: string[] = detectedHeader
+      .filter((c) => c.kind === 'COMPONENT')
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map((c) => c.componentCode || '')
+      .filter(Boolean);
+    // Fallback only when header detection yields nothing at all: assume
+    // classic 8. Minimal sheets (e.g. PT-only 2204 with a single 9570
+    // column) legitimately have 1-3 present codes and must keep them.
+    const effectiveCodes =
+      presentCodes.length >= 1
+        ? presentCodes
+        : ['9510', '9570', '9591', '9670', '9531', '9534', '9581', '9582'];
+    const codeToField: Record<string, string> = {
+      '9510': 'incomeTax',
+      '9570': 'profTax',
+      '9591': 'hbaInterest',
+      '9670': 'gpfRegular',
+      '9531': 'gpfClass4',
+      '9534': 'npsRegular',
+      '9581': 'gisGovtFund',
+      '9582': 'gisGovtSaving',
+    };
+    const minNumbers = Math.min(8, effectiveCodes.length + 1);
 
-      const hrpn = hrpnMatch[1];
-      const numbers = line.match(/\b\d[\d,]*\.\d{2}\b/g) || line.match(/\b\d[\d,]*(?:\.\d+)?\b/g);
+    for (let a = 0; a < anchors.length; a++) {
+      const anchor = anchors[a];
+      const startLine = anchor.lineIndex;
+      const nextAnchorLine = a < anchors.length - 1 ? anchors[a + 1].lineIndex : lines.length;
+      let endLine = nextAnchorLine;
+      for (let j = startLine; j < nextAnchorLine; j++) {
+        if (/^(Total\b|I hereby certify|Rupees\s*:|karmyogi)/i.test(lines[j])) {
+          endLine = j;
+          break;
+        }
+      }
+      const blockText = lines.slice(startLine, endLine).join(' ');
+      const hrpn = anchor.hrpn;
+      const numbers = blockText.match(/\b\d[\d,]*\.\d{2}\b/g) || blockText.match(/\b\d[\d,]*(?:\.\d+)?\b/g);
 
-      if (numbers && numbers.length >= 8) {
+      if (numbers && numbers.length >= minNumbers) {
         const amounts = numbers.map(parseNum);
         const len = amounts.length;
 
-        // Clean name and designation
-        const textBeforeNums = line.substring(0, line.indexOf(numbers[0])).replace(hrpn, '').trim();
+        // Clean name and designation (block may span wrapped lines).
+        // Strip HRPN first (leaves a double space), then the leading Sr No,
+        // so "1 20110757 Shri.X ..." never yields employeeName "1".
+        const firstNumIdx = blockText.indexOf(numbers[0]);
+        const textBeforeNums = (firstNumIdx >= 0 ? blockText.substring(0, firstNumIdx) : blockText)
+          .replace(hrpn, '')
+          .replace(/^\s*\d{1,4}\s+/, '')
+          .trim();
         const parts = textBeforeNums.split(/\s{2,}|\t/);
-        const employeeName = (parts[0] || 'Employee').replace(/^\d+\s+/, '').trim();
-        const designation = parts[1] || 'Staff';
+        let employeeName = (parts[0] || 'Employee').trim();
+        let designation = parts[1] || 'Staff';
+        if (!parts[1] || /^staff$/i.test(designation)) {
+          const found = this.findDesignationInText(textBeforeNums);
+          if (found) {
+            designation = found;
+            employeeName = employeeName.replace(found, ' ').replace(/\s+/g, ' ').trim() || employeeName;
+          }
+        }
 
-        // If the printed Total Deductions column is blank, derive it from the sum of the 8
-        // deduction fields (row then has 9 numbers: 8 fields + net pay)
-        const totalDeductions =
-          len >= 10
-            ? amounts[len - 2]
-            : len === 9
-              ? amounts.slice(0, 8).reduce((s, v) => s + v, 0)
-              : amounts.slice(0, len - 2).reduce((s, v) => s + v, 0);
+        const fields: Record<string, number> = {
+          incomeTax: 0,
+          profTax: 0,
+          hbaInterest: 0,
+          gpfRegular: 0,
+          gpfClass4: 0,
+          npsRegular: 0,
+          gisGovtFund: 0,
+          gisGovtSaving: 0,
+        };
+        // Full row: N fields + Total + Net. Blank-Total row: N fields + Net.
+        const hasTotalCol = len >= effectiveCodes.length + 2;
+        const fieldCount = hasTotalCol ? effectiveCodes.length : Math.min(effectiveCodes.length, len - 1);
+        for (let fi = 0; fi < fieldCount; fi++) {
+          const field = codeToField[effectiveCodes[fi]];
+          if (field) fields[field] = amounts[fi] || 0;
+        }
+        const totalDeductions = hasTotalCol
+          ? amounts[len - 2] || 0
+          : Object.values(fields).reduce((s, v) => s + v, 0);
 
         rows.push({
           hrpn,
           employeeName,
           designation,
-          incomeTax: amounts[0] || 0,
-          profTax: amounts[1] || 0,
-          hbaInterest: amounts[2] || 0,
-          gpfRegular: amounts[3] || 0,
-          gpfClass4: amounts[4] || 0,
-          npsRegular: amounts[5] || 0,
-          gisGovtFund: amounts[6] || 0,
-          gisGovtSaving: amounts[7] || 0,
+          incomeTax: fields.incomeTax,
+          profTax: fields.profTax,
+          hbaInterest: fields.hbaInterest,
+          gpfRegular: fields.gpfRegular,
+          gpfClass4: fields.gpfClass4,
+          npsRegular: fields.npsRegular,
+          gisGovtFund: fields.gisGovtFund,
+          gisGovtSaving: fields.gisGovtSaving,
           totalDeductions,
           netPay: amounts[len - 1] || 0,
           components: this.buildDeductionComponents({
-            incomeTax: amounts[0] || 0,
-            profTax: amounts[1] || 0,
-            hbaInterest: amounts[2] || 0,
-            gpfRegular: amounts[3] || 0,
-            gpfClass4: amounts[4] || 0,
-            npsRegular: amounts[5] || 0,
-            gisGovtFund: amounts[6] || 0,
-            gisGovtSaving: amounts[7] || 0,
+            incomeTax: fields.incomeTax,
+            profTax: fields.profTax,
+            hbaInterest: fields.hbaInterest,
+            gpfRegular: fields.gpfRegular,
+            gpfClass4: fields.gpfClass4,
+            npsRegular: fields.npsRegular,
+            gisGovtFund: fields.gisGovtFund,
+            gisGovtSaving: fields.gisGovtSaving,
             totalDeductions,
             netPay: amounts[len - 1] || 0,
           }),
@@ -1463,6 +1863,85 @@ class PdfParserService {
     }
 
     return rows;
+  }
+
+  /**
+   * Merge coordinate rows (header-X) with text rows (header-order).
+   * Coordinate rows keep names/designations; any deduction field that is 0
+   * in coordinates but non-zero in text for the same HRPN is filled from
+   * text. This keeps the original header-X idea intact while closing single-
+   * cell misses (e.g. IT printed off its header X). Text-only HRPNs are
+   * appended; coordinates remain the source of truth when both are non-zero.
+   */
+  private mergeDeductionRows(
+    coordRows: PayBillDeductionRow[],
+    textRows: PayBillDeductionRow[],
+    warnings?: string[]
+  ): PayBillDeductionRow[] {
+    const byHrpn = new Map<string, PayBillDeductionRow>();
+    for (const t of textRows) {
+      byHrpn.set(String(t.hrpn).trim(), t);
+    }
+    const fields: Array<keyof Pick<PayBillDeductionRow, 'incomeTax' | 'profTax' | 'hbaInterest' | 'gpfRegular' | 'gpfClass4' | 'npsRegular' | 'gisGovtFund' | 'gisGovtSaving' | 'totalDeductions' | 'netPay'>> = [
+      'incomeTax', 'profTax', 'hbaInterest', 'gpfRegular', 'gpfClass4',
+      'npsRegular', 'gisGovtFund', 'gisGovtSaving', 'totalDeductions', 'netPay',
+    ];
+    let filled = 0;
+    const merged = coordRows.map((c) => {
+      const t = byHrpn.get(String(c.hrpn).trim());
+      if (!t) return c;
+      const next = { ...c };
+      let touched = false;
+      for (const f of fields) {
+        if ((next[f] || 0) === 0 && (t[f] || 0) !== 0) {
+          (next[f] as number) = t[f] as number;
+          touched = true;
+        }
+      }
+      // Post/designation uses the same rule: header-X first, text fills
+      // placeholder "Staff" (or empty) so "Assistant Director" is not lost.
+      if ((!next.designation || /^staff$/i.test(next.designation)) && t.designation && !/^staff$/i.test(t.designation)) {
+        next.designation = t.designation;
+        touched = true;
+      }
+      if ((!next.employeeName || /^employee/i.test(next.employeeName)) && t.employeeName && !/^employee/i.test(t.employeeName)) {
+        next.employeeName = t.employeeName;
+        touched = true;
+      }
+      if (touched) {
+        filled++;
+        next.components = this.buildDeductionComponents({
+          incomeTax: next.incomeTax,
+          profTax: next.profTax,
+          hbaInterest: next.hbaInterest,
+          gpfRegular: next.gpfRegular,
+          gpfClass4: next.gpfClass4,
+          npsRegular: next.npsRegular,
+          gisGovtFund: next.gisGovtFund,
+          gisGovtSaving: next.gisGovtSaving,
+          totalDeductions:
+            next.totalDeductions ||
+            (next.incomeTax + next.profTax + next.hbaInterest + next.gpfRegular + next.gpfClass4 + next.npsRegular + next.gisGovtFund + next.gisGovtSaving),
+          netPay: next.netPay,
+        });
+        if (next.totalDeductions === 0) {
+          next.totalDeductions =
+            next.incomeTax + next.profTax + next.hbaInterest + next.gpfRegular + next.gpfClass4 + next.npsRegular + next.gisGovtFund + next.gisGovtSaving;
+        }
+      }
+      byHrpn.delete(String(c.hrpn).trim());
+      return next;
+    });
+    // Text-only rows (missed by coordinates) are appended as-is.
+    for (const remaining of byHrpn.values()) {
+      merged.push(remaining);
+    }
+    if (filled > 0) {
+      warnings?.push(
+        `Income-tax cross-check filled ${filled} row(s) from bill text where the table cell was offset from its header.`
+      );
+    }
+    return merged;
   }
 
   /**
@@ -1487,26 +1966,132 @@ class PdfParserService {
         totalLineMatch[1].match(/\b\d[\d,]*\.\d{2}\b/g) ||
         totalLineMatch[1].match(/\b\d[\d,]*(?:\.\d+)?\b/g);
 
-      if (numbers && numbers.length >= 8) {
+      if (numbers && numbers.length >= 3) {
         const amounts = numbers.map(parseNum);
         const len = amounts.length;
-
-        return {
-          incomeTax: amounts[0],
-          profTax: amounts[1],
-          hbaInterest: amounts[2],
-          gpfRegular: amounts[3],
-          gpfClass4: amounts[4],
-          npsRegular: amounts[5],
-          gisGovtFund: amounts[6],
-          gisGovtSaving: amounts[7],
-          totalDeductions: amounts[len - 2],
-          netPay: amounts[len - 1],
+        const detectedHeader = componentMasterService.detectHeaderComponents(text, 'DEDUCTION');
+        const presentCodes: string[] = detectedHeader
+          .filter((c) => c.kind === 'COMPONENT')
+          .sort((a, b) => (a.order || 0) - (b.order || 0))
+          .map((c) => c.componentCode || '')
+          .filter(Boolean);
+        const effectiveCodes =
+          presentCodes.length >= 1
+            ? presentCodes
+            : ['9510', '9570', '9591', '9670', '9531', '9534', '9581', '9582'];
+        const codeToField: Record<string, string> = {
+          '9510': 'incomeTax',
+          '9570': 'profTax',
+          '9591': 'hbaInterest',
+          '9670': 'gpfRegular',
+          '9531': 'gpfClass4',
+          '9534': 'npsRegular',
+          '9581': 'gisGovtFund',
+          '9582': 'gisGovtSaving',
         };
+        // Variable-column sheets: N fields + Total + Net.
+        if (len >= effectiveCodes.length + 2 || len >= 8) {
+          const fields: Record<string, number> = {
+            incomeTax: 0,
+            profTax: 0,
+            hbaInterest: 0,
+            gpfRegular: 0,
+            gpfClass4: 0,
+            npsRegular: 0,
+            gisGovtFund: 0,
+            gisGovtSaving: 0,
+          };
+          const mapCount = Math.min(effectiveCodes.length, len - 2);
+          for (let fi = 0; fi < mapCount; fi++) {
+            const field = codeToField[effectiveCodes[fi]];
+            if (field) fields[field] = amounts[fi] || 0;
+          }
+          return {
+            incomeTax: fields.incomeTax,
+            profTax: fields.profTax,
+            hbaInterest: fields.hbaInterest,
+            gpfRegular: fields.gpfRegular,
+            gpfClass4: fields.gpfClass4,
+            npsRegular: fields.npsRegular,
+            gisGovtFund: fields.gisGovtFund,
+            gisGovtSaving: fields.gisGovtSaving,
+            totalDeductions: amounts[len - 2],
+            netPay: amounts[len - 1],
+          };
+        }
       }
     }
 
     return null;
+  }
+
+  /**
+   * Find a known post/designation inside free row text.
+   * Same pattern list as the earning-side extractor, so deduction rows also
+   * resolve "Assistant Director" instead of falling back to "Staff".
+   */
+  private findDesignationInText(text: string): string {
+    const desigPatterns = [
+      /\b(Deputy\s+Director\s*\([^)]+\))/i,
+      /\b(Assistant\s+Director\s*\([^)]+\))/i,
+      /\b(Joint\s+Director\s*\([^)]+\))/i,
+      /\b(Senior\s+Veterinary\s+Officer\s*\([^)]+\))/i,
+      /\b(Veterinary\s+Officer\s*\([^)]+\))/i,
+      /\b(Deputy\s+Director)\b/i,
+      /\b(Assistant\s+Director)\b/i,
+      /\b(Joint\s+Director)\b/i,
+      /\b(Director)\b/i,
+      /\b(Office\s+Superintendent)\b/i,
+      /\b(Superintendent)\b/i,
+      /\b(Statistical\s+Inspector)\b/i,
+      /\b(Statistical\s+Assistant)\b/i,
+      /\b(Statistical\s+Officer)\b/i,
+      /\b(Research\s+Assistant)\b/i,
+      /\b(Junior\s+Accountant)\b/i,
+      /\b(Senior\s+Accountant)\b/i,
+      /\b(Accountant)\b/i,
+      /\b(Senior\s+Clerk)\b/i,
+      /\b(Junior\s+Clerk)\b/i,
+      /\b(Head\s+Clerk)\b/i,
+      /\b(Clerk\s+cum\s+Typist)\b/i,
+      /\b(Clerk)\b/i,
+      /\b(Typist)\b/i,
+      /\b(Stenographer)\b/i,
+      /\b(Driver\s+cum\s+Mechanic)\b/i,
+      /\b(Driver)\b/i,
+      /\b(Peon\s+cum\s+Chowkidar)\b/i,
+      /\b(Peon)\b/i,
+      /\b(Chowkidar)\b/i,
+      /\b(Sweeper)\b/i,
+      /\b(Watchman)\b/i,
+      /\b(Animal\s+Attendant)\b/i,
+      /\b(Dresser)\b/i,
+      /\b(Attendant)\b/i,
+      /\b(Senior\s+Veterinary\s+Officer)\b/i,
+      /\b(Veterinary\s+Officer)\b/i,
+      /\b(Veterinary\s+Doctor)\b/i,
+      /\b(Live\s*Stock\s+Inspector)\b/i,
+      /\b(Live\s*Stock\s+Supervisor)\b/i,
+      /\b(Administrative\s+Officer)\b/i,
+      /\b(Accounts\s+Officer)\b/i,
+      /\b(Audit\s+Officer)\b/i,
+      /\b(Section\s+Officer)\b/i,
+      /\b(Technical\s+Assistant)\b/i,
+      /\b(Lab\s+Assistant)\b/i,
+      /\b(Field\s+Assistant)\b/i,
+      /\b(Executive\s+Engineer)\b/i,
+      /\b(Assistant\s+Engineer)\b/i,
+      /\b(Junior\s+Engineer)\b/i,
+      /\b(Inspector)\b/i,
+      /\b(Assistant)\b/i,
+      /\b(Operator)\b/i,
+      /\b(Officer)\b/i,
+    ];
+    for (const p of desigPatterns) {
+      const m = text.match(p);
+      if (m) return m[1].trim();
+    }
+    return '';
   }
 
   /**

@@ -5,9 +5,13 @@ import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 
 interface SalaryExcelImportProps {
   onImported?: (records: ClassifiedSalaryRecord[]) => void;
+  /** Selected entry month (payment slot) — fallback for single-month files with no month in headers. */
+  fallbackMonth?: string;
+  /** Active FY — fallback when headers carry a month but no year. */
+  fallbackFinancialYear?: number;
 }
 
-export function SalaryExcelImport({ onImported }: SalaryExcelImportProps) {
+export function SalaryExcelImport({ onImported, fallbackMonth, fallbackFinancialYear }: SalaryExcelImportProps) {
   const [isReading, setIsReading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [preview, setPreview] = useState<{
@@ -40,14 +44,26 @@ export function SalaryExcelImport({ onImported }: SalaryExcelImportProps) {
     setIsReading(true);
     try {
       const rows = await salaryService.readExcelRows(file);
-      const { classified, summary } = await salaryService.classifyRows(rows);
+      const { classified, summary } = await salaryService.classifyRows(rows, {
+        month: fallbackMonth,
+        financialYear: fallbackFinancialYear,
+      });
       setPreview({ fileName: file.name, rows, classified, summary });
+      if (classified.length === 0) {
+        setError(
+          'No salary records detected. The file needs an HRPN/HPRN column plus a Gross/Salary column and/or a TDS/Income-Tax column. ' +
+            'Month can be in the header (e.g. "Aug-25 Gross", "Aug-25 TDS") or omitted for the currently selected month. ' +
+            `Detected: HRPN column ${summary.hrpnColumnHeader ? `"${summary.hrpnColumnHeader}"` : '(none)'}, ` +
+            `${summary.grossColumns} gross / ${summary.incomeTaxColumns} tax columns, ` +
+            `${summary.distinctHrpnCount} employee rows.`
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to read Excel file');
     } finally {
       setIsReading(false);
     }
-  }, []);
+  }, [fallbackMonth, fallbackFinancialYear]);
 
   const handleImport = async () => {
     if (!preview) return;
@@ -59,7 +75,10 @@ export function SalaryExcelImport({ onImported }: SalaryExcelImportProps) {
     setError(null);
     try {
       const classified = preview.classified;
-      const summary = await salaryService.importSalary(selectedFile);
+      const summary = await salaryService.importSalary(selectedFile, {
+        month: fallbackMonth,
+        financialYear: fallbackFinancialYear,
+      });
       setImportSummary({
         importId: summary.importId,
         total: summary.total,
@@ -127,13 +146,13 @@ export function SalaryExcelImport({ onImported }: SalaryExcelImportProps) {
           <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
             <FileSpreadsheet className="h-6 w-6" />
           </div>
-          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+          <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
             {isReading ? 'Reading Karmayogi Excel file…' : 'Upload Karmayogi Portal Excel File'}
           </p>
           <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 max-w-md mx-auto">
             Please upload the monthly salary / pension payout spreadsheet downloaded directly from the <strong className="text-emerald-700 dark:text-emerald-400">Karmayogi Portal</strong>.
           </p>
-          <div className="flex items-center justify-center gap-2 mt-3 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+          <div className="flex items-center justify-center gap-2 mt-3 text-xs text-slate-400 dark:text-slate-500 font-medium">
             <span className="bg-white dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700">
               Drag &amp; drop file here or click to browse
             </span>
@@ -153,9 +172,9 @@ export function SalaryExcelImport({ onImported }: SalaryExcelImportProps) {
         <div className="border border-slate-200 rounded-xl p-4 bg-white space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-slate-800">Import Preview</h3>
-            <span className="text-sm text-slate-500">{preview.fileName}</span>
+            <span className="text-xs text-slate-500">{preview.fileName}</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
             <div className="bg-slate-50 p-2 rounded">
               <span className="text-slate-500">Detected HRPN column</span>
               <div className="font-medium">{preview.summary.hrpnColumnHeader || '(auto)'}</div>
@@ -174,7 +193,7 @@ export function SalaryExcelImport({ onImported }: SalaryExcelImportProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
             <div className="flex items-center gap-2">
               <CheckCircle size={14} className="text-green-600" /> Matched: <b>{preview.summary.matchedRecords}</b>
             </div>
@@ -215,10 +234,10 @@ export function SalaryExcelImport({ onImported }: SalaryExcelImportProps) {
               <tbody>
                 {preview.classified.slice(0, 200).map((rec) => (
                   <tr key={`${rec.hprnNo}|${rec.month}|${rec.financialYear}`}>
-                    <td className="font-mono text-sm">{rec.hprnNo}</td>
-                    <td className="text-sm">{rec.month} FY {rec.financialYear}</td>
-                    <td className="text-right font-mono">{rec.grossSalary.toLocaleString('en-IN')}</td>
-                    <td className="text-right font-mono">{rec.incomeTax.toLocaleString('en-IN')}</td>
+                    <td className="font-mono text-xs">{rec.hprnNo}</td>
+                    <td className="text-xs">{rec.month} FY {rec.financialYear}</td>
+                    <td className="text-right num">{rec.grossSalary.toLocaleString('en-IN')}</td>
+                    <td className="text-right num">{rec.incomeTax.toLocaleString('en-IN')}</td>
                     <td>
                       <span
                         className={`badge ${
@@ -264,10 +283,12 @@ export function SalaryExcelImport({ onImported }: SalaryExcelImportProps) {
       )}
 
       {importSummary && (
-        <div className="alert alert-success flex items-center gap-2">
+        <div className={`alert flex items-center gap-2 ${importSummary.matched === 0 ? 'alert-warning' : 'alert-success'}`}>
           <CheckCircle size={14} /> Imported {importSummary.matched} matched / {importSummary.unmatched} unmatched
-          ({importSummary.total} total). {importSummary.appliedToGrid} records added to payroll data — switch the
-          selected month in the grid to view each one.
+          ({importSummary.total} total). {importSummary.appliedToGrid} records added to payroll data
+          {importSummary.matched === 0 && importSummary.total > 0
+            ? ' — no file HRPN matched the employee register. Check that the detected HRPN column holds HRPN numbers (not GPF/PRAN) and that the people exist under Establishment → Register Parity.'
+            : ' — switch the selected month in the grid to view each one.'}
         </div>
       )}
     </div>

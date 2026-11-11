@@ -184,4 +184,8 @@ export interface GTR30Bill extends GTR30FormData {
   deductionsTotal: number;
   netTotal: number;
   status: GTR30BillStatus;
+  /** Populated by the lightweight register query (no full employees payload). */
+  employeeCount?: number;
+  /** Space-separated employee names, used by register search. */
+  employeeNames?: string;
 }

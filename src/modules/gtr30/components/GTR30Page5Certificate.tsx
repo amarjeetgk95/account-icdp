@@ -126,7 +126,7 @@ export const GTR30Page5Certificate: React.FC<Props> = ({ data }) => {
                 <strong>{totals.net > 0 ? formatMoneyInteger(totals.net) : '__________________________'}</strong> (in words){' '}
                 <strong>{totals.net > 0 ? formatWordsCertificate(totals.net) : '________________________________'}</strong>
               </div>
-              <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
+              <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
                 ૧. અંદર જણાવેલી વિગતે રૂા.{' '}
                 <strong>{totals.net > 0 ? toGujaratiNumerals(formatMoneyInteger(totals.net)) : '__________________________'}</strong> (શબ્દોમાં) અંકે રૂપિયા{' '}
                 <strong>{totals.net > 0 ? formatWordsCertificateGujarati(totals.net) : '________________________________'}</strong> પૂરા મળ્યા છે.
@@ -138,7 +138,7 @@ export const GTR30Page5Certificate: React.FC<Props> = ({ data }) => {
               <div style={{ fontSize: '7.6pt', lineHeight: 1.32 }}>
                 2. Certified that pay and Allowances drawn in this bill are due and admissible as per rules and authority in force.
               </div>
-              <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
+              <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
                 ૨. પ્રમાણિત કરવામાં આવે છે કે આ બિલમાં આકારેલ પગાર અને ભથ્થા વર્તમાન નિયમો અને અધિકૃત કર્યા પ્રમાણે મળવાપાત્ર અને લેણાં છે.
               </div>
             </div>
@@ -148,7 +148,7 @@ export const GTR30Page5Certificate: React.FC<Props> = ({ data }) => {
               <div style={{ fontSize: '7.6pt', lineHeight: 1.32 }}>
                 3. Certified that I have satisfied myself that all emoluments in bill drawn 1/2/3 months previous to this date except those which have been short drawn in this bill or kept in my personal custody have been disbursed to the proper persons and acquittances taken and filed in my office with receipt stamp duly cancelled for every payment in excess of Rs. 5000-00.
               </div>
-              <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
+              <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
                 ૩. પ્રમાણિત કરવામાં આવે છે કે જેની રકમ આ બિલમાં ઓછી આકારવામાં આવી છે, અથવા મારા અંગત કબજામાં રાખી છે. એ સિવાયના આ તારીખથી ૧/૨/૩ મહિના પહેલાં આકારેલા બિલોની તમામ રકમ સંબંધિત વ્યક્તિઓને ચૂકવી છે અને તેમની ચૂકતી પહોંચ લેવામાં આવી છે. અને રૂા. ૫૦૦૦-૦૦ થી વધુ રકમની દરેક ચૂકવણી માટે વિધિવત રદ થયેલ પહોંચ સ્ટેમ્પ સાથે મારી કચેરીમાં દફતરે કરી છે તેની ખાતરી મેં કરી છે.
               </div>
             </div>
@@ -158,7 +158,7 @@ export const GTR30Page5Certificate: React.FC<Props> = ({ data }) => {
               <div style={{ fontSize: '7.6pt', lineHeight: 1.32 }}>
                 4. Certified that all appointments and promotions grant of leave (Departure on and return from) and the period of suspension and the deputation and other events which are required to be recorded have been recorded in the Service Book and leave account.
               </div>
-              <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
+              <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
                 ૪. પ્રમાણિત કરવામાં આવે છે કે બધી નિમણૂકો અને બઢતીઓ, આપેલી રજા, (રજા ઉપર ઉતર્યા તારીખ અને રજા પછી હાજર થયા તારીખ) અને ફરજ મોકૂફી અને પ્રતિનિયુક્તિની મુદત અને સેવાપોથીમાં નોંધવી જરૂરી હોય તેવી બીજી બાબતો સેવાપોથી અને રજા હિસાબમાં નોંધવામાં આવી છે.
               </div>
             </div>
@@ -168,7 +168,7 @@ export const GTR30Page5Certificate: React.FC<Props> = ({ data }) => {
               <div style={{ fontSize: '7.6pt', lineHeight: 1.32 }}>
                 5. Certified that persons who have been newly appointed possess the required qualifications and are within the prescribed age limit and medical certificate obtained in respect of all persons who have completed six months service.
               </div>
-              <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
+              <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '7.2pt', lineHeight: 1.32, marginTop: '1.5px' }}>
                 ૫. પ્રમાણિત કરવામાં આવે છે કે નવી નિમાયેલ વ્યક્તિઓ જરૂરી શૈક્ષણિક લાયકાત ધરાવે છે અને નિયત વય-મર્યાદાની અંદર છે અને જે વ્યક્તિઓને નોકરીમાં ૬ મહિના થઈ ગયા છે તે તમામ વ્યક્તિઓની બાબતમાં તબીબી પ્રમાણપત્ર મેળવવામાં આવ્યું છે.
               </div>
             </div>
@@ -187,11 +187,11 @@ export const GTR30Page5Certificate: React.FC<Props> = ({ data }) => {
           >
             <div>
               <div>Station : <strong>{data.station || 'Surat'}</strong></div>
-              <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '7pt' }}>સ્થળ : <strong>{stationGu}</strong></div>
+              <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '7pt' }}>સ્થળ : <strong>{stationGu}</strong></div>
               <div style={{ marginTop: '2px' }}>
                 Dated : <strong>{displayDateEn}</strong>
               </div>
-              <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '7pt' }}>
+              <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '7pt' }}>
                 તારીખ : <strong>{displayDateGu}</strong>
               </div>
             </div>
@@ -239,7 +239,7 @@ export const GTR30Page5Certificate: React.FC<Props> = ({ data }) => {
             <div>
               Please pay to <strong style={{ borderBottom: '1px solid #000', padding: '0 2px' }}>{messengerFullEn}</strong> who has signed before me.
             </div>
-            <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '7pt', marginTop: '2px' }}>
+            <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '7pt', marginTop: '2px' }}>
               શ્રી <strong style={{ borderBottom: '1px solid #000', padding: '0 2px' }}>{messengerFullGu}</strong> ને ચુકવણી કરશો, તેઓ મારી રૂબરૂમાં સહી કરી છે.
             </div>
 
@@ -260,7 +260,7 @@ export const GTR30Page5Certificate: React.FC<Props> = ({ data }) => {
                 <div style={{ fontWeight: 600, fontSize: '7.4pt', lineHeight: 1.25 }}>
                   Signature of authorised Messenger
                 </div>
-                <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '6.8pt' }}>
+                <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '6.8pt' }}>
                   (અધિકૃત સંદેશાવાહકની સહી)
                 </div>
               </div>

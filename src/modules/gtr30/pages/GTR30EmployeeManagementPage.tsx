@@ -32,15 +32,17 @@ import { useHydrateGTR30BillCodeMappings, useGTR30BillCodeMappings } from '../ho
 import { GTR30EmployeeImport } from '../components/GTR30EmployeeImport';
 import { GTR30SyncStatusBadge } from '../components/GTR30SyncStatusBadge';
 import { exportMasterToCsv, downloadCsvFile } from '../utils/gtr30Csv';
+import { buildGtr30BillCodeOptions } from '../utils/gtr30BillCodeOptions';
 import { calculateEmployeeSalary } from '../utils/gtr30SalaryCalc';
 import type { GTR30EmployeeMaster } from '../types';
+import { DEFAULT_BILL_CODE_MAPPINGS } from '../constants';
 
 const PAGE_SIZE = 50;
 
 export function GTR30EmployeeManagementPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const activeFY = useUIStore((state) => state.activeFinancialYear) ?? 2026;
+  const activeFY = useUIStore((state) => state.activeFinancialYear);
 
   // Master directory is month-independent: the pay matrix dates decide monthly pay.
   // Employees live in a canonical group that every bill month resolves to.
@@ -61,8 +63,27 @@ export function GTR30EmployeeManagementPage() {
     void hydrateMappings.mutateAsync().catch(() => {});
   }, [hydrateMaster, hydrateMappings]);
 
+  // Listen for employee save messages from popup windows to auto-refresh employee directory
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'GTR30_EMPLOYEE_SAVED') {
+        void groupsQuery.refetch();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [groupsQuery]);
+
   const groups = useMemo(() => groupsQuery.data ?? {}, [groupsQuery.data]);
-  const mappings = useMemo(() => mappingsQuery.data ?? [], [mappingsQuery.data]);
+  const mappings = useMemo(
+    () => (mappingsQuery.data && mappingsQuery.data.length > 0 ? mappingsQuery.data : DEFAULT_BILL_CODE_MAPPINGS),
+    [mappingsQuery.data]
+  );
+
+  const availableBillCodes = useMemo(
+    () => buildGtr30BillCodeOptions(mappings, groups),
+    [mappings, groups]
+  );
 
   const [selectedBillCode, setSelectedBillCode] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,7 +118,7 @@ export function GTR30EmployeeManagementPage() {
 
     for (const [key, emps] of Object.entries(groups)) {
       const parts = key.split('|');
-      const rawBillCode = parts[1] || 'GTR30-SAL';
+      const rawBillCode = parts[1] || 'GTR-30-GO-STATS';
       const groupBillCode = rawBillCode.toUpperCase();
 
       if (
@@ -113,7 +134,7 @@ export function GTR30EmployeeManagementPage() {
           seenIds.add(uniqueKey);
           list.push({
             employee: emp,
-            billCode: (emp.billCode || groupBillCode).toUpperCase(),
+            billCode: groupBillCode,
           });
         }
       }
@@ -231,19 +252,25 @@ export function GTR30EmployeeManagementPage() {
     );
   }, [filteredList]);
 
-  // SPA navigation instead of window.open
   const handleOpenNewRegistration = () => {
-    const code = selectedBillCode !== 'ALL' ? selectedBillCode : mappings[0]?.billCode || 'GTR30-SAL';
-    navigate(`/gtr30/employee-management/new?billCode=${encodeURIComponent(code)}`);
+    const code = selectedBillCode !== 'ALL' ? selectedBillCode : mappings[0]?.billCode || 'GTR-30-GO-STATS';
+    const url = `/gtr30/employee-management/new?billCode=${encodeURIComponent(code)}&popup=true`;
+    const w = Math.min(1280, window.screen.availWidth - 40);
+    const h = Math.min(900, window.screen.availHeight - 40);
+    const left = Math.max(0, (window.screen.availWidth - w) / 2);
+    const top = Math.max(0, (window.screen.availHeight - h) / 2);
+    window.open(url, '_blank', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   };
 
-  // SPA navigation instead of window.open
   const handleOpenEditEmployee = (emp: GTR30EmployeeMaster, billCode: string) => {
-    navigate(
-      `/gtr30/employee-management/edit/${encodeURIComponent(emp.id)}?billCode=${encodeURIComponent(
-        emp.billCode || billCode
-      )}`
-    );
+    const url = `/gtr30/employee-management/edit/${encodeURIComponent(emp.id)}?billCode=${encodeURIComponent(
+      emp.billCode || billCode
+    )}&popup=true`;
+    const w = Math.min(1280, window.screen.availWidth - 40);
+    const h = Math.min(900, window.screen.availHeight - 40);
+    const left = Math.max(0, (window.screen.availWidth - w) / 2);
+    const top = Math.max(0, (window.screen.availHeight - h) / 2);
+    window.open(url, '_blank', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   };
 
   // Delete single employee confirmation (removes from every month group of that bill code)
@@ -327,28 +354,20 @@ export function GTR30EmployeeManagementPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 pb-24 animate-in fade-in duration-200">
-      {/* 1. Header Banner with New Registration in Top Right Corner */}
-      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-blue-600/10 text-blue-600 border border-blue-200 dark:border-blue-800">
-            <Users className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              Employee Management
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 font-mono">
-                {filteredList.length} Active
-              </span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Comprehensive employee directory, 7th Pay Commission scale governance, and statutory bill code assignments.
-            </p>
-          </div>
+    <div className="max-w-7xl mx-auto space-y-4 pb-24 animate-in fade-in duration-200">
+      {/* 1. Header with Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80 dark:border-slate-800/80">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            Employee Management
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 num">
+              {filteredList.length} Active
+            </span>
+          </h1>
         </div>
 
-        {/* Top Right Action Corner */}
-        <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
+        {/* Action Corner */}
+        <div className="flex flex-wrap items-center gap-2">
           <GTR30SyncStatusBadge />
 
           <Button
@@ -388,37 +407,37 @@ export function GTR30EmployeeManagementPage() {
       {/* 2. KPI Summary Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-shadow">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
             Total Basic Pay
           </span>
-          <span className="text-base sm:text-lg font-black font-mono text-slate-900 dark:text-white mt-1 block">
+          <span className="text-xs sm:text-xs font-black num text-slate-900 dark:text-white mt-1 block">
             ₹{totals.totalBasic.toLocaleString('en-IN')}
           </span>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-shadow">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 block flex items-center justify-between">
             Total Gross <TrendingUp className="h-3.5 w-3.5" />
           </span>
-          <span className="text-base sm:text-lg font-black font-mono text-emerald-600 mt-1 block">
+          <span className="text-xs sm:text-xs font-black num text-emerald-600 mt-1 block">
             ₹{totals.totalGross.toLocaleString('en-IN')}
           </span>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-shadow">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600 block flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-rose-600 block flex items-center justify-between">
             Total Deductions <TrendingDown className="h-3.5 w-3.5" />
           </span>
-          <span className="text-base sm:text-lg font-black font-mono text-rose-600 mt-1 block">
+          <span className="text-xs sm:text-xs font-black num text-rose-600 mt-1 block">
             ₹{totals.totalDeds.toLocaleString('en-IN')}
           </span>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-shadow">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-600 block">
             Total Take-Home
           </span>
-          <span className="text-base sm:text-lg font-black font-mono text-blue-600 mt-1 block">
+          <span className="text-xs sm:text-xs font-black num text-blue-600 mt-1 block">
             ₹{totals.totalNet.toLocaleString('en-IN')}
           </span>
         </div>
@@ -453,11 +472,11 @@ export function GTR30EmployeeManagementPage() {
                 setSelectedBillCode(e.target.value);
                 setCurrentPage(1);
               }}
-              className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-mono font-bold text-slate-800"
+              className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-xs num font-bold text-slate-800"
             >
               <option value="ALL">All Bill Codes ({allEmployeesWithBillCode.length})</option>
-              {mappings.map((m) => (
-                <option key={m.id} value={m.billCode}>
+              {availableBillCodes.map((m) => (
+                <option key={m.billCode} value={m.billCode}>
                   {m.billCode} — {m.description}
                 </option>
               ))}
@@ -473,7 +492,7 @@ export function GTR30EmployeeManagementPage() {
                 setCadreFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-serif font-bold text-slate-800"
+              className="mt-1 w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-gujSans font-bold text-slate-800"
             >
               <option value="ALL">All Cadre Classes</option>
               <option value="૧">વર્ગ ૧ (Class 1)</option>
@@ -525,7 +544,7 @@ export function GTR30EmployeeManagementPage() {
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-blue-600" />
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+            <h2 className="text-xs font-bold text-slate-900 dark:text-white">
               Registered Employee Directory ({filteredList.length})
             </h2>
           </div>
@@ -536,7 +555,7 @@ export function GTR30EmployeeManagementPage() {
               <button
                 type="button"
                 onClick={() => setDensity('comfortable')}
-                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                className={`px-2 py-1 rounded-md text-xs font-semibold transition-all ${
                   density === 'comfortable'
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
@@ -548,7 +567,7 @@ export function GTR30EmployeeManagementPage() {
               <button
                 type="button"
                 onClick={() => setDensity('compact')}
-                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                className={`px-2 py-1 rounded-md text-xs font-semibold transition-all ${
                   density === 'compact'
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
@@ -568,7 +587,7 @@ export function GTR30EmployeeManagementPage() {
                 setShowPayScaleCol((v) => !v);
                 setShowHrpnCol((v) => !v);
               }}
-              className="h-7 text-[11px] font-semibold text-slate-700 dark:text-slate-300 dark:border-slate-700"
+              className="h-7 text-xs font-semibold text-slate-700 dark:text-slate-300 dark:border-slate-700"
               title="Toggle extra columns (HRPN & Scale)"
             >
               <SlidersHorizontal className="h-3 w-3 mr-1" />
@@ -577,7 +596,7 @@ export function GTR30EmployeeManagementPage() {
 
             <GTR30EmployeeImport
               monthKey={monthKey}
-              billCode={selectedBillCode !== 'ALL' ? selectedBillCode : 'GTR30-SAL'}
+              billCode={selectedBillCode !== 'ALL' ? selectedBillCode : 'GTR-30-GO-STATS'}
               employees={filteredList.map((i) => i.employee)}
             />
           </div>
@@ -586,7 +605,7 @@ export function GTR30EmployeeManagementPage() {
         {filteredList.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <Users className="h-10 w-10 text-slate-300 mx-auto" />
-            <h3 className="text-sm font-bold text-slate-700">No Employees Found</h3>
+            <h3 className="text-xs font-bold text-slate-700">No Employees Found</h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
               {searchTerm || cadreFilter !== 'ALL' || selectedBillCode !== 'ALL'
                 ? 'No employee profiles match the current filter criteria.'
@@ -604,7 +623,7 @@ export function GTR30EmployeeManagementPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase text-xs tracking-wider">
                   <th className={`px-3 ${density === 'compact' ? 'py-1.5' : 'py-3'} w-10 text-center`}>
                     <input
                       type="checkbox"
@@ -690,7 +709,7 @@ export function GTR30EmployeeManagementPage() {
                         />
                       </td>
 
-                      <td className={`px-3.5 ${py} text-center font-mono font-medium text-slate-500 dark:text-slate-400`}>
+                      <td className={`px-3.5 ${py} text-center num font-medium text-slate-500 dark:text-slate-400`}>
                         {employee.srNo || (currentPage - 1) * PAGE_SIZE + idx + 1}
                       </td>
 
@@ -698,13 +717,13 @@ export function GTR30EmployeeManagementPage() {
                         <div className="flex items-center gap-2">
                           <span>{employee.name}</span>
                           {employee.cadreClass && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-serif">
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-gujSans">
                               વર્ગ {employee.cadreClass}
                             </span>
                           )}
                         </div>
                         {employee.designationGujarati && (
-                          <div className="text-[11px] font-normal text-slate-500 font-serif">
+                          <div className="text-xs font-normal text-slate-500 font-gujSans">
                             {employee.designationGujarati}
                           </div>
                         )}
@@ -721,7 +740,7 @@ export function GTR30EmployeeManagementPage() {
                       </td>
 
                       <td className={`px-3 ${py}`}>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full font-mono text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                           {employee.billCode || billCode}
                         </span>
                       </td>
@@ -732,22 +751,22 @@ export function GTR30EmployeeManagementPage() {
                             {employee.payScale || '—'}
                           </div>
                           {employee.gradePay && (
-                            <div className="text-[10px] font-mono text-slate-500 font-bold">
+                            <div className="text-xs num text-slate-500 font-bold">
                               {employee.gradePay}
                             </div>
                           )}
                         </td>
                       )}
 
-                      <td className={`px-4 ${py} text-right font-mono font-bold text-slate-900 dark:text-white`}>
+                      <td className={`px-4 ${py} text-right num font-bold text-slate-900 dark:text-white`}>
                         ₹{salary.basic.toLocaleString('en-IN')}
                       </td>
 
-                      <td className={`px-4 ${py} text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400`}>
+                      <td className={`px-4 ${py} text-right num font-semibold text-emerald-600 dark:text-emerald-400`}>
                         ₹{salary.grossPay.toLocaleString('en-IN')}
                       </td>
 
-                      <td className={`px-4 ${py} text-right font-mono font-bold text-blue-600 dark:text-blue-400`}>
+                      <td className={`px-4 ${py} text-right num font-bold text-blue-600 dark:text-blue-400`}>
                         ₹{salary.netTakeHome.toLocaleString('en-IN')}
                       </td>
 

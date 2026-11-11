@@ -50,7 +50,7 @@ export function NumberingTab() {
         <div className="flex items-center space-x-2">
           <Settings2 className="h-5 w-5 text-primary" />
           <div>
-            <h3 className="font-bold text-base text-foreground">Auto-Numbering &amp; Series</h3>
+            <h3 className="font-bold text-xs text-foreground">Auto-Numbering &amp; Series</h3>
             <p className="text-xs text-muted-foreground">
               Configure sequential formatters, prefixes, and annual rollover for bills and vouchers.
             </p>
@@ -68,10 +68,10 @@ export function NumberingTab() {
             <span className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-1">
               <Eye className="h-3.5 w-3.5" /> Next Bill Number
             </span>
-            <span className="text-[11px] text-muted-foreground font-mono">FY {currentFy}</span>
+            <span className="text-xs text-muted-foreground num">FY {currentFy}</span>
           </div>
-          <div className="font-mono font-bold text-xl text-foreground">{billPreview}</div>
-          <p className="text-[11px] text-muted-foreground">
+          <div className="font-mono font-bold text-xs text-foreground">{billPreview}</div>
+          <p className="text-xs text-muted-foreground">
             Pattern: <code className="bg-muted px-1 py-0.5 rounded">{formData.billPrefix}-{formData.financialYearReset ? `${currentFy}-` : ''}XXXX</code>
           </p>
         </div>
@@ -81,10 +81,10 @@ export function NumberingTab() {
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
               <Eye className="h-3.5 w-3.5" /> Next Sub-Voucher No
             </span>
-            <span className="text-[11px] text-muted-foreground font-mono">Sequence #{formData.nextVoucherSeq}</span>
+            <span className="text-xs text-muted-foreground num">Sequence #{formData.nextVoucherSeq}</span>
           </div>
-          <div className="font-mono font-bold text-xl text-foreground">{voucherPreview}</div>
-          <p className="text-[11px] text-muted-foreground">
+          <div className="font-mono font-bold text-xs text-foreground">{voucherPreview}</div>
+          <p className="text-xs text-muted-foreground">
             Pattern: <code className="bg-muted px-1 py-0.5 rounded">{formData.voucherPrefix}-XXX</code>
           </p>
         </div>
@@ -95,7 +95,7 @@ export function NumberingTab() {
         <div className="flex items-center justify-between border-b border-border pb-2">
           <div className="flex items-center gap-2">
             <Hash className="h-4 w-4 text-primary" />
-            <h4 className="font-bold text-sm text-foreground uppercase tracking-wider">Bill Numbering</h4>
+            <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Bill Numbering</h4>
           </div>
           <Button
             variant="outline"
@@ -107,7 +107,7 @@ export function NumberingTab() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div>
             <Label className="text-xs">Bill Prefix</Label>
             <Input
@@ -124,7 +124,7 @@ export function NumberingTab() {
               min="1"
               value={formData.nextBillSeq}
               onChange={(e) => handleChange('nextBillSeq', parseInt(e.target.value) || 1)}
-              className="font-mono"
+              className="num"
             />
           </div>
         </div>
@@ -147,7 +147,7 @@ export function NumberingTab() {
         <div className="flex items-center justify-between border-b border-border pb-2">
           <div className="flex items-center gap-2">
             <Hash className="h-4 w-4 text-primary" />
-            <h4 className="font-bold text-sm text-foreground uppercase tracking-wider">Sub-Voucher Numbering</h4>
+            <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Sub-Voucher Numbering</h4>
           </div>
           <Button
             variant="outline"
@@ -159,7 +159,7 @@ export function NumberingTab() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div>
             <Label className="text-xs">Voucher Prefix</Label>
             <Input
@@ -176,7 +176,7 @@ export function NumberingTab() {
               min="1"
               value={formData.nextVoucherSeq}
               onChange={(e) => handleChange('nextVoucherSeq', parseInt(e.target.value) || 1)}
-              className="font-mono"
+              className="num"
             />
           </div>
         </div>

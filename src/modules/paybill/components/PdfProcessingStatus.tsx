@@ -36,11 +36,11 @@ export function PdfProcessingStatus({ state }: PdfProcessingStatusProps) {
           ) : (
             <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
           )}
-          <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
+          <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
             {isError ? 'Extraction Error' : state.stageName}
           </h4>
         </div>
-        <span className="text-xs font-mono font-medium text-slate-500 dark:text-slate-400">
+        <span className="text-xs num font-medium text-slate-500 dark:text-slate-400">
           {state.progress}%
         </span>
       </div>
@@ -60,7 +60,7 @@ export function PdfProcessingStatus({ state }: PdfProcessingStatusProps) {
       </div>
 
       {state.details && (
-        <p className="text-xs text-slate-600 dark:text-slate-400 font-mono">
+        <p className="text-xs text-slate-600 dark:text-slate-400 num">
           {state.details}
         </p>
       )}
@@ -91,7 +91,7 @@ export function PdfProcessingStatus({ state }: PdfProcessingStatusProps) {
               ) : (
                 <Icon className="w-3.5 h-3.5 shrink-0 opacity-70" />
               )}
-              <span className="truncate text-[0.72rem] leading-tight">{s.label}</span>
+              <span className="truncate text-xs leading-tight">{s.label}</span>
             </div>
           );
         })}

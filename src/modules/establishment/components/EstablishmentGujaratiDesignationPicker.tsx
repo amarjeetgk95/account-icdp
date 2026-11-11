@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/utils/cn';
-import { useEstablishmentPosts } from '../hooks/useEstablishment';
-import { ESTABLISHMENT_POST_OPTIONS } from '../constants/establishmentPostCatalog';
+import { useEstablishmentPositions } from '../hooks/useEstablishmentPositions';
+import { useEstablishmentPostCatalog } from '../hooks/useEstablishmentPostCatalog';
+import { DEFAULT_POST_CATALOG } from '../constants/establishmentPostCatalog';
+import { isResolutionStatus } from '../types';
 
 interface EstablishmentGujaratiDesignationPickerProps {
   value: string;
@@ -34,9 +36,12 @@ export function EstablishmentGujaratiDesignationPicker({
   value,
   onChange,
   id,
-  placeholder = 'Select Gujarati designation — હોદ્દો પસંદ કરો',
+  placeholder = 'Select Gujarati designation...',
 }: EstablishmentGujaratiDesignationPickerProps) {
-  const postsQuery = useEstablishmentPosts();
+  const positionsQuery = useEstablishmentPositions();
+  const catalogQuery = useEstablishmentPostCatalog();
+  const postCatalog = useMemo(() => catalogQuery.data ?? DEFAULT_POST_CATALOG, [catalogQuery.data]);
+
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<PickerPosition | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,54 +49,65 @@ export function EstablishmentGujaratiDesignationPicker({
   const menuRef = useRef<HTMLDivElement>(null);
   const suppressFocusOpenRef = useRef(false);
 
-  // Build unique designations from sanctioned posts.
-  // If no sanctioned posts are configured, fall back to the static catalogue
-  // so the dropdown is still usable (covers fresh offices).
+  // Build unique designations from the active sanctioned-post register.
+  // If no posts are configured, fall back to the master catalogue so the
+  // dropdown is still usable (covers fresh offices).
   const sanctionOptions: PickerOption[] = useMemo(() => {
-    const posts = postsQuery.data ?? [];
+    const positions = (positionsQuery.data ?? []).filter(
+      (p) => !isResolutionStatus(p.status) && (p.postName ?? '').trim()
+    );
     const seen = new Map<string, PickerOption>();
 
-    for (const post of posts) {
-      const designation = (post.designation ?? '').trim();
-      if (!designation) continue;
+    for (const position of positions) {
+      const designation = position.postName.trim();
       const key = designation.toLocaleLowerCase();
-      if (seen.has(key)) continue;
+      const existing = seen.get(key);
+      if (existing) {
+        existing.sanctioned = (existing.sanctioned ?? 0) + 1;
+        if (position.status === 'Filled') existing.filled = (existing.filled ?? 0) + 1;
+        continue;
+      }
 
-      const catalogMatch = ESTABLISHMENT_POST_OPTIONS.find(
-        (opt) => opt.name.toLocaleLowerCase() === key
+      const catalogMatch = postCatalog.find(
+        (opt) => opt.nameGu.toLocaleLowerCase() === key
       );
 
       seen.set(key, {
         designation,
-        cadreClass: post.cadreClass,
-        sanctioned: post.sanctioned,
-        filled: post.filled,
+        cadreClass: position.cadreClass || catalogMatch?.cadreClass,
+        sanctioned: 1,
+        filled: position.status === 'Filled' ? 1 : 0,
         payLevel: catalogMatch?.payLevel,
         minPay: catalogMatch?.minPay,
         isSanctioned: true,
       });
     }
 
-    if (seen.size > 0) {
-      return Array.from(seen.values());
-    }
+    const result =
+      seen.size > 0
+        ? Array.from(seen.values())
+        : postCatalog.map((opt) => ({
+            designation: opt.nameGu,
+            cadreClass: opt.cadreClass,
+            sanctioned: undefined,
+            filled: undefined,
+            payLevel: opt.payLevel,
+            minPay: opt.minPay,
+            isSanctioned: false,
+          }));
 
-    // Fallback: catalogue when no sanctioned posts exist
-    return ESTABLISHMENT_POST_OPTIONS.map((opt) => ({
-      designation: opt.name,
-      cadreClass: undefined,
-      sanctioned: undefined,
-      filled: undefined,
-      payLevel: opt.payLevel,
-      minPay: opt.minPay,
-      isSanctioned: false,
-    }));
-  }, [postsQuery.data]);
+    // Order from higher pay to lower
+    return result.sort(
+      (a, b) =>
+        (b.minPay || 0) - (a.minPay || 0) ||
+        a.designation.localeCompare(b.designation, 'gu')
+    );
+  }, [positionsQuery.data, postCatalog]);
 
   const isUsingFallback = useMemo(() => {
-    const posts = postsQuery.data ?? [];
-    return posts.filter((p) => (p.designation ?? '').trim()).length === 0;
-  }, [postsQuery.data]);
+    const positions = positionsQuery.data ?? [];
+    return positions.filter((p) => !isResolutionStatus(p.status) && (p.postName ?? '').trim()).length === 0;
+  }, [positionsQuery.data]);
 
   const query = value.trim().toLocaleLowerCase();
   const filteredOptions = useMemo(
@@ -205,7 +221,7 @@ export function EstablishmentGujaratiDesignationPicker({
       style={position}
       className="fixed z-[60] max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-900"
     >
-      <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b border-slate-100 bg-white px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:border-slate-800 dark:bg-slate-900">
+      <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b border-slate-100 bg-white px-2 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-400 dark:border-slate-800 dark:bg-slate-900">
         <Search className="h-3 w-3" />
         <span>
           {filteredOptions.length} {isUsingFallback ? 'catalogue' : 'sanctioned post'}
@@ -226,8 +242,8 @@ export function EstablishmentGujaratiDesignationPicker({
       </div>
 
       {isUsingFallback && (
-        <div className="px-2.5 py-2 text-[11px] leading-snug text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg mt-1">
-          No sanctioned posts configured. Showing catalogue. Configure sanctioned posts (મહેકમ) to limit this list to office-sanctioned designations.
+        <div className="px-2.5 py-2 text-xs leading-snug text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg mt-1">
+          No sanctioned posts configured. Showing full catalogue. Configure sanctioned positions to limit this list to office-sanctioned designations.
         </div>
       )}
 
@@ -244,10 +260,10 @@ export function EstablishmentGujaratiDesignationPicker({
           )}
         >
           <span className="min-w-0">
-            <span className="block truncate text-xs font-serif font-semibold text-slate-800 dark:text-slate-100">
+            <span className="block truncate text-xs font-gujSans font-semibold text-slate-800 dark:text-slate-100">
               {option.designation}
             </span>
-            <span className="mt-0.5 block text-[10px] text-slate-400">
+            <span className="mt-0.5 block text-xs text-slate-400">
               {option.isSanctioned ? (
                 <>
                   {option.cadreClass ? `Class ${option.cadreClass} · ` : ''}
@@ -259,7 +275,7 @@ export function EstablishmentGujaratiDesignationPicker({
               )}
             </span>
           </span>
-          <span className="shrink-0 font-mono text-[10px] font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+          <span className="shrink-0 num text-xs font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
             {option.minPay && option.minPay > 0 ? `₹${option.minPay.toLocaleString('en-IN')}` : ''}
           </span>
         </button>
@@ -308,7 +324,7 @@ export function EstablishmentGujaratiDesignationPicker({
         }}
         autoComplete="off"
         placeholder={placeholder}
-        className="h-9 bg-white pr-8 font-serif text-sm dark:bg-slate-900"
+        className="h-9 bg-white pr-8 font-gujSans text-xs dark:bg-slate-900"
       />
       <ChevronDown
         className={cn(

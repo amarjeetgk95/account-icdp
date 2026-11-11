@@ -55,13 +55,13 @@ export function SummaryCards({ transactions, partiesCount }: SummaryCardsProps) 
             <card.icon size={15} className={card.text} />
           </span>
           <div className="leading-tight">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               {card.label}
               <span className="hidden lg:inline text-slate-400 dark:text-slate-500 font-medium normal-case tracking-normal">
                 {' '}· {card.sub}
               </span>
             </p>
-            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums">{card.value}</p>
+            <p className="text-xs font-bold text-slate-900 dark:text-slate-100 tabular-nums">{card.value}</p>
           </div>
         </div>
       ))}

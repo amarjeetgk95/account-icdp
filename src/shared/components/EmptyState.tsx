@@ -22,7 +22,7 @@ export function EmptyState({ icon: Icon = Inbox, title, hint, action, illustrati
           <Icon size={compact ? 24 : 28} className="text-slate-400" strokeWidth={1.5} />
         </div>
       )}
-      <p className="text-sm font-semibold text-slate-600">{title}</p>
+      <p className="text-xs font-semibold text-slate-600">{title}</p>
       {hint && <p className="text-xs text-slate-400 mt-1.5 max-w-xs">{hint}</p>}
       {action && <div className="mt-5 flex justify-center">{action}</div>}
     </div>

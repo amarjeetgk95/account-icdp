@@ -52,14 +52,15 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
             <Layers size={18} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">
               Multi-Month Batch Upload Queue ({queue.length} Files)
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {completedCount} of {queue.length} processed
-              {errorCount > 0 && <> &bull; <span className="text-red-500">{errorCount} error</span></>}
-              {blockedCount > 0 && <> &bull; <span className="text-amber-600">{blockedCount} blocked</span></>}
-              {pendingCount > 0 && <> &bull; <span className="text-slate-500">{pendingCount} pending</span></>}
+              {completedCount > 0 && <> &bull; <span className="text-emerald-600 font-semibold">{completedCount} parsed</span></>}
+              {errorCount > 0 && <> &bull; <span className="text-rose-600 font-bold">{errorCount} failed</span></>}
+              {blockedCount > 0 && <> &bull; <span className="text-amber-600 font-bold">{blockedCount} blocked</span></>}
+              {pendingCount > 0 && <> &bull; <span className="text-slate-500">{pendingCount} ready</span></>}
             </p>
           </div>
         </div>
@@ -102,7 +103,7 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
       )}
 
       {/* Files List Table */}
-      <div className="divide-y divide-slate-100 dark:divide-slate-750 max-h-64 overflow-y-auto">
+      <div className="divide-y divide-slate-100 dark:divide-slate-750 max-h-[460px] min-h-[160px] overflow-y-auto app-scroll">
         {queue.map((item, idx) => {
           const isSelected = selectedFileId === item.id;
           return (
@@ -112,17 +113,28 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
               className={`p-3 flex items-center justify-between gap-3 text-xs transition cursor-pointer ${
                 isSelected
                   ? 'bg-blue-50/80 dark:bg-blue-950/30 font-semibold'
-                  : 'hover:bg-slate-50/60 dark:hover:bg-slate-750/50'
+                  : item.status === 'ERROR'
+                    ? 'bg-rose-50/30 dark:bg-rose-950/20 hover:bg-rose-50/60'
+                    : 'hover:bg-slate-50/60 dark:hover:bg-slate-750/50'
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <span className="text-slate-400 font-mono w-4">{idx + 1}</span>
-                <FileSpreadsheet size={18} className="text-slate-500 shrink-0" />
+                <span className="text-slate-400 num w-4">{idx + 1}</span>
+                <FileSpreadsheet
+                  size={18}
+                  className={`shrink-0 ${
+                    item.status === 'ERROR'
+                      ? 'text-rose-500'
+                      : item.status === 'SUCCESS'
+                        ? 'text-emerald-600'
+                        : 'text-slate-500'
+                  }`}
+                />
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
                     {item.name}
                   </p>
-                  <div className="flex items-center gap-2 text-[0.7rem] text-slate-500 mt-0.5">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-0.5">
                     <span>{(item.size / 1024).toFixed(1)} KB</span>
                     {item.month && (
                       <span className="flex items-center gap-1 font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.2 rounded">
@@ -130,19 +142,26 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
                       </span>
                     )}
                     {item.recordCount !== undefined && (
-                      <span>&bull; {item.recordCount} Employees</span>
+                      <span className={item.recordCount === 0 && item.status !== 'PENDING' ? 'text-rose-600 font-bold' : ''}>
+                        &bull; {item.recordCount} Employees
+                      </span>
                     )}
                     {item.grossTotal !== undefined && item.grossTotal > 0 && (
                       <span>&bull; Gross: ₹{item.grossTotal.toLocaleString('en-IN')}</span>
                     )}
                   </div>
+                  {item.error && (
+                    <p className="text-xs text-rose-600 dark:text-rose-400 font-medium truncate mt-0.5">
+                      {item.error}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 {item.confidence !== undefined && item.status !== 'PENDING' && item.status !== 'PARSING' && (
                   <span
-                    className={`hidden sm:inline px-1.5 py-0.5 rounded text-[0.6rem] font-mono font-bold border ${
+                    className={`hidden sm:inline px-1.5 py-0.5 rounded text-xs num font-bold border ${
                       (item.confidence ?? 100) < 60
                         ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800'
                         : (item.confidence ?? 100) < 80
@@ -155,27 +174,27 @@ export const BatchImportQueue: React.FC<BatchImportQueueProps> = ({
                   </span>
                 )}
                 {item.status === 'PENDING' && (
-                  <span className="px-2 py-0.5 rounded text-[0.7rem] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                     Ready
                   </span>
                 )}
                 {item.status === 'PARSING' && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.7rem] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
                     <Loader2 size={11} className="animate-spin" /> Parsing...
                   </span>
                 )}
                 {item.status === 'SUCCESS' && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.7rem] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
                     <CheckCircle2 size={12} /> Parsed
                   </span>
                 )}
                 {item.status === 'ERROR' && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.7rem] font-semibold bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200" title={item.error}>
-                    <AlertCircle size={12} /> Error
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800" title={item.error}>
+                    <AlertCircle size={12} /> Failed
                   </span>
                 )}
                 {item.status === 'BLOCKED' && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[0.7rem] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200" title={item.error}>
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-800" title={item.error}>
                     <ShieldAlert size={12} /> Blocked
                   </span>
                 )}

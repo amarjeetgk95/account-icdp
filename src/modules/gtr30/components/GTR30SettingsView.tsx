@@ -143,8 +143,8 @@ function SectionHeader({
         <Icon className="h-4 w-4" />
       </span>
       <div>
-        <h2 className="font-bold text-sm text-slate-900 dark:text-white">{title}</h2>
-        {subtitle && <p className="text-[11px] text-slate-500 dark:text-slate-400">{subtitle}</p>}
+        <h2 className="font-bold text-xs text-slate-900 dark:text-white">{title}</h2>
+        {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>}
       </div>
     </div>
   );
@@ -173,25 +173,25 @@ function SettingsField({
       </Label>
       {children}
       {error ? (
-        <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1">
+        <p className="flex items-center gap-1 text-xs text-red-500 mt-1">
           <AlertCircle className="h-3 w-3 shrink-0" /> {error}
         </p>
       ) : hint ? (
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{hint}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{hint}</p>
       ) : null}
     </div>
   );
 }
 
 const inputClass = (invalid?: boolean) =>
-  `h-9 mt-1 text-sm bg-white dark:bg-slate-900 ${
+  `h-9 mt-1 text-xs bg-white dark:bg-slate-900 ${
     invalid
       ? 'border-red-400 focus-visible:ring-red-400'
       : 'border-slate-300 dark:border-slate-700'
   }`;
 
 const selectClass = (invalid?: boolean) =>
-  `w-full h-9 mt-1 rounded-md border bg-white dark:bg-slate-900 px-2 text-sm dark:text-slate-200 ${
+  `w-full h-9 mt-1 rounded-md border bg-white dark:bg-slate-900 px-2 text-xs dark:text-slate-200 ${
     invalid ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'
   }`;
 
@@ -329,9 +329,17 @@ export function GTR30SettingsView() {
     setLocalTemplate((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updateDaRate = (id: string, field: keyof GTR30DARateEntry, value: string | number) => {
+  const updateDaRateByIndex = (idx: number, field: keyof GTR30DARateEntry, value: string | number) => {
     setLocalDaRates((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [field]: field === 'rate' ? Number(value) || 0 : String(value) } : r))
+      prev.map((r, i) =>
+        i === idx
+          ? {
+              ...r,
+              id: r.id || crypto.randomUUID(),
+              [field]: field === 'rate' ? (value === '' ? '' : Number(value) || 0) : String(value),
+            }
+          : r
+      )
     );
   };
 
@@ -343,20 +351,15 @@ export function GTR30SettingsView() {
     ]);
   };
 
-  const removeDaRate = (id: string) => {
+  const removeDaRateByIndex = (idx: number) => {
     setLocalDaRates((prev) => {
       if (prev.length <= 1) {
         toast({ title: 'Cannot Remove', description: 'At least one DA rate must remain.', variant: 'destructive' });
         return prev;
       }
-      return prev.filter((r) => r.id !== id);
+      return prev.filter((_, i) => i !== idx);
     });
   };
-
-  const sortedDaRatesPreview = useMemo(
-    () => [...localDaRates].sort((a, b) => (a.effectiveFrom || '').localeCompare(b.effectiveFrom || '') || a.id.localeCompare(b.id)),
-    [localDaRates]
-  );
 
   const handleSave = async () => {
     if (hasErrors) {
@@ -457,7 +460,7 @@ export function GTR30SettingsView() {
               style={{ width: `${completeness.percent}%` }}
             />
           </div>
-          <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+          <span className="text-xs num font-bold text-slate-700 dark:text-slate-300">
             {completeness.percent}%
           </span>
         </div>
@@ -610,7 +613,7 @@ export function GTR30SettingsView() {
               <Input
                 value={localSettings.drawingOfficerNameGujarati}
                 onChange={(e) => handleSettingChange('drawingOfficerNameGujarati', e.target.value)}
-                className={`font-serif ${inputClass()}`}
+                className={`font-gujSans ${inputClass()}`}
               />
             </SettingsField>
             <SettingsField label="Designation">
@@ -626,7 +629,7 @@ export function GTR30SettingsView() {
                 onChange={(e) =>
                   handleSettingChange('drawingOfficerDesignationGujarati', e.target.value)
                 }
-                className={`font-serif ${inputClass()}`}
+                className={`font-gujSans ${inputClass()}`}
               />
             </SettingsField>
             <SettingsField label="Office">
@@ -640,7 +643,7 @@ export function GTR30SettingsView() {
               <Input
                 value={localSettings.drawingOfficerOfficeGujarati}
                 onChange={(e) => handleSettingChange('drawingOfficerOfficeGujarati', e.target.value)}
-                className={`font-serif ${inputClass()}`}
+                className={`font-gujSans ${inputClass()}`}
               />
             </SettingsField>
             <SettingsField label="Drawing Officer Code" hint="4-digit DO code">
@@ -731,7 +734,7 @@ export function GTR30SettingsView() {
                 <Input
                   value={headForm.headChargeable ?? ''}
                   onChange={(e) => handleHeadField('headChargeable', e.target.value)}
-                  className={`font-mono ${inputClass()}`}
+                  className={`num ${inputClass()}`}
                 />
               </SettingsField>
               <SettingsField label="Demand No.">
@@ -873,7 +876,7 @@ export function GTR30SettingsView() {
               <Input
                 value={localSettings.headChargeable}
                 onChange={(e) => handleSettingChange('headChargeable', e.target.value)}
-                className={`font-mono ${inputClass(Boolean(errors.headChargeable))}`}
+                className={`num ${inputClass(Boolean(errors.headChargeable))}`}
               />
             </SettingsField>
             <SettingsField label="Sector">
@@ -940,14 +943,14 @@ export function GTR30SettingsView() {
               <Input
                 value={localTemplate.designationGujarati}
                 onChange={(e) => handleTemplateChange('designationGujarati', e.target.value)}
-                className={`font-serif ${inputClass()}`}
+                className={`font-gujSans ${inputClass()}`}
               />
             </SettingsField>
             <SettingsField label="Cadre Class" hint="વર્ગ ૧–૪">
               <select
                 value={toGujaratiCadre(localTemplate.cadreClass ?? '')}
                 onChange={(e) => handleTemplateChange('cadreClass', e.target.value)}
-                className={`font-serif ${selectClass()}`}
+                className={`font-gujSans ${selectClass()}`}
               >
                 {cadreOptions.map((option) => (
                   <option key={option} value={option}>
@@ -988,7 +991,7 @@ export function GTR30SettingsView() {
               <select
                 value={localTemplate.insuranceGroup}
                 onChange={(e) => handleTemplateChange('insuranceGroup', normalizeInsuranceGroup(e.target.value))}
-                className={`font-serif ${selectClass()}`}
+                className={`font-gujSans ${selectClass()}`}
               >
                 {gisOptions.map((option) => (
                   <option key={option} value={option}>
@@ -1044,41 +1047,118 @@ export function GTR30SettingsView() {
           )}
 
           <div className="space-y-3">
-            {sortedDaRatesPreview.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-6">No DA rates configured.</p>
+            {localDaRates.length === 0 ? (
+              <p className="text-xs text-slate-500 text-center py-6">No DA rates configured.</p>
             ) : (
-              sortedDaRatesPreview.map((rate) => {
-                const idx = localDaRates.findIndex((r) => r.id === rate.id);
-                const actual = localDaRates[idx];
-                // Use actual index for error keys (errors are based on localDaRates order, but sorted order may differ)
-                // For simplicity, validate via sorted position
+              localDaRates.map((actual, idx) => {
                 const dateError = daErrors[`da_${idx}_date`];
                 const rateError = daErrors[`da_${idx}_rate`];
+                const parsedIso = parseFlexibleDateToISO((actual.effectiveFrom || '').trim());
                 return (
                   <div
-                    key={rate.id}
+                    key={actual.id || `da-rate-${idx}`}
                     className="grid gap-3 sm:grid-cols-12 items-end bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700"
                   >
                     <div className="sm:col-span-3">
                       <Label className="text-xs font-semibold">Effective From</Label>
-                      <Input
-                        type="text"
-                        placeholder="YYYY-MM-DD or DD-MM-YYYY (01-07-2026)"
-                        value={actual.effectiveFrom}
-                        onChange={(e) => updateDaRate(actual.id, 'effectiveFrom', e.target.value)}
-                        onBlur={(e) => {
-                          const iso = parseFlexibleDateToISO(e.target.value.trim());
-                          if (iso && iso !== e.target.value.trim()) {
-                            updateDaRate(actual.id, 'effectiveFrom', iso);
-                          }
-                        }}
-                        className={`h-9 mt-1 text-sm font-mono ${dateError ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} bg-white dark:bg-slate-900`}
-                      />
-                      {dateError && <p className="text-[11px] text-red-500 mt-1">{dateError}</p>}
-                      {!dateError && actual.effectiveFrom && parseFlexibleDateToISO(actual.effectiveFrom.trim()) && (
-                        <p className="text-[10px] text-slate-500 mt-1 font-mono">
-                          → {parseFlexibleDateToISO(actual.effectiveFrom.trim())}
-                        </p>
+                      <div className="relative mt-1">
+                        <Input
+                          type="text"
+                          placeholder="e.g. 01-07-2026 or 2026-07-01"
+                          value={actual.effectiveFrom ?? ''}
+                          onChange={(e) => updateDaRateByIndex(idx, 'effectiveFrom', e.target.value)}
+                          onBlur={(e) => {
+                            const iso = parseFlexibleDateToISO(e.target.value.trim());
+                            if (iso && iso !== e.target.value.trim()) {
+                              updateDaRateByIndex(idx, 'effectiveFrom', iso);
+                            }
+                          }}
+                          className={`h-9 pr-8 text-xs num ${dateError ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-300 dark:border-slate-700'} bg-white dark:bg-slate-900`}
+                        />
+                        <input
+                          type="date"
+                          id={`da-date-picker-${idx}`}
+                          tabIndex={-1}
+                          value={parsedIso || ''}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              updateDaRateByIndex(idx, 'effectiveFrom', e.target.value);
+                            }
+                          }}
+                          className="sr-only"
+                          aria-hidden="true"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById(`da-date-picker-${idx}`) as HTMLInputElement | null;
+                            if (el) {
+                              if (typeof el.showPicker === 'function') {
+                                el.showPicker();
+                              } else {
+                                el.focus();
+                              }
+                            }
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
+                          title="Pick date from calendar"
+                        >
+                          <Calendar className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {dateError ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                          <span className="text-red-500 font-medium flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3 shrink-0" /> {dateError}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateDaRateByIndex(idx, 'effectiveFrom', '2026-07-01')}
+                            className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:hover:bg-blue-800/60 text-blue-700 dark:text-blue-300 font-semibold transition-colors cursor-pointer"
+                          >
+                            Set 01-07-2026
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateDaRateByIndex(idx, 'effectiveFrom', new Date().toISOString().slice(0, 10))}
+                            className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium transition-colors cursor-pointer"
+                          >
+                            Set Today
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                          <span className="text-slate-400">Quick:</span>
+                          <button
+                            type="button"
+                            onClick={() => updateDaRateByIndex(idx, 'effectiveFrom', '2026-07-01')}
+                            className="hover:text-blue-600 dark:hover:text-blue-400 underline font-mono cursor-pointer"
+                          >
+                            01-07-2026
+                          </button>
+                          <span>·</span>
+                          <button
+                            type="button"
+                            onClick={() => updateDaRateByIndex(idx, 'effectiveFrom', '2026-01-01')}
+                            className="hover:text-blue-600 dark:hover:text-blue-400 underline font-mono cursor-pointer"
+                          >
+                            01-01-2026
+                          </button>
+                          <span>·</span>
+                          <button
+                            type="button"
+                            onClick={() => updateDaRateByIndex(idx, 'effectiveFrom', new Date().toISOString().slice(0, 10))}
+                            className="hover:text-blue-600 dark:hover:text-blue-400 underline cursor-pointer"
+                          >
+                            Today
+                          </button>
+                          {actual.effectiveFrom && parsedIso && parsedIso !== actual.effectiveFrom.trim() && (
+                            <span className="ml-1 text-emerald-600 dark:text-emerald-400 font-mono text-[10px]">
+                              (→ {parsedIso})
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div className="sm:col-span-2">
@@ -1090,37 +1170,37 @@ export function GTR30SettingsView() {
                           min="0"
                           max="100"
                           value={actual.rate}
-                          onChange={(e) => updateDaRate(actual.id, 'rate', e.target.value)}
-                          className={`h-9 text-sm pr-7 ${rateError ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} bg-white dark:bg-slate-900 font-mono font-bold`}
+                          onChange={(e) => updateDaRateByIndex(idx, 'rate', e.target.value)}
+                          className={`h-9 text-xs pr-7 ${rateError ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-300 dark:border-slate-700'} bg-white dark:bg-slate-900 num font-bold`}
                         />
                         <Percent className="h-3.5 w-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
                       </div>
-                      {rateError && <p className="text-[11px] text-red-500 mt-1">{rateError}</p>}
+                      {rateError && <p className="text-xs text-red-500 mt-1">{rateError}</p>}
                     </div>
                     <div className="sm:col-span-3">
                       <Label className="text-xs font-semibold">Resolution / GR No.</Label>
                       <Input
                         value={actual.resolutionNo ?? ''}
-                        onChange={(e) => updateDaRate(actual.id, 'resolutionNo', e.target.value)}
+                        onChange={(e) => updateDaRateByIndex(idx, 'resolutionNo', e.target.value)}
                         placeholder="e.g. વલભ-૧૦૨૦૧૬-જીઓઆઈ-૭-ચ"
-                        className="h-9 mt-1 text-sm font-serif bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                        className="h-9 mt-1 text-xs font-gujSans bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                       />
                     </div>
                     <div className="sm:col-span-3">
                       <Label className="text-xs font-semibold">Description</Label>
                       <Input
                         value={actual.description ?? ''}
-                        onChange={(e) => updateDaRate(actual.id, 'description', e.target.value)}
-                        placeholder="e.g. 7th Pay 53% DA"
-                        className="h-9 mt-1 text-sm bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                        onChange={(e) => updateDaRateByIndex(idx, 'description', e.target.value)}
+                        placeholder="e.g. 7th Pay 60% DA"
+                        className="h-9 mt-1 text-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                       />
                     </div>
                     <div className="sm:col-span-1 flex justify-end">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
-                        onClick={() => removeDaRate(actual.id)}
+                        className="h-9 w-9 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 cursor-pointer"
+                        onClick={() => removeDaRateByIndex(idx)}
                         title="Remove DA rate"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -1163,14 +1243,14 @@ export function GTR30SettingsView() {
                 <Input
                   value={localSettings.schemeResolutionText}
                   onChange={(e) => handleSettingChange('schemeResolutionText', e.target.value)}
-                  className={`font-serif ${inputClass()}`}
+                  className={`font-gujSans ${inputClass()}`}
                 />
               </SettingsField>
               <SettingsField label="DA Resolution Text">
                 <Input
                   value={localSettings.daResolutionText}
                   onChange={(e) => handleSettingChange('daResolutionText', e.target.value)}
-                  className={`font-serif ${inputClass()}`}
+                  className={`font-gujSans ${inputClass()}`}
                 />
               </SettingsField>
             </div>

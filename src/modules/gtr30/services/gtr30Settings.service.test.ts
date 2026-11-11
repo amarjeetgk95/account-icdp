@@ -208,10 +208,17 @@ describe('gtr30Settings.service', () => {
   });
 
   describe('hydrateFromBackend', () => {
-    it('skips the backend entirely when local settings already exist', async () => {
+    it('fetches settings from the backend and syncs with local storage', async () => {
+      vi.mocked(gtr30SettingsBackendRepository.load).mockResolvedValue({
+        settings: { ...DEFAULT_GTR30_SETTINGS, officeName: 'Synced Office' },
+        employeeTemplate: { ...DEFAULT_GTR30_EMPLOYEE_TEMPLATE },
+        defaultPosts: [],
+        daRates: [{ id: 'da1', effectiveFrom: '2024-12-04', rate: 53 }],
+      });
       gtr30SettingsService.saveSettings(payload);
       await gtr30SettingsService.hydrateFromBackend();
-      expect(gtr30SettingsBackendRepository.load).not.toHaveBeenCalled();
+      expect(gtr30SettingsBackendRepository.load).toHaveBeenCalled();
+      expect(gtr30SettingsService.loadSettings().settings.officeName).toBe('Synced Office');
     });
 
     it('populates local storage from the backend when no local settings exist', async () => {

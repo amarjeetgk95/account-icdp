@@ -18,8 +18,8 @@ interface TaxReconciliationTableProps {
   isSyncing: boolean;
 }
 
-type FilterTab = 'ALL' | 'MISMATCHES' | 'MISSING_PAYROLL' | 'MISSING_PAYBILL' | 'MATCHED' | 'UNMAPPED';
-type DataViewMode = 'COMBINED' | 'TAX' | 'GROSS';
+type FilterTab = 'ALL' | 'MISMATCHES' | 'MISSING_PAYROLL' | 'MISSING_PAYBILL' | 'MATCHED';
+type DataViewMode = 'COMBINED' | 'TAX' | 'GROSS' | 'REGULAR' | 'ARREARS';
 
 export function TaxReconciliationTable({
   report,
@@ -38,15 +38,13 @@ export function TaxReconciliationTable({
     return report.rows.filter((row) => {
       // Tab filter
       if (activeTab === 'MISMATCHES') {
-        if (row.status !== 'TAX_MISMATCH' && row.status !== 'GROSS_MISMATCH') return false;
+        if (row.status !== 'TAX_MISMATCH' && row.status !== 'GROSS_MISMATCH' && row.status !== 'REGULAR_MISMATCH' && row.status !== 'ARREARS_MISMATCH') return false;
       } else if (activeTab === 'MISSING_PAYROLL') {
         if (row.status !== 'MISSING_IN_PAYROLL') return false;
       } else if (activeTab === 'MISSING_PAYBILL') {
         if (row.status !== 'MISSING_IN_PAYBILL') return false;
       } else if (activeTab === 'MATCHED') {
         if (row.status !== 'MATCHED') return false;
-      } else if (activeTab === 'UNMAPPED') {
-        if (row.status !== 'UNMAPPED_HRPN') return false;
       }
 
       // Search query
@@ -92,7 +90,7 @@ export function TaxReconciliationTable({
         return (
           <span
             title={message}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap"
           >
             <CheckCircle2 size={11} />
             <span>Matched</span>
@@ -102,7 +100,7 @@ export function TaxReconciliationTable({
         return (
           <span
             title={message}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800 animate-pulse whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800 animate-pulse whitespace-nowrap"
           >
             <AlertCircle size={11} />
             <span>Tax Variance</span>
@@ -112,17 +110,37 @@ export function TaxReconciliationTable({
         return (
           <span
             title={message}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap"
           >
             <AlertTriangle size={11} />
             <span>Gross Diff</span>
+          </span>
+        );
+      case 'REGULAR_MISMATCH':
+        return (
+          <span
+            title={message}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap"
+          >
+            <AlertTriangle size={11} />
+            <span>Regular Diff</span>
+          </span>
+        );
+      case 'ARREARS_MISMATCH':
+        return (
+          <span
+            title={message}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap"
+          >
+            <AlertTriangle size={11} />
+            <span>Arrears Diff</span>
           </span>
         );
       case 'MISSING_IN_PAYROLL':
         return (
           <span
             title={message}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800 whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800 whitespace-nowrap"
           >
             <AlertTriangle size={11} />
             <span>Missing in Payroll</span>
@@ -132,7 +150,7 @@ export function TaxReconciliationTable({
         return (
           <span
             title={message}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap"
           >
             <FileQuestion size={11} />
             <span>No Paybill</span>
@@ -142,7 +160,7 @@ export function TaxReconciliationTable({
         return (
           <span
             title={message}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 whitespace-nowrap"
           >
             <FileQuestion size={11} />
             <span>Unmapped HRPN</span>
@@ -151,7 +169,33 @@ export function TaxReconciliationTable({
     }
   };
 
-  const mismatchCount = report.summary.taxMismatchCount + report.summary.grossMismatchCount;
+  const mismatchCount = report.summary.taxMismatchCount + report.summary.grossMismatchCount + (report.summary.regularMismatchCount || 0) + (report.summary.arrearsMismatchCount || 0);
+
+  // 059 three-track display: REGULAR shows monthly pay excl. diffs (regular DA
+  // lives inside regular); ARREARS shows DA-diff + Pay-diff combined per month.
+  const isGrossSection = dataViewMode === 'COMBINED' || dataViewMode === 'GROSS' || dataViewMode === 'REGULAR' || dataViewMode === 'ARREARS';
+  const grossCell = (m: { paybillGross: number; payrollGross: number; grossDiff: number; pbRegular?: number; prRegular?: number; regularDiff?: number; pbDaDiff?: number; pbPayDiff?: number; prDaDiff?: number; prPayDiff?: number; daDiffDiff?: number; payDiffDiff?: number }) => {
+    if (dataViewMode === 'REGULAR') return { pb: m.pbRegular || 0, pr: m.prRegular || 0, diff: m.regularDiff || 0 };
+    if (dataViewMode === 'ARREARS')
+      return {
+        pb: (m.pbDaDiff || 0) + (m.pbPayDiff || 0),
+        pr: (m.prDaDiff || 0) + (m.prPayDiff || 0),
+        diff: (m.daDiffDiff || 0) + (m.payDiffDiff || 0),
+      };
+    return { pb: m.paybillGross, pr: m.payrollGross, diff: m.grossDiff };
+  };
+  const grossTitle = (m: { paybillDaManual?: number; paybillPayManual?: number; pbDaDiff?: number; pbPayDiff?: number }) => {
+    if (dataViewMode === 'REGULAR') return 'Monthly pay excl. DA/Pay difference (regular DA included)';
+    if (dataViewMode === 'ARREARS') {
+      const parts: string[] = [];
+      if ((m.pbDaDiff || 0) !== 0) parts.push(`DA-diff ₹${(m.pbDaDiff || 0).toLocaleString('en-IN')}`);
+      if ((m.pbPayDiff || 0) !== 0) parts.push(`Pay-diff ₹${(m.pbPayDiff || 0).toLocaleString('en-IN')}`);
+      return parts.length ? `Arrears: ${parts.join(' + ')}` : 'No arrears this month';
+    }
+    return (m.paybillDaManual || m.paybillPayManual)
+      ? `Includes DA-diff ₹${(m.paybillDaManual || 0).toLocaleString('en-IN')} + Pay-diff ₹${(m.paybillPayManual || 0).toLocaleString('en-IN')}`
+      : undefined;
+  };
 
   return (
     <div className="space-y-3">
@@ -169,9 +213,9 @@ export function TaxReconciliationTable({
           />
         </div>
 
-        {/* Center: Data View Mode (Gross / Tax / Combined) */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shrink-0">
-          <div className="flex items-center gap-1 px-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+        {/* Center: Data View Mode (Gross / Tax / Combined + 059 tracks) */}
+        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shrink-0 flex-wrap">
+          <div className="flex items-center gap-1 px-2 text-xs font-bold text-slate-500 dark:text-slate-400">
             <SlidersHorizontal size={12} />
             <span>View:</span>
           </div>
@@ -208,6 +252,30 @@ export function TaxReconciliationTable({
           >
             Gross Salary
           </button>
+          <button
+            type="button"
+            onClick={() => setDataViewMode('REGULAR')}
+            title="Monthly pay excl. DA/Pay difference (regular DA included)"
+            className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+              dataViewMode === 'REGULAR'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-emerald-700 dark:text-emerald-400 hover:text-emerald-900'
+            }`}
+          >
+            Regular
+          </button>
+          <button
+            type="button"
+            onClick={() => setDataViewMode('ARREARS')}
+            title="DA-difference + Pay-difference arrears only"
+            className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+              dataViewMode === 'ARREARS'
+                ? 'bg-purple-600 text-white shadow-xs'
+                : 'text-purple-700 dark:text-purple-400 hover:text-purple-900'
+            }`}
+          >
+            Arrears
+          </button>
         </div>
 
         {/* Status Filter Tabs */}
@@ -233,7 +301,7 @@ export function TaxReconciliationTable({
             }`}
           >
             <span>Mismatches</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100 font-extrabold">
+            <span className="text-xs px-1.5 py-0.2 rounded-full bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100 font-extrabold">
               {mismatchCount}
             </span>
           </button>
@@ -247,7 +315,7 @@ export function TaxReconciliationTable({
             }`}
           >
             <span>Missing</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-extrabold">
+            <span className="text-xs px-1.5 py-0.2 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-extrabold">
               {report.summary.missingInPayrollCount}
             </span>
           </button>
@@ -261,7 +329,7 @@ export function TaxReconciliationTable({
             }`}
           >
             <span>Matched</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100 font-extrabold">
+            <span className="text-xs px-1.5 py-0.2 rounded-full bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100 font-extrabold">
               {report.summary.matchedCount}
             </span>
           </button>
@@ -312,8 +380,8 @@ export function TaxReconciliationTable({
                 colSpan={dataViewMode === 'COMBINED' ? 6 : 3}
                 className="px-2 py-1.5 text-center font-bold border-r border-slate-200 dark:border-slate-700 bg-blue-50/60 dark:bg-blue-950/40 text-blue-900 dark:text-blue-300"
               >
-                <div>Month 1: {m1.work}</div>
-                <div className="text-[10px] font-normal text-slate-500 dark:text-slate-400">paid in {m1.paid}</div>
+                <div>Month 1: {m1.work}{dataViewMode === 'REGULAR' ? ' · Regular' : dataViewMode === 'ARREARS' ? ' · Arrears' : ''}</div>
+                <div className="text-xs font-normal text-slate-500 dark:text-slate-400">paid in {m1.paid}</div>
               </th>
 
               {/* Month 2 */}
@@ -321,8 +389,8 @@ export function TaxReconciliationTable({
                 colSpan={dataViewMode === 'COMBINED' ? 6 : 3}
                 className="px-2 py-1.5 text-center font-bold border-r border-slate-200 dark:border-slate-700 bg-blue-50/60 dark:bg-blue-950/40 text-blue-900 dark:text-blue-300"
               >
-                <div>Month 2: {m2.work}</div>
-                <div className="text-[10px] font-normal text-slate-500 dark:text-slate-400">paid in {m2.paid}</div>
+                <div>Month 2: {m2.work}{dataViewMode === 'REGULAR' ? ' · Regular' : dataViewMode === 'ARREARS' ? ' · Arrears' : ''}</div>
+                <div className="text-xs font-normal text-slate-500 dark:text-slate-400">paid in {m2.paid}</div>
               </th>
 
               {/* Month 3 */}
@@ -330,8 +398,8 @@ export function TaxReconciliationTable({
                 colSpan={dataViewMode === 'COMBINED' ? 6 : 3}
                 className="px-2 py-1.5 text-center font-bold border-r border-slate-200 dark:border-slate-700 bg-blue-50/60 dark:bg-blue-950/40 text-blue-900 dark:text-blue-300"
               >
-                <div>Month 3: {m3.work}</div>
-                <div className="text-[10px] font-normal text-slate-500 dark:text-slate-400">paid in {m3.paid}</div>
+                <div>Month 3: {m3.work}{dataViewMode === 'REGULAR' ? ' · Regular' : dataViewMode === 'ARREARS' ? ' · Arrears' : ''}</div>
+                <div className="text-xs font-normal text-slate-500 dark:text-slate-400">paid in {m3.paid}</div>
               </th>
 
               {/* Quarter Totals */}
@@ -339,7 +407,7 @@ export function TaxReconciliationTable({
                 colSpan={dataViewMode === 'COMBINED' ? 6 : 3}
                 className="px-2 py-1.5 text-center font-bold border-r border-slate-200 dark:border-slate-700 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-300"
               >
-                {dataViewMode === 'GROSS' ? 'Quarter Gross Salary' : dataViewMode === 'TAX' ? 'Quarter Tax (TDS)' : 'Quarter Totals (Gross & IT)'}
+                {dataViewMode === 'REGULAR' ? 'Quarter Regular Pay' : dataViewMode === 'ARREARS' ? 'Quarter Arrears (DA+Pay diff)' : dataViewMode === 'GROSS' ? 'Quarter Gross Salary' : dataViewMode === 'TAX' ? 'Quarter Tax (TDS)' : 'Quarter Totals (Gross & IT)'}
               </th>
 
               {/* Status */}
@@ -354,13 +422,13 @@ export function TaxReconciliationTable({
             </tr>
 
             {/* Level 2 Header: Columns */}
-            <tr className="bg-slate-50 dark:bg-slate-800/60 text-[10px] text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700">
+            <tr className="bg-slate-50 dark:bg-slate-800/60 text-xs text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700">
               {/* M1 */}
-              {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+              {(dataViewMode === 'COMBINED' || isGrossSection) && (
                 <>
                   <th className="px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20">PB Gross</th>
                   <th className="px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20">PR Gross</th>
-                  <th className={`px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20 ${dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>Δ Gross</th>
+                  <th className={`px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20 ${(isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>Δ Gross</th>
                 </>
               )}
               {(dataViewMode === 'COMBINED' || dataViewMode === 'TAX') && (
@@ -372,11 +440,11 @@ export function TaxReconciliationTable({
               )}
 
               {/* M2 */}
-              {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+              {(dataViewMode === 'COMBINED' || isGrossSection) && (
                 <>
                   <th className="px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20">PB Gross</th>
                   <th className="px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20">PR Gross</th>
-                  <th className={`px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20 ${dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>Δ Gross</th>
+                  <th className={`px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20 ${(isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>Δ Gross</th>
                 </>
               )}
               {(dataViewMode === 'COMBINED' || dataViewMode === 'TAX') && (
@@ -388,11 +456,11 @@ export function TaxReconciliationTable({
               )}
 
               {/* M3 */}
-              {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+              {(dataViewMode === 'COMBINED' || isGrossSection) && (
                 <>
                   <th className="px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20">PB Gross</th>
                   <th className="px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20">PR Gross</th>
-                  <th className={`px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20 ${dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>Δ Gross</th>
+                  <th className={`px-1.5 py-1 text-right bg-emerald-50/30 dark:bg-emerald-950/20 ${(isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>Δ Gross</th>
                 </>
               )}
               {(dataViewMode === 'COMBINED' || dataViewMode === 'TAX') && (
@@ -404,11 +472,11 @@ export function TaxReconciliationTable({
               )}
 
               {/* Q Total */}
-              {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+              {(dataViewMode === 'COMBINED' || isGrossSection) && (
                 <>
                   <th className="px-1.5 py-1 text-right font-bold text-slate-800 dark:text-slate-200 bg-indigo-50/30">PB Gross</th>
                   <th className="px-1.5 py-1 text-right font-bold text-slate-800 dark:text-slate-200 bg-indigo-50/30">PR Gross</th>
-                  <th className={`px-1.5 py-1 text-right font-bold bg-indigo-50/30 ${dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>Δ Gross</th>
+                  <th className={`px-1.5 py-1 text-right font-bold bg-indigo-50/30 ${(isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>Δ Gross</th>
                 </>
               )}
               {(dataViewMode === 'COMBINED' || dataViewMode === 'TAX') && (
@@ -433,10 +501,35 @@ export function TaxReconciliationTable({
                 const isSelected = selectedHrpns.includes(row.hrpn);
                 const hasTaxMismatch = row.status === 'TAX_MISMATCH';
                 const m = row.months;
+                // Post-transfer / pre-joining months are excluded from quarter totals —
+                // mute their diffs instead of alarming red so transferred staff don't
+                // look like mismatches.
+                const isInactiveMonth = (i: number) => m[i].isActive === false;
+                const inactiveTitle = (i: number) =>
+                  isInactiveMonth(i)
+                    ? 'Not in service this month (transferred / not yet joined) — excluded from quarter totals'
+                    : undefined;
+                // 059: diff highlight follows the active track view.
+                const trackDiffVal = (i: number) =>
+                  dataViewMode === 'REGULAR' ? (m[i].regularDiff || 0)
+                  : dataViewMode === 'ARREARS' ? ((m[i].daDiffDiff || 0) + (m[i].payDiffDiff || 0))
+                  : m[i].grossDiff;
+                const grossDiffCls = (i: number) =>
+                  isInactiveMonth(i)
+                    ? 'text-slate-300 dark:text-slate-600'
+                    : Math.abs(trackDiffVal(i)) > 0.01
+                      ? 'text-amber-600 dark:text-amber-400 font-bold'
+                      : 'text-slate-400';
+                const taxDiffCls = (i: number) =>
+                  isInactiveMonth(i)
+                    ? 'text-slate-300 dark:text-slate-600'
+                    : Math.abs(m[i].taxDiff) > 0.01
+                      ? 'text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20'
+                      : 'text-slate-400';
 
                 return (
                   <tr
-                    key={row.hrpn}
+                    key={`${row.employeeId || 'unmapped'}-${row.hrpn}-${idx}`}
                     className={`transition-colors text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
                       hasTaxMismatch ? 'bg-rose-50/20 dark:bg-rose-950/10' : ''
                     } ${isSelected ? 'bg-indigo-50/30 dark:bg-indigo-950/20' : ''}`}
@@ -454,26 +547,42 @@ export function TaxReconciliationTable({
                     </td>
 
                     {/* Sr */}
-                    <td className="px-2 py-2 text-center text-slate-400 text-[11px] border-r border-slate-200 dark:border-slate-800">
+                    <td className="px-2 py-2 text-center text-slate-400 text-xs border-r border-slate-200 dark:border-slate-800">
                       {idx + 1}
                     </td>
 
-                    {/* Employee Info */}
+                    {/* Employee Info — master name is canonical; HRPN is the hard join key */}
                     <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
                       <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                         <span>{row.employeeName}</span>
                       </div>
+                      {row.nameMismatch && row.paybillName && (
+                        <div
+                          className="text-xs text-amber-700 dark:text-amber-400 truncate max-w-[220px]"
+                          title={`Paybill prints "${row.paybillName}" — mapped by HRPN ${row.hrpn}`}
+                        >
+                          Paybill: {row.paybillName} (HRPN match)
+                        </div>
+                      )}
+                      {(row.missingHrpn || row.hrpn.startsWith('EMP-')) && (
+                        <div
+                          className="text-xs font-bold text-rose-600 dark:text-rose-400 truncate max-w-[220px]"
+                          title="This master record has no HRPN, so paybill can never join. Add the HRPN in Employee Master (HRPN is the hard key)."
+                        >
+                          HRPN missing in master — add HRPN to map paybill
+                        </div>
+                      )}
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400">
+                        <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-600 dark:text-slate-400">
                           {row.hrpn}
                         </span>
                         {row.pan && row.pan !== 'UNMAPPED' && (
-                          <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400">
+                          <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-600 dark:text-slate-400">
                             {row.pan}
                           </span>
                         )}
                         {row.designation && (
-                          <span className="text-[10px] text-slate-400 truncate max-w-[110px]">
+                          <span className="text-xs text-slate-400 truncate max-w-[110px]">
                             {row.designation}
                           </span>
                         )}
@@ -481,18 +590,21 @@ export function TaxReconciliationTable({
                     </td>
 
                     {/* Month 1 Data */}
-                    {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+                    {(dataViewMode === 'COMBINED' || isGrossSection) && (
                       <>
-                        <td className="px-1.5 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300 bg-emerald-50/20">
-                          {formatCurrency(m[0].paybillGross)}
+                        <td
+                          title={grossTitle(m[0])}
+                          className="px-1.5 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300 bg-emerald-50/20"
+                        >
+                          {formatCurrency(grossCell(m[0]).pb)}
                         </td>
                         <td className="px-1.5 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400 bg-emerald-50/20">
-                          {formatCurrency(m[0].payrollGross)}
+                          {formatCurrency(grossCell(m[0]).pr)}
                         </td>
-                        <td className={`px-1.5 py-2 text-right tabular-nums font-bold bg-emerald-50/20 ${
-                          dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-800' : ''
-                        } ${Math.abs(m[0].grossDiff) > 0.01 ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-400'}`}>
-                          {formatCurrency(m[0].grossDiff)}
+                        <td title={inactiveTitle(0)} className={`px-1.5 py-2 text-right tabular-nums font-bold bg-emerald-50/20 ${
+                          (isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-800' : ''
+                        } ${grossDiffCls(0)}`}>
+                          {formatCurrency(grossCell(m[0]).diff)}
                         </td>
                       </>
                     )}
@@ -504,27 +616,28 @@ export function TaxReconciliationTable({
                         <td className="px-1.5 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400">
                           {formatCurrency(m[0].payrollTax)}
                         </td>
-                        <td className={`px-1.5 py-2 text-right tabular-nums font-bold border-r border-slate-200 dark:border-slate-800 ${
-                          Math.abs(m[0].taxDiff) > 0.01 ? 'text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20' : 'text-slate-400'
-                        }`}>
+                        <td title={inactiveTitle(0)} className={`px-1.5 py-2 text-right tabular-nums font-bold border-r border-slate-200 dark:border-slate-800 ${taxDiffCls(0)}`}>
                           {formatCurrency(m[0].taxDiff)}
                         </td>
                       </>
                     )}
 
                     {/* Month 2 Data */}
-                    {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+                    {(dataViewMode === 'COMBINED' || isGrossSection) && (
                       <>
-                        <td className="px-1.5 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300 bg-emerald-50/20">
-                          {formatCurrency(m[1].paybillGross)}
+                        <td
+                          title={grossTitle(m[1])}
+                          className="px-1.5 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300 bg-emerald-50/20"
+                        >
+                          {formatCurrency(grossCell(m[1]).pb)}
                         </td>
                         <td className="px-1.5 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400 bg-emerald-50/20">
-                          {formatCurrency(m[1].payrollGross)}
+                          {formatCurrency(grossCell(m[1]).pr)}
                         </td>
-                        <td className={`px-1.5 py-2 text-right tabular-nums font-bold bg-emerald-50/20 ${
-                          dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-800' : ''
-                        } ${Math.abs(m[1].grossDiff) > 0.01 ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-400'}`}>
-                          {formatCurrency(m[1].grossDiff)}
+                        <td title={inactiveTitle(1)} className={`px-1.5 py-2 text-right tabular-nums font-bold bg-emerald-50/20 ${
+                          (isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-800' : ''
+                        } ${grossDiffCls(1)}`}>
+                          {formatCurrency(grossCell(m[1]).diff)}
                         </td>
                       </>
                     )}
@@ -536,27 +649,28 @@ export function TaxReconciliationTable({
                         <td className="px-1.5 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400">
                           {formatCurrency(m[1].payrollTax)}
                         </td>
-                        <td className={`px-1.5 py-2 text-right tabular-nums font-bold border-r border-slate-200 dark:border-slate-800 ${
-                          Math.abs(m[1].taxDiff) > 0.01 ? 'text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20' : 'text-slate-400'
-                        }`}>
+                        <td title={inactiveTitle(1)} className={`px-1.5 py-2 text-right tabular-nums font-bold border-r border-slate-200 dark:border-slate-800 ${taxDiffCls(1)}`}>
                           {formatCurrency(m[1].taxDiff)}
                         </td>
                       </>
                     )}
 
                     {/* Month 3 Data */}
-                    {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+                    {(dataViewMode === 'COMBINED' || isGrossSection) && (
                       <>
-                        <td className="px-1.5 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300 bg-emerald-50/20">
-                          {formatCurrency(m[2].paybillGross)}
+                        <td
+                          title={grossTitle(m[2])}
+                          className="px-1.5 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300 bg-emerald-50/20"
+                        >
+                          {formatCurrency(grossCell(m[2]).pb)}
                         </td>
                         <td className="px-1.5 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400 bg-emerald-50/20">
-                          {formatCurrency(m[2].payrollGross)}
+                          {formatCurrency(grossCell(m[2]).pr)}
                         </td>
-                        <td className={`px-1.5 py-2 text-right tabular-nums font-bold bg-emerald-50/20 ${
-                          dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-800' : ''
-                        } ${Math.abs(m[2].grossDiff) > 0.01 ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-400'}`}>
-                          {formatCurrency(m[2].grossDiff)}
+                        <td title={inactiveTitle(2)} className={`px-1.5 py-2 text-right tabular-nums font-bold bg-emerald-50/20 ${
+                          (isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-800' : ''
+                        } ${grossDiffCls(2)}`}>
+                          {formatCurrency(grossCell(m[2]).diff)}
                         </td>
                       </>
                     )}
@@ -568,27 +682,25 @@ export function TaxReconciliationTable({
                         <td className="px-1.5 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400">
                           {formatCurrency(m[2].payrollTax)}
                         </td>
-                        <td className={`px-1.5 py-2 text-right tabular-nums font-bold border-r border-slate-200 dark:border-slate-800 ${
-                          Math.abs(m[2].taxDiff) > 0.01 ? 'text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20' : 'text-slate-400'
-                        }`}>
+                        <td title={inactiveTitle(2)} className={`px-1.5 py-2 text-right tabular-nums font-bold border-r border-slate-200 dark:border-slate-800 ${taxDiffCls(2)}`}>
                           {formatCurrency(m[2].taxDiff)}
                         </td>
                       </>
                     )}
 
                     {/* Quarter Totals */}
-                    {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+                    {(dataViewMode === 'COMBINED' || isGrossSection) && (
                       <>
                         <td className="px-1.5 py-2 text-right tabular-nums font-bold text-slate-800 dark:text-slate-200 bg-indigo-50/20">
-                          {formatCurrency(row.quarterPaybillGross)}
+                          {formatCurrency(dataViewMode === 'REGULAR' ? (row.quarterPbRegular || 0) : dataViewMode === 'ARREARS' ? ((row.quarterPbDaDiff || 0) + (row.quarterPbPayDiff || 0)) : row.quarterPaybillGross)}
                         </td>
                         <td className="px-1.5 py-2 text-right tabular-nums font-medium text-slate-600 dark:text-slate-400 bg-indigo-50/20">
-                          {formatCurrency(row.quarterPayrollGross)}
+                          {formatCurrency(dataViewMode === 'REGULAR' ? (row.quarterPrRegular || 0) : dataViewMode === 'ARREARS' ? ((row.quarterPrDaDiff || 0) + (row.quarterPrPayDiff || 0)) : row.quarterPayrollGross)}
                         </td>
                         <td className={`px-1.5 py-2 text-right tabular-nums font-bold bg-indigo-50/20 ${
-                          dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-800' : ''
-                        } ${Math.abs(row.quarterGrossDiff) > 0.01 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>
-                          {formatCurrency(row.quarterGrossDiff)}
+                          (isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-800' : ''
+                        } ${Math.abs(dataViewMode === 'REGULAR' ? (row.quarterRegularDiff || 0) : dataViewMode === 'ARREARS' ? ((row.quarterDaDiffDiff || 0) + (row.quarterPayDiffDiff || 0)) : row.quarterGrossDiff) > 0.01 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>
+                          {formatCurrency(dataViewMode === 'REGULAR' ? (row.quarterRegularDiff || 0) : dataViewMode === 'ARREARS' ? ((row.quarterDaDiffDiff || 0) + (row.quarterPayDiffDiff || 0)) : row.quarterGrossDiff)}
                         </td>
                       </>
                     )}
@@ -621,13 +733,13 @@ export function TaxReconciliationTable({
                           onClick={() => onSyncSingle(row.hrpn)}
                           disabled={isSyncing}
                           title="Sync Paybill IT & Gross to Payroll 24Q Grid"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer disabled:opacity-50"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer disabled:opacity-50"
                         >
                           <RefreshCw size={11} className={isSyncing ? 'animate-spin' : ''} />
                           <span>Sync</span>
                         </button>
                       ) : (
-                        <span className="text-[10px] text-slate-400">—</span>
+                        <span className="text-xs text-slate-400">—</span>
                       )}
                     </td>
                   </tr>
@@ -640,21 +752,21 @@ export function TaxReconciliationTable({
           {filteredRows.length > 0 && (
             <tfoot>
               <tr className="bg-slate-100 dark:bg-slate-800 font-extrabold text-slate-900 dark:text-slate-100 border-t-2 border-slate-300 dark:border-slate-700">
-                <td colSpan={3} className="px-3 py-2.5 text-center uppercase tracking-wider text-[11px] border-r border-slate-200 dark:border-slate-700">
+                <td colSpan={3} className="px-3 py-2.5 text-center uppercase tracking-wider text-xs border-r border-slate-200 dark:border-slate-700">
                   Total ({filteredRows.length} Records)
                 </td>
 
                 {/* M1 */}
-                {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+                {(dataViewMode === 'COMBINED' || isGrossSection) && (
                   <>
                     <td className="px-1.5 py-2 text-right tabular-nums bg-emerald-100/40">
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.months[0].paybillGross, 0))}
+                      {formatCurrency(filteredRows.reduce((s, r) => s + grossCell(r.months[0]).pb, 0))}
                     </td>
                     <td className="px-1.5 py-2 text-right tabular-nums bg-emerald-100/40">
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.months[0].payrollGross, 0))}
+                      {formatCurrency(filteredRows.reduce((s, r) => s + grossCell(r.months[0]).pr, 0))}
                     </td>
-                    <td className={`px-1.5 py-2 text-right tabular-nums bg-emerald-100/40 ${dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.months[0].grossDiff, 0))}
+                    <td className={`px-1.5 py-2 text-right tabular-nums bg-emerald-100/40 ${(isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
+                      {formatCurrency(filteredRows.reduce((s, r) => s + grossCell(r.months[0]).diff, 0))}
                     </td>
                   </>
                 )}
@@ -673,16 +785,16 @@ export function TaxReconciliationTable({
                 )}
 
                 {/* M2 */}
-                {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+                {(dataViewMode === 'COMBINED' || isGrossSection) && (
                   <>
                     <td className="px-1.5 py-2 text-right tabular-nums bg-emerald-100/40">
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.months[1].paybillGross, 0))}
+                      {formatCurrency(filteredRows.reduce((s, r) => s + grossCell(r.months[1]).pb, 0))}
                     </td>
                     <td className="px-1.5 py-2 text-right tabular-nums bg-emerald-100/40">
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.months[1].payrollGross, 0))}
+                      {formatCurrency(filteredRows.reduce((s, r) => s + grossCell(r.months[1]).pr, 0))}
                     </td>
-                    <td className={`px-1.5 py-2 text-right tabular-nums bg-emerald-100/40 ${dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.months[1].grossDiff, 0))}
+                    <td className={`px-1.5 py-2 text-right tabular-nums bg-emerald-100/40 ${(isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
+                      {formatCurrency(filteredRows.reduce((s, r) => s + grossCell(r.months[1]).diff, 0))}
                     </td>
                   </>
                 )}
@@ -701,16 +813,16 @@ export function TaxReconciliationTable({
                 )}
 
                 {/* M3 */}
-                {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+                {(dataViewMode === 'COMBINED' || isGrossSection) && (
                   <>
                     <td className="px-1.5 py-2 text-right tabular-nums bg-emerald-100/40">
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.months[2].paybillGross, 0))}
+                      {formatCurrency(filteredRows.reduce((s, r) => s + grossCell(r.months[2]).pb, 0))}
                     </td>
                     <td className="px-1.5 py-2 text-right tabular-nums bg-emerald-100/40">
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.months[2].payrollGross, 0))}
+                      {formatCurrency(filteredRows.reduce((s, r) => s + grossCell(r.months[2]).pr, 0))}
                     </td>
-                    <td className={`px-1.5 py-2 text-right tabular-nums bg-emerald-100/40 ${dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.months[2].grossDiff, 0))}
+                    <td className={`px-1.5 py-2 text-right tabular-nums bg-emerald-100/40 ${(isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
+                      {formatCurrency(filteredRows.reduce((s, r) => s + grossCell(r.months[2]).diff, 0))}
                     </td>
                   </>
                 )}
@@ -729,16 +841,16 @@ export function TaxReconciliationTable({
                 )}
 
                 {/* Q Totals */}
-                {(dataViewMode === 'COMBINED' || dataViewMode === 'GROSS') && (
+                {(dataViewMode === 'COMBINED' || isGrossSection) && (
                   <>
                     <td className="px-1.5 py-2 text-right tabular-nums text-slate-800 dark:text-slate-200 bg-indigo-100/30">
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.quarterPaybillGross, 0))}
+                      {formatCurrency(dataViewMode === 'REGULAR' ? filteredRows.reduce((s, r) => s + (r.quarterPbRegular || 0), 0) : dataViewMode === 'ARREARS' ? filteredRows.reduce((s, r) => s + (r.quarterPbDaDiff || 0) + (r.quarterPbPayDiff || 0), 0) : filteredRows.reduce((s, r) => s + r.quarterPaybillGross, 0))}
                     </td>
                     <td className="px-1.5 py-2 text-right tabular-nums text-slate-800 dark:text-slate-200 bg-indigo-100/30">
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.quarterPayrollGross, 0))}
+                      {formatCurrency(dataViewMode === 'REGULAR' ? filteredRows.reduce((s, r) => s + (r.quarterPrRegular || 0), 0) : dataViewMode === 'ARREARS' ? filteredRows.reduce((s, r) => s + (r.quarterPrDaDiff || 0) + (r.quarterPrPayDiff || 0), 0) : filteredRows.reduce((s, r) => s + r.quarterPayrollGross, 0))}
                     </td>
-                    <td className={`px-1.5 py-2 text-right tabular-nums bg-indigo-100/30 ${dataViewMode === 'GROSS' ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
-                      {formatCurrency(filteredRows.reduce((s, r) => s + r.quarterGrossDiff, 0))}
+                    <td className={`px-1.5 py-2 text-right tabular-nums bg-indigo-100/30 ${(isGrossSection && dataViewMode !== 'COMBINED') ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
+                      {formatCurrency(dataViewMode === 'REGULAR' ? filteredRows.reduce((s, r) => s + (r.quarterRegularDiff || 0), 0) : dataViewMode === 'ARREARS' ? filteredRows.reduce((s, r) => s + (r.quarterDaDiffDiff || 0) + (r.quarterPayDiffDiff || 0), 0) : filteredRows.reduce((s, r) => s + r.quarterGrossDiff, 0))}
                     </td>
                   </>
                 )}
@@ -758,7 +870,7 @@ export function TaxReconciliationTable({
                   </>
                 )}
 
-                <td colSpan={2} className="px-2 py-2 text-center text-[10px] text-slate-500">
+                <td colSpan={2} className="px-2 py-2 text-center text-xs text-slate-500">
                   Summary
                 </td>
               </tr>

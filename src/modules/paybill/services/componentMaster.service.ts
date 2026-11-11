@@ -213,7 +213,17 @@ export const DEFAULT_COMPONENT_SEED: DefaultComponentSeed[] = [
     kind: 'COMPONENT',
     category: 'Allowance',
     displayOrder: 70,
-    headerAliases: ['Non Private Practice Allow', 'Non Private Practice Allowance', 'NPP', 'Non Private Practice Allow (0128)'],
+    headerAliases: [
+      'Non Private Practice Allow',
+      'Non Private Practice Allowance',
+      'NPP',
+      'NPPA',
+      'NPPA (0128)',
+      'N.P.P.A.',
+      'N P P A',
+      'Non Private Practice Allow (0128)',
+      'Non Private Practice Allowance (0128)',
+    ],
     codeAliases: ['0128'],
   },
   {
@@ -297,6 +307,18 @@ export const DEFAULT_COMPONENT_SEED: DefaultComponentSeed[] = [
     displayOrder: 40,
     headerAliases: ['GPF Reg', 'GPF Regular', 'GPF', 'GPF Regular (9670)'],
     codeAliases: ['9670'],
+  },
+  {
+    componentCode: '9670',
+    componentName: 'GPF Advance',
+    shortName: 'GPF Adv',
+    type: 'DEDUCTION',
+    kind: 'COMPONENT',
+    category: 'Fund',
+    displayOrder: 45,
+    headerAliases: ['GPF Advance', 'GPF Adv', 'GPF Advance (9670)', 'GPF Adv (9670)'],
+    codeAliases: ['9670'],
+    notes: 'Shares treasury code 9670 with GPF Regular; matched by name only (never by code alone).',
   },
   {
     componentCode: '9531',
@@ -633,7 +655,26 @@ class ComponentMasterRepository {
         aliasMap.set(String(a.component_id), list);
       }
 
-      return comps.map((r) => rowToComponent(r as Record<string, unknown>, aliasMap.get(String(r.id)) || []));
+      const dbComponents = comps.map((r) => rowToComponent(r as Record<string, unknown>, aliasMap.get(String(r.id)) || []));
+
+      // Merge any new DEFAULT_COMPONENT_SEED entries missing from the DB
+      // (e.g. GPF Advance added in code after the DB was seeded). The parser
+      // refresh()es from the DB before every upload, so without this merge a
+      // stale DB would silently drop the new column again.
+      const seen = new Set(
+        dbComponents.map((c) => `${c.componentCode || ''}::${c.componentName}::${c.type}`)
+      );
+      const defaults = buildDefaultComponents();
+      for (const d of defaults) {
+        const key = `${d.componentCode || ''}::${d.componentName}::${d.type}`;
+        if (!seen.has(key)) {
+          dbComponents.push(d);
+          seen.add(key);
+        }
+      }
+      dbComponents.sort((a, b) => a.displayOrder - b.displayOrder);
+
+      return dbComponents;
     } catch {
       return buildDefaultComponents();
     }
@@ -943,17 +984,23 @@ class ComponentHeaderDetector {
 
     const found: Array<{ info: DetectedComponentInfo; index: number }> = [];
     const usedCodes = new Set<string>();
+    const claimedRanges: Array<{ start: number; end: number }> = [];
+
+    const isOverlapping = (start: number, end: number) =>
+      claimedRanges.some((r) => Math.max(start, r.start) < Math.min(end, r.end));
 
     const relevant = this.matcher
       .getComponents()
       .filter((c) => c.active)
-      .filter((c) => c.kind === 'COMPONENT' ? c.type === sheetType : true);
+      .filter((c) => (c.kind === 'COMPONENT' ? c.type === sheetType : true));
 
     for (const comp of relevant) {
-      const occ = this.findOccurrence(headerBlock, comp);
+      const occ = this.findOccurrence(headerBlock, comp, isOverlapping);
       if (occ.index < 0) continue;
       if (comp.componentCode) usedCodes.add(comp.componentCode);
       for (const code of comp.pdfCodeAliases) usedCodes.add(code);
+
+      claimedRanges.push({ start: occ.index, end: occ.index + occ.length });
 
       const isTotal = comp.kind !== 'COMPONENT';
       found.push({
@@ -984,6 +1031,7 @@ class ComponentHeaderDetector {
       if (seen.has(code)) continue;
       seen.add(code);
       if (usedCodes.has(code)) continue;
+      if (isOverlapping(m.index, m.index + m[0].length)) continue;
 
       const before = headerBlock.slice(Math.max(0, m.index - 80), m.index);
       const fragment =
@@ -993,6 +1041,8 @@ class ComponentHeaderDetector {
           ?.replace(/\((\d{3,4})\)/g, ' ')
           .replace(/\s{2,}/g, ' ')
           .trim() || `Component ${code}`;
+
+      claimedRanges.push({ start: m.index, end: m.index + m[0].length });
 
       found.push({
         index: m.index,
@@ -1017,8 +1067,11 @@ class ComponentHeaderDetector {
 
   private extractTableHeaderBlock(rawText: string): string {
     const lines = rawText.split(/\r?\n/).map((l) => l.trim());
-    const startIdx = lines.findIndex((l) => /\bHRPN\b/.test(l) || /^Sr\s*$/i.test(l));
-    if (startIdx < 0) return '';
+    let startIdx = lines.findIndex((l) => /\bHRPN\b/.test(l) || /^Sr\s*$/i.test(l));
+    // Section slices may start mid-header (no HRPN line). Fall back to the
+    // whole input so wrapped component headers are still detectable; the
+    // end-boundary below stops at the first data row either way.
+    if (startIdx < 0) startIdx = 0;
     const endIdx = lines.findIndex(
       (l, i) =>
         i > startIdx &&
@@ -1027,37 +1080,73 @@ class ComponentHeaderDetector {
     return lines.slice(startIdx, endIdx < 0 ? undefined : endIdx).join('\n');
   }
 
+  /**
+   * Build a header-search pattern for a candidate label that tolerates PDF
+   * line-wrapping: Karmayogi wraps long headers ("Special Additional" /
+   * "Pay (0101)/(0102)", "Non Private Practice" / "Allow (0128)") so a
+   * literal space in the alias never matches the newline in the header.
+   * Word edges use lookarounds instead of \b so labels ending in
+   * non-word chars (e.g. "DA (0103)" ending in ")") still match.
+   */
+  private candidatePattern(cand: string): string {
+    return escapeRegExp(cand).replace(/\s+/g, '\\s+');
+  }
+
   private findOccurrence(
     header: string,
-    comp: PayrollComponent
-  ): { index: number; method: ComponentMatchMethod; text: string } {
+    comp: PayrollComponent,
+    isOverlapping: (start: number, end: number) => boolean
+  ): { index: number; length: number; method: ComponentMatchMethod; text: string } {
     const candidates = [comp.componentName, comp.shortName, ...comp.pdfHeaderAliases].filter(
       Boolean
     ) as string[];
     const unique = Array.from(new Set(candidates)).sort((a, b) => b.length - a.length);
 
     for (const cand of unique) {
-      const idx = header.search(new RegExp(`\\b${escapeRegExp(cand)}\\b`, 'i'));
-      if (idx >= 0) {
-        const method: ComponentMatchMethod =
-          cand === comp.componentName ? 'NAME' : 'ALIAS';
-        return { index: idx, method, text: cand };
+      const regex = new RegExp(`(?<!\\w)${this.candidatePattern(cand)}(?!\\w)`, 'gi');
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(header)) !== null) {
+        const idx = match.index;
+        const len = match[0].length;
+        if (!isOverlapping(idx, idx + len)) {
+          const method: ComponentMatchMethod =
+            cand === comp.componentName ? 'NAME' : 'ALIAS';
+          return { index: idx, length: len, method, text: cand };
+        }
       }
     }
 
     const nameNorm = normalizeForMatch(comp.componentName);
     if (nameNorm && normalizeForMatch(header).includes(nameNorm)) {
-      const idx = header.toLowerCase().indexOf(comp.componentName.toLowerCase());
-      return { index: idx >= 0 ? idx : 0, method: 'NORMALIZED', text: comp.componentName };
+      const m = new RegExp(`(?<!\\w)${this.candidatePattern(comp.componentName)}(?!\\w)`, 'i').exec(header);
+      if (m && !isOverlapping(m.index, m.index + m[0].length)) {
+        return { index: m.index, length: m[0].length, method: 'NORMALIZED', text: comp.componentName };
+      }
     }
 
-    const codes = [comp.componentCode, ...comp.pdfCodeAliases].filter(Boolean) as string[];
-    for (const code of codes) {
-      const idx = header.search(new RegExp(`\\b${escapeRegExp(code)}\\b`));
-      if (idx >= 0) return { index: idx, method: 'CODE', text: code };
+    // Special Additional Pay shares treasury codes 0101/0102 with Basic Pay.
+    // GPF Advance shares treasury code 9670 with GPF Regular.
+    // In Pay Bill table headers, they MUST ONLY be detected by name/alias, never by code alone.
+    const isSpecialPay = /special\s*(?:additional)?\s*pay/i.test(comp.componentName);
+    const isGpfAdvance = /gpf\s*advance/i.test(comp.componentName);
+    if (!isSpecialPay && !isGpfAdvance) {
+      const isBasicPay = /basic\s*pay/i.test(comp.componentName);
+      const codes = [comp.componentCode, ...comp.pdfCodeAliases].filter(Boolean) as string[];
+      for (const code of codes) {
+        if (!isBasicPay && (code === '0101' || code === '0102')) continue;
+        const regex = new RegExp(`\\b${escapeRegExp(code)}\\b`, 'g');
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(header)) !== null) {
+          const idx = match.index;
+          const len = code.length;
+          if (!isOverlapping(idx, idx + len)) {
+            return { index: idx, length: len, method: 'CODE', text: code };
+          }
+        }
+      }
     }
 
-    return { index: -1, method: 'UNKNOWN', text: '' };
+    return { index: -1, length: 0, method: 'UNKNOWN', text: '' };
   }
 }
 

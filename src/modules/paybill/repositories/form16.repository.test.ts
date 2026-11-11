@@ -20,6 +20,7 @@ vi.mock('@/core/supabase/client', () => ({
 }));
 
 vi.mock('@/shared/utilities/office', () => ({
+  DEFAULT_OFFICE_ID: '1',
   getOfficeScope: vi.fn(() => ({ all: false, officeId: '101' })),
   requireOfficeId: vi.fn(() => '101'),
 }));

@@ -169,7 +169,7 @@ export function GTR30EmployeeImport({ monthKey, billCode, employees = [] }: GTR3
                 <FileSpreadsheet size={18} />
               </div>
               <div>
-                <DialogTitle className="text-base font-semibold text-slate-900">
+                <DialogTitle className="text-xs font-semibold text-slate-900">
                   Import GTR-30 Employee Master CSV
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 mt-0.5">
@@ -185,7 +185,7 @@ export function GTR30EmployeeImport({ monthKey, billCode, employees = [] }: GTR3
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold text-slate-800">CSV Template Format</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Download the official GTR-30 employee master spreadsheet template.
                   </p>
                 </div>
@@ -217,7 +217,7 @@ export function GTR30EmployeeImport({ monthKey, billCode, employees = [] }: GTR3
               <p className="text-xs font-semibold text-slate-700">
                 {csvFileName ? `Selected: ${csvFileName}` : 'Click or drag a .csv file to upload'}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Standard GTR-30 CSV containing employee details, basic pay, and allowances
               </p>
             </div>
@@ -230,7 +230,7 @@ export function GTR30EmployeeImport({ monthKey, billCode, employees = [] }: GTR3
                     Ready to import {csvEmployees.length} employee record(s)
                   </span>
                 </div>
-                <span className="text-[11px] text-emerald-600 font-mono">{csvFileName}</span>
+                <span className="text-xs text-emerald-600 font-mono">{csvFileName}</span>
               </div>
             )}
           </div>

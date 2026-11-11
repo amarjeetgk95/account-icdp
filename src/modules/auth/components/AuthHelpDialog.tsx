@@ -31,7 +31,7 @@ export function AuthHelpDialog({ triggerClassName }: AuthHelpDialogProps) {
           <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 mb-2">
             <KeyRound className="w-5 h-5" />
           </div>
-          <DialogTitle className="text-lg font-semibold text-slate-900">
+          <DialogTitle className="text-xs font-semibold text-slate-900">
             Portal Sign-in Help
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500">
@@ -46,9 +46,8 @@ export function AuthHelpDialog({ triggerClassName }: AuthHelpDialogProps) {
               Role Accounts & Access
             </p>
             <p className="leading-relaxed">
-              Sign-in credentials are assigned by the administrative wing.
-              Office accounts have access to Payroll, GTR-44, and Ledger modules.
-              Admin credentials grant access to user management and system audits.
+              Sign-in credentials are created and managed in the department Supabase console.
+              Authorized office users have full access to Bill Creation, TDS, Employee IT, Establishment, and Doc Tools.
             </p>
           </div>
 
@@ -69,7 +68,7 @@ export function AuthHelpDialog({ triggerClassName }: AuthHelpDialogProps) {
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-slate-600">
                 <Mail className="w-3.5 h-3.5 text-slate-400" />
-                <span>support@icdp.example.com</span>
+                <span>icdpsurat@yahoo.com</span>
               </div>
               <div className="flex items-center gap-2 text-slate-600">
                 <Phone className="w-3.5 h-3.5 text-slate-400" />

@@ -1,25 +1,11 @@
 import type { GTR30BudgetHead } from '../types';
 import { DEFAULT_BUDGET_HEADS } from '../constants';
-import { getOfficeScope, type OfficeScope } from '@/shared/utilities/office';
 
-const STORAGE_KEY_PREFIX = 'gtr30-budget-heads-v1';
+const STORAGE_KEY = 'gtr30-budget-heads-v1-all';
 
 interface StoredHeads {
   configured: boolean;
   items: GTR30BudgetHead[];
-}
-
-function gtr30BudgetHeadsStorageKey(scope: OfficeScope): string {
-  const suffix = scope.all ? 'all' : scope.officeId ?? 'default';
-  return `${STORAGE_KEY_PREFIX}-${suffix}`;
-}
-
-function resolveScope(): OfficeScope | null {
-  try {
-    return getOfficeScope();
-  } catch {
-    return null;
-  }
 }
 
 function readFrom(key: string): GTR30BudgetHead[] | null {
@@ -67,8 +53,7 @@ function isKeyConfigured(key: string): boolean {
 
 class Gtr30BudgetHeadsLocalRepository {
   private storageKey(): string {
-    const scope = resolveScope();
-    return scope ? gtr30BudgetHeadsStorageKey(scope) : `${STORAGE_KEY_PREFIX}-default`;
+    return STORAGE_KEY;
   }
 
   loadAll(): GTR30BudgetHead[] {

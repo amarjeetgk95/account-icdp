@@ -1,9 +1,13 @@
 type SalaryImportStatus = 'matched' | 'unmatched' | 'duplicate' | 'not_detected';
 
 // A single (HRPN, month, financial year, gross, incomeTax) record.
+// NOTE: Karmayogi Excel carries only Gross + Tax. Regular DA is part of
+// monthly pay inside grossSalary — there is no standalone DA column.
 export interface ParsedSalaryRecord {
   hprnNo: string;
   name?: string;
+  /** PAN from the file's PAN column, when present — HRPN-fallback match key. */
+  pan?: string;
   month: string;
   financialYear: number;
   grossSalary: number;

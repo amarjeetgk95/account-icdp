@@ -220,7 +220,7 @@ export function ExpenditureItemsTab() {
         <div className="flex items-center space-x-2">
           <Building2 className="h-5 w-5 text-primary" />
           <div>
-            <h3 className="font-bold text-base text-foreground">Expenditure Heads (22 Pre-printed Rows)</h3>
+            <h3 className="font-bold text-xs text-foreground">Expenditure Heads (22 Pre-printed Rows)</h3>
             <p className="text-xs text-muted-foreground">
               Configures the canonical Page 1 Object of Expenditure rows, budget codes, and EDP mappings.
             </p>
@@ -264,7 +264,7 @@ export function ExpenditureItemsTab() {
             {activeCount !== 22 && ' Non-standard counts may adjust printed Page 1 table geometry.'}
           </span>
         </div>
-        <span className="font-semibold font-mono">{activeCount} / 22</span>
+        <span className="font-semibold num">{activeCount} / 22</span>
       </div>
 
       {/* Search */}
@@ -275,7 +275,7 @@ export function ExpenditureItemsTab() {
             placeholder="Search by code, English/Gujarati name, EDP..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 text-sm"
+            className="pl-8 text-xs"
           />
         </div>
         <span className="text-xs text-muted-foreground">
@@ -287,7 +287,7 @@ export function ExpenditureItemsTab() {
       {(isAdding || editingIndex !== null) && (
         <div className="bg-muted/30 p-5 rounded-xl border border-border space-y-4 animate-in fade-in duration-150">
           <div className="flex items-center justify-between border-b border-border pb-2">
-            <h4 className="font-bold text-sm text-foreground">
+            <h4 className="font-bold text-xs text-foreground">
               {editingIndex !== null ? `Edit Row (${expFormData.code})` : 'Add New Expenditure Row'}
             </h4>
             <Button variant="ghost" size="sm" onClick={cancelForm}>
@@ -295,7 +295,7 @@ export function ExpenditureItemsTab() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
             <div>
               <Label className="text-xs">
                 Budget Code <span className="text-destructive">*</span>
@@ -305,7 +305,7 @@ export function ExpenditureItemsTab() {
                 onChange={(e) => setExpFormData({ ...expFormData, code: e.target.value })}
                 placeholder="e.g. 1300"
                 disabled={editingIndex !== null}
-                className="font-mono"
+                className="num"
               />
               {formErrors.code && <p className="text-xs text-destructive mt-1">{formErrors.code}</p>}
             </div>
@@ -359,7 +359,7 @@ export function ExpenditureItemsTab() {
       {/* Table */}
       <div className="border border-border rounded-xl overflow-hidden bg-card">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border text-sm">
+          <table className="min-w-full divide-y divide-border text-xs">
             <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase">
               <tr>
                 <th scope="col" className="px-3 py-3 text-center w-12">#</th>
@@ -374,7 +374,7 @@ export function ExpenditureItemsTab() {
             <tbody className="divide-y divide-border">
               {filteredItems.map(({ item, originalIndex }, displayIdx) => (
                 <tr key={item.code} className="hover:bg-muted/40 transition-colors">
-                  <td className="px-3 py-3 text-center text-xs text-muted-foreground font-mono">
+                  <td className="px-3 py-3 text-center text-xs text-muted-foreground num">
                     {displayIdx + 1}
                   </td>
                   <td className="px-3 py-3 font-mono font-semibold text-foreground">{item.code}</td>

@@ -4,33 +4,33 @@ import {
   gtr30GroupKey,
 } from '../services/gtr30EmployeeMaster.service';
 import { invalidateGtr30Queries } from '@/shared/utilities/gtr30Query';
-import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 
-function gtr30EmployeeMasterGroupsKey(officeId?: string | null): readonly unknown[] {
-  return ['gtr30EmployeeMasterGroups', officeId ?? null];
+function gtr30EmployeeMasterGroupsKey(): readonly unknown[] {
+  return ['gtr30EmployeeMasterGroups', 'all'];
 }
 
 function gtr30EmployeeMasterGroupKey(
-  officeId: string | null | undefined,
   monthKey: string,
   billCode: string
 ): readonly unknown[] {
   return [
     'gtr30EmployeeMasterGroup',
-    officeId ?? null,
+    'all',
     monthKey.trim().toLowerCase(),
     billCode.trim().toLowerCase(),
   ];
 }
 
 export function useGTR30EmployeeMasterGroups() {
-  const officeId = useActiveOfficeId();
   return useQuery({
-    queryKey: gtr30EmployeeMasterGroupsKey(officeId),
-    queryFn: () => Promise.resolve(gtr30EmployeeMasterService.listGroupsAsMap()),
+    queryKey: gtr30EmployeeMasterGroupsKey(),
+    queryFn: async () => {
+      await gtr30EmployeeMasterService.hydrateFromBackend();
+      return gtr30EmployeeMasterService.listGroupsAsMap();
+    },
     initialData: () => gtr30EmployeeMasterService.listGroupsAsMap(),
-    staleTime: Infinity,
-    gcTime: Infinity,
+    initialDataUpdatedAt: 0,
+    staleTime: 30_000,
   });
 }
 
@@ -42,7 +42,6 @@ export interface SaveEmployeeInput {
 
 export function useSaveGTR30Employee() {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
 
   return useMutation({
     mutationFn: (input: SaveEmployeeInput) =>
@@ -52,9 +51,15 @@ export function useSaveGTR30Employee() {
         input.employee
       )),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
+      // Immediately update cache so list/form reflect without reload (local is already updated)
+      queryClient.setQueryData(gtr30EmployeeMasterGroupsKey(), gtr30EmployeeMasterService.listGroupsAsMap());
+      queryClient.setQueryData(
+        gtr30EmployeeMasterGroupKey(variables.monthKey, variables.billCode),
+        gtr30EmployeeMasterService.getGroup(variables.monthKey, variables.billCode)
+      );
+      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey() });
       queryClient.invalidateQueries({
-        queryKey: gtr30EmployeeMasterGroupKey(officeId, variables.monthKey, variables.billCode),
+        queryKey: gtr30EmployeeMasterGroupKey(variables.monthKey, variables.billCode),
       });
       void invalidateGtr30Queries(queryClient);
     },
@@ -69,7 +74,6 @@ export interface SaveEmployeeGroupInput {
 
 export function useSaveGTR30EmployeeGroup() {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
 
   return useMutation({
     mutationFn: (input: SaveEmployeeGroupInput) =>
@@ -79,9 +83,9 @@ export function useSaveGTR30EmployeeGroup() {
         input.employees
       )),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
+      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey() });
       queryClient.invalidateQueries({
-        queryKey: gtr30EmployeeMasterGroupKey(officeId, variables.monthKey, variables.billCode),
+        queryKey: gtr30EmployeeMasterGroupKey(variables.monthKey, variables.billCode),
       });
       void invalidateGtr30Queries(queryClient);
     },
@@ -90,7 +94,6 @@ export function useSaveGTR30EmployeeGroup() {
 
 export function useRemoveGTR30EmployeeAcrossGroups() {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
 
   return useMutation({
     mutationFn: (input: { billCode: string; employeeId: string; hrpnNo?: string }) =>
@@ -102,7 +105,11 @@ export function useRemoveGTR30EmployeeAcrossGroups() {
         )
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
+      queryClient.setQueryData(
+        gtr30EmployeeMasterGroupsKey(),
+        gtr30EmployeeMasterService.listGroupsAsMap()
+      );
+      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey() });
       void invalidateGtr30Queries(queryClient);
     },
   });
@@ -110,7 +117,6 @@ export function useRemoveGTR30EmployeeAcrossGroups() {
 
 export function useRemoveGTR30EmployeeBatch() {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
 
   return useMutation({
     mutationFn: (input: {
@@ -126,10 +132,14 @@ export function useRemoveGTR30EmployeeBatch() {
         );
         removedCount += result.removedCount;
       }
-return Promise.resolve({ removedCount });
+      return Promise.resolve({ removedCount });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
+      queryClient.setQueryData(
+        gtr30EmployeeMasterGroupsKey(),
+        gtr30EmployeeMasterService.listGroupsAsMap()
+      );
+      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey() });
       void invalidateGtr30Queries(queryClient);
     },
   });
@@ -145,7 +155,6 @@ export interface CopyEmployeeGroupInput {
 
 export function useCopyGTR30EmployeeGroup() {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
 
   return useMutation({
     mutationFn: (input: CopyEmployeeGroupInput) =>
@@ -157,9 +166,9 @@ export function useCopyGTR30EmployeeGroup() {
         input.options
       )),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
+      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey() });
       queryClient.invalidateQueries({
-        queryKey: gtr30EmployeeMasterGroupKey(officeId, variables.targetMonthKey, variables.targetBillCode),
+        queryKey: gtr30EmployeeMasterGroupKey(variables.targetMonthKey, variables.targetBillCode),
       });
       void invalidateGtr30Queries(queryClient);
     },
@@ -168,12 +177,11 @@ export function useCopyGTR30EmployeeGroup() {
 
 export function useHydrateGTR30EmployeeMaster() {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
 
   return useMutation({
     mutationFn: () => gtr30EmployeeMasterService.hydrateFromBackend(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey(officeId) });
+      queryClient.invalidateQueries({ queryKey: gtr30EmployeeMasterGroupsKey() });
     },
   });
 }

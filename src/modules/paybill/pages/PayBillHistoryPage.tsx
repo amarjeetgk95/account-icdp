@@ -38,7 +38,12 @@ export function PayBillHistoryPage() {
   const [sheetFilter, setSheetFilter] = useState<'ALL' | 'EARNING' | 'DEDUCTION'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | PayBillImportStatus>('ALL');
   const [monthFilter, setMonthFilter] = useState<string>('ALL');
+  const [fyBase, setFyBase] = useState(fy);
   const [fyFilter, setFyFilter] = useState<number | 'ALL'>(fy);
+  if (fyBase !== fy) {
+    setFyBase(fy);
+    setFyFilter(fy);
+  }
   const [deleteTarget, setDeleteTarget] = useState<PayBillStoredImport | null>(null);
   const [deleteMonthTarget, setDeleteMonthTarget] = useState<{ fy: number; month: string } | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -255,7 +260,7 @@ export function PayBillHistoryPage() {
           <div className="overflow-x-auto app-scroll">
             <table className="w-full text-xs whitespace-nowrap">
               <thead>
-                <tr className="text-left text-[0.65rem] uppercase tracking-wider text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                <tr className="text-left text-xs uppercase tracking-wider text-slate-400 border-b border-slate-200 dark:border-slate-800">
                   <th className="px-4 py-2.5 font-bold">Bill No</th>
                   <th className="px-4 py-2.5 font-bold">Month</th>
                   <th className="px-4 py-2.5 font-bold">FY</th>
@@ -280,22 +285,22 @@ export function PayBillHistoryPage() {
                       <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300">
                         {row.month}
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-slate-600 dark:text-slate-400">
+                      <td className="px-4 py-2.5 num text-slate-600 dark:text-slate-400">
                         {row.financialYear}
                       </td>
                       <td className="px-4 py-2.5">
                         <PbChip tone={row.sheetType === 'DEDUCTION' ? 'rose' : 'blue'}>{row.sheetType || 'EARNING'}</PbChip>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-slate-700 dark:text-slate-300">
+                      <td className="px-4 py-2.5 text-right num text-slate-700 dark:text-slate-300">
                         {row.totalRecords}
                       </td>
                       <td className="px-4 py-2.5 text-right">
-                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
+                        <span className="num font-semibold text-slate-700 dark:text-slate-300">
                           {row.matchedCount}
                         </span>
-                        <span className="ml-1 text-[0.65rem] text-slate-400">({matchRate}%)</span>
+                        <span className="ml-1 text-xs text-slate-400">({matchRate}%)</span>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
+                      <td className="px-4 py-2.5 text-right num font-semibold text-slate-800 dark:text-slate-200">
                         {row.sheetType === 'DEDUCTION'
                           ? formatInr((row as unknown as { totalDeductions?: number }).totalDeductions || row.grossTotal)
                           : formatInr(row.grossTotal)}
@@ -303,7 +308,7 @@ export function PayBillHistoryPage() {
                       <td className="px-4 py-2.5">
                         <PbChip tone={STATUS_TONE[status]}>{status}</PbChip>
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-slate-500 dark:text-slate-400">
+                      <td className="px-4 py-2.5 num text-slate-500 dark:text-slate-400">
                         {new Date(row.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                       </td>
                       <td className="px-4 py-2.5 text-right">
@@ -327,7 +332,7 @@ export function PayBillHistoryPage() {
             </table>
           </div>
 
-          <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 text-[0.68rem] text-slate-500">
+          <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 text-xs text-slate-500">
             <ShieldCheck size={12} />
             <span>Duplicate imports are blocked by a server-side unique index on (office, FY, bill no, month, sheet type).</span>
           </div>
@@ -359,7 +364,7 @@ export function PayBillHistoryPage() {
         busy={deleteBusy}
         message={
           deleteMonthTarget ? (
-            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
               <p>
                 Are you sure you want to delete all imported paybill records, earnings, and deductions for{' '}
                 <strong className="text-rose-600 dark:text-rose-400 font-bold">

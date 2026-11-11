@@ -1,8 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import {
-  gtr30EmployeeMasterLocalRepository,
-  gtr30EmployeeMasterStorageKey,
-} from './gtr30EmployeeMasterLocal.repository';
+import { gtr30EmployeeMasterLocalRepository } from './gtr30EmployeeMasterLocal.repository';
+
+const SCOPED_KEY = 'gtr30-employee-master-v3-groups-all';
 
 const LEGACY_KEY = 'gtr30-employee-master-v3-groups';
 
@@ -83,9 +82,7 @@ describe('gtr30EmployeeMasterLocalRepository', () => {
     localStorage.setItem(LEGACY_KEY, JSON.stringify(groupPayload()));
     expect(gtr30EmployeeMasterLocalRepository.loadAll()).toEqual(groupPayload());
     expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
-    expect(
-      localStorage.getItem(gtr30EmployeeMasterStorageKey({ all: false, officeId: null }))
-    ).toBeTruthy();
+    expect(localStorage.getItem(SCOPED_KEY)).toBeTruthy();
   });
 
   it('does not overwrite existing scoped data with legacy data', () => {
@@ -110,11 +107,8 @@ describe('gtr30EmployeeMasterLocalRepository', () => {
     expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
   });
 
-  it('only reads data from the current office scope', () => {
-    localStorage.setItem(
-      gtr30EmployeeMasterStorageKey({ all: false, officeId: '9' }),
-      JSON.stringify(groupPayload())
-    );
+  it('ignores data stored under foreign keys (single constant key)', () => {
+    localStorage.setItem('gtr30-employee-master-v3-groups-9', JSON.stringify(groupPayload()));
     expect(gtr30EmployeeMasterLocalRepository.loadAll()).toEqual({});
   });
 });

@@ -8,8 +8,9 @@ export interface WorkMonth {
 
 function parseDate(dateStr: string | null | undefined): Date | null {
   if (!dateStr) return null;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  if (!y || !m || !d) return null;
+  const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr.split(' ')[0];
+  const [y, m, d] = clean.split('-').map(Number);
+  if (!y || !m || !d || isNaN(y) || isNaN(m) || isNaN(d)) return null;
   return new Date(y, m - 1, d);
 }
 

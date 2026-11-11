@@ -1,9 +1,17 @@
 import { dashboardRepository } from '../repositories/dashboard.repository';
-import type { DashboardData } from '../types';
+import type { PayrollSummary, TreasurySummary, VendorTdsSummary } from '../types';
 
 class DashboardService {
-  async getSummary(): Promise<DashboardData> {
-    return dashboardRepository.getSummary();
+  getPayroll(fy: number): Promise<PayrollSummary> {
+    return dashboardRepository.getPayrollSummary(fy);
+  }
+
+  getTreasury(): Promise<TreasurySummary> {
+    return dashboardRepository.getTreasurySummary();
+  }
+
+  getVendor(fy: number): Promise<VendorTdsSummary> {
+    return dashboardRepository.getVendorSummary(fy);
   }
 }
 

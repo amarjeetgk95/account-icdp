@@ -1,6 +1,6 @@
 import { supabase } from '@/core/supabase/client';
 import { useAuthStore } from '@/core/auth/store';
-import { getOfficeScope, requireOfficeId } from '@/shared/utilities/office';
+import { buildLegacyBridge, resolveLegacyId } from '@/shared/domain/canonicalEmployee';
 import type { Database } from '@/shared/database.types';
 import type { ClassifiedSalaryRecord } from '../validation/salary.schema';
 
@@ -20,9 +20,8 @@ export const salaryRepository = {
     totalRecords: number;
     matchedCount: number;
   }): Promise<SalaryImport> {
-    const officeId = requireOfficeId();
+    // Single-office schema (043 dropped office_id): do not send office_id.
     const insert: SalaryImportInsert = {
-      office_id: officeId,
       excel_filename: payload.excelFilename,
       financial_year: payload.financialYear,
       total_records: payload.totalRecords,
@@ -36,8 +35,12 @@ export const salaryRepository = {
 
   async upsertSalaries(rows: Omit<EmployeeSalaryInsert, 'office_id'>[]): Promise<void> {
     if (rows.length === 0) return;
-    const officeId = requireOfficeId();
-    const payload: EmployeeSalaryInsert[] = rows.map((r) => ({ ...r, office_id: officeId }));
+    // Strip any stale office_id callers may still pass.
+    const payload: EmployeeSalaryInsert[] = rows.map((r) => {
+      const copy = { ...(r as Record<string, unknown>) };
+      delete copy.office_id;
+      return copy as unknown as EmployeeSalaryInsert;
+    });
     const { error } = await supabase
       .from('employee_salary')
       .upsert(payload, { onConflict: 'salary_import_id,hprn_no,month' });
@@ -45,16 +48,17 @@ export const salaryRepository = {
   },
 
   async upsertToPayrollGrid(records: ClassifiedSalaryRecord[]): Promise<number> {
-    const officeId = requireOfficeId();
+    // Karmayogi Excel carries Gross + Tax only (regular DA lives inside gross).
+    // `da` is the arrears column (DA/Pay Difference, entered manually or via
+    // paybill sync) — it is deliberately OMITTED here so re-importing Excel
+    // never wipes recorded arrears. New rows fall back to the DB default (0).
     const rows = records
       .filter((r) => r.status === 'matched' && r.employeeId)
       .map((r) => ({
         employee_id: r.employeeId as string,
-        office_id: officeId,
         financial_year: r.financialYear,
         month: r.month,
         gross: Math.round(r.grossSalary * 100) / 100,
-        da: 0,
         tax: Math.round(r.incomeTax * 100) / 100,
       }));
     if (rows.length === 0) return 0;
@@ -67,16 +71,11 @@ export const salaryRepository = {
   },
 
   async listLatestByOffice(): Promise<EmployeeSalary[]> {
-    const scope = getOfficeScope();
-    if (!scope.all && !scope.officeId) throw new Error('No office selected');
-    let q = supabase
+    const { data, error } = await supabase
       .from('employee_salary')
-      .select('*');
-    if (!scope.all) q = q.eq('office_id', scope.officeId!);
-    q = q
+      .select('*')
       .in('status', ['matched', 'unmatched'])
       .order('created_at', { ascending: false });
-    const { data, error } = await q;
     if (error) throw error;
     const seen = new Map<string, EmployeeSalary>();
     for (const row of data || []) {
@@ -87,10 +86,6 @@ export const salaryRepository = {
   },
 
   async getEmployeeLookupDetails(searchQuery: string, financialYear: number, selectedHrpn?: string) {
-    const scope = getOfficeScope();
-    if (!scope.all && !scope.officeId) throw new Error('No office selected');
-    const officeId = scope.officeId!;
-
     const cleanQuery = searchQuery.trim();
     if (!cleanQuery) {
       return {
@@ -107,37 +102,61 @@ export const salaryRepository = {
       };
     }
 
-    // 1. Fetch matching employees from master table (by Name, HRPN, or PAN)
-    let qMaster = supabase
+    // 1. Canonical identity (Establishment) + legacy payroll link (salary store key).
+    // The roster is Establishment-first; `employees` rows only resolve salary
+    // history via HRPN (fallback PAN). See `@/shared/domain/canonicalEmployee`.
+    const { data: canonicalList, error: canonicalError } = await supabase
+      .from('establishment_employees')
+      .select('id, name, pan, hrpn_no, join_date, transfer_date, budget_head_id')
+      .or(
+        `name.ilike.%${cleanQuery}%,hrpn_no.ilike.%${cleanQuery}%,pan.ilike.%${cleanQuery}%`
+      );
+    if (canonicalError) throw canonicalError;
+
+    const { data: masterList, error: masterError } = await supabase
       .from('employees')
-      .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id');
-    if (!scope.all) qMaster = qMaster.eq('office_id', officeId);
-    const { data: masterList, error: masterError } = await qMaster.or(
-      `name.ilike.%${cleanQuery}%,hprn_no.ilike.%${cleanQuery}%,pan.ilike.%${cleanQuery}%`
-    );
+      .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id')
+      .or(
+        `name.ilike.%${cleanQuery}%,hprn_no.ilike.%${cleanQuery}%,pan.ilike.%${cleanQuery}%`
+      );
     if (masterError) throw masterError;
 
+    const legacyBridge = buildLegacyBridge(
+      (masterList || []).map((e) => ({ id: e.id, hprn_no: e.hprn_no, pan: e.pan }))
+    );
+    const legacyById = new Map((masterList || []).map((e) => [e.id, e]));
+
     // 2. Fetch matching imported salary records (by Name or HRPN)
-    let qImported = supabase
+    const { data: importedList, error: importedError } = await supabase
       .from('employee_salary')
-      .select('*');
-    if (!scope.all) qImported = qImported.eq('office_id', officeId);
-    const { data: importedList, error: importedError } = await qImported
+      .select('*')
       .eq('financial_year', financialYear)
       .or(`name.ilike.%${cleanQuery}%,hprn_no.ilike.%${cleanQuery}%`);
     if (importedError) throw importedError;
 
-    // Build deduplicated matching employees list
+    // Build deduplicated matching employees list — canonical first.
     const matchingMap = new Map<string, { id?: string; name: string; hprnNo: string; pan?: string }>();
+
+    for (const est of canonicalList || []) {
+      const hrpn = ((est.hrpn_no || est.id) as string).toUpperCase();
+      matchingMap.set(hrpn, {
+        id: resolveLegacyId(est.hrpn_no, est.pan, legacyBridge) ?? est.id,
+        name: est.name,
+        hprnNo: est.hrpn_no || '',
+        pan: est.pan || undefined,
+      });
+    }
 
     for (const emp of masterList || []) {
       const hrpn = (emp.hprn_no || emp.id).toUpperCase();
-      matchingMap.set(hrpn, {
-        id: emp.id,
-        name: emp.name,
-        hprnNo: emp.hprn_no || '',
-        pan: emp.pan || undefined,
-      });
+      if (!matchingMap.has(hrpn)) {
+        matchingMap.set(hrpn, {
+          id: emp.id,
+          name: emp.name,
+          hprnNo: emp.hprn_no || '',
+          pan: emp.pan || undefined,
+        });
+      }
     }
 
     for (const imp of importedList || []) {
@@ -169,17 +188,23 @@ export const salaryRepository = {
       targetHrpn = cleanQuery;
     }
 
-    // 4. Fetch details for target employee
+    // 4. Resolve target identity: canonical first, legacy link second.
+    const canonical = (canonicalList || []).find(
+      (m) => (m.hrpn_no || '').toUpperCase() === targetHrpn.toUpperCase()
+    ) || null;
+    const linkedLegacyId = canonical
+      ? resolveLegacyId(canonical.hrpn_no, canonical.pan, legacyBridge)
+      : null;
+
     let emp = (masterList || []).find(
       (m) => (m.hprn_no || '').toUpperCase() === targetHrpn
     ) || null;
+    if (!emp && linkedLegacyId) emp = legacyById.get(linkedLegacyId) ?? null;
 
-    if (!emp) {
-      let qEmpFetch = supabase
+    if (!emp && !canonical) {
+      const { data: empFetch, error: empFetchError } = await supabase
         .from('employees')
-        .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id');
-      if (!scope.all) qEmpFetch = qEmpFetch.eq('office_id', officeId);
-      const { data: empFetch, error: empFetchError } = await qEmpFetch
+        .select('id, name, pan, hprn_no, join_date, transfer_date, budget_head_id')
         .ilike('hprn_no', targetHrpn)
         .maybeSingle();
       if (empFetchError) throw empFetchError;
@@ -189,11 +214,12 @@ export const salaryRepository = {
     let budgetHeadCode: string | null = null;
     let budgetHeadName: string | null = null;
 
-    if (emp?.budget_head_id) {
+    const budgetHeadId = canonical?.budget_head_id || emp?.budget_head_id || null;
+    if (budgetHeadId) {
       const { data: bh, error: bhError } = await supabase
         .from('budget_heads')
         .select('code, name')
-        .eq('id', emp.budget_head_id)
+        .eq('id', budgetHeadId)
         .maybeSingle();
       if (bhError) throw bhError;
       if (bh) {
@@ -202,26 +228,25 @@ export const salaryRepository = {
       }
     }
 
-    // Manual salaries
+    // Manual salaries — legacy key first, canonical FK (051) as fallback.
     let manualSalaries: Array<{ month: string; gross: number; da: number; tax: number }> = [];
-    if (emp?.id) {
-      let qManual = supabase
+    if (emp?.id || canonical?.id) {
+      const orParts: string[] = [];
+      if (emp?.id) orParts.push(`employee_id.eq.${emp.id}`);
+      if (canonical?.id) orParts.push(`establishment_employee_id.eq.${canonical.id}`);
+      const { data: ms, error: msError } = await supabase
         .from('employee_salaries')
-        .select('month, gross, da, tax');
-      if (!scope.all) qManual = qManual.eq('office_id', officeId);
-      const { data: ms, error: msError } = await qManual
-        .eq('employee_id', emp.id)
-        .eq('financial_year', financialYear);
+        .select('month, gross, da, tax')
+        .eq('financial_year', financialYear)
+        .or(orParts.join(','));
       if (msError) throw msError;
       manualSalaries = ms || [];
     }
 
     // Imported salaries for target employee
-    let qTargetImported = supabase
+    const { data: targetImportedSalaries, error: targetImportedError } = await supabase
       .from('employee_salary')
-      .select('*');
-    if (!scope.all) qTargetImported = qTargetImported.eq('office_id', officeId);
-    const { data: targetImportedSalaries, error: targetImportedError } = await qTargetImported
+      .select('*')
       .ilike('hprn_no', targetHrpn)
       .eq('financial_year', financialYear)
       .order('created_at', { ascending: false });
@@ -244,21 +269,21 @@ export const salaryRepository = {
       }
     }
 
-    // Construct employeeInfo
+    // Construct employeeInfo — canonical identity wins, legacy fills the link.
     const firstImported = targetImportedSalaries && targetImportedSalaries.length > 0 ? targetImportedSalaries[0] : null;
-    const empName = emp?.name || firstImported?.name || 'Employee';
+    const empName = canonical?.name || emp?.name || firstImported?.name || 'Employee';
 
-    const employeeInfo = (emp || firstImported)
+    const employeeInfo = (emp || canonical || firstImported)
       ? {
           id: emp?.id,
           name: empName,
-          pan: emp?.pan,
-          hprnNo: targetHrpn || emp?.hprn_no || cleanQuery,
-          joinDate: emp?.join_date || null,
-          transferDate: emp?.transfer_date || null,
+          pan: canonical?.pan || emp?.pan,
+          hprnNo: targetHrpn || canonical?.hrpn_no || emp?.hprn_no || cleanQuery,
+          joinDate: canonical?.join_date || emp?.join_date || null,
+          transferDate: canonical?.transfer_date || emp?.transfer_date || null,
           budgetHeadCode,
           budgetHeadName,
-          isRegisteredInMaster: !!emp,
+          isRegisteredInMaster: !!(emp || canonical),
         }
       : null;
 
@@ -282,12 +307,12 @@ export const salaryRepository = {
         gross = manual.gross;
         daAndOther = manual.da;
         tax = manual.tax;
-        status = 'matched';
+        status = 'entered';
       } else if (imported) {
         gross = Number(imported.gross_salary) || 0;
         daAndOther = 0;
         tax = Number(imported.income_tax) || 0;
-        status = imported.status || 'imported';
+        status = 'imported';
       }
 
       const totalGross = gross + daAndOther;

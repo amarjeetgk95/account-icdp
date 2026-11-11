@@ -87,29 +87,11 @@ export function ReportPrintArea({
         <div className="govt-footer-signatures">
           <div>Received Date: ___________________</div>
           <div className="sign-right">
+            <div className="sign-space" aria-hidden="true" />
             Assistant Administrative cum Account Officer
             <br />
             Intensive Cattle Development Programme - Surat
             {footerExtra}
-          </div>
-        </div>
-      )}
-      {showSignature && (
-        <div className="govt-stamp-row">
-          <div className="govt-stamp-block">
-            <div className="govt-stamp-line" />
-            <div>Prepared by</div>
-            <div className="govt-stamp-sub">Accounts Clerk</div>
-          </div>
-          <div className="govt-stamp-block">
-            <div className="govt-stamp-line" />
-            <div>Checked by</div>
-            <div className="govt-stamp-sub">AA cum A.O.</div>
-          </div>
-          <div className="govt-stamp-block">
-            <div className="govt-stamp-line" />
-            <div>Approved by</div>
-            <div className="govt-stamp-sub">Deputy Director</div>
           </div>
         </div>
       )}

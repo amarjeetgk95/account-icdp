@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { useEmployees } from '../hooks/useEmployees';
 import { useBudgetHeads } from '../hooks/useBudgetHeads';
 import { useLatestSalaries } from '../hooks/useSalaryImport';
+import { useEstablishmentEmployees } from '@/modules/establishment/hooks/useEstablishment';
+import { establishmentOrderRank } from '@/modules/establishment/types';
 import { formatDate, formatCurrency } from '@/shared/utilities';
 import type { EmployeeInput } from '../validation/employee.schema';
 import type { Database } from '@/shared/database.types';
@@ -12,12 +14,44 @@ type Employee = Database['public']['Tables']['employees']['Row'];
 
 interface EmployeeListProps {
   onEdit: (employee: EmployeeInput) => void;
+  /** When true, hides edit/delete actions — canonical writes live in Establishment. */
+  readOnly?: boolean;
 }
 
-export function EmployeeList({ onEdit }: EmployeeListProps) {
-  const { employees, isLoading, deleteAsync } = useEmployees();
+export function EmployeeList({ onEdit, readOnly = false }: EmployeeListProps) {
+  const { employees: legacyEmployees, isLoading, deleteAsync } = useEmployees();
   const { heads } = useBudgetHeads();
   const { data: salaryMap } = useLatestSalaries();
+  const { data: estEmployees } = useEstablishmentEmployees();
+
+  // Establishment manual sequence (ક્રમ) is canonical — legacy payroll rows
+  // follow it via HRPN (fallback PAN). Unmatched rows go last, A-Z.
+  const employees = useMemo(() => {
+    const orderByHrpn = new Map<string, number>();
+    const orderByPan = new Map<string, number>();
+    [...(estEmployees ?? [])]
+      .sort(
+        (a, b) =>
+          establishmentOrderRank(a) - establishmentOrderRank(b) ||
+          (a.name || '').localeCompare(b.name || '')
+      )
+      .forEach((est, idx) => {
+        const h = (est.hrpnNo || '').trim().toLowerCase();
+        if (h && !orderByHrpn.has(h)) orderByHrpn.set(h, idx);
+        const p = (est.pan || '').trim().toUpperCase();
+        if (p && !orderByPan.has(p)) orderByPan.set(p, idx);
+      });
+    const rankOf = (emp: Employee): number => {
+      const h = (emp.hprn_no || '').trim().toLowerCase();
+      if (h && orderByHrpn.has(h)) return orderByHrpn.get(h)!;
+      const p = (emp.pan || '').trim().toUpperCase();
+      if (p && orderByPan.has(p)) return orderByPan.get(p)!;
+      return Number.MAX_SAFE_INTEGER;
+    };
+    return [...legacyEmployees].sort(
+      (a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name)
+    );
+  }, [legacyEmployees, estEmployees]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'transferred'>('all');
@@ -134,7 +168,7 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
 
       {/* Master Directory Table */}
       <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
-        <table className="table text-sm">
+        <table className="table text-xs">
           <thead>
             <tr>
               <th className="text-center" style={{ width: '50px' }}>#</th>
@@ -146,13 +180,13 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
               <th className="text-center">Join Date</th>
               <th className="text-center">Transfer Date</th>
               <th className="text-center">Latest Salary</th>
-              <th className="text-center" style={{ width: '100px' }}>Actions</th>
+              {!readOnly && <th className="text-center" style={{ width: '100px' }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {filteredEmployees.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-8 text-slate-400 dark:text-slate-500 text-xs">
+                <td colSpan={readOnly ? 9 : 10} className="text-center py-8 text-slate-400 dark:text-slate-500 text-xs">
                   No matching employees found for &quot;{searchTerm}&quot;
                 </td>
               </tr>
@@ -203,7 +237,7 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
                           <span className="font-bold text-slate-800 dark:text-slate-100">
                             {formatCurrency(Number(salary.gross_salary))}
                           </span>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
                             {salary.month} FY{salary.financial_year}
                           </span>
                         </div>
@@ -212,6 +246,7 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
                       )}
                     </td>
                     <td>
+                      {!readOnly && (
                       <div className="flex justify-center gap-1.5">
                         <button
                           onClick={() =>
@@ -240,6 +275,7 @@ export function EmployeeList({ onEdit }: EmployeeListProps) {
                           <Trash2 size={14} />
                         </button>
                       </div>
+                      )}
                     </td>
                   </tr>
                 );

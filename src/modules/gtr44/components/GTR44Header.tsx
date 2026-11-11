@@ -14,7 +14,7 @@ export const GTR44Header: React.FC<GTR44HeaderProps> = ({ data }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2px' }}>
         <div style={{ fontSize: '8.5pt', lineHeight: 1.2 }}>
           <p style={{ margin: 0, fontWeight: 700 }}>G. P. Rjt., Sr. 10 Std.-108 2-2009 5,00,000 A4* PP-BI</p>
-          <p style={{ margin: 0, fontFamily: "'Noto Serif Gujarati', serif", fontSize: '8.5pt' }}>
+          <p style={{ margin: 0, fontFamily: "'Lohit Gujarati', serif", fontSize: '8.5pt' }}>
             ના.વિ.યાદી પત્ર ક્રમાંક : તજર-૧૦૦૪-૧૨૨૬-ઝ-૮૪૭ (૦૫) તા. ૨-૧-૨૦૦૬.
           </p>
         </div>

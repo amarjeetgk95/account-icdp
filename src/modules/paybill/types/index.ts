@@ -4,6 +4,9 @@ export * from './componentMaster';
 
 export type PayBillSheetType = 'EARNING' | 'DEDUCTION' | 'COMBINED';
 
+/** 059 three-track: which treasury bill this import/row came from. */
+export type PayBillType = 'REGULAR' | 'DA_ARREAR' | 'PAY_ARREAR' | 'SUPPLEMENTARY';
+
 export interface PayBillParameterMatrixRow {
   key: string;
   parameter: string;
@@ -253,6 +256,10 @@ export interface PayBillStoredImport {
   month: string;
   financialYear: number;
   sheetType?: PayBillSheetType;
+  /** 059: REGULAR monthly vs DA_ARREAR / PAY_ARREAR / SUPPLEMENTARY treasury bills. */
+  billType?: PayBillType;
+  /** 059: payment slot when arrears are paid in a different month than work. */
+  paidMonth?: string | null;
   ddoHrpn: string | null;
   ddoName: string | null;
   majorHead: string | null;
@@ -296,6 +303,8 @@ export interface PayBillStoredEarning {
   slo: string | null;
   month: string;
   financialYear: number;
+  /** 059: denormalized from parent import for track sums. Missing = REGULAR. */
+  billType?: PayBillType;
   basicPay: number;
   da: number;
   hra: number;
@@ -327,6 +336,8 @@ export interface PayBillStoredDeduction {
   designation: string | null;
   month: string;
   financialYear: number;
+  /** 059: denormalized from parent import for tax-track sums. Missing = REGULAR. */
+  billType?: PayBillType;
   incomeTax: number; // 9510
   profTax: number; // 9570
   hbaInterest: number; // 9591

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { GTR30FormData } from '../types';
 import { billTotals, splitRsPs } from '../services/gtr30Calc.service';
+import { currentFinancialYear } from '@/shared/utilities/date';
 
 interface Props {
   data: GTR30FormData;
@@ -90,8 +91,7 @@ const formatFinancialYear = (budgetYear?: string, monthOf?: string): string => {
       return `${startYear}-${startYear + 1}`;
     }
   }
-  const now = new Date();
-  const startYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const startYear = currentFinancialYear();
   return `${startYear}-${startYear + 1}`;
 };
 
@@ -203,13 +203,13 @@ export const GTR30SingleForm: React.FC<Props> = ({
         >
           <div style={{ textAlign: 'left' }}>
             <div>G. P. Rjt., Sr. 1 Std.-175 2-2009 2,00,000 A4* WP-BI</div>
-            <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '5.6pt' }}>
+            <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '5.6pt' }}>
               ના.વિ.ના પત્ર ક્રમાંક : તજર-૧૦૦૪-૧૨૨૬-ઝ-૮૪૭ (૦૫) તા. ૨-૧-૨૦૦૬.
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div>Outer General l. e. &amp; g. (Revised) (Outer)</div>
-            <div style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '5.6pt' }}>
+            <div style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '5.6pt' }}>
               આઉટર જન. ૧ ઈ. અને જી. (સુધારેલ) (આઉટર)
             </div>
           </div>

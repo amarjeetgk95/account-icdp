@@ -29,14 +29,14 @@ export function LedgerSectionHeader({
           </span>
 
           <span
-            className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 rounded-full px-2 py-0.5 tabular-nums"
+            className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 rounded-full px-2 py-0.5 tabular-nums"
             title={`${summary.count} parameter row${summary.count === 1 ? '' : 's'} in this section`}
           >
             {summary.count} rows
           </span>
 
           <span
-            className={`ml-auto font-mono text-[11px] font-bold px-2 py-0.5 rounded-md border tabular-nums ${
+            className={`ml-auto num text-xs font-bold px-2 py-0.5 rounded-md border tabular-nums ${
               isEarning
                 ? 'bg-blue-50/90 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800/80'
                 : 'bg-rose-50/90 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-800/80'

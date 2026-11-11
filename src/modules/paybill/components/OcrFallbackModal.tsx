@@ -37,7 +37,7 @@ export function OcrFallbackModal({
               <FileCode className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs">
                 OCR / Raw Text Pay Bill Parser Fallback
               </h3>
               <p className="text-xs text-slate-500">
@@ -79,10 +79,10 @@ export function OcrFallbackModal({
 
         {/* Parser Guidance */}
         <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl p-3.5 space-y-2">
-          <p className="text-[0.7rem] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
             For best extraction, make sure the pasted text includes:
           </p>
-          <ul className="text-[0.72rem] text-slate-600 dark:text-slate-300 space-y-1.5 list-disc list-inside">
+          <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 list-disc list-inside">
             <li>
               The header line: <b className="font-mono">PAYBILL INNER SHEET - Earning/Deduction Side for the Month of : July-2026</b>
             </li>
@@ -99,7 +99,7 @@ export function OcrFallbackModal({
               For the Deduction side also include the code labels <b className="font-mono">(9510)</b> ... <b className="font-mono">Net Pay</b> from the column header.
             </li>
           </ul>
-          <p className="text-[0.7rem] text-slate-500 dark:text-slate-400 leading-relaxed">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
             If the raw text is garbled, the parser will still extract what it can and flag low-confidence columns in the warnings list — prefer pasting from a selectable PDF over OCR.
           </p>
         </div>

@@ -5,17 +5,11 @@ import {
   gtr30EmployeeMasterSchema,
   type GTR30EmployeeMasterInput,
 } from '../validation/gtr30EmployeeMaster.schema';
-import { normalizePayEntries } from '../utils/gtr30PayMatrix';
-import { isAllOfficesMode } from '@/shared/utilities/office';
-import { resolveOfficeIdStrict } from '../repositories/officeScope';
+import { normalizePayHistory, deriveCurrentPay } from '../utils/payHistory';
 
 const SYNC_DEBOUNCE_MS = 600;
 const SYNC_STORAGE_KEY = 'gtr30:syncPhases';
-const RETRY_BASE_MS = 2000;
-const MAX_RETRY_MS = 30000;
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const retryCounts = new Map<string, number>();
 
 export type Gtr30SyncPhase = 'idle' | 'pending' | 'syncing' | 'synced' | 'error';
 
@@ -35,7 +29,9 @@ function persistSyncPhases(): void {
     const obj: Record<string, Gtr30SyncPhase> = {};
     for (const [k, v] of syncPhases.entries()) obj[k] = v;
     localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(obj));
-  } catch {}
+  } catch {
+    // localStorage unavailable or quota exceeded — sync phases stay in-memory only
+  }
 }
 
 function hydrateSyncPhases(): void {
@@ -49,7 +45,9 @@ function hydrateSyncPhases(): void {
         syncPhases.set(k, v as Gtr30SyncPhase);
       }
     }
-  } catch {}
+  } catch {
+    // corrupted or unreadable sync state — start from a clean in-memory slate
+  }
 }
 
 // Hydrate on module load
@@ -61,37 +59,9 @@ function setSyncPhase(key: string, phase: Gtr30SyncPhase, errorMsg?: string): vo
     syncErrors.set(key, errorMsg);
   } else if (phase !== 'error') {
     syncErrors.delete(key);
-    if (phase === 'synced' || phase === 'idle') {
-      retryCounts.delete(key);
-      const t = retryTimers.get(key);
-      if (t) {
-        clearTimeout(t);
-        retryTimers.delete(key);
-      }
-    }
   }
   persistSyncPhases();
   for (const listener of syncListeners) listener();
-}
-
-function scheduleRetry(key: string): void {
-  const count = (retryCounts.get(key) ?? 0) + 1;
-  retryCounts.set(key, count);
-  const delay = Math.min(RETRY_BASE_MS * Math.pow(2, count - 1), MAX_RETRY_MS);
-  const existing = retryTimers.get(key);
-  if (existing) clearTimeout(existing);
-  const timer = setTimeout(() => {
-    retryTimers.delete(key);
-    const local = gtr30EmployeeMasterLocalRepository.loadAll();
-    const group = local[key];
-    if (!group) {
-      setSyncPhase(key, 'idle');
-      return;
-    }
-    setSyncPhase(key, 'pending');
-    debounceReplace(group.monthKey, group.billCode, group.employees);
-  }, delay);
-  retryTimers.set(key, timer);
 }
 
 export function getGtr30SyncErrors(): Record<string, string> {
@@ -121,6 +91,43 @@ export function subscribeGtr30Sync(listener: () => void): () => void {
   };
 }
 
+/**
+ * Backend-first flush for one group: the backend write is awaited FIRST and
+ * is authoritative. On success the server echo is persisted to the local
+ * cache and the group is marked synced; on failure the provisional local
+ * input is kept, the group is marked error (message in getGtr30SyncErrors),
+ * and nothing is retried in the background — recovery is manual via
+ * retryGtr30Sync(). Phases always flow pending->syncing->synced/error.
+ */
+async function flushGroup(
+  monthKey: string,
+  billCode: string,
+  employees: GTR30EmployeeMaster[]
+): Promise<void> {
+  const key = gtr30GroupKey(monthKey, billCode);
+  setSyncPhase(key, 'syncing');
+  try {
+    const result = await gtr30EmployeeMasterBackendRepository.replaceGroup(monthKey, billCode, employees);
+    if (result === null) {
+      const msg = 'Server rejected save - check console for details';
+      console.warn('[GTR30EmployeeMaster] replaceGroup returned null for', { monthKey, billCode });
+      setSyncPhase(key, 'error', msg);
+      return;
+    }
+    // The server echo wins — but a degenerate empty echo must never wipe a
+    // provisional non-empty roster (genuine delete-all already matches local,
+    // so skipping empty echoes is a no-op there).
+    if (result.length > 0) {
+      gtr30EmployeeMasterLocalRepository.saveGroup(monthKey, billCode, result);
+    }
+    setSyncPhase(key, 'synced');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown sync error';
+    console.warn('[GTR30EmployeeMaster] replaceGroup failed:', { monthKey, billCode, error: msg });
+    setSyncPhase(key, 'error', msg);
+  }
+}
+
 function debounceReplace(monthKey: string, billCode: string, employees: GTR30EmployeeMaster[]): void {
   const key = gtr30GroupKey(monthKey, billCode);
   const existing = pendingTimers.get(key);
@@ -129,54 +136,29 @@ function debounceReplace(monthKey: string, billCode: string, employees: GTR30Emp
     key,
     setTimeout(() => {
       pendingTimers.delete(key);
-      setSyncPhase(key, 'syncing');
-      void (async () => {
-        try {
-          const result = await gtr30EmployeeMasterBackendRepository.replaceGroup(monthKey, billCode, employees);
-          if (result === null) {
-            let allOffices = false;
-            try {
-              allOffices = isAllOfficesMode();
-            } catch {
-              // store unavailable
-            }
-            if (allOffices) {
-              setSyncPhase(key, 'idle');
-            } else {
-              const officeId = await resolveOfficeIdStrict().catch(() => null);
-              const msg = !officeId ? 'No office selected (please re-login)' : 'Server rejected save - check console for details';
-              console.warn('[GTR30EmployeeMaster] replaceGroup returned null for', { monthKey, billCode, officeId });
-              setSyncPhase(key, 'error', msg);
-              scheduleRetry(key);
-            }
-          } else {
-            setSyncPhase(key, 'synced');
-          }
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Unknown sync error';
-          console.warn('[GTR30EmployeeMaster] replaceGroup failed:', { monthKey, billCode, error: msg });
-          setSyncPhase(key, 'error', msg);
-          scheduleRetry(key);
-        }
-      })();
+      void flushGroup(monthKey, billCode, employees);
     }, SYNC_DEBOUNCE_MS)
   );
 }
 
+/**
+ * Immediate manual flush of every errored group (badge Retry button). Unlike
+ * the debounced save path this writes straight through without waiting out
+ * SYNC_DEBOUNCE_MS; phases still flow pending->syncing->synced/error.
+ */
 export function retryGtr30Sync(): void {
   const local = gtr30EmployeeMasterLocalRepository.loadAll();
   for (const [key, phase] of syncPhases.entries()) {
     if (phase !== 'error') continue;
     const group = local[key];
     if (!group) continue;
-    retryCounts.delete(key);
-    const t = retryTimers.get(key);
-    if (t) {
-      clearTimeout(t);
-      retryTimers.delete(key);
+    const pending = pendingTimers.get(key);
+    if (pending) {
+      clearTimeout(pending);
+      pendingTimers.delete(key);
     }
     setSyncPhase(key, 'pending');
-    debounceReplace(group.monthKey, group.billCode, group.employees);
+    void flushGroup(group.monthKey, group.billCode, group.employees);
   }
 }
 
@@ -200,6 +182,10 @@ class Gtr30EmployeeMasterService {
     return out;
   }
 
+  getGroupsRecord(): Record<string, GTR30EmployeeMaster[]> {
+    return this.listGroupsAsMap();
+  }
+
   getGroup(monthKey: string, billCode: string): GTR30EmployeeMaster[] {
     const group = gtr30EmployeeMasterLocalRepository.loadGroup(monthKey, billCode);
     return group?.employees ?? [];
@@ -213,8 +199,8 @@ class Gtr30EmployeeMasterService {
       throw new Error(`${field}: ${issue.message}`);
     }
     const d = parsed.data;
-    const payEntries = normalizePayEntries(d.payEntries);
-    const latestEntry = payEntries[payEntries.length - 1] ?? null;
+    const payEntries = normalizePayHistory(d.payEntries as never);
+    const { currentPay, currentPayDate } = deriveCurrentPay(payEntries as never, d.currentPay, d.currentPayDate);
     return {
       id: d.id || crypto.randomUUID(),
       srNo: d.srNo,
@@ -228,9 +214,10 @@ class Gtr30EmployeeMasterService {
       gradePay: d.gradePay ?? '',
       payLevelCell: d.payLevelCell ?? '',
       ppaNo: d.ppaNo ?? '',
-      currentPay: latestEntry ? latestEntry.basicPay : d.currentPay,
-      currentPayDate: latestEntry ? latestEntry.startDate : (d.currentPayDate ?? ''),
-      payEntries,
+      currentPay,
+      currentPayDate,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      payEntries: payEntries as any,
       quarterAddress: d.quarterAddress ?? '',
       insuranceGroup: d.insuranceGroup ?? '',
       insuranceType: d.insuranceType,
@@ -315,11 +302,15 @@ class Gtr30EmployeeMasterService {
       if (options?.daPercent !== undefined && pay > 0) {
         da = Math.round(pay * (options.daPercent / 100));
       }
+      // Deep clone payEntries so cloned employees get fresh entry ids — shallow
+      // copy would share same payEntries array and duplicate ids across months.
+      const clonedPayEntries = (emp.payEntries ?? []).map((pe) => ({ ...pe, id: crypto.randomUUID() }));
       return {
         ...emp,
         id: crypto.randomUUID(),
         srNo: idx + 1,
         da,
+        payEntries: clonedPayEntries,
       };
     });
 
@@ -366,16 +357,8 @@ class Gtr30EmployeeMasterService {
   async hydrateFromBackend(): Promise<void> {
     const remoteGroups = await gtr30EmployeeMasterBackendRepository.listGroups();
     if (remoteGroups === null) {
-      let allOffices = false;
-      try {
-        allOffices = isAllOfficesMode();
-      } catch {
-        // store unavailable
-      }
-      if (!allOffices) {
-        for (const key of Object.keys(gtr30EmployeeMasterLocalRepository.loadAll())) {
-          setSyncPhase(key, 'error');
-        }
+      for (const key of Object.keys(gtr30EmployeeMasterLocalRepository.loadAll())) {
+        setSyncPhase(key, 'error');
       }
       return;
     }
@@ -387,9 +370,12 @@ class Gtr30EmployeeMasterService {
     const { groups, addedKeys } = reconcileGroups(local, remoteGroups, isDirty);
     for (const group of groups) {
       const key = gtr30GroupKey(group.monthKey, group.billCode);
-      const current = local[key];
-      if (!current || !sameGroupEmployees(current.employees, group.employees)) {
-        gtr30EmployeeMasterLocalRepository.saveGroup(group.monthKey, group.billCode, group.employees);
+      gtr30EmployeeMasterLocalRepository.saveGroup(group.monthKey, group.billCode, group.employees);
+      // Dirty (pending/syncing/error) groups keep their phase: the backend
+      // never confirmed them, so claiming synced would hide unsynced local
+      // work from the badge. They flush on the next save or manual retry.
+      if (!isDirty(key)) {
+        setSyncPhase(key, 'synced');
       }
     }
     for (const key of addedKeys) {
@@ -400,13 +386,10 @@ class Gtr30EmployeeMasterService {
   reset(): void {
     gtr30EmployeeMasterLocalRepository.clear();
     for (const timer of pendingTimers.values()) clearTimeout(timer);
-    for (const timer of retryTimers.values()) clearTimeout(timer);
     pendingTimers.clear();
-    retryTimers.clear();
-    retryCounts.clear();
     syncPhases.clear();
     syncErrors.clear();
-    try { localStorage.removeItem(SYNC_STORAGE_KEY); } catch {}
+    try { localStorage.removeItem(SYNC_STORAGE_KEY); } catch { /* ignore storage errors during reset */ }
     for (const listener of syncListeners) listener();
   }
 

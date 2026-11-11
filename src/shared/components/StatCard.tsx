@@ -53,8 +53,8 @@ export function StatCard({
   // Compact = balanced modern — ~25% smaller card, but text stays comfortably readable
   const cardPadding = compact ? 'px-3.5 py-3' : 'p-4';
   const cardRadius = compact ? 'rounded-xl' : 'rounded-2xl';
-  const labelSize = compact ? 'text-[11px] leading-none' : 'text-[11px]';
-  const valueSize = compact ? 'text-[16px] leading-5' : 'text-lg leading-7';
+  const labelSize = compact ? 'text-xs leading-none' : 'text-xs';
+  const valueSize = compact ? 'text-xs leading-5' : 'text-xs leading-7';
   const subSize = compact ? 'text-xs leading-3.5' : 'text-xs';
   const iconBox = compact ? 'w-7 h-7 rounded-lg' : 'w-8 h-8 rounded-lg';
   const iconSize = compact ? 14 : 16;

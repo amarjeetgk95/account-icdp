@@ -3,6 +3,8 @@ import { z } from 'zod';
 export const officeDetailsSchema = z.object({
   officeName: z.string().max(200).default(''),
   subtitle: z.string().max(200).default(''),
+  departmentDivision: z.string().max(200).optional().default(''),
+  district: z.string().max(200).optional().default(''),
   address: z.string().max(500).default(''),
   phone: z.string().max(50).default(''),
   email: z.string().email('Invalid email address').or(z.literal('')).default(''),

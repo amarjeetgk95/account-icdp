@@ -60,7 +60,7 @@ export function GTR44StatsHeader({
           <CardContent className="p-3.5 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground">{tile.label}</p>
-              <h3 className="text-lg font-bold mt-0.5">{tile.value}</h3>
+              <h3 className="text-xs font-bold mt-0.5">{tile.value}</h3>
             </div>
             <div className={`p-2 rounded-full ${tile.bg}`}>
               <tile.icon className={`h-4 w-4 ${tile.iconColor}`} />

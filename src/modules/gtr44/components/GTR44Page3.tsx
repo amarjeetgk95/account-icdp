@@ -63,7 +63,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                 }}
               >
                 <span>Brought Forward Rs.&nbsp;&nbsp;</span>
-                <span style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '11pt' }}>આગળથી ખેંચ્યા રૂ.</span>
+                <span style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '11pt' }}>આગળથી ખેંચ્યા રૂ.</span>
               </th>
               <th style={{ width: '22%', padding: 0 }}>
                 <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
@@ -73,7 +73,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                       textAlign: 'right',
                       paddingRight: '8px',
                       borderRight: '1px solid #000',
-                      fontFamily: "'Courier New', monospace",
+                      fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                       fontWeight: 700,
                       fontSize: '11.5pt',
                     }}
@@ -84,7 +84,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                     style={{
                       flex: '1 1 35%',
                       textAlign: 'center',
-                      fontFamily: "'Courier New', monospace",
+                      fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                       fontWeight: 700,
                       fontSize: '11.5pt',
                     }}
@@ -125,7 +125,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                           paddingRight: '8px',
                           paddingTop: '4px',
                           borderRight: '1px solid #000',
-                          fontFamily: "'Courier New', monospace",
+                          fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                           fontWeight: 700,
                           fontSize: '11.5pt',
                         }}
@@ -137,7 +137,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                           flex: '1 1 35%',
                           textAlign: 'center',
                           paddingTop: '4px',
-                          fontFamily: "'Courier New', monospace",
+                          fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                           fontWeight: 700,
           fontSize: '11.5pt',
                         }}
@@ -178,7 +178,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
               >
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '11.5pt' }}>Total Rs. (In Words)</span>
-                  <span style={{ fontFamily: "'Noto Serif Gujarati', serif", fontSize: '11pt' }}>
+                  <span style={{ fontFamily: "'Lohit Gujarati', serif", fontSize: '11pt' }}>
                     કુલ રૂપિયા (શબ્દોમાં)
                   </span>
                   <span
@@ -203,7 +203,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                       textAlign: 'right',
                       paddingRight: '8px',
                       borderRight: '1px solid #000',
-                      fontFamily: "'Courier New', monospace",
+                      fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                       fontWeight: 700,
                       fontSize: '11.5pt',
                     }}
@@ -214,7 +214,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
                     style={{
                       flex: '1 1 35%',
                       textAlign: 'center',
-                      fontFamily: "'Courier New', monospace",
+                      fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                       fontWeight: 700,
                       fontSize: '11.5pt',
                     }}
@@ -256,7 +256,7 @@ export const GTR44Page3: React.FC<GTR44Page3Props> = ({ data }) => {
           >
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontWeight: 700 }}>
               <span>Deduction on account of GST :&nbsp;</span>
-              <span style={{ fontFamily: "'Courier New', monospace" }}>
+              <span style={{ fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums' }}>
                 {data.deductions.gst ? `Rs. ${formatIndianCurrency(data.deductions.gst)}` : ''}
               </span>
             </div>

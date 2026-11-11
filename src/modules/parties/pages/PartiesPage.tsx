@@ -18,9 +18,10 @@ import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { PreviewModal } from '@/shared/components/PreviewModal';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { Modal } from '@/shared/components/Modal';
-import { downloadCsv } from '@/shared/utilities';
+import { downloadCsv, popupNativePrint } from '@/shared/utilities';
+import { export26QExcel, exportGSTExcel } from '@/shared/utilities/excelExport';
 import { useUIStore } from '@/core/stores/ui-store';
-import { FileImage, Plus } from 'lucide-react';
+import { FileImage, Plus, FileSpreadsheet } from 'lucide-react';
 import type { TransactionInput } from '../types';
 
 type SectionTab = 'overview' | 'gst' | 'it';
@@ -36,7 +37,7 @@ export function PartiesPage() {
   const fy = useUIStore((state) => state.activeFinancialYear);
 
   const { data: parties = [] } = useParties();
-  const { data: transactions = [], isLoading: txLoading } = useTransactions();
+  const { data: transactions = [], isLoading: txLoading } = useTransactions(fy);
   const saveTransaction = useSaveTransaction();
   const saveBulkTransactions = useSaveBulkTransactions();
   const { data: officeDetails } = useOfficeDetails();
@@ -70,14 +71,16 @@ export function PartiesPage() {
   const exportGstCSV = () => {
     if (!gstReport || gstReport.rows.length === 0) return;
     downloadCsv(
-      `GST_Report_${fy}.csv`,
+      `GST_Report_${fy}_${selectedQuarter}.csv`,
       [
         'Sr. No.',
         'GST No.',
         'CPIN No',
         'Party Name',
-        'Bill No',
-        'Date',
+        'DDO Bill No',
+        'Invoice No',
+        'Invoice Date',
+        'Settlement Date',
         'Amount',
         'SGST',
         'CGST',
@@ -89,8 +92,10 @@ export function PartiesPage() {
         row.gstNo,
         row.cpinNo,
         row.partyName,
+        row.ddoBillNo || '-',
         row.billNo,
-        row.date,
+        row.invoiceDate || row.date,
+        row.settlementDate || row.date,
         row.amount,
         row.sgst,
         row.cgst,
@@ -103,32 +108,53 @@ export function PartiesPage() {
   const exportItCSV = () => {
     if (!itReport || itReport.rows.length === 0) return;
     downloadCsv(
-      `IT_26Q_${fy}.csv`,
+      `IT_26Q_${fy}_${selectedQuarter}.csv`,
       [
         'Sr. No.',
         'Party Name',
-        'Bill No',
+        'PAN No.',
+        'DDO Bill No',
+        'Invoice No',
+        'Invoice Date',
         'Settlement Date',
         'Amount',
-        'PAN No.',
         'Income Tax (TDS)',
       ],
       itReport.rows.map((row, idx) => [
         idx + 1,
         row.partyName,
-        row.billNo,
-        row.date,
-        row.amount,
         row.panNo,
+        row.ddoBillNo || '-',
+        row.billNo,
+        row.invoiceDate || row.date,
+        row.settlementDate || row.date,
+        row.amount,
         row.incomeTax,
       ])
     );
   };
 
+  const handleExcelExport = async () => {
+    if (activeTab === 'gst' && gstReport) {
+      await exportGSTExcel(gstReport, {
+        officeName: office.officeName,
+        subtitle: office.subtitle,
+        address: office.address,
+        gst: office.gst,
+      });
+    } else if (activeTab === 'it' && itReport) {
+      await export26QExcel(itReport, {
+        officeName: office.officeName,
+        subtitle: office.subtitle,
+        address: office.address,
+        tan: office.tan,
+      });
+    }
+  };
+
   return (
     <>
       <WorkspaceHeader
-        eyebrow="Vendor TDS · 26Q"
         title="Vendor & party management"
         context={<>FY {fyLabel}</>}
         actions={
@@ -174,18 +200,42 @@ export function PartiesPage() {
                   <option>Q4</option>
                   <option>Yearly</option>
                 </select>
-                <button onClick={() => window.print()} className="btn btn-secondary text-sm">
+                <button
+                  onClick={() => {
+                    const el = document.querySelector('.card-body .report-print-area') as HTMLElement | null;
+                    if (el) {
+                      popupNativePrint({
+                        elements: [el],
+                        title: `${activeTab.toUpperCase()}_Report_${fyLabel}_${selectedQuarter}`,
+                        pageSize: 'A4',
+                        orientation: 'landscape',
+                        pageMargin: '8mm',
+                        pageContainerSelector: '.report-print-area',
+                      });
+                    } else {
+                      window.print();
+                    }
+                  }}
+                  className="btn btn-secondary text-xs"
+                >
                   Print
                 </button>
                 <button
                   onClick={activeTab === 'gst' ? exportGstCSV : exportItCSV}
-                  className="btn btn-outline text-sm"
+                  className="btn btn-outline text-xs"
                 >
                   CSV
                 </button>
                 <button
+                  onClick={handleExcelExport}
+                  className="btn btn-outline text-xs"
+                  title="Export formatted Excel workbook"
+                >
+                  <FileSpreadsheet size={14} className="mr-1 text-emerald-600" /> Excel
+                </button>
+                <button
                   onClick={() => setShowPreview(true)}
-                  className="btn btn-outline text-sm"
+                  className="btn btn-outline text-xs"
                 >
                   <FileImage size={14} className="mr-1" /> Preview
                 </button>
@@ -207,6 +257,7 @@ export function PartiesPage() {
                   }
                   title="GST TDS STATEMENT SUMMARY REPORT"
                   badgeClass="report-badge-gst"
+                  pageOrientation="landscape"
                 >
                   <GSTReportSection report={gstReport} isLoading={gstLoading} />
                 </ReportPrintArea>
@@ -225,6 +276,7 @@ export function PartiesPage() {
                   }
                   title="26Q OTHER THAN SALARY STATEMENT"
                   badgeClass="report-badge-it"
+                  pageOrientation="landscape"
                 >
                   <ITReportSection report={itReport} isLoading={itLoading} />
                 </ReportPrintArea>
@@ -254,6 +306,7 @@ export function PartiesPage() {
             }
             title="GST TDS STATEMENT SUMMARY REPORT"
             badgeClass="report-badge-gst"
+            pageOrientation="landscape"
           >
             <GSTReportSection report={gstReport} isLoading={gstLoading} />
           </ReportPrintArea>
@@ -272,6 +325,7 @@ export function PartiesPage() {
             }
             title="26Q OTHER THAN SALARY STATEMENT"
             badgeClass="report-badge-it"
+            pageOrientation="landscape"
           >
             <ITReportSection report={itReport} isLoading={itLoading} />
           </ReportPrintArea>

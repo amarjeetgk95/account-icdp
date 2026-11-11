@@ -17,6 +17,10 @@ interface EmployeeFormProps {
 }
 
 export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: EmployeeFormProps) {
+  // LEGACY: canonical employee writes live in Establishment. This form stays
+  // for data-repair flows only — the payroll employee list was removed
+  // (single integrated register is /establishment).
+  // See `@/shared/domain/canonicalEmployee`.
   const { createAsync, updateAsync } = useEmployees();
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [isDropdownDismissed, setIsDropdownDismissed] = useState(false);
@@ -134,9 +138,13 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+        Legacy payroll master — prefer <span className="font-bold">Establishment → Register Employee</span> for
+        new staff. HRPN is canonical in Establishment.
+      </div>
       {submitStatus && (
         <div
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
             submitStatus.type === 'success'
               ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
               : submitStatus.type === 'error'
@@ -157,7 +165,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
           <input
             id="hprnNo"
             {...register('hprnNo')}
-            className="input font-mono uppercase text-sm"
+            className="input font-mono uppercase text-xs"
             placeholder="e.g. 100123"
             maxLength={50}
             onChange={(e) => {
@@ -176,7 +184,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
           <input
             id="name"
             {...register('name')}
-            className="input text-sm"
+            className="input text-xs"
             placeholder="Type to search existing..."
             autoComplete="off"
           />
@@ -190,7 +198,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
                   onClick={() => selectEmployee(emp)}
                   className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors flex items-center justify-between"
                 >
-                  <span className="font-medium text-sm text-slate-800 dark:text-slate-100">{emp.name}</span>
+                  <span className="font-medium text-xs text-slate-800 dark:text-slate-100">{emp.name}</span>
                   <span className="text-slate-500 dark:text-slate-400 font-mono text-xs ml-2">{emp.pan}</span>
                 </button>
               ))}
@@ -205,7 +213,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
           <input
             id="pan"
             {...register('pan')}
-            className="input uppercase font-mono font-semibold tracking-wider text-sm"
+            className="input uppercase font-mono font-semibold tracking-wider text-xs"
             placeholder="ABCDE1234F"
             maxLength={10}
             onChange={(e) => {
@@ -224,7 +232,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             id="joinDate"
             type="date"
             {...register('joinDate')}
-            className="input text-sm"
+            className="input text-xs"
           />
           {errors.joinDate && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.joinDate.message}</p>}
           <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">
@@ -242,7 +250,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             id="transferDate"
             type="date"
             {...register('transferDate')}
-            className="input text-sm"
+            className="input text-xs"
           />
           {errors.transferDate && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.transferDate.message}</p>}
           <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Enter only if transferred mid-year</p>
@@ -256,7 +264,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             id="designation"
             type="text"
             {...register('designation')}
-            className="input text-sm"
+            className="input text-xs"
             placeholder="e.g. Accountant, Driver, Peon"
           />
         </div>
@@ -269,8 +277,8 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
             id="payScale"
             type="text"
             {...register('payScale')}
-            className="input text-sm font-mono text-xs"
-            placeholder="e.g. PB-2 (9300-34800)/4200"
+              className="input text-xs font-mono"
+              placeholder="e.g. PB-2 (9300-34800)/4200"
           />
         </div>
 
@@ -278,7 +286,7 @@ export function EmployeeForm({ editingEmployee, onCancel, onSelect, fy }: Employ
           <label htmlFor="budgetHeadId" className="label text-slate-700 dark:text-slate-300 flex items-center justify-between">
             <span>Budget Head Tag</span>
           </label>
-          <select id="budgetHeadId" {...register('budgetHeadId')} className="input text-sm">
+          <select id="budgetHeadId" {...register('budgetHeadId')} className="input text-xs">
             <option value="">— Unassigned —</option>
             {heads.map((head) => (
               <option key={head.id} value={head.id}>

@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
-export type UserRole = 'admin' | 'office';
+export type UserRole = 'office';
 
-export type NavGroup = 'overview' | 'bills' | 'tds' | 'it-employee' | 'establishment' | 'tools' | 'system' | 'admin' | 'main';
+export type NavGroup = 'overview' | 'bills' | 'tds' | 'it-employee' | 'establishment' | 'tools' | 'system' | 'main';
 
 export interface RouteDefinition {
   path: string;
@@ -32,7 +32,6 @@ export interface ModuleDefinition {
 
 export interface FeatureFlagKeys {
   auth_module: boolean;
-  admin_module: boolean;
   dashboard_module: boolean;
   settings_module: boolean;
   payroll_module: boolean;
@@ -42,4 +41,5 @@ export interface FeatureFlagKeys {
   gtr30_module: boolean;
   establishment_module: boolean;
   paybill_module: boolean;
+  gr_repository_module: boolean;
 }

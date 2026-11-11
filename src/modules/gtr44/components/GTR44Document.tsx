@@ -23,11 +23,28 @@ export const GTR44Document: React.FC<GTR44DocumentProps> = ({
   return (
     <div id={containerId} className="gtr44-document-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Gujarati:wght@400;600;700&display=swap');
+                @font-face {
+          font-family: 'Lohit Gujarati';
+          src: local('Lohit Gujarati'),
+               local('Lohit-Gujarati'),
+               url('/fonts/Lohit-Gujarati.ttf') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Lohit Gujarati';
+          src: local('Lohit Gujarati'),
+               local('Lohit-Gujarati'),
+               url('/fonts/Lohit-Gujarati.ttf') format('truetype');
+          font-weight: bold;
+          font-style: normal;
+        }
 
-        .gtr44-document-root {
-          font-family: 'Times New Roman', Times, serif;
-          color: #000000;
+          .gtr44-document-root {
+            font-family: 'Times New Roman', Times, serif;
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: 'tnum' 1;
+            color: #000000;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           box-sizing: border-box;

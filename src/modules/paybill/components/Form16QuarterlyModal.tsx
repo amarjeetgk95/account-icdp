@@ -106,7 +106,7 @@ export function Form16QuarterlyModal({
             </div>
           </div>
           <div className="shrink-0 text-right">
-            <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800 shadow-2xs">
               {filledCount} / 4 Configured
             </span>
           </div>
@@ -135,20 +135,20 @@ export function Form16QuarterlyModal({
                         <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
                           {info.label}
                         </span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 ml-2">({info.months})</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">({info.months})</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 flex items-center gap-1 hidden sm:inline-flex">
+                      <span className="text-xs text-slate-400 flex items-center gap-1 hidden sm:inline-flex">
                         <Calendar size={11} /> Due: {info.filingDue}
                       </span>
                       {isFilled ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
                           <CheckCircle2 size={11} /> Configured
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
                           <Clock size={11} /> Pending
                         </span>
                       )}
@@ -157,7 +157,7 @@ export function Form16QuarterlyModal({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
                     <div>
-                      <label className="block text-[0.68rem] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
+                      <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
                         24Q Receipt / Token Number *
                       </label>
                       <div className="relative">
@@ -181,14 +181,14 @@ export function Form16QuarterlyModal({
                     </div>
 
                     <div>
-                      <label className="block text-[0.68rem] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
+                      <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
                         Date of Filing / Book Entry (Optional)
                       </label>
                       <input
                         value={current.filingDate}
                         onChange={(e) => updateQuarter(q, 'filingDate', e.target.value)}
                         placeholder="e.g. 15-Jul-2025"
-                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                        className="w-full px-2.5 py-1.5 text-xs num bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                       />
                     </div>
                   </div>

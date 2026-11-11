@@ -2,12 +2,12 @@ import { officeRepository } from '../repositories/office.repository';
 import type { OfficeDetailsInput } from '../validation/settings.schema';
 
 class OfficeService {
-  async getName(officeId?: string): Promise<string> {
-    return officeRepository.getName(officeId);
+  async getName(): Promise<string> {
+    return officeRepository.getName();
   }
 
-  async getDetails(officeId?: string): Promise<OfficeDetailsInput> {
-    return officeRepository.get(officeId);
+  async getDetails(): Promise<OfficeDetailsInput> {
+    return officeRepository.get();
   }
 
   async saveDetails(input: OfficeDetailsInput): Promise<void> {

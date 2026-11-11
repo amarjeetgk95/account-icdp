@@ -69,19 +69,6 @@ const modules: ModuleDefinition[] = [
     order: 1,
   }),
   makeModule({
-    id: 'admin',
-    name: 'Admin',
-    icon: 'admin',
-    navGroup: 'admin',
-    permissions: ['admin'],
-    featureFlag: 'admin_module',
-    order: 10,
-    children: [
-      { path: '/admin/overview', label: 'Overview', icon: 'overview' },
-      { path: '/admin/users', label: 'User Management', icon: 'users' },
-    ],
-  }),
-  makeModule({
     id: 'hidden',
     name: 'Hidden Module',
     icon: 'settings',
@@ -93,7 +80,7 @@ const modules: ModuleDefinition[] = [
 
 describe('buildNavigationModel', () => {
   it('builds three-level sections grouped by navGroup, skipping overview/main', () => {
-    const model = buildNavigationModel(modules, { isAdmin: false, isLoading: false });
+    const model = buildNavigationModel(modules, { isLoading: false });
     const keys = model.sections.map((s) => s.key);
     expect(keys).toEqual(['bills', 'tds']);
 
@@ -107,35 +94,31 @@ describe('buildNavigationModel', () => {
   });
 
   it('skips hidden modules (sidebar: false)', () => {
-    const model = buildNavigationModel(modules, { isAdmin: false, isLoading: false });
+    const model = buildNavigationModel(modules, { isLoading: false });
     const tds = model.sections.find((s) => s.key === 'tds') as NavSection;
     expect(tds.branches.map((b) => b.key)).not.toContain('hidden');
   });
 
-  it('exposes the dashboard only for non-admin roles', () => {
-    const office = buildNavigationModel(modules, { isAdmin: false, isLoading: false });
-    expect(office.dashboardEnabled).toBe(true);
-
-    const admin = buildNavigationModel(modules, { isAdmin: true, isLoading: false });
-    expect(admin.dashboardEnabled).toBe(false);
-    expect(admin.sections.map((s) => s.key)).toEqual(['admin']);
+  it('enables the dashboard in single-office mode', () => {
+    const model = buildNavigationModel(modules, { isLoading: false });
+    expect(model.dashboardEnabled).toBe(true);
   });
 
   it('returns an empty model while role info is loading', () => {
-    const model = buildNavigationModel(modules, { isAdmin: false, isLoading: true });
+    const model = buildNavigationModel(modules, { isLoading: true });
     expect(model.sections).toEqual([]);
     expect(model.dashboardEnabled).toBe(false);
   });
 
   it('drops sections with no visible branches', () => {
-    const onlyAdmin = modules.filter((m) => m.id === 'admin');
-    const model = buildNavigationModel(onlyAdmin, { isAdmin: false, isLoading: false });
+    const onlyHidden = modules.filter((m) => m.id === 'hidden');
+    const model = buildNavigationModel(onlyHidden, { isLoading: false });
     expect(model.sections).toEqual([]);
   });
 });
 
 describe('resolveActiveNavigation', () => {
-  const model = buildNavigationModel(modules, { isAdmin: false, isLoading: false });
+  const model = buildNavigationModel(modules, { isLoading: false });
 
   it('resolves section, branch and sub-branch from a child path', () => {
     const active = resolveActiveNavigation(model.sections, '/payroll/report');
@@ -163,7 +146,7 @@ describe('resolveActiveNavigation', () => {
           routes: [{ path: '/gtr44/edit/:id', element: null }],
         }),
       ],
-      { isAdmin: false, isLoading: false }
+      { isLoading: false }
     );
     const active = resolveActiveNavigation(withParams.sections, '/gtr44/edit/7');
     expect(active?.branch.key).toBe('gtr44');
@@ -180,7 +163,7 @@ describe('matchesRoute', () => {
 });
 
 describe('isSectionActive / isBranchActive', () => {
-  const model = buildNavigationModel(modules, { isAdmin: false, isLoading: false });
+  const model = buildNavigationModel(modules, { isLoading: false });
 
   it('flags the section and branch containing the current path', () => {
     const tds = model.sections.find((s) => s.key === 'tds') as NavSection;

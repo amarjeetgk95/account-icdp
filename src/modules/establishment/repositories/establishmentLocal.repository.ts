@@ -1,20 +1,6 @@
-import type { EstablishmentEmployee, EstablishmentPost, EstablishmentState } from '../types';
-import { getOfficeScope, type OfficeScope } from '@/shared/utilities/office';
+import type { EstablishmentEmployee, EstablishmentState } from '../types';
 
-const STORAGE_KEY_PREFIX = 'establishment-v1';
-
-export function establishmentStorageKey(scope: OfficeScope): string {
-  const suffix = scope.all ? 'all' : scope.officeId ?? 'default';
-  return `${STORAGE_KEY_PREFIX}-${suffix}`;
-}
-
-function resolveScope(): OfficeScope | null {
-  try {
-    return getOfficeScope();
-  } catch {
-    return null;
-  }
-}
+const STORAGE_KEY = 'establishment-v1-all';
 
 function readState(key: string): EstablishmentState | null {
   try {
@@ -24,7 +10,6 @@ function readState(key: string): EstablishmentState | null {
     if (!parsed || typeof parsed !== 'object') return null;
     return {
       employees: Array.isArray(parsed.employees) ? parsed.employees : [],
-      posts: Array.isArray(parsed.posts) ? parsed.posts : [],
       lastSyncedAt: typeof parsed.lastSyncedAt === 'string' ? parsed.lastSyncedAt : null,
     };
   } catch {
@@ -42,17 +27,49 @@ function writeState(key: string, state: EstablishmentState): void {
 
 class EstablishmentLocalRepository {
   private storageKey(): string {
-    const scope = resolveScope();
-    return scope ? establishmentStorageKey(scope) : `${STORAGE_KEY_PREFIX}-default`;
+    return STORAGE_KEY;
   }
 
   loadState(): EstablishmentState {
-    return readState(this.storageKey()) ?? { employees: [], posts: [], lastSyncedAt: null };
+    return readState(this.storageKey()) ?? { employees: [], lastSyncedAt: null };
+  }
+
+  saveEmployee(employee: EstablishmentEmployee): EstablishmentState {
+    const key = this.storageKey();
+    const current = readState(key) ?? { employees: [], lastSyncedAt: null };
+    const index = current.employees.findIndex((e) => e.id === employee.id);
+    let nextEmployees: EstablishmentEmployee[];
+    if (index >= 0) {
+      nextEmployees = [...current.employees];
+      nextEmployees[index] = employee;
+    } else {
+      nextEmployees = [...current.employees, employee];
+    }
+    const next: EstablishmentState = {
+      ...current,
+      employees: nextEmployees,
+      lastSyncedAt: new Date().toISOString(),
+    };
+    writeState(key, next);
+    return next;
+  }
+
+  deleteEmployee(id: string): EstablishmentState {
+    const key = this.storageKey();
+    const current = readState(key) ?? { employees: [], lastSyncedAt: null };
+    const nextEmployees = current.employees.filter((e) => e.id !== id);
+    const next: EstablishmentState = {
+      ...current,
+      employees: nextEmployees,
+      lastSyncedAt: new Date().toISOString(),
+    };
+    writeState(key, next);
+    return next;
   }
 
   saveEmployees(employees: EstablishmentEmployee[]): EstablishmentState {
     const key = this.storageKey();
-    const current = readState(key) ?? { employees: [], posts: [], lastSyncedAt: null };
+    const current = readState(key) ?? { employees: [], lastSyncedAt: null };
     const next: EstablishmentState = {
       ...current,
       employees,
@@ -62,21 +79,9 @@ class EstablishmentLocalRepository {
     return next;
   }
 
-  savePosts(posts: EstablishmentPost[]): EstablishmentState {
-    const key = this.storageKey();
-    const current = readState(key) ?? { employees: [], posts: [], lastSyncedAt: null };
-    const next: EstablishmentState = {
-      ...current,
-      posts,
-      lastSyncedAt: new Date().toISOString(),
-    };
-    writeState(key, next);
-    return next;
-  }
-
   saveStatePatch(patch: Partial<Pick<EstablishmentState, 'lastSyncedAt'>>): void {
     const key = this.storageKey();
-    const current = readState(key) ?? { employees: [], posts: [], lastSyncedAt: null };
+    const current = readState(key) ?? { employees: [], lastSyncedAt: null };
     writeState(key, { ...current, ...patch });
   }
 }

@@ -36,7 +36,7 @@ export class PayrollService {
 
   async saveBulkSalary(
     month: string,
-    entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>,
+    entries: Array<{ employeeId: string | number; gross: number; da: number; tax: number }>,
     fy: number
   ): Promise<string> {
     this.validateEntries(entries);
@@ -66,19 +66,19 @@ export class PayrollService {
     return payrollRepository.getEmployeeSalaryForMonth(employeeId, prevMonth, targetFy);
   }
 
-  async getQuarterReport(quarter: string, fy: number, officeId?: string): Promise<QuarterReport> {
+  async getQuarterReport(quarter: string, fy: number): Promise<QuarterReport> {
     if (!['Q1', 'Q2', 'Q3', 'Q4'].includes(quarter)) {
       throw new Error('Invalid quarter');
     }
-    return payrollRepository.getQuarterReport(quarter, fy, officeId);
+    return payrollRepository.getQuarterReport(quarter, fy);
   }
 
-  async getBudgetHeadReport(fy: number, officeId?: string): Promise<BudgetHeadReport> {
-    return payrollRepository.getBudgetHeadReport(fy, officeId);
+  async getBudgetHeadReport(fy: number): Promise<BudgetHeadReport> {
+    return payrollRepository.getBudgetHeadReport(fy);
   }
 
   private validateEntries(
-    entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>
+    entries: Array<{ employeeId: string | number; gross: number; da: number; tax: number }>
   ): void {
     for (const entry of entries) {
       if (!entry.employeeId) throw new Error('Employee ID is required');

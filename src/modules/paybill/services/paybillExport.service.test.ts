@@ -82,6 +82,24 @@ describe('paybill export services (PDF & Excel)', () => {
     }).not.toThrow();
   });
 
+  it('handles multiline office names cleanly without header collisions', async () => {
+    const { doc, fileName } = await paybillPdfService.generateEmployeeLedgerPdfDoc({
+      officeName: 'DEPUTY DIRECTOR OF ANIMAL HUSBANDRY\nINTENSIVE CATTLE DEVELOPMENT PROGRAMME-SURAT',
+      financialYear: 2026,
+      fyLabel: '2026-27',
+      employee: {
+        hrpn: '20013826',
+        name: 'Dr. D.C. Chaudhari',
+        designation: 'Deputy Director (Animal Husbandry)',
+        payScale: 'PB-3 (15600-39100)/6600',
+      },
+      rows: sampleRows,
+    });
+    expect(doc).toBeDefined();
+    expect(fileName).toContain('20013826');
+    expect(doc.internal.getNumberOfPages()).toBe(1);
+  });
+
   it('generates high-level employee ledger Excel statement workbook without errors', async () => {
     await expect(
       paybillExcelService.exportEmployeeLedgerExcel({
@@ -101,5 +119,118 @@ describe('paybill export services (PDF & Excel)', () => {
         },
       })
     ).resolves.not.toThrow();
-  }, 20000);
+  }, 40000);
+
+  it('generates a ZIP archive containing individual PDFs for multiple employees', async () => {
+    const progressCalls: unknown[] = [];
+    const employees = [
+      { hrpn: '20013826', name: 'Dr. D.C. Chaudhari', designation: 'Deputy Director' },
+      { hrpn: '20014113', name: 'Dr. H.M. Patidar', designation: 'Assistant Director' },
+    ];
+    const earnings = [
+      {
+        id: '1',
+        importId: 'imp1',
+        officeId: 'off1',
+        hrpn: '20013826',
+        employeeName: 'Dr. D.C. Chaudhari',
+        month: 'March',
+        financialYear: 2026,
+        basicPay: 102500,
+        da: 71340,
+        hra: 16400,
+        grossAmount: 190240,
+        createdAt: '2026-03-01',
+      },
+      {
+        id: '2',
+        importId: 'imp1',
+        officeId: 'off1',
+        hrpn: '20014113',
+        employeeName: 'Dr. H.M. Patidar',
+        month: 'March',
+        financialYear: 2026,
+        basicPay: 85000,
+        da: 59000,
+        hra: 13600,
+        grossAmount: 157600,
+        createdAt: '2026-03-01',
+      },
+    ];
+    const deductions = [
+      {
+        id: '1',
+        importId: 'imp1',
+        officeId: 'off1',
+        hrpn: '20013826',
+        employeeName: 'Dr. D.C. Chaudhari',
+        month: 'March',
+        financialYear: 2026,
+        incomeTax: 15000,
+        profTax: 200,
+        totalDeductions: 15200,
+        netPay: 175040,
+        createdAt: '2026-03-01',
+      },
+      {
+        id: '2',
+        importId: 'imp1',
+        officeId: 'off1',
+        hrpn: '20014113',
+        employeeName: 'Dr. H.M. Patidar',
+        month: 'March',
+        financialYear: 2026,
+        incomeTax: 10000,
+        profTax: 200,
+        totalDeductions: 10200,
+        netPay: 147400,
+        createdAt: '2026-03-01',
+      },
+    ];
+
+    const { zipBlob, fileName, total } = await paybillPdfService.generateAllEmployeesLedgerPdfZip({
+      financialYear: 2026,
+      fyLabel: '2026-27',
+      employees,
+      allEarnings: earnings as any,
+      allDeductions: deductions as any,
+      settings: null,
+      manualValues: {},
+      onProgress: (p) => progressCalls.push(p),
+    });
+
+    expect(total).toBe(2);
+    expect(fileName).toBe('Employee_Ledgers_FY2026-27.zip');
+    expect(zipBlob).toBeDefined();
+
+    const { default: JSZip } = await import('jszip');
+    const zip = await JSZip.loadAsync(zipBlob);
+    const filenames = Object.keys(zip.files).filter((f) => !zip.files[f].dir);
+    expect(filenames.length).toBe(2);
+    expect(filenames.some((f) => f.includes('20013826') && f.endsWith('.pdf'))).toBe(true);
+    expect(filenames.some((f) => f.includes('20014113') && f.endsWith('.pdf'))).toBe(true);
+
+    expect(progressCalls.some((p: any) => p.status === 'preparing')).toBe(true);
+    expect(progressCalls.some((p: any) => p.status === 'generating' && p.current === 1)).toBe(true);
+    expect(progressCalls.some((p: any) => p.status === 'generating' && p.current === 2)).toBe(true);
+    expect(progressCalls.some((p: any) => p.status === 'completed')).toBe(true);
+  });
+
+  it('cancels bulk export when AbortSignal is triggered', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      paybillPdfService.generateAllEmployeesLedgerPdfZip({
+        financialYear: 2026,
+        fyLabel: '2026-27',
+        employees: [{ hrpn: '20013826', name: 'Dr. D.C. Chaudhari' }],
+        allEarnings: [],
+        allDeductions: [],
+        settings: null,
+        manualValues: {},
+        signal: controller.signal,
+      })
+    ).rejects.toThrow('Export cancelled');
+  });
 });

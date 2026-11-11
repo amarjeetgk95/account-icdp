@@ -12,3 +12,9 @@ export {
   DEFAULT_GTR30_EMPLOYEE_TEMPLATE,
   freshDefaultPosts,
 } from './settings';
+
+export {
+  LEGACY_DUMMY_BILL_CODES,
+  isLegacyBillCode,
+  normalizeBillCodeKey,
+} from './billCodes';

@@ -259,16 +259,34 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
   return (
     <div id={containerId} className="gtr30-document-root">
       <style>{`
-        .gtr30-document-root {
-          font-family: 'Times New Roman', Times, serif;
-          color: #0f172a;
+          @font-face {
+            font-family: 'Lohit Gujarati';
+            src: local('Lohit Gujarati'),
+                 local('Lohit-Gujarati'),
+                 url('/fonts/Lohit-Gujarati.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+          }
+          @font-face {
+            font-family: 'Lohit Gujarati';
+            src: local('Lohit Gujarati'),
+                 local('Lohit-Gujarati'),
+                 url('/fonts/Lohit-Gujarati.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+          }
+          .gtr30-document-root {
+            font-family: 'Times New Roman', Times, serif;
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: 'tnum' 1;
+            color: #0f172a;
           background: #fff;
           color-scheme: light;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           box-sizing: border-box;
-          --gtr-gu: 'Noto Serif Gujarati', 'Shruti', serif;
-          --gtr-gu-sans: 'Noto Sans Gujarati', 'Shruti', sans-serif;
+          --gtr-gu: 'Lohit Gujarati', 'Shruti', serif;
+          --gtr-gu-sans: 'Lohit Gujarati', 'Shruti', sans-serif;
           --gtr-box-w: 11px;
           --gtr-box-h: 14px;
           -webkit-print-color-adjust: exact;
@@ -369,13 +387,13 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
         #gtr30-page-7 table thead th,
         #gtr30-page-8 table thead th,
         #gtr30-page-9 table thead th {
-          font-family: var(--gtr-gu), 'Noto Serif Gujarati', serif;
+          font-family: var(--gtr-gu), 'Lohit Gujarati', serif;
           letter-spacing: 0.2px;
           line-height: 1.25;
         }
         /* Portrait pages better line-height for Gujarati */
         #gtr30-page-10 {
-          font-family: var(--gtr-gu), 'Noto Serif Gujarati', serif;
+          font-family: var(--gtr-gu), 'Lohit Gujarati', serif;
           line-height: 1.7;
         }
         /* P3/P4 body cells - prevent bleed */
@@ -503,6 +521,22 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
             display: none !important;
           }
 
+          @font-face {
+            font-family: 'Lohit Gujarati';
+            src: local('Lohit Gujarati'),
+                 local('Lohit-Gujarati'),
+                 url('/fonts/Lohit-Gujarati.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+          }
+          @font-face {
+            font-family: 'Lohit Gujarati';
+            src: local('Lohit Gujarati'),
+                 local('Lohit-Gujarati'),
+                 url('/fonts/Lohit-Gujarati.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+          }
           .gtr30-document-root {
             width: 100% !important;
             margin: 0 !important;
@@ -610,7 +644,7 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
                 role="tab"
                 aria-selected={activePage === tab.key}
                 className={cn(
-                  'inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all duration-150 whitespace-nowrap leading-none',
+                  'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all duration-150 whitespace-nowrap leading-none',
                   activePage === tab.key
                     ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-sm shadow-blue-600/20'
                     : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 hover:text-slate-900 hover:-translate-y-px'
@@ -620,18 +654,18 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
               >
                 {tab.key === 'all' ? <Layers size={12} aria-hidden="true" /> : <FileText size={11} aria-hidden="true" />}
                 <span>{tab.label}</span>
-                {tab.sub && <span className="hidden lg:inline text-[9px] font-medium opacity-85">· {tab.sub}</span>}
+                {tab.sub && <span className="hidden lg:inline text-xs font-medium opacity-85">· {tab.sub}</span>}
               </button>
             ))}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
               {visibleCount} page{visibleCount > 1 ? 's' : ''} {activePage !== 'all' ? `· ${activePage.toUpperCase()}` : ''}
             </span>
 
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden md:inline">
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium hidden md:inline">
               {PAGE_LABELS[activePage] || activePage}
             </span>
 
@@ -647,7 +681,7 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </Button>
-              <span className="text-xs font-mono font-semibold px-2 min-w-[44px] text-center tabular-nums" aria-live="polite">
+              <span className="text-xs num font-semibold px-2 min-w-[44px] text-center tabular-nums" aria-live="polite">
                 {Math.round(zoomLevel * 100)}%
               </span>
               <Button
@@ -728,10 +762,10 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
             aria-label="GTR-30 page list"
           >
             <div className="flex items-center justify-between px-1 pb-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
                 Pages to print
               </span>
-              <div className="flex items-center gap-2 text-[10px] font-semibold">
+              <div className="flex items-center gap-2 text-xs font-semibold">
                 <button
                   type="button"
                   className="text-blue-600 hover:underline"
@@ -779,7 +813,7 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
                 >
                   <span
                     className={cn(
-                      'text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border',
+                      'text-xs num font-bold px-1.5 py-0.5 rounded border',
                       LANDSCAPE_PAGES.includes(tab.key)
                         ? 'bg-sky-50 text-sky-600 border-sky-200'
                         : 'bg-amber-50 text-amber-600 border-amber-200'
@@ -789,11 +823,11 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
                     {LANDSCAPE_PAGES.includes(tab.key) ? 'L' : 'P'}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[11px] font-bold text-slate-800 dark:text-slate-100 leading-none">
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-none">
                       {tab.label}
                     </div>
                     {tab.sub && (
-                      <div className="text-[10px] text-slate-400 truncate mt-0.5">{tab.sub}</div>
+                      <div className="text-xs text-slate-400 truncate mt-0.5">{tab.sub}</div>
                     )}
                   </div>
                   <input
@@ -838,7 +872,7 @@ export const GTR30Document: React.FC<GTR30DocumentProps> = ({
       </div>
 
       {showControls && activePage === 'all' && (
-        <div className="no-print mt-4 text-center text-[11px] text-slate-500">
+        <div className="no-print mt-4 text-center text-xs text-slate-500">
           Showing all 10 pages · P1-P4 landscape, P5-P10 portrait · Use the page list to choose which sheets to print · Mixed-orientation PDF is generated automatically
         </div>
       )}

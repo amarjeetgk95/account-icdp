@@ -7,6 +7,68 @@ import type {
   MappingStatus,
 } from '../types';
 
+export function isPlaceholderName(name: string | null | undefined): boolean {
+  if (!name) return true;
+  const clean = name.trim();
+  if (!clean) return true;
+  if (/^Employee(?:\s+\d+)?$/i.test(clean)) return true;
+  if (/^Staff(?:\s+\d+)?$/i.test(clean)) return true;
+  return false;
+}
+
+// Known designation tokens seen in Gujarat paybill PDFs. Shared by the PDF
+// parser and the report/directory merge layers so a name bundled into the
+// designation column is recovered the same way everywhere.
+const BUNDLED_DESIGNATION_TOKENS =
+  'Live\\s*Stock\\s+Inspector|Veterinary\\s+Officer|Deputy\\s+Director|Assistant\\s+Director|Junior\\s+Clerk|Senior\\s+Clerk|Peon|Driver';
+
+// Trailing fragments that look like grades/scales rather than a person name.
+// These must never be promoted into the employee-name section.
+const NON_NAME_SUFFIX_PATTERN =
+  /^(class|grade|level|group|scale|band|cell|section|division|unit|ward|block|pay|sr|jr|senior|junior)\b/i;
+
+/**
+ * Split a designation string that accidentally bundled the employee name.
+ * Handles both orders seen in paybill PDFs:
+ *  - "Ramesh Patel Live Stock Inspector" -> { name, designation }
+ *  - "Live Stock Inspector Sayan" -> { name: "Sayan", designation: "Live Stock Inspector" }
+ * Returns null when no split applies.
+ */
+export function splitBundledNameAndDesignation(
+  designation: string | null | undefined
+): { name: string; designation: string } | null {
+  if (!designation) return null;
+  const text = designation.trim();
+  if (!text) return null;
+
+  // Case 1: "<Name> <Designation>"
+  const nameFirst = text.match(new RegExp(`^(.*?)\\s+(${BUNDLED_DESIGNATION_TOKENS}.*)$`, 'i'));
+  if (nameFirst && nameFirst[1].trim().length > 2) {
+    return { name: nameFirst[1].trim(), designation: nameFirst[2].trim() };
+  }
+
+  // Case 2: "<Designation> <trailing full name>" (e.g. "Junior Clerk Ramesh Patel")
+  // A single trailing word (e.g. "Live Stock Inspector Sayan/Ambheti/Vagech") is a posting station,
+  // NOT an employee name, and must remain part of the designation.
+  const desigFirst = text.match(new RegExp(`^(${BUNDLED_DESIGNATION_TOKENS})\\s*[,\\-–]*\\s+(.+)$`, 'i'));
+  if (desigFirst) {
+    const trailing = desigFirst[2].trim().replace(/^[(,]+|[),.]+$/g, '').trim();
+    const words = trailing.split(/\s+/).filter(Boolean);
+    if (
+      words.length >= 2 &&
+      trailing.length >= 4 &&
+      /[A-Za-z]/.test(trailing) &&
+      !trailing.startsWith('(') &&
+      !NON_NAME_SUFFIX_PATTERN.test(trailing)
+    ) {
+      return { name: trailing, designation: desigFirst[1].trim() };
+    }
+  }
+
+  return null;
+}
+
+
 class HrpnMappingService {
   /**
    * Normalize an HRPN string (trims, uppercase, removes invalid characters)
@@ -118,6 +180,9 @@ class HrpnMappingService {
       let matchedEmployee: MasterEmployeeInfo | null = null;
       let nameMismatch = false;
 
+      let resolvedEmployeeName = row.employeeName;
+      let resolvedDesignation = row.designation;
+
       // Check for valid HRPN
       if (!hrpn || !this.isValidHrpn(hrpn)) {
         mappingStatus = 'INVALID_HRPN';
@@ -128,9 +193,17 @@ class HrpnMappingService {
         mappingStatus = 'DUPLICATE';
         mappingMessage = `Duplicate HRPN ${hrpn} appears multiple times in this bill`;
         errors.push(`HRPN ${hrpn} is duplicated in file`);
-        
+
         // Still check if master exists for reference
         matchedEmployee = masterMap.get(hrpn) || null;
+        if (matchedEmployee) {
+          if (isPlaceholderName(resolvedEmployeeName) && matchedEmployee.name) {
+            resolvedEmployeeName = matchedEmployee.name;
+          }
+          if ((!resolvedDesignation || resolvedDesignation === 'Staff') && matchedEmployee.designation) {
+            resolvedDesignation = matchedEmployee.designation;
+          }
+        }
       } else {
         // Look up in master by HRPN
         matchedEmployee = masterMap.get(hrpn) || null;
@@ -139,28 +212,41 @@ class HrpnMappingService {
           mappingStatus = 'MATCHED';
           mappingMessage = `Matched with master record: ${matchedEmployee.name}`;
 
-          // Check if name differs
-          if (this.isNameMismatch(row.employeeName, matchedEmployee.name)) {
+          // Adopt canonical master name if PDF row name was missing or generic placeholder
+          if (isPlaceholderName(row.employeeName) && matchedEmployee.name) {
+            resolvedEmployeeName = matchedEmployee.name;
+            nameMismatch = false;
+          } else if (this.isNameMismatch(row.employeeName, matchedEmployee.name)) {
             nameMismatch = true;
             warnings.push(
               `HRPN matched, but employee name differs (PDF: "${row.employeeName}", Master: "${matchedEmployee.name}")`
             );
           }
+
+          if ((!resolvedDesignation || resolvedDesignation === 'Staff') && matchedEmployee.designation) {
+            resolvedDesignation = matchedEmployee.designation;
+          }
         } else {
           mappingStatus = 'NOT_FOUND';
-          mappingMessage = `HRPN ${hrpn} not found in master employee dataset`;
-          warnings.push('Employee not registered in master dataset');
+          mappingMessage = `HRPN ${hrpn} not found in Establishment employee directory (single source of truth)`;
+          errors.push(
+            `HRPN ${hrpn} not matched with Establishment employee directory — register the employee in Establishment first`
+          );
         }
       }
 
-      const normalizedString = this.generateNormalizedString(row);
+      const normalizedRow: PayBillEmployeeRow = {
+        ...row,
+        hrpn,
+        employeeName: resolvedEmployeeName,
+        designation: resolvedDesignation,
+      };
+
+      const normalizedString = this.generateNormalizedString(normalizedRow);
 
       records.push({
         id: `paybill_row_${i + 1}_${hrpn || 'nohrpn'}`,
-        row: {
-          ...row,
-          hrpn,
-        },
+        row: normalizedRow,
         mappingStatus,
         mappingMessage,
         matchedEmployee,
@@ -228,6 +314,8 @@ class HrpnMappingService {
       let mappingMessage = '';
       let matchedEmployee: MasterEmployeeInfo | null = null;
       let nameMismatch = false;
+      let resolvedEmployeeName = row.employeeName;
+      let resolvedDesignation = row.designation;
 
       if (!hrpn || !this.isValidHrpn(hrpn)) {
         mappingStatus = 'INVALID_HRPN';
@@ -238,25 +326,49 @@ class HrpnMappingService {
         mappingMessage = `Duplicate HRPN ${hrpn} appears multiple times in this bill`;
         errors.push(`HRPN ${hrpn} is duplicated in file`);
         matchedEmployee = masterMap.get(hrpn) || null;
+        if (matchedEmployee) {
+          if (isPlaceholderName(resolvedEmployeeName) && matchedEmployee.name) {
+            resolvedEmployeeName = matchedEmployee.name;
+          }
+          if ((!resolvedDesignation || resolvedDesignation === 'Staff') && matchedEmployee.designation) {
+            resolvedDesignation = matchedEmployee.designation;
+          }
+        }
       } else {
         matchedEmployee = masterMap.get(hrpn) || null;
         if (matchedEmployee) {
           mappingStatus = 'MATCHED';
           mappingMessage = `Matched with master record: ${matchedEmployee.name}`;
-          if (this.isNameMismatch(row.employeeName, matchedEmployee.name)) {
+
+          // Adopt canonical master name if PDF row name was missing or generic placeholder
+          if (isPlaceholderName(row.employeeName) && matchedEmployee.name) {
+            resolvedEmployeeName = matchedEmployee.name;
+            nameMismatch = false;
+          } else if (this.isNameMismatch(row.employeeName, matchedEmployee.name)) {
             nameMismatch = true;
             warnings.push(
               `HRPN matched, but employee name differs (PDF: "${row.employeeName}", Master: "${matchedEmployee.name}")`
             );
           }
+
+          if ((!resolvedDesignation || resolvedDesignation === 'Staff') && matchedEmployee.designation) {
+            resolvedDesignation = matchedEmployee.designation;
+          }
         } else {
           mappingStatus = 'NOT_FOUND';
-          mappingMessage = `HRPN ${hrpn} not found in master employee dataset`;
-          warnings.push('Employee not registered in master dataset');
+          mappingMessage = `HRPN ${hrpn} not found in Establishment employee directory (single source of truth)`;
+          errors.push(
+            `HRPN ${hrpn} not matched with Establishment employee directory — register the employee in Establishment first`
+          );
         }
       }
 
-      const normalizedRow: PayBillDeductionRow = { ...row, hrpn };
+      const normalizedRow: PayBillDeductionRow = {
+        ...row,
+        hrpn,
+        employeeName: resolvedEmployeeName,
+        designation: resolvedDesignation,
+      };
 
       records.push({
         id: `ded_rec_${i + 1}_${hrpn || 'nohrpn'}`,

@@ -23,7 +23,7 @@ export function EstablishmentSyncStatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 text-[10px] font-semibold rounded-full px-2.5 py-1 ring-1 ring-inset whitespace-nowrap',
+        'inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 ring-1 ring-inset whitespace-nowrap',
         isHydrating
           ? 'bg-blue-50 text-blue-600 ring-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:ring-blue-800'
           : lastSyncedAt

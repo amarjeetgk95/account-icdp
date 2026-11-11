@@ -34,6 +34,7 @@ vi.mock('@/core/auth/store', () => {
 });
 
 vi.mock('@/shared/utilities/office', () => ({
+  DEFAULT_OFFICE_ID: '1',
   getOfficeId: () => 'office-123',
   isAllOfficesMode: () => false,
 }));

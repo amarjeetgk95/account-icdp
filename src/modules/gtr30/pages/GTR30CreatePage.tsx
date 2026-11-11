@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
-import { createBlankEmployee } from '../constants';
+import { createBlankEmployee, DEFAULT_BILL_CODE_MAPPINGS } from '../constants';
 import { gtr30BillFormService } from '../services/gtr30BillForm.service';
 import { gtr30EmployeeTransformService } from '../services/gtr30EmployeeTransform.service';
 import { useGTR30Settings, useEffectiveDARate } from '../hooks/useGTR30Settings';
@@ -24,6 +24,7 @@ import { GTR30Document } from '../components/GTR30Document';
 import { cn } from '@/utils/cn';
 import { useToast } from '@/hooks/use-toast';
 import { gtr30ResolveEmployees } from '../services/gtr30EmployeeMaster.service';
+import { mergeGtr30BillCodeMappings } from '../utils/gtr30BillCodeOptions';
 import { validateGTR30BillData } from '../validation/gtr30Bill.schema';
 import { validateGTR30CrossPages } from '../utils/gtr30BillValidation';
 import { GTR30_SETTINGS_STORAGE_KEY } from '../constants/settings';
@@ -151,7 +152,15 @@ export function GTR30CreatePage() {
   const [lastAutoSaved, setLastAutoSaved] = useState<Date | null>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const billCodeOptions = mappingsQuery.data ?? [];
+  const rawBillCodeOptions = mappingsQuery.data ?? [];
+  const baseBillCodeOptions = rawBillCodeOptions.length > 0 ? rawBillCodeOptions : DEFAULT_BILL_CODE_MAPPINGS;
+  const employeeGroups = useMemo(() => groupsQuery.data ?? {}, [groupsQuery.data]);
+
+  const billCodeOptions = useMemo(
+    () => mergeGtr30BillCodeMappings(baseBillCodeOptions, employeeGroups),
+    [baseBillCodeOptions, employeeGroups]
+  );
+
   const budgetHeadOptions = useGTR30BudgetHeads().data ?? [];
   const effectiveDaPercent = useEffectiveDARate(data.monthOf);
 
@@ -306,7 +315,7 @@ export function GTR30CreatePage() {
     return (
       <div className="max-w-7xl mx-auto py-16 flex flex-col items-center justify-center gap-3 text-slate-500">
         <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-        <div className="text-sm font-medium">Loading GTR-30 Pay Bill…</div>
+        <div className="text-xs font-medium">Loading GTR-30 Pay Bill…</div>
       </div>
     );
   }
@@ -314,9 +323,9 @@ export function GTR30CreatePage() {
     return (
       <div className="max-w-7xl mx-auto py-10">
         <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-          <div className="text-sm font-bold text-slate-700">Failed to load GTR-30 Pay Bill</div>
+          <div className="text-xs font-bold text-slate-700">Failed to load GTR-30 Pay Bill</div>
           <div className="text-xs text-slate-500 max-w-md">{billQuery.error instanceof Error ? billQuery.error.message : 'An error occurred while loading the bill.'}</div>
-          <button onClick={() => navigate('/gtr30/list')} className="mt-2 text-sm font-medium text-blue-600 hover:underline">Back to Register</button>
+          <button onClick={() => navigate('/gtr30/list')} className="mt-2 text-xs font-medium text-blue-600 hover:underline">Back to Register</button>
         </div>
       </div>
     );
@@ -325,9 +334,9 @@ export function GTR30CreatePage() {
     return (
       <div className="max-w-7xl mx-auto py-10">
         <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-          <div className="text-sm font-bold text-slate-700">GTR-30 Pay Bill Not Found</div>
+          <div className="text-xs font-bold text-slate-700">GTR-30 Pay Bill Not Found</div>
           <div className="text-xs text-slate-500">The requested bill does not exist or may have been removed.</div>
-          <button onClick={() => navigate('/gtr30/list')} className="mt-2 text-sm font-medium text-blue-600 hover:underline">Back to Register</button>
+          <button onClick={() => navigate('/gtr30/list')} className="mt-2 text-xs font-medium text-blue-600 hover:underline">Back to Register</button>
         </div>
       </div>
     );
@@ -337,7 +346,7 @@ export function GTR30CreatePage() {
     return (
       <div className="max-w-7xl mx-auto py-16 flex flex-col items-center justify-center gap-4 text-slate-500">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-        <div className="text-sm font-medium text-slate-700">Loading settings…</div>
+        <div className="text-xs font-medium text-slate-700">Loading settings…</div>
         <div className="text-xs text-slate-500 max-w-md text-center">
           Configure settings first to generate a blank bill with your office defaults.
         </div>
@@ -481,7 +490,6 @@ export function GTR30CreatePage() {
   return (
     <div className="max-w-7xl mx-auto space-y-4 pb-24">
       <WorkspaceHeader
-        eyebrow="Bill Creation · GTR-30"
         title={id ? 'Edit GTR-30 Pay Bill' : 'Create GTR-30 Pay Bill'}
         actions={
           <div className="flex items-center gap-2">
@@ -506,7 +514,7 @@ export function GTR30CreatePage() {
             </Button>
             <Button size="sm" onClick={() => saveBill()} className="font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20">
               <Save className="mr-1 h-4 w-4" /> Save Bill
-              <kbd className="hidden sm:inline-flex ml-1.5 text-[9px] font-mono opacity-60 px-1 py-0.5 rounded bg-white/10 border border-white/20">Ctrl+S</kbd>
+              <kbd className="hidden sm:inline-flex ml-1.5 text-xs font-mono opacity-60 px-1 py-0.5 rounded bg-white/10 border border-white/20">Ctrl+S</kbd>
             </Button>
           </div>
         }
@@ -516,7 +524,7 @@ export function GTR30CreatePage() {
         <div className="border border-amber-200 bg-amber-50 dark:bg-amber-950/50 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            <p className="text-xs font-medium text-amber-900 dark:text-amber-100">
               Office settings not configured
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
@@ -532,7 +540,7 @@ export function GTR30CreatePage() {
       <div className={isSplitView ? 'grid grid-cols-1 xl:grid-cols-12 gap-6 items-start' : ''}>
         <div className={isSplitView ? 'xl:col-span-7' : ''}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="workspace-tabs grid w-full grid-cols-4">
+            <TabsList className="workspace-tabs w-full sm:grid sm:grid-cols-4">
               <TabsTrigger value="employees" className="workspace-tab data-[state=active]:workspace-tab-active focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
                 1. Employees &amp; Pay ({data.employees.length})
               </TabsTrigger>
@@ -544,7 +552,7 @@ export function GTR30CreatePage() {
               </TabsTrigger>
               <TabsTrigger value="preview" className="workspace-tab data-[state=active]:workspace-tab-active focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:outline-none">
                 4. 10-Page Preview
-                <kbd className="hidden sm:inline-flex ml-1.5 text-[9px] font-mono opacity-60 px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/20">Ctrl+P</kbd>
+                <kbd className="hidden sm:inline-flex ml-1.5 text-xs font-mono opacity-60 px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/20">Ctrl+P</kbd>
               </TabsTrigger>
             </TabsList>
 
@@ -552,7 +560,7 @@ export function GTR30CreatePage() {
         <TabsContent value="employees" className="mt-4 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-bold uppercase text-slate-800">
+              <h2 className="text-xs font-bold uppercase text-slate-800">
                 Staff Members &amp; Pay Components
               </h2>
               <p className="text-xs text-slate-500">
@@ -587,11 +595,11 @@ export function GTR30CreatePage() {
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
                       {index + 1}
                     </span>
-                    <span className="font-bold text-slate-800 text-sm">
+                    <span className="font-bold text-slate-800 text-xs">
                       {emp.name || `Employee ${index + 1}`}
                     </span>
                     {emp.designationGujarati && (
-                      <span className="text-xs font-medium text-slate-500 font-serif">
+                      <span className="text-xs font-medium text-slate-500 font-gujSans">
                         ({emp.designationGujarati})
                       </span>
                     )}
@@ -643,7 +651,7 @@ export function GTR30CreatePage() {
                         </span>
                         <span className="flex items-center gap-2 text-xs text-slate-500">
                           {!identityExpanded && (
-                            <span className="hidden sm:block text-[11px] font-medium text-slate-400 truncate max-w-[320px]">
+                            <span className="hidden sm:block text-xs font-medium text-slate-400 truncate max-w-[320px]">
                               {[emp.payScale, emp.gradePay, parsePayLevelCell(emp.payLevelCell).level && `L-${parsePayLevelCell(emp.payLevelCell).level}`].filter(Boolean).join(' · ') || 'Scale & designation'}
                             </span>
                           )}
@@ -678,7 +686,7 @@ export function GTR30CreatePage() {
                       value={emp.designationGujarati || ''}
                       onChange={(e) => updateEmployee(emp.id, 'designationGujarati', e.target.value)}
                       placeholder="e.g. સંશોધન મદદનીશ"
-                      className="font-serif"
+                      className="font-gujSans"
                     />
                   </div>
                   <div>
@@ -721,7 +729,7 @@ export function GTR30CreatePage() {
                             onChange={(e) =>
                               updateEmployee(emp.id, 'payLevelCell', composePayLevelCell(pay, e.target.value, cell))
                             }
-                            className="w-full h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm font-mono"
+                            className="w-full h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs num"
                           >
                             <option value="">Level</option>
                             {Array.from({ length: 18 }, (_, i) => String(i + 1)).map((l) => (
@@ -739,7 +747,7 @@ export function GTR30CreatePage() {
                               updateEmployee(emp.id, 'payLevelCell', composePayLevelCell(pay, level, e.target.value))
                             }
                             placeholder="Cell"
-                            className="font-mono"
+                            className="num"
                           />
                         </div>
                       </div>
@@ -778,7 +786,7 @@ export function GTR30CreatePage() {
                       id={`emp-${emp.id}-gisGroup`}
                       value={emp.insuranceGroup}
                       onChange={(e) => updateEmployee(emp.id, 'insuranceGroup', e.target.value)}
-                      className="font-serif"
+                      className="font-gujSans"
                       placeholder="e.g. ખ"
                     />
                   </div>
@@ -790,7 +798,7 @@ export function GTR30CreatePage() {
                     <span className="flex items-center gap-1.5">
                       <TrendingUp className="h-4 w-4 text-emerald-600" /> Earnings &amp; Allowances (₹)
                     </span>
-                    <span className="font-mono text-emerald-700 font-bold">Total: ₹{formatMoney(empEarnings)}</span>
+                    <span className="num text-emerald-700 font-bold">Total: ₹{formatMoney(empEarnings)}</span>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <div>
@@ -800,14 +808,14 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.payOfEstablishment || 0}
                         onChange={(e) => updateEmployee(emp.id, 'payOfEstablishment', parseFloat(e.target.value) || 0)}
-                        className="font-mono font-bold bg-white"
+                        className="num font-bold bg-white"
                       />
                       {(() => {
                         const res = emp.masterId ? payResolutions[emp.masterId] : undefined;
                         if (!res) return null;
                         if (res.prorated && res.split.length > 0) {
                           return (
-                            <p className="text-[10px] text-indigo-700 mt-1 flex items-start gap-1">
+                            <p className="text-xs text-indigo-700 mt-1 flex items-start gap-1">
                               <History className="h-3 w-3 mt-0.5 shrink-0" />
                               <span>
                                 Pay Matrix: blended ₹{res.basicPay.toLocaleString('en-IN')} for {formatDate(monthStartFromKey(data.monthOf) ?? '')} — {res.split.map((s) => `${s.basicPay.toLocaleString('en-IN')}×${s.days}d`).join(' + ')}
@@ -817,7 +825,7 @@ export function GTR30CreatePage() {
                         }
                         if (res.entry) {
                           return (
-                            <p className="text-[10px] text-indigo-700 mt-1 flex items-start gap-1">
+                            <p className="text-xs text-indigo-700 mt-1 flex items-start gap-1">
                               <History className="h-3 w-3 mt-0.5 shrink-0" />
                               <span>
                                 Pay Matrix: ₹{res.entry.basicPay.toLocaleString('en-IN')} since {formatDate(res.entry.startDate)}
@@ -835,7 +843,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.payOfOfficer || 0}
                         onChange={(e) => updateEmployee(emp.id, 'payOfOfficer', parseFloat(e.target.value) || 0)}
-                        className="font-mono bg-white"
+                        className="num bg-white"
                       />
                     </div>
                     <div>
@@ -845,7 +853,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.da || 0}
                         onChange={(e) => updateEmployee(emp.id, 'da', parseFloat(e.target.value) || 0)}
-                        className="font-mono font-bold bg-white"
+                        className="num font-bold bg-white"
                       />
                     </div>
                     <div>
@@ -855,7 +863,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.cla || 0}
                         onChange={(e) => updateEmployee(emp.id, 'cla', parseFloat(e.target.value) || 0)}
-                        className="font-mono bg-white"
+                        className="num bg-white"
                       />
                     </div>
                     <div>
@@ -865,7 +873,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.medicalAllowance || 0}
                         onChange={(e) => updateEmployee(emp.id, 'medicalAllowance', parseFloat(e.target.value) || 0)}
-                        className="font-mono bg-white"
+                        className="num bg-white"
                       />
                     </div>
                     <div>
@@ -875,7 +883,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.transportAllowance || 0}
                         onChange={(e) => updateEmployee(emp.id, 'transportAllowance', parseFloat(e.target.value) || 0)}
-                        className="font-mono font-bold bg-white"
+                        className="num font-bold bg-white"
                       />
                     </div>
                   </div>
@@ -887,7 +895,7 @@ export function GTR30CreatePage() {
                     <span className="flex items-center gap-1.5">
                       <TrendingDown className="h-4 w-4 text-rose-600" /> Schedule Deductions (₹) — Core
                     </span>
-                    <span className="font-mono text-rose-700 font-bold">Total: ₹{formatMoney(empDeductions)}</span>
+                    <span className="num text-rose-700 font-bold">Total: ₹{formatMoney(empDeductions)}</span>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <div>
@@ -897,7 +905,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.npsPension || 0}
                         onChange={(e) => updateEmployee(emp.id, 'npsPension', parseFloat(e.target.value) || 0)}
-                        className="font-mono font-bold bg-white"
+                        className="num font-bold bg-white"
                       />
                     </div>
                     <div>
@@ -907,7 +915,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.rentOfBuilding || 0}
                         onChange={(e) => updateEmployee(emp.id, 'rentOfBuilding', parseFloat(e.target.value) || 0)}
-                        className="font-mono font-bold bg-white"
+                        className="num font-bold bg-white"
                       />
                     </div>
                     <div>
@@ -917,7 +925,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.professionalTax || 0}
                         onChange={(e) => updateEmployee(emp.id, 'professionalTax', parseFloat(e.target.value) || 0)}
-                        className="font-mono font-bold bg-white"
+                        className="num font-bold bg-white"
                       />
                     </div>
                     <div>
@@ -927,7 +935,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.gis1981Insurance || 0}
                         onChange={(e) => updateEmployee(emp.id, 'gis1981Insurance', parseFloat(e.target.value) || 0)}
-                        className="font-mono font-bold bg-white"
+                        className="num font-bold bg-white"
                       />
                     </div>
                     <div>
@@ -937,7 +945,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.gis1981Savings || 0}
                         onChange={(e) => updateEmployee(emp.id, 'gis1981Savings', parseFloat(e.target.value) || 0)}
-                        className="font-mono font-bold bg-white"
+                        className="num font-bold bg-white"
                       />
                     </div>
                     <div>
@@ -947,7 +955,7 @@ export function GTR30CreatePage() {
                         min="0"
                         value={emp.societyDeduction || 0}
                         onChange={(e) => updateEmployee(emp.id, 'societyDeduction', parseFloat(e.target.value) || 0)}
-                        className="font-mono font-bold bg-white"
+                        className="num font-bold bg-white"
                       />
                     </div>
                   </div>
@@ -965,13 +973,13 @@ export function GTR30CreatePage() {
                       <Columns className="h-3.5 w-3.5 text-slate-500" /> Advanced Earnings &amp; Recoveries (P3 — NPPA, HRA, Bonus, ROP, DP, Recov.)
                     </span>
                     <span className="flex items-center gap-2 text-xs text-slate-500">
-                      {(emp.nppa || emp.hra || emp.bonus || emp.ropArrearsGaz || emp.housingFund || emp.recovFestivalAdv) ? <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-mono text-[10px] font-bold">has values</span> : null}
+                      {(emp.nppa || emp.hra || emp.bonus || emp.ropArrearsGaz || emp.housingFund || emp.recovFestivalAdv) ? <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 num text-xs font-bold">has values</span> : null}
                       <ChevronDown className={`h-4 w-4 transition-transform ${advancedEarningsOpen[emp.id] ? 'rotate-180' : ''}`} />
                     </span>
                   </button>
                   {advancedEarningsOpen[emp.id] && (
                     <div className="p-3.5 space-y-3">
-                      <div className="text-[11px] font-semibold text-slate-500">These map to P3 columns 5-7, 10-14, 16-18 and P1 Outer BCode 0101-0120. Leave 0 if not applicable.</div>
+                      <div className="text-xs font-semibold text-slate-500">These map to P3 columns 5-7, 10-14, 16-18 and P1 Outer BCode 0101-0120. Leave 0 if not applicable.</div>
                       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
                         <div><Label className="text-xs">NPPA (0128) — Col 5</Label><Input type="number" inputMode="decimal" value={emp.nppa || 0} onChange={(e) => updateEmployee(emp.id, 'nppa', parseFloat(e.target.value) || 0)} className="money-input h-8 bg-white" /></div>
                         <div><Label className="text-xs">Deerness Pay (0120) — Col 7</Label><Input type="number" inputMode="decimal" value={emp.dearnessPay || 0} onChange={(e) => updateEmployee(emp.id, 'dearnessPay', parseFloat(e.target.value) || 0)} className="money-input h-8 bg-white" /></div>
@@ -991,10 +999,10 @@ export function GTR30CreatePage() {
                         <div><Label className="text-xs">Leave Encashment (0109) — Col 6</Label><Input type="number" inputMode="decimal" value={emp.leaveEncashment || 0} onChange={(e) => updateEmployee(emp.id, 'leaveEncashment', parseFloat(e.target.value) || 0)} className="money-input h-8 bg-white" /></div>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-4 pt-2 border-t border-slate-100">
-                        <div><Label className="text-xs text-amber-800 font-semibold">Recov Festival Adv (5701) — Col 17</Label><Input type="number" inputMode="decimal" value={emp.recovFestivalAdv || 0} onChange={(e) => updateEmployee(emp.id, 'recovFestivalAdv', parseFloat(e.target.value) || 0)} className="font-mono h-8 text-xs bg-amber-50 border-amber-200" /></div>
-                        <div><Label className="text-xs text-amber-800 font-semibold">Recov Food Grain Adv (5801) — Col 18</Label><Input type="number" inputMode="decimal" value={emp.recovFoodGrainAdv || 0} onChange={(e) => updateEmployee(emp.id, 'recovFoodGrainAdv', parseFloat(e.target.value) || 0)} className="font-mono h-8 text-xs bg-amber-50 border-amber-200" /></div>
-                        <div><Label className="text-xs text-amber-800 font-semibold">Recov Pay (0101-)</Label><Input type="number" inputMode="decimal" value={emp.recovPay || 0} onChange={(e) => updateEmployee(emp.id, 'recovPay', parseFloat(e.target.value) || 0)} className="font-mono h-8 text-xs bg-amber-50 border-amber-200" /></div>
-                        <div><Label className="text-xs text-amber-800 font-semibold">Leave Salary Adv</Label><Input type="number" inputMode="decimal" value={emp.leaveSalaryAdv || 0} onChange={(e) => updateEmployee(emp.id, 'leaveSalaryAdv', parseFloat(e.target.value) || 0)} className="font-mono h-8 text-xs bg-amber-50 border-amber-200" /></div>
+                        <div><Label className="text-xs text-amber-800 font-semibold">Recov Festival Adv (5701) — Col 17</Label><Input type="number" inputMode="decimal" value={emp.recovFestivalAdv || 0} onChange={(e) => updateEmployee(emp.id, 'recovFestivalAdv', parseFloat(e.target.value) || 0)} className="num h-8 text-xs bg-amber-50 border-amber-200" /></div>
+                        <div><Label className="text-xs text-amber-800 font-semibold">Recov Food Grain Adv (5801) — Col 18</Label><Input type="number" inputMode="decimal" value={emp.recovFoodGrainAdv || 0} onChange={(e) => updateEmployee(emp.id, 'recovFoodGrainAdv', parseFloat(e.target.value) || 0)} className="num h-8 text-xs bg-amber-50 border-amber-200" /></div>
+                        <div><Label className="text-xs text-amber-800 font-semibold">Recov Pay (0101-)</Label><Input type="number" inputMode="decimal" value={emp.recovPay || 0} onChange={(e) => updateEmployee(emp.id, 'recovPay', parseFloat(e.target.value) || 0)} className="num h-8 text-xs bg-amber-50 border-amber-200" /></div>
+                        <div><Label className="text-xs text-amber-800 font-semibold">Leave Salary Adv</Label><Input type="number" inputMode="decimal" value={emp.leaveSalaryAdv || 0} onChange={(e) => updateEmployee(emp.id, 'leaveSalaryAdv', parseFloat(e.target.value) || 0)} className="num h-8 text-xs bg-amber-50 border-amber-200" /></div>
                       </div>
                     </div>
                   )}
@@ -1012,13 +1020,13 @@ export function GTR30CreatePage() {
                       <TrendingDown className="h-3.5 w-3.5 text-slate-500" /> Advanced Deductions — Govt Codes 9510-9910 (P4 Col 21,23,25,28-34)
                     </span>
                     <span className="flex items-center gap-2 text-xs text-slate-500">
-                      {(emp.incomeTax || emp.postalLifeInsurance || emp.gis1979Insurance || emp.hba || emp.motorCarAdv) ? <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 font-mono text-[10px] font-bold">has values</span> : null}
+                      {(emp.incomeTax || emp.postalLifeInsurance || emp.gis1979Insurance || emp.hba || emp.motorCarAdv) ? <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 num text-xs font-bold">has values</span> : null}
                       <ChevronDown className={`h-4 w-4 transition-transform ${advancedDeductionsOpen[emp.id] ? 'rotate-180' : ''}`} />
                     </span>
                   </button>
                   {advancedDeductionsOpen[emp.id] && (
                     <div className="p-3.5 space-y-3">
-                      <div className="text-[11px] font-semibold text-slate-500">Maps to P4 columns 21-34 and P1 Outer Deductions A/B. These reduce Net Payable (col 37). Leave 0 if not applicable.</div>
+                      <div className="text-xs font-semibold text-slate-500">Maps to P4 columns 21-34 and P1 Outer Deductions A/B. These reduce Net Payable (col 37). Leave 0 if not applicable.</div>
                       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
                         <div><Label className="text-xs">Income Tax (9510) — Col 21</Label><Input type="number" inputMode="decimal" value={emp.incomeTax || 0} onChange={(e) => updateEmployee(emp.id, 'incomeTax', parseFloat(e.target.value) || 0)} className="money-input h-8 bg-white" /></div>
                         <div><Label className="text-xs">Surcharge IT (9520) — Col 21</Label><Input type="number" inputMode="decimal" value={emp.surchargeIT || 0} onChange={(e) => updateEmployee(emp.id, 'surchargeIT', parseFloat(e.target.value) || 0)} className="money-input h-8 bg-white" /></div>
@@ -1070,7 +1078,7 @@ export function GTR30CreatePage() {
         {/* TAB 2: Office & Treasury */}
         <TabsContent value="office" className="mt-4 space-y-4">
           <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold uppercase text-slate-800">Bill &amp; Treasury Metadata</h2>
+            <h2 className="text-xs font-bold uppercase text-slate-800">Bill &amp; Treasury Metadata</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <Label className="text-xs">Bill Register No.</Label>
@@ -1121,7 +1129,7 @@ export function GTR30CreatePage() {
                       setField('billCode', nextCode);
                     }
                   }}
-                  className="w-full h-9 rounded-md border border-slate-300 px-2 text-sm font-medium"
+                  className="w-full h-9 rounded-md border border-slate-300 px-2 text-xs font-medium"
                 >
                   <option value="">Select Bill Code</option>
                   {billCodeOptions.map((opt) => (
@@ -1164,7 +1172,7 @@ export function GTR30CreatePage() {
                       budgetYear: head.budgetYear || prev.budgetYear,
                     }));
                   }}
-                  className="w-full h-9 rounded-md border border-slate-300 px-2 text-sm font-medium"
+                  className="w-full h-9 rounded-md border border-slate-300 px-2 text-xs font-medium"
                   title="Overrides the bill code's configured budget head"
                 >
                   <option value="">Bill code&apos;s own head</option>
@@ -1208,7 +1216,7 @@ export function GTR30CreatePage() {
 
           <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
-              <h2 className="text-sm font-bold uppercase text-slate-800">Budget Classification &amp; Heads</h2>
+              <h2 className="text-xs font-bold uppercase text-slate-800">Budget Classification &amp; Heads</h2>
               {billCodeOptions.length > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Select Budget Head Option:</span>
@@ -1280,7 +1288,7 @@ export function GTR30CreatePage() {
               </div>
               <div className="sm:col-span-2">
                 <Label className="text-xs">Head Chargeable (13 Digits)</Label>
-                <Input value={data.headChargeable} onChange={(e) => setField('headChargeable', e.target.value)} className="font-mono" />
+                <Input value={data.headChargeable} onChange={(e) => setField('headChargeable', e.target.value)} className="num" />
               </div>
               <div>
                 <Label className="text-xs">Sector</Label>
@@ -1302,7 +1310,7 @@ export function GTR30CreatePage() {
           </Card>
 
           <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold uppercase text-slate-800">Drawing Officer &amp; Messenger</h2>
+            <h2 className="text-xs font-bold uppercase text-slate-800">Drawing Officer &amp; Messenger</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <Label className="text-xs">Drawing Officer Name (English)</Label>
@@ -1310,7 +1318,7 @@ export function GTR30CreatePage() {
               </div>
               <div>
                 <Label className="text-xs">Drawing Officer Name (Gujarati)</Label>
-                <Input value={data.drawingOfficerNameGujarati} onChange={(e) => setField('drawingOfficerNameGujarati', e.target.value)} className="font-serif" />
+                <Input value={data.drawingOfficerNameGujarati} onChange={(e) => setField('drawingOfficerNameGujarati', e.target.value)} className="font-gujSans" />
               </div>
               <div>
                 <Label className="text-xs">Designation (English)</Label>
@@ -1318,7 +1326,7 @@ export function GTR30CreatePage() {
               </div>
               <div>
                 <Label className="text-xs">Designation (Gujarati)</Label>
-                <Input value={data.drawingOfficerDesignationGujarati} onChange={(e) => setField('drawingOfficerDesignationGujarati', e.target.value)} className="font-serif" />
+                <Input value={data.drawingOfficerDesignationGujarati} onChange={(e) => setField('drawingOfficerDesignationGujarati', e.target.value)} className="font-gujSans" />
               </div>
               <div>
                 <Label className="text-xs">Cardex No.</Label>
@@ -1354,7 +1362,7 @@ export function GTR30CreatePage() {
           <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold uppercase text-slate-800">
+                <h2 className="text-xs font-bold uppercase text-slate-800">
                   Establishment Information Posts (મહેકમની માહિતી · Page 9)
                 </h2>
                 <p className="text-xs text-slate-500">
@@ -1374,7 +1382,7 @@ export function GTR30CreatePage() {
                     <Input
                       value={post.srNo}
                       onChange={(e) => updatePost(post.id, 'srNo', e.target.value)}
-                      className="font-serif"
+                      className="font-gujSans"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -1383,7 +1391,7 @@ export function GTR30CreatePage() {
                       value={post.designation}
                       onChange={(e) => updatePost(post.id, 'designation', e.target.value)}
                       placeholder="e.g. આંકડા અધિકારી"
-                      className="font-serif font-bold"
+                      className="font-gujSans font-bold"
                     />
                   </div>
                   <div>
@@ -1391,7 +1399,7 @@ export function GTR30CreatePage() {
                     <Input
                       value={post.cadreClass}
                       onChange={(e) => updatePost(post.id, 'cadreClass', e.target.value)}
-                      className="font-serif"
+                      className="font-gujSans"
                     />
                   </div>
                   <div>
@@ -1434,7 +1442,7 @@ export function GTR30CreatePage() {
           </Card>
 
           <Card className="border border-slate-200 p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold uppercase text-slate-800">
+            <h2 className="text-xs font-bold uppercase text-slate-800">
               Government Resolutions (સરકારી ઠરાવ લખાણ)
             </h2>
             <div className="space-y-3">
@@ -1443,7 +1451,7 @@ export function GTR30CreatePage() {
                 <Input
                   value={data.schemeResolutionText}
                   onChange={(e) => setField('schemeResolutionText', e.target.value)}
-                  className="font-serif"
+                  className="font-gujSans"
                 />
               </div>
               <div>
@@ -1451,7 +1459,7 @@ export function GTR30CreatePage() {
                 <Input
                   value={data.daResolutionText}
                   onChange={(e) => setField('daResolutionText', e.target.value)}
-                  className="font-serif"
+                  className="font-gujSans"
                 />
               </div>
             </div>
@@ -1475,12 +1483,12 @@ export function GTR30CreatePage() {
                 <span className={crossWarnings.some((w) => w.severity === 'error') ? 'text-red-700' : 'text-amber-700'}>
                   {crossWarnings.some((w) => w.severity === 'error') ? 'Blocking issues' : 'Warnings'} — cross-page checks (P1-P10)
                 </span>
-                <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 border text-[10px] font-mono">{crossWarnings.length}</span>
+                <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 border text-xs num">{crossWarnings.length}</span>
               </div>
               <ul className="space-y-1.5">
                 {crossWarnings.map((w, i) => (
                   <li key={i} className={`text-xs flex items-start gap-2 ${w.severity === 'error' ? 'text-red-700 dark:text-red-300' : 'text-amber-800 dark:text-amber-200'}`}>
-                    <span className={`mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border ${w.severity === 'error' ? 'bg-red-100 border-red-200' : 'bg-amber-100 border-amber-200'}`}>{w.page}</span>
+                    <span className={`mt-0.5 px-1.5 py-0.5 rounded text-xs font-bold border ${w.severity === 'error' ? 'bg-red-100 border-red-200' : 'bg-amber-100 border-amber-200'}`}>{w.page}</span>
                     <span>{w.message}</span>
                   </li>
                 ))}
@@ -1501,7 +1509,7 @@ export function GTR30CreatePage() {
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
               <Printer className="h-4 w-4 text-blue-600" /> Live Document Preview
             </span>
-            <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full">
               Auto-syncing
             </span>
           </div>
@@ -1518,24 +1526,24 @@ export function GTR30CreatePage() {
           <div className="flex items-center gap-4 sm:gap-6 text-xs overflow-x-auto">
             <div>
               <span className="text-slate-400 mr-1">Staff:</span>
-              <strong className="text-white text-xs sm:text-sm">{data.employees.length}</strong>
+              <strong className="text-white text-xs sm:text-xs">{data.employees.length}</strong>
             </div>
             <div className="hidden sm:block">
               <span className="text-slate-400 mr-1">Gross:</span>
-              <strong className="text-white text-sm font-mono">₹{formatMoney(totals.gross)}</strong>
+              <strong className="text-white text-xs num">₹{formatMoney(totals.gross)}</strong>
             </div>
             <div className="hidden sm:block">
               <span className="text-slate-400 mr-1">Deductions:</span>
-              <strong className="text-rose-400 text-sm font-mono">₹{formatMoney(totals.deductions)}</strong>
+              <strong className="text-rose-400 text-xs num">₹{formatMoney(totals.deductions)}</strong>
             </div>
             <div>
               <span className="text-slate-400 mr-1">Net:</span>
-              <strong className="text-emerald-400 text-sm sm:text-base font-bold font-mono">₹{formatMoney(totals.net)}</strong>
+              <strong className="text-emerald-400 text-xs sm:text-xs font-bold num">₹{formatMoney(totals.net)}</strong>
             </div>
             {totals.societyTotal > 0 && (
               <div className="hidden md:block">
                 <span className="text-slate-400 mr-1">After Society:</span>
-                <strong className="text-sky-300 text-sm font-mono">₹{formatMoney(totals.netAfterSociety)}</strong>
+                <strong className="text-sky-300 text-xs num">₹{formatMoney(totals.netAfterSociety)}</strong>
               </div>
             )}
           </div>
@@ -1560,17 +1568,17 @@ export function GTR30CreatePage() {
             )}
             <Button variant="outline" size="sm" onClick={() => setActiveTab('preview')} className="bg-slate-800 text-white hover:bg-slate-700 border-slate-700 h-8 text-xs">
               Preview
-              <kbd className="hidden sm:inline-flex ml-1.5 text-[9px] font-mono opacity-60 px-1 py-0.5 rounded bg-white/10 border border-white/20">Ctrl+P</kbd>
+              <kbd className="hidden sm:inline-flex ml-1.5 text-xs font-mono opacity-60 px-1 py-0.5 rounded bg-white/10 border border-white/20">Ctrl+P</kbd>
             </Button>
             {lastAutoSaved && (
-              <span className="text-[10px] text-slate-400 hidden sm:inline-flex items-center gap-1">
+              <span className="text-xs text-slate-400 hidden sm:inline-flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                 Auto-saved {lastAutoSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
             <Button size="sm" onClick={() => saveBill()} className="bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 sm:px-5 h-8 text-xs shadow-md shadow-emerald-600/20">
               <Save className="mr-1.5 h-3.5 w-3.5" /> Save
-              <kbd className="hidden sm:inline-flex ml-1.5 text-[9px] font-mono opacity-60 px-1 py-0.5 rounded bg-white/10 border border-white/20">Ctrl+S</kbd>
+              <kbd className="hidden sm:inline-flex ml-1.5 text-xs font-mono opacity-60 px-1 py-0.5 rounded bg-white/10 border border-white/20">Ctrl+S</kbd>
             </Button>
           </div>
         </div>

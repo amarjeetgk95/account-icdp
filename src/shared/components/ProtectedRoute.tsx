@@ -1,17 +1,14 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { usePermissions, useRequireRole } from '@/core/permissions/hooks';
-import type { UserRole } from '@/shared/types/module';
+import { usePermissions } from '@/core/permissions/hooks';
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  allowedRoles?: UserRole[];
 }
 
-export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
-  const { profile, isLoading: isPermissionsLoading } = usePermissions();
-  const { hasAccess, isLoading: isRoleLoading } = useRequireRole(allowedRoles);
+  const { profile, isLoading } = usePermissions();
 
   const isAuthPage =
     location.pathname === '/login' ||
@@ -21,8 +18,6 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   if (isAuthPage) {
     return <>{children}</>;
   }
-
-  const isLoading = isPermissionsLoading || isRoleLoading;
 
   if (isLoading) {
     return (
@@ -34,10 +29,6 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (!profile) {
     return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  if (allowedRoles && allowedRoles.length > 0 && !hasAccess) {
-    return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />;
   }
 
   return <>{children}</>;

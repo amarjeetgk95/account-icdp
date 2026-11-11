@@ -18,6 +18,7 @@ vi.mock('../../repositories/paybill.repository', () => ({
 }));
 
 vi.mock('@/shared/utilities/office', () => ({
+  DEFAULT_OFFICE_ID: '1',
   getOfficeId: () => 'office-123',
   isAllOfficesMode: () => false,
   resolveOfficeIdForUser: () => Promise.resolve('office-123'),
@@ -176,7 +177,7 @@ describe('EmployeeLedgerView parity (ported characterization)', () => {
     useHappyFixture();
     renderLedger('20014113');
 
-    const grossChip = await screen.findByRole('button', { name: /Annual Gross/ });
+    const grossChip = await screen.findByRole('button', { name: /Annual Gross/ }, { timeout: 3000 });
     await waitFor(() => expect(grossChip).toHaveTextContent('₹94,700'), { timeout: 3000 });
 
     const netChip = screen.getByRole('button', { name: /Net Take-Home/ });

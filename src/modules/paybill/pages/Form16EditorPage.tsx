@@ -5,13 +5,7 @@ import {
   Printer,
   ShieldCheck,
   Send,
-  User,
-  Calculator,
-  Building2,
   AlertTriangle,
-  RotateCcw,
-  Landmark,
-  Lock,
   ChevronLeft,
   ChevronRight,
   Columns,
@@ -19,11 +13,9 @@ import {
   Eye,
   ZoomIn,
   ZoomOut,
-  CheckCircle2,
   ArrowLeft,
   X,
   Check,
-  RefreshCw,
 } from 'lucide-react';
 import { Form16Document } from '../components/Form16Document';
 import {
@@ -44,7 +36,7 @@ import {
   useUpdateForm16Status,
 } from '../hooks/useForm16';
 import { supabase } from '@/core/supabase/client';
-import { getOfficeScope } from '@/shared/utilities/office';
+import { useUIStore } from '@/core/stores/ui-store';
 import { toast } from '@/shared/components/Toast';
 import { popupNativePrint } from '@/shared/utilities/nativePrint';
 import type {
@@ -54,16 +46,13 @@ import type {
 import { EMPTY_FORM16_CERTIFICATE } from '../types/form16';
 import type { PayBillStoredEarning, PayBillStoredDeduction } from '../types';
 import type { EstablishmentEmployee } from '@/modules/establishment/types';
-import { servesInFinancialYear } from '@/modules/establishment/types';
+import { servesInFinancialYear, establishmentOrderRank } from '@/modules/establishment/types';
 
-const inr = (n: number) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
-
-const numInput =
-  'w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-right font-medium text-slate-800 dark:text-slate-100 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800 transition';
-const textInput =
-  'w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800 dark:text-slate-100 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800 transition';
-const fieldLabel =
-  'block text-[0.68rem] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1';
+// Shared editor sections (fully extracted — see components/form16/)
+import { Form16PartBSection } from '../components/form16/Form16EditorShared';
+import { Form16DetailsSection } from '../components/form16/Form16DetailsSection';
+import { Form16TdsBanner, Form16TabNav } from '../components/form16/Form16EditorChrome';
+import { Form16PartASection } from '../components/form16/Form16PartASection';
 
 type EditorTab = 'partB' | 'partA' | 'details';
 type ViewMode = 'split' | 'form' | 'preview';
@@ -83,11 +72,9 @@ export function Form16EditorPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-  const defaultFy = currentMonth >= 4 ? currentYear : currentYear - 1;
+  const storeFY = useUIStore((s) => s.activeFinancialYear);
   const fyParam = searchParams.get('fy');
-  const fy = fyParam ? parseInt(fyParam, 10) : defaultFy;
+  const fy = fyParam ? parseInt(fyParam, 10) : storeFY;
 
   // React Query Hooks
   const { data: savedCertificates = [], refetch: refetchCerts, isLoading: isLoadingCerts } = useForm16List(fy);
@@ -138,12 +125,10 @@ export function Form16EditorPage() {
           paybillRepository.getManualLedgerValues().catch(() => ({})),
           paybillRepository.getSettings().catch(() => ({})),
           (async () => {
-            const scope = getOfficeScope();
-            let q = supabase
+            const q = supabase
               .from('employee_salaries')
               .select('employee_id, month, gross, da, tax, financial_year, employees(id, name, pan, hprn_no)')
               .eq('financial_year', fy);
-            if (!scope.all && scope.officeId) q = q.eq('office_id', scope.officeId);
             const { data, error } = await q;
             if (!error && data) return data as unknown as PayrollSalaryItem[];
             return [];
@@ -210,7 +195,25 @@ export function Form16EditorPage() {
       }
     });
 
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    // Office manual sequence (ક્રમ) from Establishment Directory first; others last, A-Z.
+    const orderByHrpn = new Map<string, number>();
+    [...estEmployees]
+      .sort(
+        (a, b) =>
+          establishmentOrderRank(a) - establishmentOrderRank(b) ||
+          (a.name || '').localeCompare(b.name || '')
+      )
+      .forEach((est, idx) => {
+        const h = String(est.hrpnNo || '').trim().toLowerCase();
+        if (h && !orderByHrpn.has(h)) orderByHrpn.set(h, idx);
+      });
+
+    return Array.from(map.values()).sort(
+      (a, b) =>
+        (orderByHrpn.get(a.hrpn.trim().toLowerCase()) ?? Number.MAX_SAFE_INTEGER) -
+          (orderByHrpn.get(b.hrpn.trim().toLowerCase()) ?? Number.MAX_SAFE_INTEGER) ||
+        a.name.localeCompare(b.name)
+    );
   }, [earnings, deductions, estEmployees, savedCertificates, fy]);
 
   // Current Employee Index
@@ -623,7 +626,6 @@ export function Form16EditorPage() {
 
   const totalQuarterTds = localCert.partA.quarters.reduce((s, q) => s + (Number(q.taxDeducted) || 0), 0);
   const partBTds = computedTotals?.tdsDeducted || 0;
-  const isTdsReconciled = Math.abs(totalQuarterTds - partBTds) <= 1;
 
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 select-text overflow-hidden">
@@ -651,7 +653,7 @@ export function Form16EditorPage() {
               >
                 <ChevronLeft size={14} />
               </button>
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 px-2 select-none font-mono">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 px-2 select-none num">
                 {currentEmpIndex >= 0 ? `${currentEmpIndex + 1} / ${allEmployees.length}` : '—'}
               </span>
               <button
@@ -667,10 +669,10 @@ export function Form16EditorPage() {
           )}
 
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 px-2.5 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800">
+            <span className="num text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 px-2.5 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800">
               {localCert.hrpn}
             </span>
-            <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
               {localCert.employee.name}
             </span>
             <span className="text-xs text-slate-400 hidden md:inline">({localCert.employee.designation || 'Staff'})</span>
@@ -679,7 +681,7 @@ export function Form16EditorPage() {
               FY {fyLabel} (AY {ayLabel})
             </span>
             <span
-              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border ${
+              className={`text-xs font-bold uppercase px-2 py-0.5 rounded-md border ${
                 localCert.status === 'ISSUED'
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                   : localCert.status === 'REVIEWED'
@@ -747,7 +749,7 @@ export function Form16EditorPage() {
               >
                 <ZoomOut size={13} />
               </button>
-              <span className="px-1.5 font-mono text-xs text-slate-600 dark:text-slate-300 font-semibold">{zoomLevel}%</span>
+              <span className="px-1.5 num text-xs text-slate-600 dark:text-slate-300 font-semibold">{zoomLevel}%</span>
               <button
                 type="button"
                 onClick={() => setZoomLevel((z) => Math.min(130, z + 15))}
@@ -798,726 +800,55 @@ export function Form16EditorPage() {
       </div>
 
       {/* Level 2: Reconciliation & Status Meter */}
-      <div className="flex items-center justify-between px-5 py-1.5 bg-slate-100 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 text-xs shrink-0">
-        <div className="flex items-center gap-2">
-          {isTdsReconciled ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-              <CheckCircle2 size={13} /> Part A TDS reconciles with Part B ({inr(partBTds)})
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-3 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
-              <AlertTriangle size={13} /> TDS Difference: Part A ({inr(totalQuarterTds)}) vs Part B ({inr(partBTds)})
-            </span>
-          )}
-        </div>
-
-        <div className="text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-semibold text-slate-700 dark:text-slate-300">New Tax Regime u/s 115BAC</span> · Net Payable: <strong className="font-mono text-indigo-600 dark:text-indigo-400 font-bold text-sm">{inr(computedTotals?.netTaxPayable || 0)}</strong>
-        </div>
-      </div>
+      <Form16TdsBanner
+        totalQuarterTds={totalQuarterTds}
+        partBTds={partBTds}
+        netTaxPayable={computedTotals?.netTaxPayable}
+      />
 
       {/* Level 3: Main Full-Screen Workspace */}
       <div className="flex-1 flex overflow-hidden">
         {(viewMode === 'split' || viewMode === 'form') && (
           <div className={`${viewMode === 'form' ? 'w-full max-w-5xl mx-auto' : 'w-full lg:w-1/2'} flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden`}>
             {/* Tab navigation */}
-            <div className="p-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 shrink-0">
-              <div className="grid grid-cols-3 gap-2 p-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('partB')}
-                  className={`py-1.5 px-3 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                    activeTab === 'partB'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Calculator size={14} />
-                  <span>Part B (Salary)</span>
-                  <span className="hidden sm:inline-block text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-indigo-500/30 text-white font-medium">
-                    {inr(computedTotals?.totalTaxPayable || 0)}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('partA')}
-                  className={`py-1.5 px-3 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                    activeTab === 'partA'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Landmark size={14} />
-                  <span>Part A (Quarters)</span>
-                  <span className="hidden sm:inline-block text-[10px] px-1.5 py-0.2 rounded-full font-medium bg-blue-500/20 text-blue-700 dark:text-blue-200">
-                    4/4 Qtrs
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('details')}
-                  className={`py-1.5 px-3 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                    activeTab === 'details'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <User size={14} />
-                  <span>Details & Sign</span>
-                </button>
-              </div>
-            </div>
+            <Form16TabNav
+              activeTab={activeTab}
+              onChange={setActiveTab}
+              totalTaxPayable={computedTotals?.totalTaxPayable}
+            />
 
             {/* Scrollable Form Body (Single Natural Scrollbar) */}
             <div className="flex-1 overflow-y-auto app-scroll p-5 space-y-4">
               {/* TAB 1: PART B */}
               {activeTab === 'partB' && (
-                <div className="space-y-4">
-                  {/* Official Paybill Salary Card */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
-                        <Lock size={15} className="text-amber-600 dark:text-amber-400" />
-                        <span>Official Paybill Salary Data</span>
-                      </div>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                        🔒 Fetched from Paybill (Read-Only)
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                      <div className="flex justify-between items-center p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700/60">
-                        <span className="text-slate-600 dark:text-slate-300">1(a) Gross Salary u/s 17(1)</span>
-                        <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                          {inr(computedTotals?.grossSalary17_1 || grossAmountSource)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700/60">
-                        <span className="text-slate-600 dark:text-slate-300">1(b) Perquisites u/s 17(2)</span>
-                        <span className="font-mono font-bold text-slate-500">₹0</span>
-                      </div>
-                      <div className="flex justify-between items-center p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700/60">
-                        <span className="text-slate-600 dark:text-slate-300">1(c) Profits in lieu u/s 17(3)</span>
-                        <span className="font-mono font-bold text-slate-500">₹0</span>
-                      </div>
-                      <div className="flex justify-between items-center p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700/60">
-                        <span className="text-slate-600 dark:text-slate-300">1(d) Total Gross Salary</span>
-                        <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300">
-                          {inr(computedTotals?.totalGrossSalary1d || grossAmountSource)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700/60">
-                        <span className="text-slate-600 dark:text-slate-300">2(a) Std. Deduction u/s 16(ia)</span>
-                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                          {inr(computedTotals?.standardDeduction16ia || 75000)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center p-2.5 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-900/60">
-                        <span className="font-bold text-amber-900 dark:text-amber-200">3. Income Chargeable (Salaries)</span>
-                        <span className="font-mono font-bold text-amber-900 dark:text-amber-200">
-                          {inr(computedTotals?.incomeChargeableSalaries || 0)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
-                      * Salary heads are automatically fetched from Paybill records. To modify official salary, adjust the respective bills in the Paybill module.
-                    </p>
-                  </div>
-
-                  {/* Non-Salary Declarations */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                      <label className={fieldLabel}>1(e) Other Employer Salary</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={localCert.partB.otherEmployerSalary || ''}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            partB: { ...p.partB, otherEmployerSalary: Number(e.target.value) || 0 },
-                          }))
-                        }
-                        className={numInput}
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className={fieldLabel}>4(a) House Property Income / Loss</label>
-                      <input
-                        type="number"
-                        value={localCert.partB.housePropertyIncome || ''}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            partB: { ...p.partB, housePropertyIncome: Number(e.target.value) || 0 },
-                          }))
-                        }
-                        className={numInput}
-                        placeholder="0 (Negative for loss)"
-                      />
-                    </div>
-
-                    <div>
-                      <label className={fieldLabel}>4(b) Other Sources Income</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={localCert.partB.otherSourcesIncome || ''}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            partB: { ...p.partB, otherSourcesIncome: Number(e.target.value) || 0 },
-                          }))
-                        }
-                        className={numInput}
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className={fieldLabel}>7. Employer NPS u/s 80CCD(2)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={localCert.partB.nps80CCD2 || ''}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            partB: { ...p.partB, nps80CCD2: Number(e.target.value) || 0 },
-                          }))
-                        }
-                        className={numInput}
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className={fieldLabel}>8. Agnipath u/s 80CCH</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={localCert.partB.agnipath80CCH || ''}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            partB: { ...p.partB, agnipath80CCH: Number(e.target.value) || 0 },
-                          }))
-                        }
-                        className={numInput}
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className={fieldLabel}>16. Relief u/s 89 (Arrears)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={localCert.partB.relief89 || ''}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            partB: { ...p.partB, relief89: Number(e.target.value) || 0 },
-                          }))
-                        }
-                        className={numInput}
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className={fieldLabel}>18. Tax Collected at Source (TCS)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={localCert.partB.taxCollectedAtSource || ''}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            partB: {
-                              ...p.partB,
-                              taxCollectedAtSource: Number(e.target.value) || 0,
-                            },
-                          }))
-                        }
-                        className={numInput}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Live Tax Summary */}
-                  {computedTotals && (
-                    <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700/80 text-xs space-y-2">
-                      <div className="font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 pb-1.5 flex justify-between">
-                        <span>Tax Computation (New Regime u/s 115BAC)</span>
-                        <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">
-                          Taxable Income: {inr(computedTotals.totalTaxableIncome)}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-1">
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Tax on Total Income:</span>
-                          <span className="font-mono font-semibold">
-                            {inr(computedTotals.taxOnTotalIncome)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Rebate u/s 87A:</span>
-                          <span className="font-mono font-semibold text-emerald-600">
-                            -{inr(computedTotals.rebate87A)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Cess (4%):</span>
-                          <span className="font-mono font-semibold">
-                            {inr(computedTotals.cess4)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Total Tax Payable:</span>
-                          <span className="font-mono font-semibold">
-                            {inr(computedTotals.totalTaxPayable)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">TDS Deducted:</span>
-                          <span className="font-mono font-semibold text-rose-600">
-                            -{inr(computedTotals.tdsDeducted)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between font-bold text-sm">
-                          <span className="text-slate-800 dark:text-slate-100">
-                            Net Tax Payable / (Refund):
-                          </span>
-                          <span
-                            className={`font-mono ${
-                              computedTotals.netTaxPayable < 0
-                                ? 'text-emerald-600'
-                                : 'text-slate-900 dark:text-slate-100'
-                            }`}
-                          >
-                            {inr(computedTotals.netTaxPayable)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <Form16PartBSection
+                  cert={localCert}
+                  computedTotals={computedTotals}
+                  grossAmountSource={grossAmountSource}
+                  updateCert={updateCert}
+                />
               )}
 
               {/* TAB 2: PART A */}
               {activeTab === 'partA' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3.5 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-xl gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <Landmark size={20} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                      <div className="text-xs">
-                        <span className="font-bold text-blue-900 dark:text-blue-200">
-                          Fetched from Payroll Module (24Q Statement)
-                        </span>
-                        <p className="text-[0.7rem] text-blue-700 dark:text-blue-300">
-                          Quarterly payments and TDS deductions are automatically derived from Payroll monthly returns.
-                        </p>
-                      </div>
-                    </div>
-                    {payrollQuarterlySource && (
-                      <button
-                        type="button"
-                        onClick={handleSyncWithPayroll}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shrink-0 cursor-pointer shadow-2xs"
-                      >
-                        <RotateCcw size={12} /> Sync from Payroll
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl">
-                    <div>
-                      <label className={fieldLabel}>Period From</label>
-                      <input
-                        value={localCert.partA.periodFrom || ''}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            partA: { ...p.partA, periodFrom: e.target.value },
-                          }))
-                        }
-                        className={textInput}
-                        placeholder={`01-Apr-${fy}`}
-                      />
-                    </div>
-                    <div>
-                      <label className={fieldLabel}>Period To</label>
-                      <input
-                        value={localCert.partA.periodTo || ''}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            partA: { ...p.partA, periodTo: e.target.value },
-                          }))
-                        }
-                        className={textInput}
-                        placeholder={`31-Mar-${fy + 1}`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-left text-[0.65rem] uppercase tracking-wider text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                          <th className="py-2.5 pr-2 font-bold w-12 text-center">Qtr</th>
-                          <th className="py-2.5 pr-2 font-bold min-w-[140px]">24Q Receipt No</th>
-                          <th className="py-2.5 pr-2 font-bold text-right w-28">Gross Paid</th>
-                          <th className="py-2.5 pr-2 font-bold text-right w-28">TDS Deducted</th>
-                          <th className="py-2.5 pr-2 font-bold text-right w-28">TDS Deposited</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {localCert.partA.quarters.map((q, idx) => (
-                          <tr key={q.quarter}>
-                            <td className="py-2.5 pr-2 font-bold text-center text-slate-700 dark:text-slate-200">
-                              {q.quarter}
-                            </td>
-                            <td className="py-2.5 pr-2">
-                              <input
-                                value={q.receiptNumber}
-                                onChange={(e) =>
-                                  updateQuarter(idx, { receiptNumber: e.target.value.toUpperCase() })
-                                }
-                                placeholder="e.g. QWBYJLWA"
-                                className="w-full text-xs px-2.5 py-1.5 font-mono uppercase bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
-                              />
-                            </td>
-                              <td className="py-2.5 pr-2 text-right">
-                                <div
-                                  className="w-full px-2.5 py-1.5 text-xs bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-slate-700 dark:text-slate-200 text-right cursor-not-allowed select-all"
-                                  title="Gross paid is fetched from the employee ledger and is non-editable"
-                                >
-                                  {inr(q.amountPaid)}
-                                </div>
-                              </td>
-                              <td className="py-2.5 pr-2 text-right">
-                                <div
-                                  className="w-full px-2.5 py-1.5 text-xs bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-rose-600 dark:text-rose-400 text-right cursor-not-allowed select-all"
-                                  title="TDS Deducted is fetched from the employee ledger and is non-editable"
-                                >
-                                  {inr(q.taxDeducted)}
-                                </div>
-                              </td>
-                              <td className="py-2.5 pr-2 text-right">
-                                <div
-                                  className="w-full px-2.5 py-1.5 text-xs bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-emerald-600 dark:text-emerald-400 text-right cursor-not-allowed select-all"
-                                  title="TDS Deposited is equal to TDS Deducted and is non-editable"
-                                >
-                                  {inr(q.taxDeducted)}
-                                </div>
-                              </td>
-                          </tr>
-                        ))}
-                        <tr className="font-bold bg-slate-50 dark:bg-slate-800/40">
-                          <td className="py-2.5 text-center">Total</td>
-                          <td />
-                          <td className="py-2.5 pr-2 text-right font-mono text-xs">
-                            {inr(localCert.partA.quarters.reduce((s, q) => s + (Number(q.amountPaid) || 0), 0))}
-                          </td>
-                          <td className="py-2.5 pr-2 text-right font-mono text-xs">
-                            {inr(localCert.partA.quarters.reduce((s, q) => s + (Number(q.taxDeducted) || 0), 0))}
-                          </td>
-                          <td className="py-2.5 pr-2 text-right font-mono text-xs">
-                            {inr(localCert.partA.quarters.reduce((s, q) => s + (Number(q.taxDeposited) || 0), 0))}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <Form16PartASection
+                  cert={localCert}
+                  updateQuarter={updateQuarter}
+                  updateCert={updateCert}
+                  onSyncWithPayroll={payrollQuarterlySource ? handleSyncWithPayroll : undefined}
+                />
               )}
 
               {/* TAB 3: DETAILS */}
               {activeTab === 'details' && (
-                <div className="space-y-4">
-                  {/* Certificate Identifier */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-3">
-                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                      <Building2 size={15} className="text-indigo-600" /> Certificate Identifier & Date
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={fieldLabel}>Certificate Number</label>
-                        <input
-                          value={localCert.certificateNumber || ''}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              certificateNumber: e.target.value,
-                            }))
-                          }
-                          className={textInput}
-                          placeholder="Auto-generated if empty"
-                        />
-                      </div>
-                      <div>
-                        <label className={fieldLabel}>Issue Date</label>
-                        <input
-                          type="date"
-                          value={localCert.issuedAt ? localCert.issuedAt.slice(0, 10) : ''}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              issuedAt: e.target.value,
-                            }))
-                          }
-                          className={textInput}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Employee Profile */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
-                        <User size={15} className="text-indigo-600" /> Employee Profile
-                      </div>
-                      <button
-                        type="button"
-                        disabled={isRefreshingEst}
-                        onClick={() => void handleAutoFillFromEstablishment()}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition cursor-pointer"
-                      >
-                        <RotateCcw size={12} className={isRefreshingEst ? 'animate-spin' : ''} /> Auto-fill from Establishment
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className={fieldLabel}>Full Name</label>
-                        <input
-                          value={localCert.employee.name}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              employee: { ...p.employee, name: e.target.value },
-                            }))
-                          }
-                          className={textInput}
-                        />
-                      </div>
-                      <div>
-                        <label className={fieldLabel}>Designation</label>
-                        <input
-                          value={localCert.employee.designation}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              employee: { ...p.employee, designation: e.target.value },
-                            }))
-                          }
-                          className={textInput}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className={fieldLabel}>PAN (Permanent Account No)</label>
-                        <input
-                          value={localCert.employee.pan}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              employee: {
-                                ...p.employee,
-                                pan: String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10),
-                              },
-                            }))
-                          }
-                          className={`${textInput} font-mono uppercase`}
-                          placeholder="ABCDE1234F"
-                        />
-                      </div>
-                      <div>
-                        <label className={fieldLabel}>HRPN / Employee Code</label>
-                        <input
-                          value={localCert.employee.hrpn}
-                          disabled
-                          className={`${textInput} font-mono bg-slate-100 dark:bg-slate-800 text-slate-500`}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={fieldLabel}>Employee Residential Address</label>
-                      <input
-                        value={localCert.employee.address}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            employee: { ...p.employee, address: e.target.value },
-                          }))
-                        }
-                        className={textInput}
-                        placeholder="Employee address as per official records"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Deductor Profile */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-3">
-                    <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
-                        <Building2 size={15} className="text-blue-600" /> Deductor Details
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleSyncDeductorDefaults}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950 dark:hover:bg-blue-900 dark:text-blue-300 border border-blue-200 dark:border-blue-800 cursor-pointer transition"
-                      >
-                        <RefreshCw size={11} /> Load from Settings
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="sm:col-span-2">
-                        <label className={fieldLabel}>Office Name (Deductor)</label>
-                        <textarea
-                          value={localCert.employer.name}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              employer: { ...p.employer, name: e.target.value },
-                            }))
-                          }
-                          rows={2}
-                          className={`${textInput} resize-y min-h-[54px]`}
-                          placeholder="Office of Deputy Director of Animal Husbandry&#10;ICDP, Surat"
-                        />
-                        <p className="text-[10px] text-slate-400 mt-0.5">Press Enter to add a second line</p>
-                      </div>
-                      <div>
-                        <label className={fieldLabel}>CIT (TDS) Location</label>
-                        <input
-                          value={localCert.partA.citTds || ''}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              partA: { ...p.partA, citTds: e.target.value },
-                              employer: { ...p.employer, citTds: e.target.value },
-                            }))
-                          }
-                          className={textInput}
-                          placeholder="CIT(TDS), Surat"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={fieldLabel}>Deductor Office Address</label>
-                      <input
-                        value={localCert.employer.address}
-                        onChange={(e) =>
-                          updateCert((p) => ({
-                            ...p,
-                            employer: { ...p.employer, address: e.target.value },
-                          }))
-                        }
-                        className={textInput}
-                        placeholder="Jilla Seva Sadan-2, Athwalines, Surat - 395001"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={fieldLabel}>Deductor PAN</label>
-                        <input
-                          value={localCert.employer.pan}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              employer: {
-                                ...p.employer,
-                                pan: String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10),
-                              },
-                            }))
-                          }
-                          className={`${textInput} font-mono uppercase`}
-                        />
-                      </div>
-                      <div>
-                        <label className={fieldLabel}>Deductor TAN</label>
-                        <input
-                          value={localCert.employer.tan}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              employer: {
-                                ...p.employer,
-                                tan: String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10),
-                              },
-                            }))
-                          }
-                          className={`${textInput} font-mono uppercase`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Signatory Profile */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-3">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
-                      <ShieldCheck size={15} className="text-emerald-600" /> Verification & Signatory Officer
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className={fieldLabel}>Signatory Name</label>
-                        <input
-                          value={localCert.signatory.name}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              signatory: { ...p.signatory, name: e.target.value },
-                            }))
-                          }
-                          className={textInput}
-                        />
-                      </div>
-                      <div>
-                        <label className={fieldLabel}>Designation</label>
-                        <input
-                          value={localCert.signatory.designation}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              signatory: { ...p.signatory, designation: e.target.value },
-                            }))
-                          }
-                          className={textInput}
-                        />
-                      </div>
-                      <div>
-                        <label className={fieldLabel}>Place</label>
-                        <input
-                          value={localCert.signatory.place}
-                          onChange={(e) =>
-                            updateCert((p) => ({
-                              ...p,
-                              signatory: { ...p.signatory, place: e.target.value },
-                            }))
-                          }
-                          className={textInput}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <Form16DetailsSection
+                  cert={localCert}
+                  updateCert={updateCert}
+                  onAutoFill={() => void handleAutoFillFromEstablishment()}
+                  isAutoFilling={isRefreshingEst}
+                  showLoadFromSettings
+                  onLoadFromSettings={handleSyncDeductorDefaults}
+                />
               )}
 
               {/* Validation Banner */}
@@ -1541,7 +872,7 @@ export function Form16EditorPage() {
             <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800/90 border-t border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3 shadow-sm shrink-0">
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 <span className="hidden sm:inline">Shortcuts: </span>
-                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-[10px] font-mono">Ctrl+S</kbd> Save · <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-[10px] font-mono">Alt+←/→</kbd> Nav
+                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono">Ctrl+S</kbd> Save · <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono">Alt+←/→</kbd> Nav
               </div>
 
               <div className="flex items-center gap-2">

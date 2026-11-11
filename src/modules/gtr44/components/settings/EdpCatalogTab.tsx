@@ -344,7 +344,7 @@ export function EdpCatalogTab() {
         <div className="flex items-center space-x-2">
           <Tag className="h-5 w-5 text-primary" />
           <div>
-            <h3 className="font-bold text-base text-foreground">EDP Codes &amp; Deduction Templates</h3>
+            <h3 className="font-bold text-xs text-foreground">EDP Codes &amp; Deduction Templates</h3>
             <p className="text-xs text-muted-foreground">
               Manage Gujarat EDP classification codes for automatic voucher-to-bill aggregation and deduction line items.
             </p>
@@ -411,7 +411,7 @@ export function EdpCatalogTab() {
               placeholder={`Search ${activeCatalogSubTab === 'edp' ? 'EDP codes...' : 'deductions...'}`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-sm"
+              className="pl-8 text-xs"
             />
           </div>
         </div>
@@ -421,7 +421,7 @@ export function EdpCatalogTab() {
           {(isAddingEdp || editingEdpCode) && (
             <div className="bg-muted/30 p-5 rounded-xl border border-border space-y-4 animate-in fade-in duration-150">
               <div className="flex items-center justify-between border-b border-border pb-2">
-                <h4 className="font-bold text-sm text-foreground">
+                <h4 className="font-bold text-xs text-foreground">
                   {editingEdpCode ? `Edit EDP Code (${editingEdpCode})` : 'Add New EDP Code'}
                 </h4>
                 <Button variant="ghost" size="sm" onClick={cancelEdpForm}>
@@ -429,7 +429,7 @@ export function EdpCatalogTab() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                   <Label className="text-xs">
                     Code <span className="text-destructive">*</span>
@@ -470,7 +470,7 @@ export function EdpCatalogTab() {
                 <div>
                   <Label className="text-xs">Type</Label>
                   <select
-                    className="input text-sm"
+                    className="input text-xs"
                     value={edpFormData.type}
                     onChange={(e) =>
                       setEdpFormData({
@@ -497,7 +497,7 @@ export function EdpCatalogTab() {
           )}
 
           <div className="border border-border rounded-xl overflow-hidden bg-card">
-            <table className="min-w-full divide-y divide-border text-sm">
+            <table className="min-w-full divide-y divide-border text-xs">
               <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase">
                 <tr>
                   <th scope="col" className="px-4 py-3 text-left">Code</th>
@@ -551,7 +551,7 @@ export function EdpCatalogTab() {
           {(isAddingDeduct || editingDeductCode) && (
             <div className="bg-muted/30 p-5 rounded-xl border border-border space-y-4 animate-in fade-in duration-150">
               <div className="flex items-center justify-between border-b border-border pb-2">
-                <h4 className="font-bold text-sm text-foreground">
+                <h4 className="font-bold text-xs text-foreground">
                   {editingDeductCode
                     ? `Edit Deduction (${editingDeductCode})`
                     : 'Add New Deduction Template'}
@@ -561,7 +561,7 @@ export function EdpCatalogTab() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                   <Label className="text-xs">
                     Code <span className="text-destructive">*</span>
@@ -606,7 +606,7 @@ export function EdpCatalogTab() {
                       })
                     }
                     placeholder="Optional, e.g. 2.0"
-                    className="font-mono"
+                    className="num"
                   />
                 </div>
 
@@ -635,7 +635,7 @@ export function EdpCatalogTab() {
           )}
 
           <div className="border border-border rounded-xl overflow-hidden bg-card">
-            <table className="min-w-full divide-y divide-border text-sm">
+            <table className="min-w-full divide-y divide-border text-xs">
               <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase">
                 <tr>
                   <th scope="col" className="px-4 py-3 text-left">Code</th>
@@ -650,7 +650,7 @@ export function EdpCatalogTab() {
                   <tr key={d.code} className="hover:bg-muted/40 transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-foreground">{d.code}</td>
                     <td className="px-4 py-3 font-medium text-foreground">{d.label}</td>
-                    <td className="px-4 py-3 text-center font-mono text-muted-foreground">
+                    <td className="px-4 py-3 text-center num text-muted-foreground">
                       {d.rateDefault !== undefined ? `${d.rateDefault}%` : '—'}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -659,7 +659,7 @@ export function EdpCatalogTab() {
                           GST Item
                         </span>
                       ) : (
-                        <span className="text-muted-foreground text-xs font-mono">EDP Standard</span>
+                        <span className="text-muted-foreground text-xs num">EDP Standard</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">

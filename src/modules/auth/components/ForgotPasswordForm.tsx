@@ -32,8 +32,8 @@ export function ForgotPasswordForm() {
           <CheckCircle2 className="w-7 h-7" />
         </div>
         <div className="space-y-1.5">
-          <h3 className="text-lg font-semibold text-slate-900">Reset Link Sent</h3>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
+          <h3 className="text-xs font-semibold text-slate-900">Reset Link Sent</h3>
+          <p className="text-xs sm:text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
             If an account exists for the provided email address, a password recovery link has been dispatched with instructions.
           </p>
         </div>
@@ -60,7 +60,7 @@ export function ForgotPasswordForm() {
             {...register('email')}
             placeholder="you@example.com"
             autoComplete="email"
-            className="pl-9 bg-white border-slate-300 h-10 text-sm focus-visible:ring-slate-500"
+            className="pl-9 bg-white border-slate-300 h-10 text-xs focus-visible:ring-slate-500"
           />
         </div>
         {errors.email && (
@@ -85,7 +85,7 @@ export function ForgotPasswordForm() {
       <Button
         type="submit"
         disabled={forgotPasswordMutation.isPending}
-        className="w-full h-10 bg-slate-800 hover:bg-slate-900 text-white font-medium text-sm rounded-md transition-colors flex items-center justify-center gap-2"
+        className="w-full h-10 bg-slate-800 hover:bg-slate-900 text-white font-medium text-xs rounded-md transition-colors flex items-center justify-center gap-2"
       >
         {forgotPasswordMutation.isPending ? (
           <>

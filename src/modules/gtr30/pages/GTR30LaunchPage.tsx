@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, ChevronLeft, ChevronRight, CreditCard, FilePlus, Pencil, ArrowRight, Users, Info, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,14 +18,17 @@ import { useGtr30SaveBill } from '../hooks/useGTR30BillMutations';
 import { useGTR30BudgetHeads } from '../hooks/useGTR30BudgetHeads';
 import { useToast } from '@/hooks/use-toast';
 import { gtr30ResolveEmployees } from '../services/gtr30EmployeeMaster.service';
+import { mergeGtr30BillCodeMappings } from '../utils/gtr30BillCodeOptions';
 import { useEffectiveDARate } from '../hooks/useGTR30Settings';
 import { GTR30_SETTINGS_STORAGE_KEY } from '../constants/settings';
+import type { GTR30BillCodeMapping } from '../types';
+import { DEFAULT_BILL_CODE_MAPPINGS } from '../constants';
 
 const INR = (n: number) => '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
 export function GTR30LaunchPage() {
   const navigate = useNavigate();
-  const activeFY = useUIStore((state) => state.activeFinancialYear) ?? 2026;
+  const activeFY = useUIStore((state) => state.activeFinancialYear);
   const { toast } = useToast();
   const billsQuery = useGtr30Bills();
   const saveMutation = useGtr30SaveBill();
@@ -44,15 +47,27 @@ export function GTR30LaunchPage() {
   }, [hydrateMappings, hydrateMaster]);
 
   const bills = billsQuery.data ?? [];
-  const billCodeMappings = mappingsQuery.data ?? [];
-  const employeeGroups = groupsQuery.data ?? {};
+  const rawMappings = mappingsQuery.data ?? [];
+  const baseMappings = rawMappings.length > 0 ? rawMappings : DEFAULT_BILL_CODE_MAPPINGS;
+  const employeeGroups = useMemo(() => groupsQuery.data ?? {}, [groupsQuery.data]);
+
+  const billCodeMappings = useMemo(
+    () => mergeGtr30BillCodeMappings(baseMappings, employeeGroups),
+    [baseMappings, employeeGroups]
+  );
 
   // Default to the current calendar month instead of a hardcoded value
   const [month, setMonth] = useState(
     // eslint-disable-next-line react-hooks/purity -- reads today's date for the initial default only
     new Date().toLocaleString('en-US', { month: 'long' })
   );
+  // Year follows Settings' active FY, but the month navigator can browse other years freely.
+  const [yearBase, setYearBase] = useState(activeFY);
   const [year, setYear] = useState(activeFY);
+  if (yearBase !== activeFY) {
+    setYearBase(activeFY);
+    setYear(activeFY);
+  }
 
   // Optional Budget Head override for the bills created on this screen
   const headsQuery = useGTR30BudgetHeads();
@@ -69,7 +84,7 @@ export function GTR30LaunchPage() {
     return (
       <div className="max-w-5xl mx-auto py-16 flex flex-col items-center justify-center gap-4 text-slate-500">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-        <div className="text-sm font-medium text-slate-700">Loading settings…</div>
+        <div className="text-xs font-medium text-slate-700">Loading settings…</div>
         <div className="text-xs text-slate-500 max-w-md text-center">
           Configure settings first to generate a blank bill with your office defaults.
         </div>
@@ -77,7 +92,7 @@ export function GTR30LaunchPage() {
     );
   }
   const selectStyle =
-    'w-full h-9 rounded-md border border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-2 text-sm';
+    'w-full h-9 rounded-md border border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-2 text-xs';
 
   const existingFor = (billCode: string) =>
     bills.find((b) => b.monthOf === monthKey.trim() && b.billCode === billCode);
@@ -184,7 +199,6 @@ export function GTR30LaunchPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-4 pb-20">
       <WorkspaceHeader
-        eyebrow="Bill Creation · GTR-30"
         title="Create GTR-30 Pay Bill"
         actions={
           <Button variant="ghost" size="sm" onClick={() => navigate('/gtr30/list')}>
@@ -197,7 +211,7 @@ export function GTR30LaunchPage() {
         <div className="border border-amber-200 bg-amber-50 dark:bg-amber-950/50 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            <p className="text-xs font-medium text-amber-900 dark:text-amber-100">
               Office settings not configured
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
@@ -214,7 +228,7 @@ export function GTR30LaunchPage() {
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-blue-600" />
-            <h2 className="font-bold text-base text-slate-900 dark:text-white">Select Bill Month, Year &amp; Budget Head</h2>
+            <h2 className="font-bold text-xs text-slate-900 dark:text-white">Select Bill Month, Year &amp; Budget Head</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -236,13 +250,13 @@ export function GTR30LaunchPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[120px] text-center">
+            <span className="text-xs font-bold text-slate-900 dark:text-white min-w-[120px] text-center">
               {month} {year}
             </span>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+              className="h-8 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
               onClick={() => {
                 const now = new Date();
                 setMonth(now.toLocaleString('en-US', { month: 'long' }));
@@ -326,11 +340,11 @@ export function GTR30LaunchPage() {
       <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm space-y-4">
         <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
           <CreditCard className="h-5 w-5 text-blue-600" />
-          <h2 className="font-bold text-base text-slate-900 dark:text-white">Bills by Bill Code</h2>
+          <h2 className="font-bold text-xs text-slate-900 dark:text-white">Bills by Bill Code</h2>
         </div>
 
         <div className="bg-slate-50/70 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
-          <table className="w-full text-sm min-w-[760px]">
+          <table className="w-full text-xs min-w-[760px]">
             <thead>
               <tr className="bg-slate-100/80 dark:bg-slate-800 text-left text-xs uppercase font-bold text-slate-600 dark:text-slate-400">
                 <th className="px-3.5 py-2.5 sticky left-0 bg-slate-100/95 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">Bill Code</th>
@@ -349,7 +363,7 @@ export function GTR30LaunchPage() {
                   </td>
                 </tr>
               )}
-              {billCodeMappings.map((mapping) => {
+              {billCodeMappings.map((mapping: GTR30BillCodeMapping) => {
                 const { rows: monthRows, isFallback, sourceKey } = gtr30ResolveEmployees(employeeGroups, monthKey.trim(), mapping.billCode);
                 const payTotal = monthRows.reduce((sum, m) => sum + (m.currentPay || 0), 0);
                 const existing = existingFor(mapping.billCode);
@@ -368,14 +382,14 @@ export function GTR30LaunchPage() {
                             {monthRows.map((e) => e.name || e.hrpnNo || 'Unnamed').join(', ')}
                           </span>
                           {isFallback && sourceKey && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-medium" title={`Fallback from ${sourceKey}`}>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-medium" title={`Fallback from ${sourceKey}`}>
                               via {sourceKey.split('|')[0]}
                             </span>
                           )}
                         </div>
                       )}
                     </td>
-                    <td className="px-3.5 py-3 font-mono tabular-nums">
+                    <td className="px-3.5 py-3 num tabular-nums">
                       {monthRows.length === 0 ? (
                         <span className="text-slate-300 text-xs">—</span>
                       ) : (
@@ -388,7 +402,7 @@ export function GTR30LaunchPage() {
                       {existing ? (
                         <StatusBadge status={existing.status} />
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 ring-1 ring-inset ring-slate-200 dark:ring-slate-700 rounded-full px-2 py-0.5 bg-slate-50 dark:bg-slate-800/60 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400 ring-1 ring-inset ring-slate-200 dark:ring-slate-700 rounded-full px-2 py-0.5 bg-slate-50 dark:bg-slate-800/60 whitespace-nowrap">
                           Not created
                         </span>
                       )}
@@ -416,7 +430,7 @@ export function GTR30LaunchPage() {
           Master under the same month + bill code are picked up automatically. If no exact month
           match exists, the system falls back to
           <span className="font-semibold"> master</span> or any existing group for that Bill Code and marks it as
-          <span className="font-mono text-amber-700 dark:text-amber-400"> via fallback</span>.
+          <span className="num text-amber-700 dark:text-amber-400"> via fallback</span>.
         </p>
       </Card>
     </div>

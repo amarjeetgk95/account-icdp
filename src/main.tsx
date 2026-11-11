@@ -34,8 +34,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>
 );
 
+// Service worker removed: previous sw.js never populated its cache and could
+// pin stale js/css via immutable headers. One-shot cleanup for existing clients.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((r) => r.unregister().catch(() => {}));
+  }).catch(() => {});
+  if (typeof caches !== 'undefined' && caches.keys) {
+    caches.keys().then((keys) => {
+      keys.filter((k) => k.startsWith('icdp-cache-')).forEach((k) => caches.delete(k).catch(() => {}));
+    }).catch(() => {});
+  }
 }

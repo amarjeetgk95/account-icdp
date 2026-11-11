@@ -33,8 +33,10 @@ export function GSTReportSection({ report, isLoading }: GSTReportSectionProps) {
             <th>GST No.</th>
             <th>CPIN No</th>
             <th style={{ textAlign: 'left' }}>Party Name</th>
-            <th>Bill No</th>
-            <th>Date</th>
+            <th>DDO Bill No</th>
+            <th>Invoice No</th>
+            <th>Invoice Date</th>
+            <th>Settlement Date</th>
             <th>Amount</th>
             <th>SGST</th>
             <th>CGST</th>
@@ -51,8 +53,10 @@ export function GSTReportSection({ report, isLoading }: GSTReportSectionProps) {
               <td className="font-bold" style={{ textAlign: 'left' }}>
                 {row.partyName}
               </td>
+              <td>{row.ddoBillNo || '-'}</td>
               <td>{row.billNo}</td>
-              <td>{row.date}</td>
+              <td>{row.invoiceDate || row.date}</td>
+              <td>{row.settlementDate || row.date}</td>
               <td style={{ textAlign: 'right' }}>{formatCurrency(row.amount)}</td>
               <td style={{ textAlign: 'right' }}>{formatCurrency(row.sgst)}</td>
               <td style={{ textAlign: 'right' }}>{formatCurrency(row.cgst)}</td>
@@ -65,7 +69,7 @@ export function GSTReportSection({ report, isLoading }: GSTReportSectionProps) {
         </tbody>
         <tfoot>
           <tr className="total-row">
-            <td colSpan={6} style={{ textAlign: 'right' }}>
+            <td colSpan={8} style={{ textAlign: 'right' }}>
               Grand Total
             </td>
             <td style={{ textAlign: 'right' }}>{formatCurrency(report.totals.amount)}</td>

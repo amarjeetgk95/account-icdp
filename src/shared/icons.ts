@@ -59,6 +59,9 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
   languages: Languages,
   cpu: Cpu,
   history: History,
+  gr: FileText,
+  'gr-repository': FileText,
+  gr_repository: FileText,
 };
 
 const FALLBACK_ICON: LucideIcon = LayoutDashboard;

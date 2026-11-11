@@ -13,22 +13,34 @@ const moduleDefinition: ModuleDefinition = {
   order: 6,
   children: [
     {
-      path: '/establishment',
-      label: 'Employee Directory',
-      icon: 'users',
-      subtitle: 'Canonical staff register with pay history, allowances, and deductions',
-    },
-    {
       path: '/establishment/posts',
-      label: 'Sanctioned Posts (મહેકમ માહિતી)',
+      label: 'Post Management',
       icon: 'layers',
-      subtitle: 'Manage sanctioned strength, cadre-wise posts, and vacant positions',
+      subtitle: 'Section 1: Position-number based sanctioned posts, vacancies and post strength',
     },
     {
-      path: '/establishment/employees/new',
-      label: 'Register Employee',
-      icon: 'user',
-      subtitle: 'Add a new staff member to the establishment register',
+      path: '/establishment/employees',
+      label: 'Employee Register',
+      icon: 'users',
+      subtitle: 'Section 2: HRPN based staff directory and TDS/Form 16 data',
+    },
+    {
+      path: '/establishment/posts/master',
+      label: 'Post & Pay Scales',
+      icon: 'award',
+      subtitle: 'Sanctioned post names, 7th Pay Commission pay levels, pay scales and cadre class management',
+    },
+    {
+      path: '/establishment/reports',
+      label: 'Statutory Reports',
+      icon: 'file-text',
+      subtitle: 'Official 9-column form and post-wise summary report',
+    },
+    {
+      path: '/establishment/parity',
+      label: 'Register Parity',
+      icon: 'file-text',
+      subtitle: 'Reconciliation check between establishment and payroll registers',
     },
   ],
 };

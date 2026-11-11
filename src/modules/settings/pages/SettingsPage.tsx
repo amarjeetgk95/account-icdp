@@ -1,9 +1,10 @@
+import { lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { OfficeForm } from '../components/OfficeForm';
+import { FinancialYearSettingsCard } from '../components/FinancialYearSettingsCard';
 import { Form16DefaultsForm } from '../components/Form16DefaultsForm';
 import { Form16TaxRulesConfigForm } from '../components/Form16TaxRulesConfigForm';
-import { GTR30SettingsView } from '@/modules/gtr30/components/GTR30SettingsView';
-import { GTR44SettingsView } from '@/modules/gtr44/components/GTR44SettingsView';
+import { SkeletonCard } from '@/shared/components/Skeleton';
 import {
   Building2,
   FileBadge,
@@ -11,6 +12,13 @@ import {
   Receipt,
   FileSpreadsheet,
 } from 'lucide-react';
+
+const GTR30SettingsView = lazy(() =>
+  import('@/modules/gtr30/components/GTR30SettingsView').then((m) => ({ default: m.GTR30SettingsView }))
+);
+const GTR44SettingsView = lazy(() =>
+  import('@/modules/gtr44/components/GTR44SettingsView').then((m) => ({ default: m.GTR44SettingsView }))
+);
 
 export type SettingTabId = 'office' | 'gtr30' | 'gtr44' | 'tax-rules' | 'form16';
 
@@ -29,16 +37,11 @@ export function SettingsPage() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-12">
-      <div className="page-header flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title text-xl font-bold text-slate-800 dark:text-slate-100">
-            Master Settings &amp; Module Defaults
-          </h1>
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Centralized configuration hub for office profile, bill creation defaults, cadre strength, and taxation rules
-          </span>
-        </div>
+    <div className="max-w-7xl mx-auto space-y-4 pb-12">
+      <div className="flex items-center justify-between">
+        <h1 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+          Master Settings &amp; Module Defaults
+        </h1>
       </div>
 
       {/* Tabs Navigation Bar */}
@@ -67,32 +70,39 @@ export function SettingsPage() {
       {/* Tab Content */}
       <div className="space-y-4">
         {activeTab === 'office' && (
-          <div className="card">
-            <div className="card-body">
-              <h2 className="text-base font-heading font-semibold text-slate-800 dark:text-slate-100 mb-3">
-                Office Information &amp; Identifiers
-              </h2>
-              <OfficeForm />
+          <div className="space-y-4">
+            <FinancialYearSettingsCard />
+            <div className="card">
+              <div className="card-body">
+                <h2 className="text-xs font-heading font-semibold text-slate-800 dark:text-slate-100 mb-3">
+                  Office Information &amp; Identifiers
+                </h2>
+                <OfficeForm />
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === 'gtr30' && (
           <div className="space-y-4">
-            <GTR30SettingsView />
+            <Suspense fallback={<div className="p-4"><SkeletonCard /></div>}>
+              <GTR30SettingsView />
+            </Suspense>
           </div>
         )}
 
         {activeTab === 'gtr44' && (
           <div className="space-y-4">
-            <GTR44SettingsView />
+            <Suspense fallback={<div className="p-4"><SkeletonCard /></div>}>
+              <GTR44SettingsView />
+            </Suspense>
           </div>
         )}
 
         {activeTab === 'tax-rules' && (
           <div className="card">
             <div className="card-body">
-              <h2 className="text-base font-heading font-semibold text-slate-800 dark:text-slate-100 mb-3">
+              <h2 className="text-xs font-heading font-semibold text-slate-800 dark:text-slate-100 mb-3">
                 New Tax Regime (u/s 115BAC) Slabs &amp; Exemption Rules
               </h2>
               <Form16TaxRulesConfigForm />
@@ -103,7 +113,7 @@ export function SettingsPage() {
         {activeTab === 'form16' && (
           <div className="card">
             <div className="card-body">
-              <h2 className="text-base font-heading font-semibold text-slate-800 dark:text-slate-100 mb-3">
+              <h2 className="text-xs font-heading font-semibold text-slate-800 dark:text-slate-100 mb-3">
                 Form 16 — Common Deductor &amp; Signatory Details
               </h2>
               <Form16DefaultsForm />

@@ -1,4 +1,4 @@
-import { pdfParserService } from '../services/pdfParser.service';
+import { pdfParserV2Service as pdfParserService } from '../services/pdfParserV2.service';
 import type { PayBillParsedResult } from '../types';
 
 export const SAMPLE_PAYBILL_RAW_TEXT = `

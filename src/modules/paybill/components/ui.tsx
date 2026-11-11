@@ -45,7 +45,7 @@ export function PbPanel({
             )}
             <div className="min-w-0">
               {title !== undefined && (
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
                   {title}
                 </h3>
               )}
@@ -89,7 +89,7 @@ export function PbButton({
   ...rest
 }: PbButtonProps) {
   const sizes = {
-    xs: 'px-2.5 py-1 text-[0.7rem] gap-1.5 rounded-lg',
+    xs: 'px-2.5 py-1 text-xs gap-1.5 rounded-lg',
     sm: 'px-3 py-1.5 text-xs gap-1.5 rounded-lg',
     md: 'px-4 py-2 text-xs gap-1.5 rounded-xl',
   };
@@ -134,7 +134,7 @@ export function PbChip({ tone = 'slate', icon: Icon, title, children }: PbChipPr
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.68rem] font-semibold border whitespace-nowrap ${PB_CHIP_TONES[tone]}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${PB_CHIP_TONES[tone]}`}
     >
       {Icon && <Icon size={11} />}
       {children}

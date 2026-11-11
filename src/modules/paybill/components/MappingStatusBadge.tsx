@@ -25,17 +25,17 @@ export function MappingStatusBadge({ status, nameMismatch, message }: MappingSta
             <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
           )}
           MATCHED
-          {nameMismatch && <span className="text-[0.65rem] font-normal underline decoration-dotted">name diff</span>}
+          {nameMismatch && <span className="text-xs font-normal underline decoration-dotted">name diff</span>}
         </span>
       );
 
     case 'NOT_FOUND':
       return (
         <span
-          title={message || 'HRPN not found in master employee dataset'}
-          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+          title={message || 'HRPN not matched with Establishment employee directory (single source of truth) — register in Establishment first'}
+          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800"
         >
-          <HelpCircle className="w-3 h-3 text-amber-500" />
+          <HelpCircle className="w-3 h-3 text-red-500" />
           NOT_FOUND
         </span>
       );

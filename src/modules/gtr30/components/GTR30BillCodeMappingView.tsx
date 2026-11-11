@@ -38,24 +38,16 @@ import { GTR30HeadPostsEditor } from './GTR30HeadPostsEditor';
 
 const BILL_CODE_SUGGESTIONS = [
   {
-    code: 'GTR30-SAL',
-    desc: 'Monthly Regular Pay & Allowances',
+    code: 'GTR-30-GO-STATS',
+    desc: 'Gazetted Officers (Stats) Bill',
     head: '2403001139900',
     demand: '004',
     major: 'Major Head-2403 Animal Husbandry',
     subHead: 'Sub Head-05 Scheme for Strengthening of Statistical Wing (CSS)',
   },
   {
-    code: 'GTR30-DA',
-    desc: 'Dearness Allowance (DA) Arrears',
-    head: '2403001139900',
-    demand: '004',
-    major: 'Major Head-2403 Animal Husbandry',
-    subHead: 'Sub Head-05 Scheme for Strengthening of Statistical Wing (CSS)',
-  },
-  {
-    code: 'GTR30-BONUS',
-    desc: 'Ad-hoc Festival Bonus',
+    code: 'GTR-30-NGO-STATS',
+    desc: 'Non-Gazetted Staff (Stats) Bill',
     head: '2403001139900',
     demand: '004',
     major: 'Major Head-2403 Animal Husbandry',
@@ -312,6 +304,11 @@ export function GTR30BillCodeMappingView() {
         setCodeErrors((prev) => ({ ...prev, [id]: 'Bill code must be at most 50 characters' }));
         return;
       }
+      const duplicate = billCodeMappings.some((m) => m.id !== id && m.billCode.trim().toUpperCase() === clean);
+      if (duplicate) {
+        setCodeErrors((prev) => ({ ...prev, [id]: `Bill code "${clean}" already exists` }));
+        return;
+      }
       setCodeErrors((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -340,7 +337,7 @@ export function GTR30BillCodeMappingView() {
         <div className="flex items-center gap-2">
           <CreditCard className="h-5 w-5 text-blue-600" />
           <div>
-            <h2 className="font-bold text-base text-slate-900">Bill Code &amp; Budget Head Configuration</h2>
+            <h2 className="font-bold text-xs text-slate-900">Bill Code &amp; Budget Head Configuration</h2>
             <p className="text-xs text-slate-500">
               Configure each Bill Code with its own distinct Budget Head, Scheme, Demand No., and Controlling Officer.
             </p>
@@ -381,7 +378,7 @@ export function GTR30BillCodeMappingView() {
                     value={mapping.billCode}
                     onChange={(e) => updateMapping(mapping.id, 'billCode', e.target.value)}
                     placeholder="e.g. GTR30-SAL"
-                    className={`font-mono font-bold uppercase mt-1 text-sm bg-white ${
+                    className={`font-mono font-bold uppercase mt-1 text-xs bg-white ${
                       codeErrors[mapping.id] ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-300'
                     }`}
                   />
@@ -398,7 +395,7 @@ export function GTR30BillCodeMappingView() {
                     value={mapping.description}
                     onChange={(e) => updateMapping(mapping.id, 'description', e.target.value)}
                     placeholder="e.g. Monthly Regular Salary"
-                    className="mt-1 text-sm bg-white border-slate-300"
+                    className="mt-1 text-xs bg-white border-slate-300"
                   />
                 </div>
 
@@ -432,7 +429,7 @@ export function GTR30BillCodeMappingView() {
               {isExpanded && (
                 <div className="border-t border-slate-200 pt-3 bg-white p-3 rounded-lg grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="sm:col-span-2 lg:col-span-3">
-                    <Label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+                    <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
                       <ListTree className="h-3 w-3 text-emerald-600" /> Budget Head
                       <span className="font-normal text-slate-500">(select to auto-fill all classification fields below)</span>
                     </Label>
@@ -450,7 +447,7 @@ export function GTR30BillCodeMappingView() {
                     </select>
                   </div>
                   <div>
-                    <Label className="text-[11px] font-semibold text-slate-700">Head Chargeable (13 Digits)</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Head Chargeable (13 Digits)</Label>
                     <Input
                       value={mapping.headChargeable || ''}
                       onChange={(e) => updateMapping(mapping.id, 'headChargeable', e.target.value)}
@@ -459,7 +456,7 @@ export function GTR30BillCodeMappingView() {
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-semibold text-slate-700">Controlling Officer Code (Field 4)</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Controlling Officer Code (Field 4)</Label>
                     <Input
                       value={mapping.controllingOfficer || ''}
                       onChange={(e) => updateMapping(mapping.id, 'controllingOfficer', e.target.value)}
@@ -468,7 +465,7 @@ export function GTR30BillCodeMappingView() {
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-semibold text-slate-700">Demand No.</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Demand No.</Label>
                     <Input
                       value={mapping.demandNo || ''}
                       onChange={(e) => updateMapping(mapping.id, 'demandNo', e.target.value)}
@@ -477,7 +474,7 @@ export function GTR30BillCodeMappingView() {
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-semibold text-slate-700">Major Head</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Major Head</Label>
                     <Input
                       value={mapping.majorHead || ''}
                       onChange={(e) => updateMapping(mapping.id, 'majorHead', e.target.value)}
@@ -486,7 +483,7 @@ export function GTR30BillCodeMappingView() {
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-semibold text-slate-700">Minor Head</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Minor Head</Label>
                     <Input
                       value={mapping.minorHead || ''}
                       onChange={(e) => updateMapping(mapping.id, 'minorHead', e.target.value)}
@@ -495,7 +492,7 @@ export function GTR30BillCodeMappingView() {
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-semibold text-slate-700">Sub-Head</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Sub-Head</Label>
                     <Input
                       value={mapping.subHead || ''}
                       onChange={(e) => updateMapping(mapping.id, 'subHead', e.target.value)}
@@ -504,7 +501,7 @@ export function GTR30BillCodeMappingView() {
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-semibold text-slate-700">Sector</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Sector</Label>
                     <Input
                       value={mapping.sector || ''}
                       onChange={(e) => updateMapping(mapping.id, 'sector', e.target.value)}
@@ -513,7 +510,7 @@ export function GTR30BillCodeMappingView() {
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-semibold text-slate-700">Class of Expenditure</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Class of Expenditure</Label>
                     <Input
                       value={mapping.classOfExpenditure || ''}
                       onChange={(e) => updateMapping(mapping.id, 'classOfExpenditure', e.target.value)}
@@ -522,7 +519,7 @@ export function GTR30BillCodeMappingView() {
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-semibold text-slate-700">Drawing Officer Code</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Drawing Officer Code</Label>
                     <Input
                       value={mapping.drawingOfficer || ''}
                       onChange={(e) => updateMapping(mapping.id, 'drawingOfficer', e.target.value)}
@@ -607,7 +604,7 @@ export function GTR30BillCodeMappingView() {
                     key={s.code}
                     type="button"
                     onClick={() => handleSelectSuggestion(s)}
-                    className="text-[11px] px-2 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 rounded-md font-mono transition-colors"
+                    className="text-xs px-2 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 rounded-md font-mono transition-colors"
                   >
                     + {s.code}
                   </button>
@@ -630,7 +627,7 @@ export function GTR30BillCodeMappingView() {
                     setNewBudgetHeadId(e.target.value);
                     setCreateError('');
                   }}
-                  className={`w-full h-9 mt-1 rounded-md border px-2 text-sm font-medium bg-white ${
+                  className={`w-full h-9 mt-1 rounded-md border px-2 text-xs font-medium bg-white ${
                     createError && !newBudgetHeadId ? 'border-red-400' : 'border-slate-300'
                   }`}
                 >
@@ -647,7 +644,7 @@ export function GTR30BillCodeMappingView() {
                 const preview = findHeadById(newBudgetHeadId);
                 if (!preview) return null;
                 return (
-                  <div className="bg-blue-50/70 border border-blue-100 rounded-lg p-2.5 grid gap-x-3 gap-y-1 text-[11px] text-slate-600 sm:grid-cols-2">
+                  <div className="bg-blue-50/70 border border-blue-100 rounded-lg p-2.5 grid gap-x-3 gap-y-1 text-xs text-slate-600 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                       <span className="font-semibold text-slate-700">Head Chargeable: </span>
                       <span className="font-mono">{preview.headChargeable || '—'}</span>
@@ -731,7 +728,7 @@ export function GTR30BillCodeMappingView() {
                     value={headForm.headChargeable ?? ''}
                     onChange={(e) => setHeadField('headChargeable', e.target.value)}
                     placeholder="e.g. 2403001139900"
-                    className="font-mono mt-1 text-xs"
+                    className="num mt-1 text-xs"
                   />
                 </div>
                 <div>
@@ -839,12 +836,12 @@ export function GTR30BillCodeMappingView() {
                     className="flex items-start justify-between gap-2 border border-slate-200 rounded-lg p-2.5 hover:border-slate-300 transition-colors bg-white"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{h.name}</p>
-                      <p className="text-[11px] font-mono text-slate-500 truncate">
+                      <p className="text-xs font-semibold text-slate-800 truncate">{h.name}</p>
+                      <p className="text-xs font-mono text-slate-500 truncate">
                         {h.headChargeable || '—'} · {h.demandNo || '—'} · {h.majorHead || '—'}
                       </p>
-                      <p className="text-[11px] text-slate-500 truncate">{h.minorHead || ''}</p>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-xs text-slate-500 truncate">{h.minorHead || ''}</p>
+                      <p className="text-xs text-slate-500">
                         {h.establishmentPosts?.length
                           ? `${h.establishmentPosts.length} establishment post${h.establishmentPosts.length === 1 ? '' : 's'}`
                           : 'No establishment posts'}

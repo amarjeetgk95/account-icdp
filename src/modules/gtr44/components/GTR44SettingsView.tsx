@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useGTR44SettingsStore } from '../store/gtr44SettingsStore';
+import { useState, useEffect } from 'react';
+import { useGTR44SettingsStore, hydrateGTR44SettingsStoreFromBackend } from '../store/gtr44SettingsStore';
 import { Button } from '../../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/tabs';
 import { useToast } from '../../../hooks/use-toast';
@@ -33,6 +33,10 @@ export function GTR44SettingsView() {
   const [activeTab, setActiveTab] = useState('budget-heads');
   const [showResetAllDialog, setShowResetAllDialog] = useState(false);
 
+  useEffect(() => {
+    void hydrateGTR44SettingsStoreFromBackend();
+  }, []);
+
   const handleConfirmResetAll = () => {
     resetSettings();
     resetExpenditureItems();
@@ -52,7 +56,7 @@ export function GTR44SettingsView() {
       {/* Top Banner */}
       <div className="bg-card p-6 rounded-2xl border border-border shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="text-xs font-bold text-foreground flex items-center gap-2">
             <Sliders className="h-5 w-5 text-primary" />
             GTR-44 Bill Settings
           </h2>

@@ -10,7 +10,6 @@ vi.mock('@/core/supabase/client', () => ({
 vi.mock('@/core/stores/ui-store', () => ({
   useUIStore: {
     getState: () => ({
-      activeOfficeId: 'test-office',
       activeFinancialYear: 2025,
     }),
   },
@@ -19,7 +18,7 @@ vi.mock('@/core/stores/ui-store', () => ({
 vi.mock('@/core/auth/store', () => ({
   useAuthStore: {
     getState: () => ({
-      user: { officeId: 'test-office' },
+      user: { id: 'user-1' },
     }),
   },
 }));
@@ -231,9 +230,9 @@ describe('PayrollService.getQuarterReport', () => {
     const mockResult = { fy: 2025, fyLabel: '2025-26', ayLabel: '2026-27', quarter: 'Q1', labels: [], rows: [] };
     mockReport.mockResolvedValue(mockResult);
 
-    const result = await service.getQuarterReport('Q1', 2025, 'office-1');
+    const result = await service.getQuarterReport('Q1', 2025);
 
-    expect(mockReport).toHaveBeenCalledWith('Q1', 2025, 'office-1');
+    expect(mockReport).toHaveBeenCalledWith('Q1', 2025);
     expect(result).toEqual(mockResult);
   });
 });
@@ -246,21 +245,13 @@ describe('PayrollService.getBudgetHeadReport', () => {
     vi.clearAllMocks();
   });
 
-  it('passes fy and office to repository', async () => {
+  it('passes fy to repository', async () => {
     const mockResult = { fy: 2025, fyLabel: '2025-26', monthLabels: [], groups: [], totals: { gross: 0, da: 0, tax: 0, net: 0 } };
     mockReport.mockResolvedValue(mockResult);
 
-    const result = await service.getBudgetHeadReport(2025, 'office-1');
+    const result = await service.getBudgetHeadReport(2025);
 
-    expect(mockReport).toHaveBeenCalledWith(2025, 'office-1');
+    expect(mockReport).toHaveBeenCalledWith(2025);
     expect(result).toEqual(mockResult);
-  });
-
-  it('uses default office when none provided', async () => {
-    mockReport.mockResolvedValue({ fy: 2025, fyLabel: '2025-26', monthLabels: [], groups: [], totals: { gross: 0, da: 0, tax: 0, net: 0 } });
-
-    await service.getBudgetHeadReport(2025);
-
-    expect(mockReport).toHaveBeenCalledWith(2025, undefined);
   });
 });

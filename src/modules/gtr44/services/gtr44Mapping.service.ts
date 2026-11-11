@@ -1,5 +1,6 @@
 import { GTR44Bill, GTR44Entry, GTR44FormData, SubVoucher } from '../types';
 import { getGrossAmount, getIncomeTax, getNetAmount, getTotalDeductions } from './gtr44Calc.service';
+import { useUIStore } from '@/core/stores/ui-store';
 
 export function entryToSubVoucher(entry: GTR44Entry, index: number): SubVoucher {
   return {
@@ -52,7 +53,7 @@ export function formDataToBill(formData: GTR44FormData, existingStatus?: GTR44Bi
     tokenDate: formData.tokenDate1,
     officeName: formData.officeName,
     ddoCardexCode: formData.ddoCardexCode,
-    fy: parseInt(formData.budgetGrantYearFrom) || new Date().getFullYear(),
+    fy: parseInt(formData.budgetGrantYearFrom) || useUIStore.getState().activeFinancialYear,
     month: formData.monthOf,
     district: formData.district,
     sector: formData.sector,

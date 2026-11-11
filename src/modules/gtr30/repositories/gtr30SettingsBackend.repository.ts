@@ -7,7 +7,6 @@ import {
   freshDefaultPosts,
   freshDefaultDaRates,
 } from '../constants/settings';
-import { resolveOfficeIdStrict } from './officeScope';
 import { gtr30SettingsSchema } from '../validation/gtr30Settings.schema';
 
 const SETTINGS_KEY = 'gtr30_defaults';
@@ -39,14 +38,10 @@ function validatePayload(raw: unknown): Gtr30SettingsPayload | null {
 
 class Gtr30SettingsBackendRepository {
   async load(): Promise<Gtr30SettingsPayload | null> {
-    const officeId = await resolveOfficeIdStrict();
-    if (!officeId) return null;
-
     try {
       const { data, error } = await supabase
         .from('paybill_settings')
         .select('settings_value')
-        .eq('office_id', officeId)
         .eq('settings_key', SETTINGS_KEY)
         .maybeSingle();
       if (error) {
@@ -62,19 +57,15 @@ class Gtr30SettingsBackendRepository {
   }
 
   async save(payload: Gtr30SettingsPayload): Promise<boolean | null> {
-    const officeId = await resolveOfficeIdStrict();
-    if (!officeId) return null;
-
     try {
       const { error } = await supabase
         .from('paybill_settings')
         .upsert(
           {
-            office_id: officeId,
             settings_key: SETTINGS_KEY,
             settings_value: payload as unknown as Json,
           },
-          { onConflict: 'office_id,settings_key' }
+          { onConflict: 'settings_key' }
         );
       if (error) {
         console.warn('[GTR30SettingsBackend] save failed:', error);
@@ -88,14 +79,10 @@ class Gtr30SettingsBackendRepository {
   }
 
   async clear(): Promise<void> {
-    const officeId = await resolveOfficeIdStrict();
-    if (!officeId) return;
-
     try {
       const { error } = await supabase
         .from('paybill_settings')
         .delete()
-        .eq('office_id', officeId)
         .eq('settings_key', SETTINGS_KEY);
       if (error) {
         console.warn('[GTR30SettingsBackend] clear failed:', error);

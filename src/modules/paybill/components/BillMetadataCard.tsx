@@ -14,7 +14,7 @@ export function BillMetadataCard({ metadata }: BillMetadataCardProps) {
             <FileText className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm tracking-tight">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs tracking-tight">
               Pay Bill Inner Sheet Details
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pdfParserService } from './pdfParser.service';
+import { pdfParserService, mapPositionalEarningAmounts } from './pdfParser.service';
 
 const SAMPLE_PAYBILL_TEXT_GAZETTED = `
 Smt. Sulochana Vijaykumar Solanki
@@ -510,5 +510,41 @@ Total 78200.00 46920.00 12512.00 440.00 2000.00 7200.00 55.00 200.00 147527.00
     expect(emp.transportAllowance).toBe(7200);
     expect(emp.nonPrivatePracticeAllowance).toBe(21120);
     expect(emp.grossAmount).toBe(228118);
+  });
+});
+
+describe('mapPositionalEarningAmounts', () => {
+  it('maps a full 7+ amount row positionally', () => {
+    const m = mapPositionalEarningAmounts([105600, 76032, 16896, 270, 1000, 7200, 21120, 228118]);
+    expect(m.basicPay).toBe(105600);
+    expect(m.da).toBe(76032);
+    expect(m.hra).toBe(16896);
+    expect(m.cla).toBe(270);
+    expect(m.medicalAllowance).toBe(1000);
+    expect(m.transportAllowance).toBe(7200);
+    expect(m.nonPrivatePracticeAllowance).toBe(21120);
+    expect(m.grossAmount).toBe(228118);
+  });
+
+  it('maps a minimal Basic + Gross row (flat-pay bill) instead of zeroing it', () => {
+    const m = mapPositionalEarningAmounts([26000, 26000]);
+    expect(m.basicPay).toBe(26000);
+    expect(m.grossAmount).toBe(26000);
+    expect(m.da).toBe(0);
+    expect(m.hra).toBe(0);
+  });
+
+  it('maps middle amounts of a short row positionally', () => {
+    const m = mapPositionalEarningAmounts([26000, 15000, 2600, 30000]);
+    expect(m.basicPay).toBe(26000);
+    expect(m.da).toBe(15000);
+    expect(m.hra).toBe(2600);
+    expect(m.grossAmount).toBe(30000);
+  });
+
+  it('returns zeros for an empty row', () => {
+    const m = mapPositionalEarningAmounts([]);
+    expect(m.basicPay).toBe(0);
+    expect(m.grossAmount).toBe(0);
   });
 });

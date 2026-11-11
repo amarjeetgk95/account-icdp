@@ -4,18 +4,21 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Party, TransactionInput } from '../types';
 import { formatCurrency } from '@/shared/utilities';
+import { parsePartyCsv } from '../utils/partyTx.utils';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle } from 'lucide-react';
 
 const transactionSchema = z.object({
   partyName: z.string().min(1, 'Party name is required'),
-  billNo: z.string().min(1, 'Bill number is required'),
-  date: z.string().min(1, 'Date is required'),
+  ddoBillNo: z.string().optional(),
+  billNo: z.string().min(1, 'Invoice / Bill number is required'),
+  invoiceDate: z.string().min(1, 'Invoice date is required'),
+  settlementDate: z.string().min(1, 'Settlement date is required'),
   amount: z.coerce.number().positive('Amount must be greater than 0'),
   cgst: z.coerce.number().min(0),
   sgst: z.coerce.number().min(0),
   igst: z.coerce.number().min(0),
   incomeTax: z.coerce.number().min(0),
-  cpinNo: z.string(),
+  cpinNo: z.string().optional(),
   gstNo: z
     .string()
     .refine(
@@ -58,8 +61,10 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       partyName: '',
+      ddoBillNo: '',
       billNo: '',
-      date: today,
+      invoiceDate: today,
+      settlementDate: today,
       amount: 0,
       cgst: 0,
       sgst: 0,
@@ -117,22 +122,27 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
     try {
       await onSubmit({
         partyName: data.partyName.trim(),
+        ddoBillNo: data.ddoBillNo?.trim() || undefined,
         billNo: data.billNo.trim(),
-        date: data.date,
+        invoiceDate: data.invoiceDate,
+        settlementDate: data.settlementDate,
+        date: data.settlementDate,
         amount: data.amount,
         cgst: data.cgst,
         sgst: data.sgst,
         igst: data.igst,
         incomeTax: data.incomeTax,
-        cpinNo: data.cpinNo?.trim(),
-        gstNo: data.gstNo?.trim(),
-        panNo: data.panNo?.trim(),
+        cpinNo: data.cpinNo?.trim() || undefined,
+        gstNo: data.gstNo?.trim() || undefined,
+        panNo: data.panNo?.trim() || undefined,
       });
       setStatus({ type: 'success', message: '✓ Transaction saved successfully' });
       reset({
         partyName: '',
+        ddoBillNo: '',
         billNo: '',
-        date: today,
+        invoiceDate: today,
+        settlementDate: today,
         amount: 0,
         cgst: 0,
         sgst: 0,
@@ -164,40 +174,11 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target?.result as string;
-      const lines = text.split('\n').filter((l) => l.trim());
-      if (lines.length < 2) {
-        setCsvError('File appears to be empty or has no data rows.');
-        return;
-      }
-
-      const headers =
-        lines[0]?.split(',').map((h) => h.trim().toLowerCase()) || [];
-      const hasHeader =
-        headers.includes('party') ||
-        headers.includes('name') ||
-        headers.includes('amount') ||
-        headers.includes('bill');
-      const dataLines = hasHeader ? lines.slice(1) : lines;
-
-      const entries: TransactionInput[] = [];
-      for (const line of dataLines) {
-        const cols = line.split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''));
-        if (cols.length < 3) continue;
-
-        const entry: TransactionInput = {
-          partyName: cols[0] || '',
-          billNo: cols[1] || '',
-          date: cols[2] || today,
-          amount: parseFloat(cols[3] || '0') || 0,
-          cgst: parseFloat(cols[4] || '0') || 0,
-          sgst: parseFloat(cols[5] || '0') || 0,
-          igst: parseFloat(cols[6] || '0') || 0,
-          incomeTax: parseFloat(cols[7] || '0') || 0,
-        };
-
-        if (entry.partyName && entry.billNo && entry.amount > 0) {
-          entries.push(entry);
-        }
+      const { entries, skipped } = parsePartyCsv(text, today);
+      if (skipped.length > 0) {
+        setCsvError(
+          skipped.slice(0, 5).join('; ') + (skipped.length > 5 ? ` (+${skipped.length - 5} more)` : '')
+        );
       }
 
       if (entries.length > 0) {
@@ -225,9 +206,9 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
             message: `Parsed ${entries.length} transactions — bulk import not available`,
           });
         }
-      } else {
+      } else if (skipped.length === 0) {
         setCsvError(
-          'No valid transactions found. Ensure columns are: Party Name, Bill No, Date, Amount, CGST, SGST, IGST, Income Tax'
+          'No valid transactions found. Columns: Party Name, DDO Bill No, Bill No (Invoice No), Invoice Date, Settlement Date, Amount, CGST, SGST, IGST, Income Tax [, CPIN, GST, PAN]'
         );
       }
     };
@@ -245,11 +226,44 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
 
   return (
     <form onSubmit={handleFormSubmit(onFormSubmit)} className="space-y-5">
-      {/* Section: Party & Bill Info */}
+      {/* Section: DDO & Settlement Info */}
       <div className="form-section">
-        <div className="form-section-title">Party & Bill Info</div>
+        <div className="form-section-title">DDO Office & Settlement Info</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="ddoBillNo" className="label">
+              DDO Bill No. <span className="text-xs text-slate-400 font-normal">(Registered in DDO Office)</span>
+            </label>
+            <input
+              id="ddoBillNo"
+              type="text"
+              {...register('ddoBillNo')}
+              className="input"
+              placeholder="e.g. B-104 / Office Bill Reg No"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="settlementDate" className="label">
+              Settlement Date <span className="text-red-400">*</span>{' '}
+              <span className="text-xs text-slate-400 font-normal">(Payment/Clearance Date)</span>
+            </label>
+            <input
+              id="settlementDate"
+              type="date"
+              {...register('settlementDate')}
+              className={`input ${errors.settlementDate ? 'border-red-300 focus:ring-red-200' : ''}`}
+            />
+            {fieldError('settlementDate')}
+          </div>
+        </div>
+      </div>
+
+      {/* Section: Party & Vendor Invoice Info */}
+      <div className="form-section">
+        <div className="form-section-title">Party & Vendor Invoice Info</div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative md:col-span-1" ref={dropdownRef}>
             <label htmlFor="partyName" className="label">
               Party Name <span className="text-red-400">*</span>
             </label>
@@ -271,7 +285,7 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
                     onClick={() => selectParty(party)}
                     className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-slate-100 last:border-0 transition-colors"
                   >
-                    <div className="font-medium text-sm">{party.name}</div>
+                    <div className="font-medium text-xs">{party.name}</div>
                     <div className="flex gap-3 mt-0.5">
                       {party.gst_no && (
                         <span className="text-xs text-slate-500">GST: {party.gst_no}</span>
@@ -288,29 +302,29 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
 
           <div>
             <label htmlFor="billNo" className="label">
-              Bill No <span className="text-red-400">*</span>
+              Invoice / Bill No <span className="text-red-400">*</span>
             </label>
             <input
               id="billNo"
               type="text"
               {...register('billNo')}
               className={`input ${errors.billNo ? 'border-red-300 focus:ring-red-200' : ''}`}
-              placeholder="Bill number"
+              placeholder="Vendor invoice number"
             />
             {fieldError('billNo')}
           </div>
 
           <div>
-            <label htmlFor="txnDate" className="label">
-              Date <span className="text-red-400">*</span>
+            <label htmlFor="invoiceDate" className="label">
+              Invoice Date <span className="text-red-400">*</span>
             </label>
             <input
-              id="txnDate"
+              id="invoiceDate"
               type="date"
-              {...register('date')}
-              className={`input ${errors.date ? 'border-red-300 focus:ring-red-200' : ''}`}
+              {...register('invoiceDate')}
+              className={`input ${errors.invoiceDate ? 'border-red-300 focus:ring-red-200' : ''}`}
             />
-            {fieldError('date')}
+            {fieldError('invoiceDate')}
           </div>
 
           <div>
@@ -452,14 +466,14 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
 
       {/* GST Total + Status */}
       <div className="flex items-center gap-4 py-1">
-        <div className="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg">
+        <div className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg">
           Total GST: {formatCurrency(totalGst)}
         </div>
       </div>
 
       {status && (
         <div
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium transition-all ${
             status.type === 'success'
               ? 'bg-green-50 text-green-700 border border-green-200'
               : status.type === 'error'
@@ -485,7 +499,7 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
 
       {/* Bulk Import */}
       <div className="border-t border-slate-200 pt-4 mt-4">
-        <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+        <div className="flex items-center gap-2 text-xs text-slate-600 mb-2">
           <FileSpreadsheet size={16} />
           <span className="font-medium">Bulk Import</span>
         </div>
@@ -497,14 +511,14 @@ export function TransactionForm({ parties, onSubmit, onBulkSubmit, isLoading }: 
             className="hidden"
           />
           <Upload size={24} className="text-slate-400 mb-1" />
-          <span className="text-sm text-slate-600">
+          <span className="text-xs text-slate-600">
             Click to upload CSV
           </span>
           <span className="text-xs text-slate-400 mt-1">
-            Columns: Party Name, Bill No, Date, Amount, CGST, SGST, IGST, Income Tax
+            Columns: Party Name, Bill No, Date (YYYY-MM-DD), Amount, CGST, SGST, IGST, Income Tax [, CPIN, GST, PAN]
           </span>
         </label>
-        {csvError && <div className="mt-2 text-sm text-red-600">{csvError}</div>}
+        {csvError && <div className="mt-2 text-xs text-red-600">{csvError}</div>}
       </div>
     </form>
   );

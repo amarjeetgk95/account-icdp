@@ -34,10 +34,9 @@ export function PayBillImportPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-3">
-      {activeTab !== 'employee' && (
+      {activeTab !== 'employee' && activeTab !== 'matrix' && (
         <WorkspaceHeader
-          eyebrow="Employee IT · Government Pay Bill Register"
-          title="Pay Bill PDF Import & Allowance System"
+          title="Pay Bill Register"
           context={<><Calendar size={13} className="text-slate-500" /> FY {fyLabel}</>}
           actions={<>
             <button
@@ -62,6 +61,7 @@ export function PayBillImportPage() {
         <PayBillAllowanceMatrixReport
           financialYear={fy}
           onOpenUploadModal={() => setIsUploadModalOpen(true)}
+          onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         />
       )}
 

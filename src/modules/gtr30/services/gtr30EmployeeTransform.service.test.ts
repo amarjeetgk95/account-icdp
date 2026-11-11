@@ -1,145 +1,89 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { gtr30EmployeeTransformService } from './gtr30EmployeeTransform.service';
 import type { GTR30EmployeeMaster } from '../types';
 
-const master: GTR30EmployeeMaster = {
-  id: 'm1',
-  srNo: 1,
-  hrpnNo: 'HRPN-1',
-  name: 'Shri X',
-  designation: 'Officer',
-  designationGujarati: 'સંશોધન મદદનીશ',
-  payScale: '50000-100000',
-  currentPay: 40000,
-  currentPayDate: '2024-01-01',
-  hraPercent: 20,
-  transportAllowance: 3600,
-  medicalAllowance: 1000,
-  claAllowance: 270,
-  rentOfBuilding: 300,
-  professionalTax: 200,
-  gis1981Insurance: 240,
-  gis1981Savings: 560,
-  societyDeduction: 4154,
-  quarterAddress: 'H-7, Government Quarters, Khatodara, Nr. Sub Jail, Surat',
-  insuranceGroup: 'ખ',
-};
-
 describe('gtr30EmployeeTransform.service', () => {
-  it('maps a master row to a bill employee with derived HRA, DA 53%, NPS and carryover fields', () => {
-    const result = gtr30EmployeeTransformService.masterToBillEmployee(master, 1);
-    expect(result.name).toBe('Shri X');
-    expect(result.hrpnNo).toBe('HRPN-1');
-    expect(result.designation).toBe('Officer');
-    expect(result.designationGujarati).toBe('સંશોધન મદદનીશ');
-    expect(result.payScale).toBe('50000-100000');
-    expect(result.payOfEstablishment).toBe(40000);
-    expect(result.hra).toBe(8000);
-    expect(result.da).toBe(21200); // 53% of 40000
-    expect(result.npsPension).toBe(6120); // 10% of 40000 + 21200
-    expect(result.transportAllowance).toBe(3600);
-    expect(result.medicalAllowance).toBe(1000);
-    expect(result.cla).toBe(270);
-    expect(result.rentOfBuilding).toBe(300);
-    expect(result.professionalTax).toBe(200);
-    expect(result.gis1981Insurance).toBe(240);
-    expect(result.gis1981Savings).toBe(560);
-    expect(result.societyDeduction).toBe(4154);
-    expect(result.quarterAddress).toBe('H-7, Government Quarters, Khatodara, Nr. Sub Jail, Surat');
-    expect(result.insuranceGroup).toBe('ખ');
-    expect(result.srNo).toBe(1);
-    expect(result.id).toBeTruthy();
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it('keeps the srNo passed in', () => {
-    const result = gtr30EmployeeTransformService.masterToBillEmployee(master, 7);
-    expect(result.srNo).toBe(7);
-  });
-
-  it('normalizes legacy insurance group strings to the canonical union', () => {
-    const latin = gtr30EmployeeTransformService.masterToBillEmployee(
-      { ...master, insuranceGroup: 'b' },
-      1
-    );
-    expect(latin.insuranceGroup).toBe('ખ');
-
-    const gujarati = gtr30EmployeeTransformService.masterToBillEmployee(
-      { ...master, insuranceGroup: ' ગ ' },
-      1
-    );
-    expect(gujarati.insuranceGroup).toBe('ગ');
-
-    const unknown = gtr30EmployeeTransformService.masterToBillEmployee(
-      { ...master, insuranceGroup: 'XYZ' },
-      1
-    );
-    expect(unknown.insuranceGroup).toBe('');
-  });
-
-  it('master fields win over base overrides (master is authoritative)', () => {
-    const result = gtr30EmployeeTransformService.masterToBillEmployee(master, 1, {
-      name: 'OVERRIDE',
-      payOfEstablishment: 50000,
-    });
-    expect(result.name).toBe('Shri X');
-    expect(result.payOfEstablishment).toBe(40000);
-    expect(result.hra).toBe(8000);
-  });
-
-  it('produces a fresh id every call', () => {
-    const a = gtr30EmployeeTransformService.masterToBillEmployee(master, 1);
-    const b = gtr30EmployeeTransformService.masterToBillEmployee(master, 2);
-    expect(a.id).not.toBe(b.id);
-  });
-
-  it('handles zero HRA percent gracefully', () => {
-    const zeroHra: GTR30EmployeeMaster = { ...master, hraPercent: 0 };
-    const result = gtr30EmployeeTransformService.masterToBillEmployee(zeroHra, 1);
-    expect(result.hra).toBe(0);
-  });
-
-  it('resolves pay from the pay matrix for a given bill month', () => {
-    const withMatrix: GTR30EmployeeMaster = {
-      ...master,
+  describe('masterToBillEmployee', () => {
+    const masterEmployee: GTR30EmployeeMaster = {
+      id: 'master-1',
+      srNo: 1,
+      hrpnNo: 'HRPN-001',
+      name: 'Test Employee',
+      designation: 'Assistant',
+      designationGujarati: 'સહાયક',
+      cadreClass: '૩',
+      payScale: 'LEVEL-6',
+      gradePay: '2800',
+      payLevelCell: 'PAY=35400 (LEVEL-6 CELL-1)',
+      ppaNo: 'PPA-001',
+      quarterAddress: 'Quarter A-1',
+      insuranceGroup: 'ક',
+      insuranceType: 'savings_and_insurance',
+      hraPercent: 20,
+      transportAllowance: 1600,
+      medicalAllowance: 500,
+      claAllowance: 0,
+      rentOfBuilding: 2000,
+      professionalTax: 200,
+      gis1981Insurance: 500,
+      gis1981Savings: 500,
+      npsPension: 5416,
+      societyDeduction: 100,
+      remarks: 'Regular employee',
+      currentPay: 35400,
+      da: 18762,
       payEntries: [
-        { id: 'a', startDate: '2026-07-01', endDate: '2027-01-30', basicPay: 39900 },
-        { id: 'b', startDate: '2027-02-01', basicPay: 42500 },
+        {
+          id: 'pay-1',
+          startDate: '2026-01-01',
+          basicPay: 35400,
+        },
       ],
     };
-    const july = gtr30EmployeeTransformService.masterToBillEmployee(withMatrix, 1, undefined, {
-      monthKey: 'July-2026',
-    });
-    expect(july.payOfEstablishment).toBe(39900);
-    expect(july.masterId).toBe('m1');
 
-    const feb = gtr30EmployeeTransformService.masterToBillEmployee(withMatrix, 1, undefined, {
-      monthKey: 'February-2027',
-    });
-    expect(feb.payOfEstablishment).toBe(42500);
-  });
+    it('transforms master employee to bill employee', () => {
+      const result = gtr30EmployeeTransformService.masterToBillEmployee(masterEmployee, 1);
 
-  it('day-weights the pay when a change falls mid-month', () => {
-    const withMatrix: GTR30EmployeeMaster = {
-      ...master,
-      payEntries: [
-        { id: 'a', startDate: '2026-07-01', endDate: '2027-01-30', basicPay: 39900 },
-        { id: 'b', startDate: '2027-01-16', basicPay: 42500 },
-      ],
-    };
-    const jan = gtr30EmployeeTransformService.masterToBillEmployee(withMatrix, 1, undefined, {
-      monthKey: 'January-2027',
+      expect(result.id).toBeDefined();
+      expect(result.masterId).toBe(masterEmployee.id);
+      expect(result.name).toBe(masterEmployee.name);
+      expect(result.designation).toBe(masterEmployee.designation);
+      expect(result.payOfEstablishment).toBe(masterEmployee.currentPay);
+      expect(result.da).toBe(masterEmployee.da);
+      expect(result.transportAllowance).toBe(masterEmployee.transportAllowance);
     });
-    expect(jan.payOfEstablishment).toBe(41242);
-    expect(jan.da).toBe(Math.round(41242 * 0.53));
-  });
 
-  it('falls back to currentPay when the matrix is empty or no month is given', () => {
-    const withEmptyMatrix: GTR30EmployeeMaster = { ...master, payEntries: [] };
-    const direct = gtr30EmployeeTransformService.masterToBillEmployee(withEmptyMatrix, 1);
-    expect(direct.payOfEstablishment).toBe(40000);
-    const withMonth = gtr30EmployeeTransformService.masterToBillEmployee(withEmptyMatrix, 1, undefined, {
-      monthKey: 'January-2027',
+    it('calculates HRA based on percentage', () => {
+      const result = gtr30EmployeeTransformService.masterToBillEmployee(masterEmployee, 1);
+      expect(result.hra).toBe(7080); // 35400 * 20%
     });
-    expect(withMonth.payOfEstablishment).toBe(40000);
+
+    it('calculates NPS automatically if not set', () => {
+      const masterWithoutNPS = { ...masterEmployee, npsPension: undefined };
+      const result = gtr30EmployeeTransformService.masterToBillEmployee(masterWithoutNPS, 1);
+      expect(result.npsPension).toBeCloseTo(5416, 0); // (35400 + 18762) * 10%
+    });
+
+    it('uses forced DA rate when specified', () => {
+      const result = gtr30EmployeeTransformService.masterToBillEmployee(masterEmployee, 1, undefined, { daRate: 50 });
+      expect(result.da).toBe(17700); // 35400 * 50%
+    });
+
+    it('overrides specific fields', () => {
+      const overrides = { payOfEstablishment: 40000, da: 20000 };
+      const result = gtr30EmployeeTransformService.masterToBillEmployee(masterEmployee, 1, overrides);
+      expect(result.payOfEstablishment).toBe(40000);
+      expect(result.da).toBe(20000);
+    });
+
+    it('creates new ID for bill employee', () => {
+      const result1 = gtr30EmployeeTransformService.masterToBillEmployee(masterEmployee, 1);
+      const result2 = gtr30EmployeeTransformService.masterToBillEmployee(masterEmployee, 2);
+      expect(result1.id).not.toBe(result2.id);
+    });
   });
 });

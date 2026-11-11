@@ -8,7 +8,6 @@ import { ToastContainer } from '@/shared/components/Toast';
 import { Toaster } from '@/components/ui/toaster';
 import { SkeletonTable, SkeletonCard } from '@/shared/components/Skeleton';
 import { useAuthStore } from '@/core/auth/store';
-import { usePermissions } from '@/core/permissions/hooks';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useEffect, Suspense } from 'react';
 
@@ -30,7 +29,6 @@ function LoadingFallback() {
 export default function App() {
   const modules = useModules();
   const { user, isRoleLoaded, initialize } = useAuthStore();
-  const { isAdmin } = usePermissions();
   const location = useLocation();
 
   useEffect(() => {
@@ -44,8 +42,11 @@ export default function App() {
   const isStandalonePage =
     (location.pathname.startsWith('/paybill/form16/') &&
       location.pathname !== '/paybill/form16') ||
-    location.pathname === '/paybill/legacy-edit';
-  const postLoginRedirect = isRoleLoaded ? (isAdmin ? '/admin' : '/dashboard') : null;
+    location.pathname === '/paybill/legacy-edit' ||
+    location.pathname.startsWith('/gtr30/employee-management/edit') ||
+    location.pathname === '/gtr30/employee-management/new' ||
+    new URLSearchParams(location.search).get('popup') === 'true';
+  const postLoginRedirect = isRoleLoaded ? '/dashboard' : null;
 
   return (
     <ErrorBoundary>
@@ -61,19 +62,19 @@ export default function App() {
             </Suspense>
           </main>
         ) : isStandalonePage ? (
-          <div className="h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950 flex flex-col">
+          <div className="flex h-screen w-full flex-col overflow-y-auto app-scroll bg-slate-50 dark:bg-slate-950 supports-[height:100dvh]:h-[100dvh]">
             <Suspense fallback={<LoadingFallback />}>
               <Routes modules={modules} />
             </Suspense>
           </div>
         ) : (
           <Layout>
-            <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0 h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 supports-[height:100dvh]:h-[100dvh]">
               {/* Level 1: Horizontal Top Navigation with Cascading Flyout Menus */}
               <Header modules={modules} />
 
               {/* Workspace Main Scrollable Content */}
-              <main className="flex-1 overflow-y-auto app-scroll p-4 md:p-6">
+              <main className={`min-h-0 flex-1 w-full max-w-none ${location.pathname === '/dashboard' ? 'p-1.5 sm:p-2 md:p-3 overflow-hidden' : 'overflow-y-auto app-scroll p-3 sm:p-4 lg:p-6'}`}>
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes modules={modules} />
                 </Suspense>

@@ -9,7 +9,10 @@ export interface PartyTransaction {
   id: string;
   party_id: string;
   party_name: string;
-  bill_no: string;
+  ddo_bill_no?: string | null;
+  bill_no: string; // Vendor invoice number
+  invoice_date?: string;
+  settlement_date?: string;
   transaction_date: string;
   amount: number;
   cgst: number;
@@ -21,8 +24,11 @@ export interface PartyTransaction {
 
 export interface TransactionInput {
   partyName: string;
+  ddoBillNo?: string;
   billNo: string;
-  date: string;
+  invoiceDate?: string;
+  settlementDate?: string;
+  date?: string;
   amount: number;
   cgst: number;
   sgst: number;
@@ -33,11 +39,14 @@ export interface TransactionInput {
   panNo?: string;
 }
 
-interface GSTReportRow {
+export interface GSTReportRow {
   partyName: string;
   gstNo: string;
   cpinNo: string;
+  ddoBillNo?: string;
   billNo: string;
+  invoiceDate?: string;
+  settlementDate?: string;
   date: string;
   amount: number;
   cgst: number;
@@ -59,10 +68,13 @@ export interface GSTReport {
   };
 }
 
-interface IncomeTaxReportRow {
+export interface IncomeTaxReportRow {
   partyName: string;
   panNo: string;
+  ddoBillNo?: string;
   billNo: string;
+  invoiceDate?: string;
+  settlementDate?: string;
   date: string;
   amount: number;
   incomeTax: number;

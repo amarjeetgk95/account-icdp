@@ -7,6 +7,7 @@ import {
   Landmark,
   Upload,
   Trash2,
+  Settings,
 } from 'lucide-react';
 import { paybillReportService, PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/paybillReport.service';
 import { paybillExcelService } from '../services/paybillExcel.service';
@@ -22,6 +23,7 @@ import type { PayBillMonthlyEmployeeMatrixReport, PayBillMonthlyMatrixColumn } f
 interface PayBillAllowanceMatrixReportProps {
   financialYear: number;
   onOpenUploadModal?: () => void;
+  onOpenSettingsModal?: () => void;
   refreshTrigger?: number;
 }
 
@@ -43,6 +45,7 @@ function defaultMonthForFy(financialYear: number): string {
 export function PayBillAllowanceMatrixReport({
   financialYear,
   onOpenUploadModal,
+  onOpenSettingsModal,
   refreshTrigger = 0,
 }: PayBillAllowanceMatrixReportProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>(() => defaultMonthForFy(financialYear));
@@ -253,14 +256,12 @@ export function PayBillAllowanceMatrixReport({
     m === 'January' || m === 'February' ? financialYear + 1 : financialYear;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       {/* Top Filter & Actions Bar */}
       <PbPanel
         icon={Landmark}
         iconClass="bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm"
-        title="Pay Bill Allowance Matrix Report — Monthly Register"
-        // Previously just "Allowance Matrix Report"; clarified as current-month register.
-        // The 12-month trend per employee lives in the Employee Ledger tab.
+        title="Pay Bill Allowance Matrix Report"
         actions={
           <>
             <div className="flex items-center gap-2">
@@ -331,6 +332,12 @@ export function PayBillAllowanceMatrixReport({
               Print Report
             </PbButton>
 
+            {onOpenSettingsModal && (
+              <PbButton variant="secondary" icon={Settings} onClick={onOpenSettingsModal} title="Pay Bill Settings">
+                Settings
+              </PbButton>
+            )}
+
             <PbButton
               variant="danger"
               icon={Trash2}
@@ -348,7 +355,7 @@ export function PayBillAllowanceMatrixReport({
         open={confirmDeleteOpen}
         title={`Delete All Data for ${selectedMonth} ${yearFor(selectedMonth)}?`}
         message={
-          <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
             <p>
               Are you sure you want to permanently delete all paybill entries, earnings, and deductions for{' '}
               <strong className="text-rose-600 dark:text-rose-400 font-bold">
@@ -375,8 +382,21 @@ export function PayBillAllowanceMatrixReport({
         className="overflow-hidden"
         padded={false}
         bodyClassName="flex flex-col"
-        actions={
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+      >
+        <div className="px-3.5 py-1.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-800 dark:text-slate-200">
+              {selectedMonth} {yearFor(selectedMonth)}
+            </span>
+            <span className="text-slate-400">•</span>
+            <span className="font-semibold text-blue-600 dark:text-blue-400">
+              FY {fyLabel}
+            </span>
+            <span className="text-slate-400 text-[11px] hidden sm:inline">
+              (All amounts in INR)
+            </span>
+          </div>
+          <div className="flex items-center gap-3 num font-bold text-slate-700 dark:text-slate-300">
             <span>
               Employees: <span className="text-emerald-600 dark:text-emerald-400">{employeeCount}</span>
             </span>
@@ -387,21 +407,11 @@ export function PayBillAllowanceMatrixReport({
               Net Pay Total: <span className="text-emerald-600 dark:text-emerald-400">{formatInr(report?.totals.netPay)}</span>
             </span>
           </div>
-        }
-      >
-        <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/40 dark:from-blue-950/40 dark:to-indigo-950/20 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Statement Period:</span>
-          <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300">
-            {selectedMonth} {yearFor(selectedMonth)} &bull; FY {fyLabel}
-          </span>
-          <span className="ml-auto hidden sm:inline text-[0.68rem] text-slate-400 font-medium">
-            All amounts in INR
-          </span>
         </div>
 
         {loadError && (
           <div className="px-4 py-3 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 flex items-start gap-2.5">
-            <span className="mt-0.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+            <span className="mt-0.5 w-4 h-4 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
               !
             </span>
             <div className="text-xs text-rose-700 dark:text-rose-300">
@@ -411,7 +421,7 @@ export function PayBillAllowanceMatrixReport({
           </div>
         )}
 
-        <div className="overflow-x-auto max-h-[560px] app-scroll">
+        <div className="overflow-x-auto max-h-[calc(100vh-210px)] min-h-[480px] app-scroll">
           <table className="w-full text-xs text-left border-separate border-spacing-0">
               <thead className="text-slate-700 dark:text-slate-200 sticky top-0 z-30 shadow-sm font-sans">
                 {/* Group Header Row */}
@@ -464,7 +474,7 @@ export function PayBillAllowanceMatrixReport({
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[0.72rem]">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 num text-xs">
                 {isLoading && (
                   <tr>
                     <td colSpan={tableColSpan} className="py-6 text-center">
@@ -482,7 +492,7 @@ export function PayBillAllowanceMatrixReport({
                       <div className="font-semibold text-slate-900 dark:text-slate-100 leading-snug">
                         {row.employeeName}
                       </div>
-                      <div className="text-[0.65rem] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                      <div className="text-xs num text-slate-500 dark:text-slate-400 mt-0.5">
                         {row.hrpn}
                         {row.designation ? `  •  ${row.designation}` : ''}
                       </div>

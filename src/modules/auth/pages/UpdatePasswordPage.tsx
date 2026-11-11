@@ -7,10 +7,10 @@ export function UpdatePasswordPage() {
   useForceLightTheme();
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between bg-slate-50 text-slate-900 selection:bg-slate-200">
+    <div className="flex min-h-screen min-h-[100dvh] w-full flex-col justify-between bg-slate-50 text-slate-900 selection:bg-slate-200">
       <div className="w-full h-1 bg-slate-800/90" />
 
-      <main className="flex-1 flex items-center justify-center px-4 py-12 sm:px-6">
+      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
         <div className="w-full max-w-[390px] space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
@@ -18,7 +18,7 @@ export function UpdatePasswordPage() {
               <Lock className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              <h1 className="text-xs font-bold tracking-tight text-slate-900">
                 Create New Password
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -28,7 +28,7 @@ export function UpdatePasswordPage() {
           </div>
 
           {/* Card */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-6 sm:p-7">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
             <UpdatePasswordForm />
           </div>
 
@@ -42,7 +42,7 @@ export function UpdatePasswordPage() {
               <span>Back to sign in</span>
             </Link>
 
-            <div className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
+            <div className="inline-flex items-center gap-1.5 text-xs text-slate-400">
               <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
               <span>Secured credential update</span>
             </div>
@@ -50,7 +50,7 @@ export function UpdatePasswordPage() {
         </div>
       </main>
 
-      <footer className="py-4 text-center text-[11px] text-slate-400 border-t border-slate-200/60">
+      <footer className="border-t border-slate-200/60 px-4 pb-safe pt-4 text-center text-xs text-slate-400">
         Account Management System &copy; {new Date().getFullYear()}
       </footer>
     </div>

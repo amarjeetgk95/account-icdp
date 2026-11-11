@@ -51,7 +51,7 @@ import {
 } from '../hooks/useGTR30EmployeeMaster';
 import { gtr30ResolveEmployees } from '../services/gtr30EmployeeMaster.service';
 import { gtr30EmployeeTransformService } from '../services/gtr30EmployeeTransform.service';
-import { billTotals, formatMoney } from '../services/gtr30Calc.service';
+import { formatMoney } from '../services/gtr30Calc.service';
 import { gtr30ParseMonthKey } from '../utils/gtr30MonthKey';
 import { GTR30_SETTINGS_STORAGE_KEY } from '../constants/settings';
 import type { GTR30Bill, GTR30FormData } from '../types';
@@ -162,7 +162,7 @@ function RowActionsMenu({ bill, onView, onEdit, onDuplicate, onDelete, onUpdateS
               <Copy className="h-3.5 w-3.5 mr-2" /> Duplicate Bill
             </Button>
             <div className="my-1 h-px bg-slate-200 dark:bg-slate-800" />
-            <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Change Status</div>
+            <div className="px-2 py-1 text-xs font-bold uppercase tracking-widest text-slate-400">Change Status</div>
             {(bill.status || 'draft') === 'draft' && (
               <Button variant="ghost" className="w-full justify-start h-8 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40" onClick={() => { close(); onUpdateStatus('submitted'); }}>
                 <Send className="h-3.5 w-3.5 mr-2" /> Submit Bill
@@ -247,11 +247,10 @@ export function GTR30ListPage() {
     let totalEmployees = 0;
 
     for (const b of bills) {
-      const t = billTotals(b);
-      totalGross += t.gross;
-      totalDeductions += t.deductions;
-      totalNet += t.net;
-      totalEmployees += (b.employees || []).length;
+      totalGross += b.grossTotal || 0;
+      totalDeductions += b.deductionsTotal || 0;
+      totalNet += b.netTotal || 0;
+      totalEmployees += b.employeeCount ?? (b.employees || []).length;
     }
 
     return {
@@ -271,9 +270,8 @@ export function GTR30ListPage() {
       if (!parsed) continue;
       const sk = parsed.year * 100 + MONTHS.indexOf(parsed.month);
       const cur = map.get(b.monthOf) ?? { sk, label: b.monthOf, gross: 0, net: 0, count: 0 };
-      const t = billTotals(b);
-      cur.gross += t.gross;
-      cur.net += t.net;
+      cur.gross += b.grossTotal || 0;
+      cur.net += b.netTotal || 0;
       cur.count += 1;
       map.set(b.monthOf, cur);
     }
@@ -299,7 +297,8 @@ export function GTR30ListPage() {
       const regNo = (b.billRegisterNo || '').toLowerCase();
       const month = (b.monthOf || '').toLowerCase();
       const office = (b.officeName || '').toLowerCase();
-      const hasEmp = (b.employees || []).some((e) => (e.name || '').toLowerCase().includes(term));
+      const employeeNames = b.employeeNames ?? (b.employees || []).map((e) => e.name || '').join(' ');
+      const hasEmp = employeeNames.toLowerCase().includes(term);
       return regNo.includes(term) || month.includes(term) || office.includes(term) || hasEmp;
     });
   }, [bills, searchTerm, statusFilter, monthFilter]);
@@ -311,7 +310,7 @@ export function GTR30ListPage() {
       if (sortKey === 'billRegisterNo') cmp = (a.billRegisterNo || '').localeCompare(b.billRegisterNo || '');
       else if (sortKey === 'officeName') cmp = (a.officeName || '').localeCompare(b.officeName || '');
       else if (sortKey === 'monthOf') cmp = monthSortValue(a.monthOf) - monthSortValue(b.monthOf);
-      else cmp = billTotals(a).net - billTotals(b).net;
+      else cmp = (a.netTotal || 0) - (b.netTotal || 0);
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return sorted;
@@ -371,9 +370,15 @@ export function GTR30ListPage() {
           forceDaRecalc: true,
         })
       );
+      // Register rows are summaries; load the full snapshot before saving so
+      // no JSONB fields are lost.
+      const fullBill = await gtr30BillsService.getBill(bill.id);
+      if (!fullBill) {
+        throw new Error('Bill not found');
+      }
       await saveMutation.mutateAsync({
-        form: { ...bill, employees: refreshedEmployees },
-        existing: bill,
+        form: { ...fullBill, employees: refreshedEmployees },
+        existing: fullBill,
       });
       toast({
         title: 'Bill Refreshed',
@@ -398,18 +403,28 @@ export function GTR30ListPage() {
     toast({ title: 'Bill Deleted', description: 'The bill has been removed from register.' });
   };
 
-  const handleExportAll = () => {
+  const handleExportAll = async () => {
     if (bills.length === 0) return;
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(
-      gtr30BillsService.exportAllAsJson(bills)
-    );
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `GTR30_Register_Export_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    toast({ title: 'Export Completed', description: 'All bills exported as JSON.' });
+    try {
+      // Export must contain complete snapshots, not register summaries.
+      const fullBills = await gtr30BillsService.listFullBills();
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(
+        gtr30BillsService.exportAllAsJson(fullBills)
+      );
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `GTR30_Register_Export_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      toast({ title: 'Export Completed', description: 'All bills exported as JSON.' });
+    } catch (error) {
+      toast({
+        title: 'Export failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -452,9 +467,8 @@ export function GTR30ListPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-4">
       <WorkspaceHeader
-        eyebrow="Bill Creation · Register"
         title="GTR-30 Pay Bill Register"
         actions={
           <div className="flex items-center gap-2">
@@ -541,7 +555,7 @@ export function GTR30ListPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by Bill No, Month, Office, or Employee name..."
-                className="pl-9 text-sm bg-white dark:bg-slate-900 dark:border-slate-800"
+                className="pl-9 text-xs bg-white dark:bg-slate-900 dark:border-slate-800"
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -560,7 +574,7 @@ export function GTR30ListPage() {
                     type="button"
                     onClick={() => setStatusFilter(value)}
                     className={cn(
-                      'px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all whitespace-nowrap',
+                      'px-2.5 py-1 rounded-md text-xs font-semibold transition-all whitespace-nowrap',
                       statusFilter === value
                         ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -602,7 +616,7 @@ export function GTR30ListPage() {
                     <FileText className="h-8 w-8" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white">Get Started with GTR-30 Pay Bills</h3>
+                    <h3 className="text-xs font-black text-slate-900 dark:text-white">Get Started with GTR-30 Pay Bills</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       Follow these 3 quick steps to configure and generate your official 10-page government pay bills.
                     </p>
@@ -616,15 +630,15 @@ export function GTR30ListPage() {
                       <div className="flex items-center justify-between text-blue-600 mb-2">
                         <Settings className="h-5 w-5" />
                         {settingsConfigured ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/60 dark:text-emerald-300 px-2 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/60 dark:text-emerald-300 px-2 py-0.5 rounded-full">
                             <CheckCircle2 className="h-3 w-3" /> Done
                           </span>
                         ) : (
-                          <span className="text-[10px] font-mono font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">Step 1</span>
+                          <span className="text-xs font-mono font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">Step 1</span>
                         )}
                       </div>
                       <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">Bill Settings</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Configure DDO, office, and standard bill codes.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Configure DDO, office, and standard bill codes.</p>
                     </div>
 
                     <div
@@ -634,15 +648,15 @@ export function GTR30ListPage() {
                       <div className="flex items-center justify-between text-indigo-600 mb-2">
                         <Users className="h-5 w-5" />
                         {masterHasEmployees ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/60 dark:text-emerald-300 px-2 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/60 dark:text-emerald-300 px-2 py-0.5 rounded-full">
                             <CheckCircle2 className="h-3 w-3" /> Done
                           </span>
                         ) : (
-                          <span className="text-[10px] font-mono font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded-full">Step 2</span>
+                          <span className="text-xs font-mono font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded-full">Step 2</span>
                         )}
                       </div>
                       <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">Employee Directory</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Register staff profiles &amp; 7th Pay Matrix scales.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Register staff profiles &amp; 7th Pay Matrix scales.</p>
                     </div>
 
                     <div
@@ -651,10 +665,10 @@ export function GTR30ListPage() {
                     >
                       <div className="flex items-center justify-between text-emerald-600 mb-2">
                         <FilePlus className="h-5 w-5" />
-                        <span className="text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full">Step 3</span>
+                        <span className="text-xs font-mono font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full">Step 3</span>
                       </div>
                       <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">Create Pay Bill</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Auto-calculate DA, generate 10-sheet PDF.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Auto-calculate DA, generate 10-sheet PDF.</p>
                     </div>
                   </div>
 
@@ -686,7 +700,7 @@ export function GTR30ListPage() {
                       <th scope="col">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 uppercase font-bold text-[0.72rem] tracking-[0.05em] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                          className="inline-flex items-center gap-1 uppercase font-bold text-xs tracking-[0.05em] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
                           onClick={() => toggleSort('billRegisterNo')}
                         >
                           Bill Reg. No.
@@ -700,7 +714,7 @@ export function GTR30ListPage() {
                       <th scope="col">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 uppercase font-bold text-[0.72rem] tracking-[0.05em] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                          className="inline-flex items-center gap-1 uppercase font-bold text-xs tracking-[0.05em] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
                           onClick={() => toggleSort('monthOf')}
                         >
                           Office &amp; Month
@@ -718,7 +732,7 @@ export function GTR30ListPage() {
                       <th scope="col" className="text-right">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 uppercase font-bold text-[0.72rem] tracking-[0.05em] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                          className="inline-flex items-center gap-1 uppercase font-bold text-xs tracking-[0.05em] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
                           onClick={() => toggleSort('net')}
                         >
                           Net Payable
@@ -734,8 +748,8 @@ export function GTR30ListPage() {
                   </thead>
                   <tbody>
                     {sortedBills.map((bill) => {
-                      const t = billTotals(bill);
                       const status = bill.status || 'draft';
+                      const staffCount = bill.employeeCount ?? (bill.employees || []).length;
                       return (
                         <tr key={bill.id} className="hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors">
                           <td className="p-3.5 font-bold text-slate-900 dark:text-white">
@@ -751,17 +765,17 @@ export function GTR30ListPage() {
                           </td>
                           <td className="p-3.5 text-center">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
-                              {(bill.employees || []).length} Staff
+                              {staffCount} Staff
                             </span>
                           </td>
                           <td className="p-3.5 text-right text-money font-medium tabular-nums text-slate-700 dark:text-slate-300">
-                            ₹{formatMoney(t.gross)}
+                            ₹{formatMoney(bill.grossTotal || 0)}
                           </td>
                           <td className="p-3.5 text-right text-money font-medium tabular-nums text-rose-600 dark:text-rose-400">
-                            ₹{formatMoney(t.deductions)}
+                            ₹{formatMoney(bill.deductionsTotal || 0)}
                           </td>
-                          <td className="p-3.5 text-right text-money font-bold tabular-nums text-emerald-700 dark:text-emerald-400 text-base">
-                            ₹{formatMoney(t.net)}
+                          <td className="p-3.5 text-right text-money font-bold tabular-nums text-emerald-700 dark:text-emerald-400 text-xs">
+                            ₹{formatMoney(bill.netTotal || 0)}
                           </td>
                           <td className="p-3.5 text-right">
                             <div className="flex items-center justify-end gap-1">

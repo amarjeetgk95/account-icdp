@@ -55,18 +55,18 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
       <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between">
         <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
           <span>Deduction Sheet &amp; Net Pay Verification</span>
-          <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 text-[0.68rem] font-bold px-2 py-0.5 rounded-full">
+          <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 text-xs font-bold px-2 py-0.5 rounded-full">
             {records.length} Employees
           </span>
         </h4>
-        <span className="text-xs text-slate-500 font-mono">
+        <span className="text-xs text-slate-500 num">
           Net Pay Total: <strong className="text-emerald-600 dark:text-emerald-400">{formatInr(calculatedTotals.netPay)}</strong>
         </span>
       </div>
 
       <div className="overflow-x-auto max-h-[450px] app-scroll">
         <table className="w-full text-xs text-left border-collapse">
-          <thead className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 uppercase text-[0.68rem] tracking-wider sticky top-0 z-10 backdrop-blur-xs">
+          <thead className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 uppercase text-xs tracking-wider sticky top-0 z-10 backdrop-blur-xs">
             <tr>
               <th className="py-2.5 px-3 font-bold border-b border-slate-200 dark:border-slate-700">Sr</th>
               <th className="py-2.5 px-3 font-bold border-b border-slate-200 dark:border-slate-700">HRPN</th>
@@ -93,7 +93,7 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
                 key={rec.id || idx}
                 className="hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-colors"
               >
-                <td className="py-2.5 px-3 font-mono text-slate-500">{rec.row.srNo || idx + 1}</td>
+                <td className="py-2.5 px-3 num text-slate-500">{rec.row.srNo || idx + 1}</td>
                 <td className="py-2.5 px-3 font-mono font-bold text-blue-600 dark:text-blue-400">
                   {rec.row.hrpn}
                 </td>
@@ -103,34 +103,34 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
                 <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">
                   {rec.row.designation}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                <td className="py-2.5 px-3 text-right num text-slate-700 dark:text-slate-300">
                   {formatInr(rec.row.incomeTax)}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                <td className="py-2.5 px-3 text-right num text-slate-700 dark:text-slate-300">
                   {formatInr(rec.row.profTax)}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                <td className="py-2.5 px-3 text-right num text-slate-700 dark:text-slate-300">
                   {formatInr(rec.row.hbaInterest)}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                <td className="py-2.5 px-3 text-right num text-slate-700 dark:text-slate-300">
                   {formatInr(rec.row.gpfRegular)}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                <td className="py-2.5 px-3 text-right num text-slate-700 dark:text-slate-300">
                   {formatInr(rec.row.gpfClass4)}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                <td className="py-2.5 px-3 text-right num text-slate-700 dark:text-slate-300">
                   {formatInr(rec.row.npsRegular)}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                <td className="py-2.5 px-3 text-right num text-slate-700 dark:text-slate-300">
                   {formatInr(rec.row.gisGovtFund)}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                <td className="py-2.5 px-3 text-right num text-slate-700 dark:text-slate-300">
                   {formatInr(rec.row.gisGovtSaving)}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400 bg-rose-50/30 dark:bg-rose-950/20">
+                <td className="py-2.5 px-3 text-right num font-bold text-rose-600 dark:text-rose-400 bg-rose-50/30 dark:bg-rose-950/20">
                   {formatInr(rec.row.totalDeductions)}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20">
+                <td className="py-2.5 px-3 text-right num font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20">
                   {formatInr(rec.row.netPay)}
                 </td>
                 <td className="py-2.5 px-3 text-center">
@@ -140,19 +140,19 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
                   {rec.errors.length > 0 ? (
                     <span
                       title={rec.errors.join(' | ')}
-                      className="inline-flex items-center gap-1 text-[0.65rem] bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 px-2 py-0.5 rounded-full font-bold cursor-help"
+                      className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 px-2 py-0.5 rounded-full font-bold cursor-help"
                     >
                       <AlertCircle size={11} className="text-red-600" /> Error
                     </span>
                   ) : rec.warnings.length > 0 ? (
                     <span
                       title={rec.warnings.join(' | ')}
-                      className="inline-flex items-center gap-1 text-[0.65rem] bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium cursor-help"
+                      className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium cursor-help"
                     >
                       <AlertTriangle size={11} className="text-amber-500" /> Warn
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[0.65rem] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
+                    <span className="inline-flex items-center gap-1 text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
                       <Check size={11} className="text-emerald-600" /> OK
                     </span>
                   )}
@@ -161,13 +161,13 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
                   {rec.mappingStatus === 'NOT_FOUND' && onQuickAddEmployee ? (
                     <button
                       onClick={() => onQuickAddEmployee(rec.row)}
-                      className="inline-flex items-center gap-0.5 text-[0.65rem] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition"
-                      title="Add to Master Employee dataset"
+                      className="inline-flex items-center gap-0.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition"
+                      title="Register HRPN in Establishment directory (single source of truth)"
                     >
                       <UserPlus size={10} /> Add
                     </button>
                   ) : (
-                    <span className="text-[0.65rem] text-slate-400">—</span>
+                    <span className="text-xs text-slate-400">—</span>
                   )}
                 </td>
               </tr>
@@ -177,41 +177,41 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
           {/* Footer totals */}
           <tfoot className="bg-slate-100/90 dark:bg-slate-800/90 font-bold border-t-2 border-slate-300 dark:border-slate-600 sticky bottom-0 z-10 backdrop-blur-xs">
             <tr>
-              <td colSpan={6} className="py-3 px-3 text-left uppercase text-[0.72rem] tracking-wider text-slate-800 dark:text-slate-200">
+              <td colSpan={4} className="py-3 px-3 text-left uppercase text-xs tracking-wider text-slate-800 dark:text-slate-200">
                 Total ({records.length} Employees)
               </td>
-              <td className="py-3 px-3 text-right font-mono text-slate-900 dark:text-slate-100">
+              <td className="py-3 px-3 text-right num text-slate-900 dark:text-slate-100">
                 {formatInr(pdfTotals?.incomeTax || calculatedTotals.incomeTax)}
               </td>
-              <td className="py-3 px-3 text-right font-mono text-slate-900 dark:text-slate-100">
+              <td className="py-3 px-3 text-right num text-slate-900 dark:text-slate-100">
                 {formatInr(pdfTotals?.profTax || calculatedTotals.profTax)}
               </td>
-              <td className="py-3 px-3 text-right font-mono text-slate-900 dark:text-slate-100">
+              <td className="py-3 px-3 text-right num text-slate-900 dark:text-slate-100">
                 {formatInr(pdfTotals?.hbaInterest || calculatedTotals.hbaInterest)}
               </td>
-              <td className="py-3 px-3 text-right font-mono text-slate-900 dark:text-slate-100">
+              <td className="py-3 px-3 text-right num text-slate-900 dark:text-slate-100">
                 {formatInr(pdfTotals?.gpfRegular || calculatedTotals.gpfRegular)}
               </td>
-              <td className="py-3 px-3 text-right font-mono text-slate-900 dark:text-slate-100">
+              <td className="py-3 px-3 text-right num text-slate-900 dark:text-slate-100">
                 {formatInr(pdfTotals?.gpfClass4 || calculatedTotals.gpfClass4)}
               </td>
-              <td className="py-3 px-3 text-right font-mono text-slate-900 dark:text-slate-100">
+              <td className="py-3 px-3 text-right num text-slate-900 dark:text-slate-100">
                 {formatInr(pdfTotals?.npsRegular || calculatedTotals.npsRegular)}
               </td>
-              <td className="py-3 px-3 text-right font-mono text-slate-900 dark:text-slate-100">
+              <td className="py-3 px-3 text-right num text-slate-900 dark:text-slate-100">
                 {formatInr(pdfTotals?.gisGovtFund || calculatedTotals.gisGovtFund)}
               </td>
-              <td className="py-3 px-3 text-right font-mono text-slate-900 dark:text-slate-100">
+              <td className="py-3 px-3 text-right num text-slate-900 dark:text-slate-100">
                 {formatInr(pdfTotals?.gisGovtSaving || calculatedTotals.gisGovtSaving)}
               </td>
-              <td className="py-3 px-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400 bg-rose-100/50 dark:bg-rose-950/40">
+              <td className="py-3 px-3 text-right num font-bold text-rose-600 dark:text-rose-400 bg-rose-100/50 dark:bg-rose-950/40">
                 {formatInr(pdfTotals?.totalDeductions || calculatedTotals.totalDeductions)}
               </td>
-              <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-100/50 dark:bg-emerald-950/40">
+              <td className="py-3 px-3 text-right num font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-100/50 dark:bg-emerald-950/40">
                 {formatInr(pdfTotals?.netPay || calculatedTotals.netPay)}
               </td>
               <td colSpan={3} className="py-3 px-3 text-center">
-                <span className="text-emerald-700 dark:text-emerald-300 font-bold font-mono text-[0.7rem]">
+                <span className="text-emerald-700 dark:text-emerald-300 font-bold num text-xs">
                   RECONCILED
                 </span>
               </td>

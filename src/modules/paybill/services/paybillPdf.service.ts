@@ -1,15 +1,27 @@
-import { jsPDF } from 'jspdf';
-import { autoTable } from 'jspdf-autotable';
+import type { jsPDF as JsPDFType } from 'jspdf';
 import type {
   PayBillMonthlyEmployeeMatrixReport,
+  PayBillStoredEarning,
+  PayBillStoredDeduction,
+  PayBillSettings,
 } from '../types';
+import { paybillRepository } from '../repositories/paybill.repository';
+import { toCanonicalHrpn } from '@/shared/domain/canonicalEmployee';
+import { buildLedgerMatrixRows, type ManualValuesMap } from '../components/employee-ledger/ledgerMath';
+
+type AutoTableFn = (doc: JsPDFType, options: Record<string, unknown>) => void;
+
+async function loadPdfLibs(): Promise<{ jsPDF: new (options?: Record<string, unknown>) => JsPDFType; autoTable: AutoTableFn }> {
+  const [{ jsPDF }, { autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+  return { jsPDF, autoTable: autoTable as unknown as AutoTableFn };
+}
 
 const fmt = (n: number): string => `Rs. ${(n || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })}`;
 
-function headerLines(doc: jsPDF, lines: string[]) {
+function headerLines(doc: JsPDFType, lines: string[]) {
   let y = 40;
   for (const line of lines) {
     doc.setFontSize(line.startsWith('PAY BILL') ? 13 : 9);
@@ -38,11 +50,38 @@ export interface EmployeeLedgerPdfExportOptions {
     total: number;
     isManual?: boolean;
   }>;
-  summary: {
+  summary?: {
     annualGross: number;
     annualDeductions: number;
     netTakeHome: number;
   };
+  customFileName?: string;
+}
+
+export interface BulkEmployeeExportProgress {
+  current: number;
+  total: number;
+  currentEmployeeName: string;
+  status: 'preparing' | 'generating' | 'zipping' | 'completed' | 'error';
+  errorMessage?: string;
+}
+
+export interface BulkEmployeeLedgerPdfZipOptions {
+  officeName?: string;
+  financialYear: number;
+  fyLabel: string;
+  employees: Array<{
+    hrpn: string;
+    name: string;
+    designation?: string | null;
+    payScale?: string | null;
+  }>;
+  allEarnings?: PayBillStoredEarning[];
+  allDeductions?: PayBillStoredDeduction[];
+  settings?: PayBillSettings | null;
+  manualValues?: ManualValuesMap;
+  onProgress?: (progress: BulkEmployeeExportProgress) => void;
+  signal?: AbortSignal;
 }
 
 export const paybillPdfService = {
@@ -52,7 +91,9 @@ export const paybillPdfService = {
   exportMonthlyEmployeeMatrixPdf(
     report: PayBillMonthlyEmployeeMatrixReport,
     title = 'Monthly Employee Parameter Matrix'
-  ) {
+  ): Promise<void> {
+    return (async () => {
+    const { jsPDF, autoTable } = await loadPdfLibs();
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
 
     const earningCols = report.columns.filter((c) => c.group === 'EARNING');
@@ -98,18 +139,23 @@ export const paybillPdfService = {
 
     const fileName = `PayBill_Matrix_${report.month.replace(/[^A-Za-z0-9-]/g, '_')}_FY${report.financialYear}.pdf`;
     doc.save(fileName);
+    })();
   },
 
   /**
-   * Export the complete 12-Month Employee Ledger Statement as a high-fidelity PDF
+   * Internal generator: builds the jsPDF document instance for an employee ledger statement
    */
-  exportEmployeeLedgerPdf(options: EmployeeLedgerPdfExportOptions) {
+  async generateEmployeeLedgerPdfDoc(
+    options: EmployeeLedgerPdfExportOptions
+  ): Promise<{ doc: JsPDFType; fileName: string }> {
+    const { jsPDF, autoTable } = await loadPdfLibs();
     const {
       officeName = 'INTENSIVE CATTLE DEVELOPMENT PROJECT (ICDP)',
       financialYear,
       fyLabel,
       employee,
       rows,
+      customFileName,
     } = options;
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
@@ -119,25 +165,37 @@ export const paybillPdfService = {
     const marginX = 28;
     const tableWidth = pageWidth - marginX * 2; // 785.89 pt
 
-    // 1. Official Header Block (Clean 2-Line Format)
+    // 1. Official Header Block (Dynamic multiline support preventing text collisions)
+    const rawOfficeLines = officeName
+      ? officeName.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+      : ['INTENSIVE CATTLE DEVELOPMENT PROJECT (ICDP)'];
+
+    let cursorY = 17;
     doc.setTextColor(30, 58, 138); // Royal Navy 900
-    doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
-    doc.text(officeName.toUpperCase(), pageWidth / 2, 22, { align: 'center' });
+    doc.setFontSize(rawOfficeLines.length > 1 ? 11 : 12.5);
 
+    for (const line of rawOfficeLines) {
+      doc.text(line.toUpperCase(), pageWidth / 2, cursorY, { align: 'center' });
+      cursorY += 13;
+    }
+
+    cursorY += 1;
     doc.setTextColor(71, 85, 105); // Slate 600
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setFont('helvetica', 'bold');
-    doc.text(`ANNUAL FINANCIAL STATEMENT — FY ${fyLabel}`, pageWidth / 2, 36, { align: 'center' });
+    doc.text(`ANNUAL FINANCIAL STATEMENT — FY ${fyLabel}`, pageWidth / 2, cursorY, { align: 'center' });
 
+    cursorY += 7;
     // Subtle header separator line
     doc.setDrawColor(226, 232, 240); // Slate 200
     doc.setLineWidth(0.75);
-    doc.line(marginX, 43, marginX + tableWidth, 43);
+    doc.line(marginX, cursorY, marginX + tableWidth, cursorY);
 
+    cursorY += 5;
     // 2. Employee Profile & Metadata Table Box (Refined 2-Column Format)
-    const metaY = 48;
-    const metaH = 28;
+    const metaY = cursorY;
+    const metaH = 26;
     doc.setFillColor(240, 247, 255); // Soft Ice Blue (Blue 50)
     doc.setDrawColor(191, 219, 254); // Blue 200
     doc.setLineWidth(0.6);
@@ -147,33 +205,35 @@ export const paybillPdfService = {
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 58, 138); // Navy 900
-    doc.text('Employee Name:', marginX + 10, metaY + 11);
+    doc.text('Employee Name:', marginX + 10, metaY + 10.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 65, 85); // Slate 700
-    doc.text(employee.name || '—', marginX + 80, metaY + 11, { maxWidth: 430 });
+    doc.text(employee.name || '—', marginX + 80, metaY + 10.5, { maxWidth: 430 });
 
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 58, 138);
-    doc.text('Designation:', marginX + 10, metaY + 23);
+    doc.text('Designation:', marginX + 10, metaY + 21.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 65, 85);
-    doc.text(employee.designation || '—', marginX + 80, metaY + 23, { maxWidth: 430 });
+    doc.text(employee.designation || '—', marginX + 80, metaY + 21.5, { maxWidth: 430 });
 
     // Right Column: HRPN & Pay Scale
     const rightColX = marginX + 530;
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 58, 138);
-    doc.text('HRPN:', rightColX, metaY + 11);
+    doc.text('HRPN:', rightColX, metaY + 10.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 65, 85);
-    doc.text(employee.hrpn || '—', rightColX + 38, metaY + 11);
+    doc.text(employee.hrpn || '—', rightColX + 38, metaY + 10.5);
 
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 58, 138);
-    doc.text('Pay Scale:', rightColX, metaY + 23);
+    doc.text('Pay Scale:', rightColX, metaY + 21.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 65, 85);
-    doc.text(employee.payScale || '—', rightColX + 50, metaY + 23, { maxWidth: 190 });
+    doc.text(employee.payScale || '—', rightColX + 50, metaY + 21.5, { maxWidth: 190 });
+
+    const tableStartY = metaY + metaH + 6;
 
     // 3. Build Table Rows with Month-YY Labels
     const startYearShort = String(financialYear || 2024).slice(-2);
@@ -319,9 +379,14 @@ export const paybillPdfService = {
     }
     columnStyles[13] = { halign: 'right', cellWidth: totalColWidth, fontStyle: 'bold' };
 
+    // Adaptive row padding based on row count to ensure perfect single-page fit
+    const totalRowCount = tableBody.length;
+    const vPadding = totalRowCount > 28 ? 2.2 : totalRowCount > 24 ? 2.8 : 3.4;
+    const fontSize = totalRowCount > 28 ? 6.8 : 7.2;
+
     autoTable(doc, {
-      startY: 82,
-      margin: { left: marginX, right: marginX, top: 82, bottom: 20 },
+      startY: tableStartY,
+      margin: { left: marginX, right: marginX, top: tableStartY, bottom: 20 },
       tableWidth: 786,
       head: [
         ['Allowance / Deduction Parameter', ...months, 'Annual Total (Rs.)'],
@@ -332,14 +397,14 @@ export const paybillPdfService = {
         fillColor: [30, 58, 138], // Royal Navy
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 7,
+        fontSize: 7.2,
         halign: 'center',
-        cellPadding: 2.4,
+        cellPadding: { top: 2.8, bottom: 2.8, left: 2, right: 2 },
       },
       columnStyles,
       styles: {
-        fontSize: 7.2,
-        cellPadding: { top: 2.6, bottom: 2.6, left: 3, right: 3 },
+        fontSize,
+        cellPadding: { top: vPadding, bottom: vPadding, left: 3, right: 3 },
         lineColor: [226, 232, 240],
         lineWidth: 0.4,
         textColor: [51, 65, 85],
@@ -350,7 +415,185 @@ export const paybillPdfService = {
       },
     });
 
-    const fileName = `Employee_Ledger_${cleanHrpn}_FY${fyLabel}.pdf`;
+    const cleanName = (employee.name || '')
+      .trim()
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .replace(/\s+/g, '_');
+    const defaultFileName = cleanName
+      ? `Employee_Ledger_${cleanHrpn}_${cleanName}_FY${fyLabel}.pdf`
+      : `Employee_Ledger_${cleanHrpn}_FY${fyLabel}.pdf`;
+
+    const fileName = customFileName || defaultFileName;
+    return { doc, fileName };
+  },
+
+  /**
+   * Export the complete 12-Month Employee Ledger Statement as a high-fidelity PDF
+   */
+  async exportEmployeeLedgerPdf(options: EmployeeLedgerPdfExportOptions): Promise<void> {
+    const { doc, fileName } = await this.generateEmployeeLedgerPdfDoc(options);
     doc.save(fileName);
+  },
+
+  /**
+   * Generate a ZIP archive containing individual PDF statements for all requested employees.
+   */
+  async generateAllEmployeesLedgerPdfZip(
+    options: BulkEmployeeLedgerPdfZipOptions
+  ): Promise<{ zipBlob: Blob; fileName: string; total: number }> {
+    const {
+      officeName = 'INTENSIVE CATTLE DEVELOPMENT PROJECT (ICDP)',
+      financialYear,
+      fyLabel,
+      employees,
+      onProgress,
+      signal,
+    } = options;
+
+    if (!employees || employees.length === 0) {
+      throw new Error('No employees available to export.');
+    }
+
+    onProgress?.({
+      current: 0,
+      total: employees.length,
+      currentEmployeeName: '',
+      status: 'preparing',
+    });
+
+    // 1. Fetch missing bulk data in parallel if not passed in
+    const [allEarnings, allDeductions, settings, manualValues] = await Promise.all([
+      options.allEarnings ? Promise.resolve(options.allEarnings) : paybillRepository.listEarnings({ financialYear }),
+      options.allDeductions ? Promise.resolve(options.allDeductions) : paybillRepository.listDeductions({ financialYear }),
+      options.settings ? Promise.resolve(options.settings) : paybillRepository.getSettings(),
+      options.manualValues ? Promise.resolve(options.manualValues) : paybillRepository.getManualLedgerValues(),
+    ]);
+
+    if (signal?.aborted) throw new Error('Export cancelled');
+
+    const [{ default: JSZip }] = await Promise.all([
+      import('jszip'),
+    ]);
+
+    const zip = new JSZip();
+    const folderName = `Employee_Ledgers_FY${fyLabel}`;
+    const zipFolder = zip.folder(folderName) || zip;
+
+    const manualAllowances =
+      settings?.manualAllowances && settings.manualAllowances.length > 0
+        ? settings.manualAllowances
+        : ['Pay Difference', 'DA Difference'];
+    const manualDeductions = settings?.manualDeductions || [];
+    const earningColumnOrder = settings?.earningColumnOrder || [];
+    const deductionColumnOrder = settings?.deductionColumnOrder || [];
+
+    // Pre-group earnings and deductions by canonical HRPN for O(1) lookup
+    const earningsByHrpn = new Map<string, PayBillStoredEarning[]>();
+    for (const e of allEarnings) {
+      const key = toCanonicalHrpn(e.hrpn);
+      if (!key) continue;
+      const arr = earningsByHrpn.get(key) || [];
+      arr.push(e);
+      earningsByHrpn.set(key, arr);
+    }
+
+    const deductionsByHrpn = new Map<string, PayBillStoredDeduction[]>();
+    for (const d of allDeductions) {
+      const key = toCanonicalHrpn(d.hrpn);
+      if (!key) continue;
+      const arr = deductionsByHrpn.get(key) || [];
+      arr.push(d);
+      deductionsByHrpn.set(key, arr);
+    }
+
+    // 2. Generate PDF per employee
+    let processed = 0;
+    for (let idx = 0; idx < employees.length; idx++) {
+      if (signal?.aborted) throw new Error('Export cancelled');
+
+      const emp = employees[idx];
+      const hrpnKey = toCanonicalHrpn(emp.hrpn);
+
+      onProgress?.({
+        current: idx + 1,
+        total: employees.length,
+        currentEmployeeName: emp.name || emp.hrpn,
+        status: 'generating',
+      });
+
+      const empEarnings = earningsByHrpn.get(hrpnKey) || [];
+      const empDeductions = deductionsByHrpn.get(hrpnKey) || [];
+      const empManualValues = (manualValues && (manualValues[emp.hrpn] || manualValues[hrpnKey])) || {};
+
+      const rows = buildLedgerMatrixRows({
+        earnings: empEarnings,
+        deductions: empDeductions,
+        manualAllowances,
+        manualDeductions,
+        empManualValues,
+        earningColumnOrder,
+        deductionColumnOrder,
+      });
+
+      const { doc, fileName } = await this.generateEmployeeLedgerPdfDoc({
+        officeName,
+        financialYear,
+        fyLabel,
+        employee: emp,
+        rows,
+        summary: {
+          annualGross: rows.find((r) => r.key === 'grossAmount')?.total || 0,
+          annualDeductions: rows.find((r) => r.key === 'totalDeductions')?.total || 0,
+          netTakeHome: rows.find((r) => r.key === 'netPay')?.total || 0,
+        },
+      });
+
+      const pdfArrayBuffer = doc.output('arraybuffer');
+      zipFolder.file(fileName, pdfArrayBuffer);
+      processed++;
+
+      // Yield every 2 items to let the browser re-render UI
+      if (idx % 2 === 0) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
+
+    if (signal?.aborted) throw new Error('Export cancelled');
+
+    onProgress?.({
+      current: employees.length,
+      total: employees.length,
+      currentEmployeeName: '',
+      status: 'zipping',
+    });
+
+    const zipBlob = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    });
+
+    const zipFileName = `Employee_Ledgers_FY${fyLabel}.zip`;
+
+    onProgress?.({
+      current: employees.length,
+      total: employees.length,
+      currentEmployeeName: '',
+      status: 'completed',
+    });
+
+    return { zipBlob, fileName: zipFileName, total: processed };
+  },
+
+  /**
+   * Export all employee ledger PDFs bundled as a single ZIP file download.
+   */
+  async exportAllEmployeesLedgerPdfZip(
+    options: BulkEmployeeLedgerPdfZipOptions
+  ): Promise<{ total: number; fileName: string }> {
+    const { zipBlob, fileName, total } = await this.generateAllEmployeesLedgerPdfZip(options);
+    const { saveAs } = await import('file-saver');
+    saveAs(zipBlob, fileName);
+    return { total, fileName };
   },
 };

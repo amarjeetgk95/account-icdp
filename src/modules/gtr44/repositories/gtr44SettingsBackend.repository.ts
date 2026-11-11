@@ -1,6 +1,4 @@
 import { supabase } from '@/core/supabase/client';
-import { useAuthStore } from '@/core/auth/store';
-import { getOfficeId, isAllOfficesMode, resolveOfficeIdForUser } from '@/shared/utilities/office';
 import type { Json } from '@/shared/json.types';
 import type { GTR44BudgetHead, GTR44ObjectExpenditureItem, GTR44EDPCode, GTR44DeductionTemplate, GTR44NumberingSettings, GTR44PrintSettings } from '../types';
 import type { GTR44DefaultSettings } from '../store/gtr44SettingsStore';
@@ -72,24 +70,12 @@ function mergePayload(partial: Partial<Gtr44SettingsPayload> | null | undefined)
   };
 }
 
-async function resolveOfficeId(): Promise<string | null> {
-  if (isAllOfficesMode()) return null;
-  const existing = getOfficeId();
-  if (existing) return existing;
-  const userId = useAuthStore.getState().user?.id;
-  if (!userId) return null;
-  return resolveOfficeIdForUser(userId);
-}
-
 class Gtr44SettingsBackendRepository {
   async load(): Promise<Gtr44SettingsPayload | null> {
-    const officeId = await resolveOfficeId();
-    if (!officeId) return null;
     try {
       const { data, error } = await supabase
         .from('paybill_settings')
         .select('settings_value')
-        .eq('office_id', officeId)
         .eq('settings_key', SETTINGS_KEY)
         .maybeSingle();
       if (error) {
@@ -105,18 +91,15 @@ class Gtr44SettingsBackendRepository {
   }
 
   async save(payload: Gtr44SettingsPayload): Promise<boolean | null> {
-    const officeId = await resolveOfficeId();
-    if (!officeId) return null;
     try {
       const { error } = await supabase
         .from('paybill_settings')
         .upsert(
           {
-            office_id: officeId,
             settings_key: SETTINGS_KEY,
             settings_value: payload as unknown as Json,
           },
-          { onConflict: 'office_id,settings_key' }
+          { onConflict: 'settings_key' }
         );
       if (error) {
         console.warn('[GTR44SettingsBackend] save failed:', error);
@@ -130,13 +113,10 @@ class Gtr44SettingsBackendRepository {
   }
 
   async clear(): Promise<void> {
-    const officeId = await resolveOfficeId();
-    if (!officeId) return;
     try {
       const { error } = await supabase
         .from('paybill_settings')
         .delete()
-        .eq('office_id', officeId)
         .eq('settings_key', SETTINGS_KEY);
       if (error) {
         console.warn('[GTR44SettingsBackend] clear failed:', error);

@@ -46,7 +46,7 @@ export const GTR44CertificationPage3: React.FC<GTR44CertificationPage3Props> = (
   return (
     <div
       style={{
-        fontFamily: gujaratiEnabled ? "'Noto Sans Gujarati', 'Times New Roman', Times, serif" : "'Times New Roman', Times, serif",
+        fontFamily: gujaratiEnabled ? "'Lohit Gujarati', 'Times New Roman', Times, serif" : "'Times New Roman', Times, serif",
         fontSize: '11.5pt',
         lineHeight: 1.42,
         color: '#000',
@@ -149,7 +149,7 @@ export const GTR44CertificationPage4: React.FC<GTR44CertificationPage4Props> = (
   return (
     <div
       style={{
-        fontFamily: gujaratiEnabled ? "'Noto Sans Gujarati', 'Times New Roman', Times, serif" : "'Times New Roman', Times, serif",
+        fontFamily: gujaratiEnabled ? "'Lohit Gujarati', 'Times New Roman', Times, serif" : "'Times New Roman', Times, serif",
         fontSize: '11.5pt',
         lineHeight: 1.42,
         color: '#000',

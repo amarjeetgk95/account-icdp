@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   establishmentEmployeeDbSchema,
   establishmentListDbSchema,
-  establishmentPostsDbSchema,
 } from './establishment.schema';
 
 describe('establishmentEmployeeDbSchema', () => {
@@ -100,17 +99,3 @@ describe('establishmentListDbSchema', () => {
   });
 });
 
-describe('establishmentPostDbSchema', () => {
-  it('parses posts with defaults', () => {
-    const result = establishmentPostsDbSchema.safeParse([{ id: 'p1', designation: 'ક્લાર્ક' }]);
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data[0].sanctioned).toBe(0);
-    }
-  });
-
-  it('rejects negative sanctioned counts', () => {
-    const result = establishmentPostsDbSchema.safeParse([{ id: 'p1', sanctioned: -1 }]);
-    expect(result.success).toBe(false);
-  });
-});

@@ -99,7 +99,7 @@ function AliasChipInput({
 
   return (
     <div>
-      <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
         {label}
       </label>
       <div className="flex items-center gap-1.5">
@@ -131,7 +131,7 @@ function AliasChipInput({
           {value.map((alias, i) => (
             <span
               key={`${alias}-${i}`}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.68rem] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900"
             >
               {alias}
               <button
@@ -258,7 +258,7 @@ export function ComponentFormModal({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               Component Name *
             </label>
             <input
@@ -270,7 +270,7 @@ export function ComponentFormModal({
             />
           </div>
           <div>
-            <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               Short Name
             </label>
             <input
@@ -282,7 +282,7 @@ export function ComponentFormModal({
             />
           </div>
           <div>
-            <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               Component Code
             </label>
             <input
@@ -292,12 +292,12 @@ export function ComponentFormModal({
               placeholder="e.g. 0111"
               className={fieldClass}
             />
-            <p className="text-[0.65rem] text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 mt-1">
               IFMS / payroll code printed in the PDF header.
             </p>
           </div>
           <div>
-            <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               Display Order
             </label>
             <input
@@ -306,12 +306,12 @@ export function ComponentFormModal({
               onChange={(e) => set('displayOrder', e.target.value)}
               className={fieldClass}
             />
-            <p className="text-[0.65rem] text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 mt-1">
               Lower numbers appear first in PDF column order.
             </p>
           </div>
           <div>
-            <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               Type
             </label>
             <select
@@ -324,7 +324,7 @@ export function ComponentFormModal({
             </select>
           </div>
           <div>
-            <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               Kind
             </label>
             <select
@@ -338,7 +338,7 @@ export function ComponentFormModal({
             </select>
           </div>
           <div>
-            <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               Category
             </label>
             <input
@@ -387,7 +387,7 @@ export function ComponentFormModal({
         </div>
 
         <div>
-          <label className="block text-[0.7rem] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
             Notes
           </label>
           <textarea

@@ -52,7 +52,6 @@ export function GTR44CreatePage() {
   return (
     <div className="max-w-7xl mx-auto space-y-4">
       <WorkspaceHeader
-        eyebrow="Bill creation · GTR-44"
         title={isEditMode ? 'Edit detailed contingent bill' : 'Create detailed contingent bill'}
         actions={
           <Button variant="outline" size="sm" onClick={() => navigate('/gtr44/list')} className="gap-1 font-medium">

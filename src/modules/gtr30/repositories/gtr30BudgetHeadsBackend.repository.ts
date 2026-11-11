@@ -1,7 +1,6 @@
 import { supabase } from '@/core/supabase/client';
 import type { Json } from '@/shared/json.types';
 import type { GTR30BudgetHead } from '../types';
-import { resolveOfficeIdStrict } from './officeScope';
 import { gtr30BudgetHeadsSchema } from '../validation/gtr30BudgetHeads.schema';
 
 function validateHeadsArray(raw: unknown): GTR30BudgetHead[] | null {
@@ -15,34 +14,62 @@ function validateHeadsArray(raw: unknown): GTR30BudgetHead[] | null {
 
 class Gtr30BudgetHeadsBackendRepository {
   async list(): Promise<GTR30BudgetHead[] | null> {
-    const officeId = await resolveOfficeIdStrict();
-    if (!officeId) return null;
+    try {
+      const { data, error } = await supabase
+        .from('gtr30_budget_heads')
+        .select('*')
+        .order('name');
 
-    const { data, error } = await supabase.rpc('get_gtr30_budget_heads', {
-      p_office_id: officeId,
-    });
-    if (error) {
-      console.warn('[GTR30Backend] get_gtr30_budget_heads failed:', error);
-      return null;
+      if (error) {
+        console.warn('[GTR30Backend] get_gtr30_budget_heads failed:', error);
+        return [];
+      }
+
+      if (!Array.isArray(data)) return [];
+
+      const formatted = data.map((r: Record<string, unknown>) => ({
+        id: String(r.id),
+        name: String(r.name || ''),
+        ...((r.payload as Record<string, unknown>) || {}),
+      }));
+
+      return validateHeadsArray(formatted) || (formatted as unknown as GTR30BudgetHead[]);
+    } catch (err) {
+      console.warn('[GTR30BudgetHeadsBackend] list error:', err);
+      return [];
     }
-    if (!Array.isArray(data)) return null;
-    return validateHeadsArray(data);
   }
 
   async replaceAll(heads: GTR30BudgetHead[]): Promise<GTR30BudgetHead[] | null> {
-    const officeId = await resolveOfficeIdStrict();
-    if (!officeId) return null;
+    try {
+      const incomingIds = new Set(heads.map((h) => h.id).filter(Boolean));
 
-    const { data, error } = await supabase.rpc('upsert_gtr30_budget_heads', {
-      p_office_id: officeId,
-      p_heads: heads as unknown as Json,
-    });
-    if (error) {
-      console.warn('[GTR30Backend] upsert_gtr30_budget_heads failed:', error);
-      return null;
+      // 1. Delete removed heads
+      const { data: existing } = await supabase.from('gtr30_budget_heads').select('id');
+      const toDelete = (existing || [])
+        .map((e: { id: string }) => String(e.id))
+        .filter((id) => !incomingIds.has(id));
+
+      if (toDelete.length > 0) {
+        await supabase.from('gtr30_budget_heads').delete().in('id', toDelete);
+      }
+
+      // 2. Upsert incoming heads
+      for (const h of heads) {
+        const { id, name, ...payload } = h;
+        await supabase.from('gtr30_budget_heads').upsert({
+          id: id || crypto.randomUUID(),
+          name: name || '',
+          payload: payload as unknown as Json,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      return this.list();
+    } catch (err) {
+      console.error('[GTR30BudgetHeadsBackend] replaceAll error:', err);
+      throw err;
     }
-    if (!Array.isArray(data)) return null;
-    return validateHeadsArray(data);
   }
 }
 

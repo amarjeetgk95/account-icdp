@@ -57,14 +57,14 @@ describe('SettingsPage', () => {
     expect(screen.getByTestId('office-form')).toBeInTheDocument();
   });
 
-  it('renders GTR30SettingsView for gtr30 tab', () => {
+  it('renders GTR30SettingsView for gtr30 tab', async () => {
     renderWithRoute('/settings/gtr30');
-    expect(screen.getByTestId('gtr30-settings')).toBeInTheDocument();
+    expect(await screen.findByTestId('gtr30-settings')).toBeInTheDocument();
   });
 
-  it('renders GTR44SettingsView for gtr44 tab', () => {
+  it('renders GTR44SettingsView for gtr44 tab', async () => {
     renderWithRoute('/settings/gtr44');
-    expect(screen.getByTestId('gtr44-settings')).toBeInTheDocument();
+    expect(await screen.findByTestId('gtr44-settings')).toBeInTheDocument();
   });
 
   it('falls back to office tab when an unknown or removed tab like establishment is accessed', () => {

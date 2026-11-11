@@ -43,6 +43,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.62.0",
     "react-router-dom": "^6.30.1",
+    "recharts": "^3.10.1",
     "tailwind-merge": "^3.6.0",
     "unpdf": "^1.8.1",
     "xlsx": "^0.18.5",
@@ -72,5 +73,20 @@
     "typescript": "^5.9.2",
     "vite": "^5.4.19",
     "vitest": "^2.1.9"
-  }
+  },
+  "main": "postcss.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amarjeetgk95/account-icdp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/amarjeetgk95/account-icdp/issues"
+  },
+  "homepage": "https://github.com/amarjeetgk95/account-icdp#readme"
 }

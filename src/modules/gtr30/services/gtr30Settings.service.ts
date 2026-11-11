@@ -15,7 +15,6 @@ import {
   type Gtr30SettingsPayload,
 } from '../repositories/gtr30Settings.repository';
 import { gtr30SettingsBackendRepository } from '../repositories/gtr30SettingsBackend.repository';
-import { isAllOfficesMode } from '@/shared/utilities/office';
 
 const SYNC_DEBOUNCE_MS = 600;
 
@@ -40,18 +39,13 @@ export function subscribeGtr30SettingsSync(listener: () => void): () => void {
   };
 }
 
-function isInAllOfficesMode(): boolean {
-  try {
-    return isAllOfficesMode();
-  } catch {
-    return false;
-  }
-}
-
 let settingsSyncTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingPushPayload: Gtr30SettingsPayload | null = null;
 let backendWriteChain: Promise<void> = Promise.resolve();
 let hydrateInFlight: Promise<boolean> | null = null;
+// Bumped by resetSettings so a racing flush never resurrects cleared data or
+// clobbers the idle phase the reset established.
+let settingsEpoch = 0;
 
 function cancelPendingPushTimer(): void {
   if (settingsSyncTimer) {
@@ -60,23 +54,36 @@ function cancelPendingPushTimer(): void {
   }
 }
 
-function applySaveOutcome(result: boolean | null): void {
-  if (result === null) {
-    setSettingsSyncPhase(isInAllOfficesMode() ? 'idle' : 'error');
-  } else {
-    setSettingsSyncPhase('synced');
-  }
-}
-
+/**
+ * Backend-first write: the backend save is awaited FIRST and is authoritative.
+ * On success the confirmed payload is re-persisted to the local cache (only
+ * when local hasn't moved on — hydrate, reset, or a newer save must never be
+ * clobbered) and the phase becomes synced. On failure the provisional local
+ * input is kept and the phase becomes error. A newer queued save owns the
+ * phase, so a settling older flush leaves it untouched.
+ */
 function runBackendWrite(payload: Gtr30SettingsPayload): Promise<boolean> {
   const write = async (): Promise<boolean> => {
+    const epoch = settingsEpoch;
     setSettingsSyncPhase('syncing');
     try {
       const result = await gtr30SettingsBackendRepository.save(payload);
-      applySaveOutcome(result);
-      return result !== null;
+      // A reset raced this flush — it owns the local cache and phase now.
+      if (epoch !== settingsEpoch) return result !== null;
+      if (result === null) {
+        if (pendingPushPayload === null) setSettingsSyncPhase('error');
+        return false;
+      }
+      const current = gtr30SettingsLocalStorageRepository.load();
+      if (current && JSON.stringify(current) === JSON.stringify(payload)) {
+        gtr30SettingsLocalStorageRepository.save(payload);
+      }
+      if (pendingPushPayload === null) setSettingsSyncPhase('synced');
+      return true;
     } catch {
-      setSettingsSyncPhase('error');
+      if (epoch === settingsEpoch && pendingPushPayload === null) {
+        setSettingsSyncPhase('error');
+      }
       return false;
     }
   };
@@ -131,16 +138,12 @@ class Gtr30SettingsService {
     return request;
   }
 
-  private async hydrateNow(force: boolean): Promise<boolean> {
-    if (!force) {
-      const local = gtr30SettingsLocalStorageRepository.load();
-      if (local) return false;
-    }
+  private async hydrateNow(_force: boolean): Promise<boolean> {
     let remote: Gtr30SettingsPayload | null;
     try {
       remote = await gtr30SettingsBackendRepository.load();
     } catch {
-      if (!isInAllOfficesMode()) setSettingsSyncPhase('error');
+      setSettingsSyncPhase('error');
       return false;
     }
     if (remote === null) return false;
@@ -148,6 +151,7 @@ class Gtr30SettingsService {
     const changed =
       !current || JSON.stringify(current) !== JSON.stringify(remote);
     gtr30SettingsLocalStorageRepository.save(remote);
+    setSettingsSyncPhase('synced');
     return changed;
   }
 
@@ -198,6 +202,7 @@ class Gtr30SettingsService {
   resetSettings(): Gtr30SettingsPayload {
     cancelPendingPushTimer();
     pendingPushPayload = null;
+    settingsEpoch += 1;
     gtr30SettingsLocalStorageRepository.clear();
     setSettingsSyncPhase('idle');
     Promise.resolve(gtr30SettingsBackendRepository.clear()).catch(() => {

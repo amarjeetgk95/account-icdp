@@ -22,7 +22,7 @@ const renderEDPCode = (edpStr: string) => {
   return (
     <span
       style={{
-        fontFamily: "'Courier New', monospace",
+        fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
         fontWeight: 700,
         fontSize: '9pt',
         letterSpacing: '0.5px',
@@ -119,7 +119,7 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
                       textAlign: 'right',
                       paddingRight: '2px',
                       borderRight: '1px solid #000',
-                      fontFamily: "'Courier New', monospace",
+                      fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                       fontWeight: 700,
                       fontSize: '9pt',
                       height: '100%',
@@ -134,7 +134,7 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
                     style={{
                       flex: '1 1 35%',
                       textAlign: 'center',
-                      fontFamily: "'Courier New', monospace",
+                      fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums',
                       fontWeight: 700,
                       fontSize: '8.5pt',
                       height: '100%',
@@ -160,10 +160,10 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
           <td style={{ borderRight: '1px solid #000' }}></td>
           <td style={{ padding: '0' }}>
             <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Courier New', monospace", fontSize: '9pt' }}>
+              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontSize: '9pt' }}>
                 {grossSplit.rs}
               </span>
-              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Courier New', monospace", fontSize: '8.5pt' }}>
+              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontSize: '8.5pt' }}>
                 {grossSplit.ps}
               </span>
             </div>
@@ -181,10 +181,10 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
           </td>
           <td style={{ padding: '0' }}>
             <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: '9pt' }}>
+              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: '9pt' }}>
                 {itSplit.rs}
               </span>
-              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: '8.5pt' }}>
+              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: '8.5pt' }}>
                 {itSplit.ps}
               </span>
             </div>
@@ -202,10 +202,10 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
           </td>
           <td style={{ padding: '0' }}>
             <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: '9pt' }}>
+              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: '9pt' }}>
                 {surSplit.rs}
               </span>
-              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: '8.5pt' }}>
+              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: '8.5pt' }}>
                 {surSplit.ps}
               </span>
             </div>
@@ -223,10 +223,10 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
           </td>
           <td style={{ padding: '0' }}>
             <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: '9pt' }}>
+              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: '9pt' }}>
                 {sdSplit.rs}
               </span>
-              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: '8.5pt' }}>
+              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: '8.5pt' }}>
                 {sdSplit.ps}
               </span>
             </div>
@@ -242,10 +242,10 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
           <td style={{ borderRight: '1px solid #000' }}></td>
           <td style={{ padding: '0' }}>
             <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Courier New', monospace", fontSize: '9pt' }}>
+              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontSize: '9pt' }}>
                 {totalASplit.rs}
               </span>
-              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Courier New', monospace", fontSize: '8.5pt' }}>
+              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontSize: '8.5pt' }}>
                 {totalASplit.ps}
               </span>
             </div>
@@ -263,10 +263,10 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
           </td>
           <td style={{ padding: '0' }}>
             <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: '9pt' }}>
+              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: '9pt' }}>
                 {miscSplit.rs}
               </span>
-              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: '8.5pt' }}>
+              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: '8.5pt' }}>
                 {miscSplit.ps}
               </span>
             </div>
@@ -282,10 +282,10 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
           <td style={{ borderRight: '1px solid #000' }}></td>
           <td style={{ padding: '0' }}>
             <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Courier New', monospace", fontSize: '9pt' }}>
+              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontSize: '9pt' }}>
                 {totDedSplit.rs}
               </span>
-              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Courier New', monospace", fontSize: '8.5pt' }}>
+              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontSize: '8.5pt' }}>
                 {totDedSplit.ps}
               </span>
             </div>
@@ -301,10 +301,10 @@ export const GTR44ExpenditureTable: React.FC<GTR44ExpenditureTableProps> = ({
           <td style={{ borderRight: '1px solid #000' }}></td>
           <td style={{ padding: '0' }}>
             <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
-              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Courier New', monospace", fontSize: '9pt' }}>
+              <span style={{ flex: '1 1 65%', textAlign: 'right', paddingRight: '2px', borderRight: '1px solid #000', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontSize: '9pt' }}>
                 {netSplit.rs}
               </span>
-              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Courier New', monospace", fontSize: '8.5pt' }}>
+              <span style={{ flex: '1 1 35%', textAlign: 'center', fontFamily: "'Times New Roman', Times, serif", fontVariantNumeric: 'tabular-nums', fontSize: '8.5pt' }}>
                 {netSplit.ps}
               </span>
             </div>
