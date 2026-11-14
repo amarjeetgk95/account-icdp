@@ -6,47 +6,15 @@ import { isPlaceholderName } from '../services/hrpnMapping.service';
 import { establishmentService } from '@/modules/establishment/services/establishment.service';
 import type { EstablishmentEmployee } from '@/modules/establishment/types';
 import { latestPayOf } from '@/modules/establishment/types';
-import {
-  Search,
-  Save,
-  Copy,
-  Sparkles,
-  RotateCcw,
-  Check,
-  X,
-  Calendar,
-} from 'lucide-react';
+import { Copy, Sparkles, RotateCcw } from 'lucide-react';
 import { toast } from '@/shared/components/Toast';
 import { useUIStore } from '@/core/stores/ui-store';
 import { getOfficeId } from '@/shared/utilities/office';
+import { MONTH_ORDER, MONTH_SHORT } from './legacyDataEditor/constants';
+import { findEstablishmentEmployee, formatInr } from './legacyDataEditor/utils';
+import { LegacyEditorHeader } from './legacyDataEditor/LegacyEditorHeader';
+import { LegacyEditorFooter } from './legacyDataEditor/LegacyEditorFooter';
 import type { PayBillStoredEarning, PayBillStoredDeduction } from '../types';
-
-const MONTH_ORDER = [
-  'March', 'April', 'May',
-  'June', 'July', 'August',
-  'September', 'October', 'November',
-  'December', 'January', 'February',
-];
-
-const MONTH_SHORT = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'];
-
-function findEstablishmentEmployee(
-  employees: EstablishmentEmployee[],
-  hrpn: string,
-  _fy?: number
-): EstablishmentEmployee | null {
-  const clean = hrpn.trim().toLowerCase();
-  if (!clean) return null;
-  const match = employees.find(
-    (e) => (e.hrpnNo || '').trim().toLowerCase() === clean
-  );
-  return match ?? null;
-}
-
-const formatInr = (n: number | undefined, allowZeroDash = false) => {
-  if (allowZeroDash && (!n || n === 0)) return '—';
-  return `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
-};
 
 export function PayBillLegacyDataEditor() {
   const [searchParams] = useSearchParams();
@@ -871,130 +839,25 @@ export function PayBillLegacyDataEditor() {
       {/* Framed Card Container with generous side margins */}
       <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden">
         {/* 1. Dedicated Top Navigation Bar */}
-        <header className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-2.5 flex items-center justify-between gap-3 shadow-2xs z-30">
-          {/* Left: Employee Info & Identification */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-2xs">
-              {baseEmployeeInfo.employeeName ? baseEmployeeInfo.employeeName.charAt(0).toUpperCase() : 'E'}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                  {baseEmployeeInfo.employeeName || 'Legacy Paybill Editor'}
-                </h1>
-                {baseEmployeeInfo.designation && (
-                  <span className="text-xs text-slate-500 dark:text-slate-400 truncate hidden sm:inline">
-                    · {baseEmployeeInfo.designation}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span className="num font-semibold text-slate-700 dark:text-slate-300">
-                  HRPN: {baseEmployeeInfo.hrpn || hrpn || '—'}
-                </span>
-                <span>·</span>
-                <span className="flex items-center gap-1">
-                  <Calendar size={11} /> FY {fyLabel}
-                </span>
-                {baseEmployeeInfo.payScale && (
-                  <>
-                    <span>·</span>
-                    <span className="px-1.5 py-0.2 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                      {baseEmployeeInfo.payScale}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Center: Search & Month filter controls */}
-          <div className="hidden lg:flex items-center gap-2">
-            <div className="relative w-44">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter parameter..."
-                className="w-full pl-7 pr-2.5 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:border-amber-500 outline-none text-slate-700 dark:text-slate-200"
-              />
-            </div>
-            <select
-              value={monthFilter.length === 0 ? '' : monthFilter[0]}
-              onChange={(e) => setMonthFilter(e.target.value ? [e.target.value] : [])}
-              className="px-2.5 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:border-amber-500 outline-none text-slate-700 dark:text-slate-200"
-            >
-              <option value="">All 12 Months</option>
-              {MONTH_ORDER.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2 shrink-0">
-            {dirtyRows.size > 0 && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                {dirtyRows.size} modified
-              </span>
-            )}
-
-            <button
-              type="button"
-              onClick={() => void handleSaveAll()}
-              disabled={saving || dirtyRows.size === 0}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
-              title="Save changes (Ctrl + S)"
-            >
-              <Save size={13} />
-              <span>{saving ? 'Saving...' : 'Save Draft'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => void handleSaveAndClose()}
-              disabled={saving}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition disabled:opacity-50"
-              title="Save changes and close window"
-            >
-              <Check size={13} />
-              <span>Save & Close</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
-              title="Close Window (Esc)"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </header>
-
-        {/* 2. Compact Financial Summary Bar */}
-        <div className="shrink-0 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 px-4 py-1.5 flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-4 font-mono text-xs">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Gross:</span>
-              <span className="font-extrabold text-slate-900 dark:text-slate-100">{formatInr(totalGross)}</span>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-rose-500">Deductions:</span>
-              <span className="font-extrabold text-rose-700 dark:text-rose-400">{formatInr(totalDeductions)}</span>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-500">Net Take-Home:</span>
-              <span className="font-extrabold text-emerald-700 dark:text-emerald-300">{formatInr(totalNet)}</span>
-            </div>
-          </div>
-
-          <div className="text-xs text-slate-400 hidden sm:flex items-center gap-1.5">
-            <span>Excel Paste: <kbd className="font-mono px-1 py-0.2 bg-slate-200 dark:bg-slate-800 rounded text-xs">Ctrl+V</kbd></span>
-          </div>
-        </div>
+        <LegacyEditorHeader
+          employeeNameProp={baseEmployeeInfo.employeeName}
+          designation={baseEmployeeInfo.designation ?? null}
+          payScale={baseEmployeeInfo.payScale}
+          hrpnProp={baseEmployeeInfo.hrpn || hrpn}
+          fyLabel={fyLabel}
+          search={search}
+          onSearchChange={setSearch}
+          monthFilter={monthFilter}
+          onMonthFilterChange={setMonthFilter}
+          dirtyRowsSize={dirtyRows.size}
+          saving={saving}
+          totalGross={totalGross}
+          totalDeductions={totalDeductions}
+          totalNet={totalNet}
+          onSaveAll={handleSaveAll}
+          onSaveAndClose={handleSaveAndClose}
+          onClose={handleClose}
+        />
 
         {/* 3. Main Full-Bleed 100% Native Scale Matrix Table */}
         <main
@@ -1367,38 +1230,12 @@ export function PayBillLegacyDataEditor() {
             </table>
           )}
         </main>
-
-        {/* 4. Floating / Sticky Bottom Batch Save Bar */}
-        {dirtyRows.size > 0 && (
-          <footer className="shrink-0 bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between gap-2 shadow-xl border-t border-slate-800 z-40 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-              <span className="font-semibold text-amber-300">
-                {dirtyRows.size} parameter{dirtyRows.size > 1 ? 's' : ''} modified
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleDiscard}
-                className="px-3 py-1 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition"
-              >
-                Discard
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void handleSaveAll()}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 px-4 py-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-sm transition disabled:opacity-50"
-              >
-                <Save size={13} />
-                <span>{saving ? 'Saving...' : 'Save Changes (Ctrl + S)'}</span>
-              </button>
-            </div>
-          </footer>
-        )}
+        <LegacyEditorFooter
+          dirtyRowsSize={dirtyRows.size}
+          saving={saving}
+          onDiscard={handleDiscard}
+          onSaveAll={handleSaveAll}
+        />
       </div>
     </div>
   );

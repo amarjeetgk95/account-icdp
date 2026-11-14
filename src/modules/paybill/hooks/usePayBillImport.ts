@@ -1,14 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import { pdfParserV2Service as pdfParserService, PDF_PARSER_BUILD } from '../services/pdfParserV2.service';
-import { hrpnMappingService, isPlaceholderName, splitBundledNameAndDesignation } from '../services/hrpnMapping.service';
+import { hrpnMappingService } from '../services/hrpnMapping.service';
 import { paybillValidationService } from '../services/paybillValidation.service';
-import { paybillStorageService, resolvePaybillFinancialYear } from '../services/paybillStorage.service';
-import { paybillAuditService } from '../services/paybillAudit.service';
+import { paybillStorageService } from '../services/paybillStorage.service';
 import { paybillRepository } from '../repositories/paybill.repository';
 import { componentMasterService } from '../services/componentMaster.service';
-import { PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/paybillReport.service';
-import { toast } from '@/shared/components/Toast';
 import { loadSamplePayBillData, loadSamplePayBillDeductionData } from '../utils/samplePayBillPdf';
+import { useUnknownComponents } from './paybillImport/useUnknownComponents';
+import { usePayBillBatchQueue } from './paybillImport/useBatchQueue';
+import { usePayBillAuditReport } from './paybillImport/usePayBillAuditReport';
 import type {
   PayBillMetadata,
   PayBillExtractedRecord,
@@ -27,167 +27,7 @@ import type {
   PayBillSheetType,
   PayBillSettings,
   PayBillStoredImport,
-  PayBillBatchMatrix,
-  PayBillBatchMatrixMonth,
-  PayBillMonthlyEmployeeMatrixRow,
-  DetectedComponentInfo,
-  PayBillParsedResult,
 } from '../types';
-
-const CALENDAR_MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-/**
- * Compute the previous calendar month + its financial year for "MonthName-YYYY" labels.
- * FY follows the same payment-month rule as stored rows, e.g. "April-2026"
- * -> { month: 'March', financialYear: 2026 }, "February-2026" ->
- * { month: 'January', financialYear: 2025 }.
- */
-function previousMonthOf(monthLabel: string): { month: string; financialYear: number } | null {
-  const match = monthLabel.trim().match(/^([A-Za-z]+)[-/ ](\d{4})$/);
-  if (!match) return null;
-  const name = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-  const year = parseInt(match[2], 10);
-  const idx = CALENDAR_MONTHS.indexOf(name);
-  if (idx < 0) return null;
-  const prevIdx = (idx + 11) % 12;
-  const prevYear = idx === 0 ? year - 1 : year;
-  const prevMonth = CALENDAR_MONTHS[prevIdx];
-  return { month: prevMonth, financialYear: resolvePaybillFinancialYear(prevMonth, prevYear) };
-}
-
-const BATCH_MATRIX_COLUMNS = [...PAYBILL_EARNING_COLUMNS, ...PAYBILL_DEDUCTION_COLUMNS];
-
-/**
- * Build a consolidated batch matrix (month section blocks) from successfully
- * parsed batch items. Earning + deduction files of the same month are merged
- * per employee HRPN.
- */
-function buildBatchMatrix(items: BatchFileItem[]): PayBillBatchMatrix {
-  const read = (rec: unknown, key: string): number =>
-    Number((rec as Record<string, unknown>)?.[key] ?? 0);
-
-  const monthMap = new Map<
-    string,
-    {
-      monthLabel: string;
-      month: string;
-      financialYear: number;
-      employees: Map<string, PayBillMonthlyEmployeeMatrixRow>;
-    }
-  >();
-
-  for (const item of items) {
-    const parsed = item.parsedResult;
-    if (item.status !== 'SUCCESS' || !parsed) continue;
-
-    const { month, financialYear } = paybillStorageService.parseMonthAndFy(parsed.metadata.month);
-    const key = `${financialYear}-${month}`;
-    let block = monthMap.get(key);
-    if (!block) {
-      block = { monthLabel: `${month} ${financialYear}`, month, financialYear, employees: new Map() };
-      monthMap.set(key, block);
-    }
-
-    const upsert = (hrpn: string, employeeName: string, designation: string | null, values: Record<string, number>) => {
-      const cleanHrpn = hrpn.trim();
-      const existing = block!.employees.get(cleanHrpn);
-      if (existing) {
-        for (const [k, v] of Object.entries(values)) {
-          if (typeof v === 'number') {
-            existing.values[k] = (existing.values[k] || 0) + v;
-          }
-        }
-        if (isPlaceholderName(existing.employeeName) && !isPlaceholderName(employeeName)) {
-          existing.employeeName = employeeName;
-        }
-        if ((!existing.designation || existing.designation === 'Staff') && designation) {
-          existing.designation = designation;
-        }
-      } else {
-        const emptyRow: Record<string, number> = Object.fromEntries(
-          BATCH_MATRIX_COLUMNS.map((c) => [c.key, 0])
-        );
-        let finalName = employeeName;
-        let finalDesignation = designation;
-        if (isPlaceholderName(finalName) && finalDesignation) {
-          const split = splitBundledNameAndDesignation(finalDesignation);
-          if (split) {
-            finalName = split.name;
-            finalDesignation = split.designation;
-          }
-        }
-        block!.employees.set(cleanHrpn, {
-          hrpn: cleanHrpn,
-          employeeName: !isPlaceholderName(finalName) ? finalName : (cleanHrpn ? `Employee ${cleanHrpn}` : 'Employee'),
-          designation: finalDesignation,
-          values: { ...emptyRow, ...values },
-        });
-      }
-    };
-
-    const isDedSide = parsed.sheetType === 'DEDUCTION' || parsed.sheetType === 'COMBINED';
-    const isEarnSide = parsed.sheetType === 'EARNING' || parsed.sheetType === 'COMBINED';
-
-    if (isDedSide && parsed.deductionRows && parsed.deductionRows.length > 0) {
-      for (const r of parsed.deductionRows) {
-        upsert(r.hrpn, r.employeeName, r.designation, {
-          incomeTax: r.incomeTax,
-          profTax: r.profTax,
-          hbaInterest: r.hbaInterest,
-          gpfRegular: r.gpfRegular,
-          gpfClass4: r.gpfClass4,
-          npsRegular: r.npsRegular,
-          gisGovtFund: r.gisGovtFund,
-          gisGovtSaving: r.gisGovtSaving,
-          otherDeductions: read(r, 'otherDeductions'),
-          totalDeductions: r.totalDeductions,
-          netPay: r.netPay,
-        });
-      }
-    }
-    if (isEarnSide && parsed.rows && parsed.rows.length > 0) {
-      for (const r of parsed.rows) {
-        upsert(r.hrpn, r.employeeName, r.designation, {
-          basicPay: r.basicPay,
-          da: r.da,
-          hra: r.hra,
-          cla: r.cla,
-          medicalAllowance: r.medicalAllowance,
-          transportAllowance: r.transportAllowance,
-          specialPay: read(r, 'specialPay'),
-          washingAllowance: read(r, 'washingAllowance'),
-          nppAllowance: read(r, 'nonPrivatePracticeAllowance'),
-          grossAmount: r.grossAmount,
-        });
-      }
-    }
-  }
-
-  const fiscalIndex = (month: string) => {
-    const i = CALENDAR_MONTHS.indexOf(month);
-    return i >= 2 ? i - 2 : i + 10;
-  };
-
-  const months: PayBillBatchMatrixMonth[] = Array.from(monthMap.values())
-    .sort((a, b) => a.financialYear - b.financialYear || fiscalIndex(a.month) - fiscalIndex(b.month))
-    .map((block) => {
-      const rows = Array.from(block.employees.values()).sort((a, b) =>
-        a.employeeName.localeCompare(b.employeeName)
-      );
-      const totals: Record<string, number> = {};
-      for (const col of BATCH_MATRIX_COLUMNS) {
-        totals[col.key] = rows.reduce((s, r) => s + (r.values[col.key] || 0), 0);
-      }
-      return { monthLabel: block.monthLabel, month: block.month, financialYear: block.financialYear, rows, totals };
-    });
-
-  const totalEmployees = months.reduce((s, m) => s + m.rows.length, 0);
-
-  return { months, totalEmployees, totalFiles: items.length };
-}
 
 export function usePayBillImport() {
   const [file, setFile] = useState<File | null>(null);
@@ -197,12 +37,6 @@ export function usePayBillImport() {
   // 059 three-track: which treasury bill is being imported. Regular monthly pay
   // (incl. regular DA) vs DA/Pay difference arrears vs generic supplementary.
   const [billType, setBillType] = useState<string>('REGULAR');
-
-  // Batch queue state
-  const [batchQueue, setBatchQueue] = useState<BatchFileItem[]>([]);
-  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
-  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
-  const [batchMatrix, setBatchMatrix] = useState<PayBillBatchMatrix | null>(null);
 
   const [processingState, setProcessingState] = useState<PayBillProcessingState>({
     stage: 'IDLE',
@@ -230,24 +64,27 @@ export function usePayBillImport() {
 
   // Components detected in the PDF header that did not match the master.
   // Surfaced to the user so they can add them to the Component Master.
-  const [unknownComponents, setUnknownComponents] = useState<DetectedComponentInfo[]>([]);
+  const {
+    unknownComponents,
+    captureUnknownComponents,
+    dismissUnknownComponent,
+    resetUnknownComponents,
+  } = useUnknownComponents();
 
-  const captureUnknownComponents = useCallback((parsed: {
-    detectedComponents?: DetectedComponentInfo[];
-  }) => {
-    const unknowns = (parsed.detectedComponents || []).filter(
-      (c) => c.matchMethod === 'UNKNOWN'
-    );
-    setUnknownComponents(unknowns);
-  }, []);
-
-  const dismissUnknownComponent = useCallback((componentCode: string) => {
-    setUnknownComponents((prev) =>
-      prev.filter((c) => c.componentCode !== componentCode)
-    );
-  }, []);
-
-  const resetUnknownComponents = useCallback(() => setUnknownComponents([]), []);
+  // Batch queue state machine (sub-hook owns batchQueue/batchMatrix/selectedBatchId)
+  const {
+    batchQueue,
+    isBatchProcessing,
+    selectedBatchId,
+    batchMatrix,
+    addFilesToBatchQueue,
+    processBatchQueue,
+    clearBatchQueue,
+    removeBatchItem,
+    retryFailedBatchItems,
+    importBatchToLedger,
+    setSelectedBatchId,
+  } = usePayBillBatchQueue({ billType, setError, setIsImporting });
 
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -815,378 +652,6 @@ export function usePayBillImport() {
   }, [metadata, records, deductionRecords, sheetType, billType, summary, fileName, file]);
 
   /**
-   * Add multiple PDF files to batch processing queue
-   * Guards against adding the same file twice (name+size) within the current queue.
-   */
-  const addFilesToBatchQueue = useCallback((newFiles: File[]) => {
-    const pdfs = newFiles.filter((f) => f.name.toLowerCase().endsWith('.pdf'));
-    setBatchQueue((prev) => {
-      const existingKeys = new Set(prev.map((p) => `${p.name}::${p.size}`));
-      const items: BatchFileItem[] = [];
-      let skipped = 0;
-      for (const f of pdfs) {
-        const key = `${f.name}::${f.size}`;
-        if (existingKeys.has(key)) {
-          skipped += 1;
-          continue;
-        }
-        existingKeys.add(key);
-        items.push({
-          id: `batch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          file: f,
-          name: f.name,
-          size: f.size,
-          status: 'PENDING',
-        });
-      }
-      if (skipped > 0) {
-        setError(`${skipped} file(s) were already in the queue and were skipped.`);
-      }
-      return [...prev, ...items];
-    });
-  }, []);
-
-  /**
-   * Process all files in batch queue sequentially
-   * Improvements: per-file duplicate-bill guard, validation gates, confidence capture, BLOCKED status for bad files.
-   */
-  const processBatchQueue = useCallback(async () => {
-    if (batchQueue.length === 0) return;
-    setIsBatchProcessing(true);
-    setError(null);
-
-    await componentMasterService.refresh().catch(() => undefined);
-    let masterEmployees: Awaited<ReturnType<typeof paybillStorageService.getMasterEmployees>> = [];
-    try {
-      masterEmployees = await paybillStorageService.getMasterEmployees();
-    } catch (err) {
-      setIsBatchProcessing(false);
-      setError(err instanceof Error ? err.message : 'Failed to load master employees for batch processing.');
-      return;
-    }
-
-    const succeededItems: BatchFileItem[] = [];
-
-    for (const item of batchQueue) {
-      // Skip already successful items; allow retry for ERROR/BLOCKED by reprocessing them
-      if (item.status === 'SUCCESS') {
-        succeededItems.push(item);
-        continue;
-      }
-
-      setBatchQueue((prev) =>
-        prev.map((q) => (q.id === item.id ? { ...q, status: 'PARSING' } : q))
-      );
-
-      try {
-        const parsed = await pdfParserService.parsePdf(item.file);
-        const confidence = parsed.detection?.confidence ?? 100;
-
-        // Duplicate bill guard (same bill_no + month + sheet side already imported)
-        const dup = parsed.metadata.billNo
-          ? await paybillRepository.findImportByBillNo(parsed.metadata.billNo, {
-              month: parsed.metadata.month,
-              financialYear: paybillStorageService.parseMonthAndFy(parsed.metadata.month).financialYear,
-              sheetType: parsed.sheetType,
-            } as unknown as { month?: string; financialYear?: number; sheetType?: import('../types').PayBillSheetType })
-          : null;
-
-        if (dup) {
-          const blocked: BatchFileItem = {
-            ...item,
-            status: 'BLOCKED',
-            month: parsed.metadata.month,
-            billNo: parsed.metadata.billNo,
-            sheetType: parsed.sheetType,
-            parsedResult: parsed,
-            confidence,
-            hasCriticalErrors: false,
-            hasDuplicates: false,
-            error: `Duplicate bill ${dup.billNo} for ${dup.month}-${dup.financialYear} (${dup.sheetType}) already exists.`,
-          };
-          setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? blocked : q)));
-          continue;
-        }
-
-        if (parsed.sheetType === 'COMBINED') {
-          const earnRowCount = parsed.rows?.length || 0;
-          const dedRowCount = parsed.deductionRows?.length || 0;
-          const mappedE = hrpnMappingService.mapRows(parsed.rows || [], masterEmployees);
-          const validatedE = paybillValidationService.validateRecords(mappedE);
-          const recon = paybillValidationService.reconcile(validatedE, parsed.pdfTotals);
-          const mappedD = hrpnMappingService.mapDeductionRows(parsed.deductionRows || [], masterEmployees);
-          const validatedD = paybillValidationService.validateDeductionRecords(mappedD);
-
-          const hasCriticalE = validatedE.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'NOT_FOUND');
-          const hasCriticalD = validatedD.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'NOT_FOUND');
-          const hasDuplicatesE = validatedE.some((r) => r.mappingStatus === 'DUPLICATE');
-          const hasDuplicatesD = validatedD.some((r) => r.mappingStatus === 'DUPLICATE');
-          const hasUnmatched = validatedE.some((r) => r.mappingStatus === 'NOT_FOUND') || validatedD.some((r) => r.mappingStatus === 'NOT_FOUND');
-          const hasReconciliationMismatch = recon.status === 'MISMATCH' && recon.diff !== 0 && Math.abs(recon.diff) > 1;
-          const hasZeroRecords = earnRowCount === 0 && dedRowCount === 0;
-          const isFailed = hasZeroRecords || hasCriticalE || hasCriticalD || hasDuplicatesE || hasDuplicatesD || (hasReconciliationMismatch && validatedE.length > 0) || confidence < 50;
-
-          const updated: BatchFileItem = {
-            ...item,
-            status: isFailed ? 'ERROR' : 'SUCCESS',
-            month: parsed.metadata.month,
-            billNo: parsed.metadata.billNo,
-            sheetType: 'COMBINED',
-            parsedResult: parsed,
-            recordCount: Math.max(earnRowCount, dedRowCount),
-            grossTotal: parsed.pdfTotals?.grossAmount || parsed.pdfDeductionTotals?.totalDeductions || 0,
-            confidence,
-            hasCriticalErrors: hasCriticalE || hasCriticalD,
-            hasDuplicates: hasDuplicatesE || hasDuplicatesD,
-            error: isFailed
-              ? hasZeroRecords
-                ? 'Failed: 0 employee records found in file.'
-                : (hasDuplicatesE || hasDuplicatesD)
-                  ? 'Failed: Duplicate employee HRPNs in file.'
-                  : hasUnmatched
-                    ? 'Failed: HRPN(s) not matched with Establishment employee directory — register them in Establishment first.'
-                    : (hasCriticalE || hasCriticalD)
-                      ? 'Failed: Critical validation errors on employee records.'
-                      : confidence < 50
-                        ? `Failed: Low extraction confidence (${confidence}%).`
-                        : 'Failed to extract entries.'
-              : undefined,
-          };
-          setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
-          if (!isFailed) succeededItems.push(updated);
-        } else if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
-          const rowCount = parsed.deductionRows?.length || 0;
-          const mapped = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
-          const validated = paybillValidationService.validateDeductionRecords(mapped);
-          const hasCritical = validated.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'NOT_FOUND');
-          const hasDuplicates = validated.some((r) => r.mappingStatus === 'DUPLICATE');
-          const hasUnmatched = validated.some((r) => r.mappingStatus === 'NOT_FOUND');
-          const hasZeroRecords = rowCount === 0;
-          const isFailed = hasZeroRecords || hasCritical || hasDuplicates || confidence < 50;
-
-          const updated: BatchFileItem = {
-            ...item,
-            status: isFailed ? 'ERROR' : 'SUCCESS',
-            month: parsed.metadata.month,
-            billNo: parsed.metadata.billNo,
-            sheetType: 'DEDUCTION',
-            parsedResult: parsed,
-            recordCount: rowCount,
-            grossTotal: parsed.pdfDeductionTotals?.totalDeductions || 0,
-            confidence,
-            hasCriticalErrors: hasCritical,
-            hasDuplicates,
-            error: isFailed
-              ? hasZeroRecords
-                ? 'Failed: 0 employee deduction records found in file.'
-                : hasDuplicates
-                  ? 'Failed: Duplicate employee HRPNs in file.'
-                  : hasUnmatched
-                    ? 'Failed: HRPN(s) not matched with Establishment employee directory — register them in Establishment first.'
-                    : hasCritical
-                    ? 'Failed: Critical validation errors on employee records.'
-                    : confidence < 50
-                      ? `Failed: Low extraction confidence (${confidence}%).`
-                      : 'Failed to extract deduction entries.'
-              : undefined,
-          };
-          setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
-          if (!isFailed) succeededItems.push(updated);
-        } else {
-          const rowCount = parsed.rows?.length || 0;
-          const mapped = hrpnMappingService.mapRows(parsed.rows || [], masterEmployees);
-          const validated = paybillValidationService.validateRecords(mapped);
-          const recon = paybillValidationService.reconcile(validated, parsed.pdfTotals);
-          const hasCritical = validated.some((r) => r.validationStatus === 'ERROR' || r.mappingStatus === 'INVALID_HRPN' || r.mappingStatus === 'NOT_FOUND');
-          const hasDuplicates = validated.some((r) => r.mappingStatus === 'DUPLICATE');
-          const hasUnmatched = validated.some((r) => r.mappingStatus === 'NOT_FOUND');
-          const hasReconciliationMismatch = recon.status === 'MISMATCH' && recon.diff !== 0 && Math.abs(recon.diff) > 1;
-          const hasZeroRecords = rowCount === 0;
-          const isFailed = hasZeroRecords || hasCritical || hasDuplicates || (hasReconciliationMismatch && validated.length > 0) || confidence < 50;
-
-          const updated: BatchFileItem = {
-            ...item,
-            status: isFailed ? 'ERROR' : 'SUCCESS',
-            month: parsed.metadata.month,
-            billNo: parsed.metadata.billNo,
-            sheetType: 'EARNING',
-            parsedResult: parsed,
-            recordCount: rowCount,
-            grossTotal: parsed.pdfTotals?.grossAmount || 0,
-            confidence,
-            hasCriticalErrors: hasCritical,
-            hasDuplicates,
-            error: isFailed
-              ? hasZeroRecords
-                ? 'Failed: 0 employee records found in file.'
-                : hasDuplicates
-                  ? 'Failed: Duplicate employee HRPNs in file.'
-                  : hasUnmatched
-                    ? 'Failed: HRPN(s) not matched with Establishment employee directory — register them in Establishment first.'
-                    : hasCritical
-                    ? 'Failed: Critical validation errors on employee records.'
-                    : hasReconciliationMismatch
-                      ? `Failed: Gross amount mismatch (${recon.message})`
-                      : confidence < 50
-                        ? `Failed: Low extraction confidence (${confidence}%).`
-                        : 'Failed to extract employee entries.'
-              : undefined,
-          };
-          setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? updated : q)));
-          if (!isFailed) succeededItems.push(updated);
-        }
-      } catch (err) {
-        setBatchQueue((prev) =>
-          prev.map((q) =>
-            q.id === item.id
-              ? { ...q, status: 'ERROR', error: err instanceof Error ? err.message : 'Failed to parse' }
-              : q
-          )
-        );
-      }
-    }
-
-    const failedCount = batchQueue.length - succeededItems.length;
-    if (failedCount > 0) {
-      toast.error(`Batch processing completed: ${succeededItems.length} parsed, ${failedCount} failed.`);
-    } else if (succeededItems.length > 0) {
-      toast.success(`Batch processing completed: all ${succeededItems.length} pay bills parsed successfully.`);
-    }
-
-    if (succeededItems.length > 0) {
-      setBatchMatrix(buildBatchMatrix(succeededItems));
-    } else {
-      setBatchMatrix(null);
-    }
-
-    setIsBatchProcessing(false);
-  }, [batchQueue]);
-
-  /**
-   * Clear the entire batch queue
-   */
-  const clearBatchQueue = useCallback(() => {
-    setBatchQueue([]);
-    setSelectedBatchId(null);
-    setBatchMatrix(null);
-  }, []);
-
-  /**
-   * Remove a single item from batch queue
-   */
-  const removeBatchItem = useCallback((id: string) => {
-    setBatchQueue((prev) => prev.filter((q) => q.id !== id));
-  }, []);
-
-  /**
-   * Reset failed / blocked items to PENDING so the user can fix source files and retry only those.
-   */
-  const retryFailedBatchItems = useCallback(() => {
-    setBatchQueue((prev) =>
-      prev.map((q) =>
-        q.status === 'ERROR' || q.status === 'BLOCKED' ? { ...q, status: 'PENDING' as const, error: undefined, hasCriticalErrors: undefined, hasDuplicates: undefined } : q
-      )
-    );
-    setBatchMatrix(null);
-    setError(null);
-  }, []);
-
-  /**
-   * Save ALL successfully parsed batch files into the ledger at once.
-   * Skips BLOCKED/ERROR files; surfaces per-file failures. Passes file for hash.
-   * Returns per-file import counts; on partial failure, sets an error message.
-   */
-  const importBatchToLedger = useCallback(async (): Promise<{
-    imported: number;
-    failed: number;
-    total: number;
-  } | null> => {
-    const successItems = batchQueue.filter((q) => q.status === 'SUCCESS' && q.parsedResult);
-    if (successItems.length === 0) {
-      const blocked = batchQueue.filter((q) => q.status === 'BLOCKED');
-      if (blocked.length > 0) {
-        setError(
-          `${blocked.length} file(s) have validation issues and are blocked. Review each blocked file, fix errors, then retry. Only successful files can be saved.`
-        );
-      } else {
-        setError('No processed files to save. Please run Process All first.');
-      }
-      return null;
-    }
-
-    setIsImporting(true);
-    setError(null);
-
-    let imported = 0;
-    let failed = 0;
-    const failures: string[] = [];
-
-    try {
-      const masterEmployees = await paybillStorageService.getMasterEmployees();
-
-      for (const item of successItems) {
-        const parsed = item.parsedResult!;
-        try {
-          if (parsed.sheetType === 'COMBINED') {
-            if (parsed.rows && parsed.rows.length > 0) {
-              const mappedE = hrpnMappingService.mapRows(parsed.rows, masterEmployees);
-              const valE = paybillValidationService.validateRecords(mappedE);
-              if (valE.some((r) => r.validationStatus === 'ERROR')) {
-                throw new Error('Critical validation errors in earnings — re-validate before saving.');
-              }
-              await paybillStorageService.importPayBill(parsed.metadata, valE, item.name, item.file, billType);
-            }
-            if (parsed.deductionRows && parsed.deductionRows.length > 0) {
-              const mappedD = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
-              const valD = paybillValidationService.validateDeductionRecords(mappedD);
-              if (valD.some((r) => r.validationStatus === 'ERROR')) {
-                throw new Error('Critical validation errors in deductions — re-validate before saving.');
-              }
-              await paybillStorageService.importDeductions(parsed.metadata, valD, item.name, item.file, billType);
-            }
-          } else if (parsed.sheetType === 'DEDUCTION' && parsed.deductionRows) {
-            const mapped = hrpnMappingService.mapDeductionRows(parsed.deductionRows, masterEmployees);
-            const validated = paybillValidationService.validateDeductionRecords(mapped);
-            // Final gate: if critical errors emerged since parsing, skip
-            if (validated.some((r) => r.validationStatus === 'ERROR')) {
-              throw new Error('Critical validation errors present — re-validate before saving.');
-            }
-            await paybillStorageService.importDeductions(parsed.metadata, validated, item.name, item.file, billType);
-          } else {
-            const mapped = hrpnMappingService.mapRows(parsed.rows, masterEmployees);
-            const validated = paybillValidationService.validateRecords(mapped);
-            if (validated.some((r) => r.validationStatus === 'ERROR')) {
-              throw new Error('Critical validation errors present — re-validate before saving.');
-            }
-            await paybillStorageService.importPayBill(parsed.metadata, validated, item.name, item.file, billType);
-          }
-          imported += 1;
-          // Mark item as imported in queue to prevent re-import
-          setBatchQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: 'SUCCESS' as const } : q)));
-        } catch (err) {
-          failed += 1;
-          const msg = err instanceof Error ? err.message : 'Import failed';
-          failures.push(`${item.name}: ${msg}`);
-          setBatchQueue((prev) =>
-            prev.map((q) => (q.id === item.id ? { ...q, status: 'ERROR' as const, error: msg } : q))
-          );
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save batch to ledger.');
-      setIsImporting(false);
-      return null;
-    }
-
-    if (failed > 0) {
-      setError(`${failed} file(s) failed to save: ${failures.join('; ')}`);
-    }
-
-    setIsImporting(false);
-    return { imported, failed, total: successItems.length };
-  }, [batchQueue, billType]);
-
-  /**
    * Select a parsed batch item to review in the main table
    */
   const selectBatchItem = useCallback(
@@ -1318,71 +783,8 @@ export function usePayBillImport() {
     []
   );
 
-  /**
-   * Smart Audit Report for the active records.
-   * Runs on records/metadata change; uses office settings (DA rates / thresholds)
-   * and the previous month's earnings for month-to-month anomaly checks.
-   */
-  useEffect(() => {
-    if (!metadata || records.length === 0) {
-      setAuditReport(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const [officeSettings, prevRecords] = await Promise.all([
-          settings || paybillRepository.getSettings(),
-          (() => {
-            const prev = previousMonthOf(metadata.month);
-            if (!prev) return Promise.resolve([]);
-            return paybillRepository.listEarnings({
-              month: prev.month,
-              financialYear: prev.financialYear,
-            });
-          })(),
-        ]);
-
-        let prevBasic = 0;
-        let prevDa = 0;
-        for (const r of prevRecords) {
-          prevBasic += r.basicPay || 0;
-          prevDa += r.da || 0;
-        }
-        const previousDaPercentage =
-          prevBasic > 0 ? Math.round((prevDa / prevBasic) * 10000) / 100 : undefined;
-
-        if (cancelled) return;
-
-        const fakeParsed: PayBillParsedResult = {
-          sheetType,
-          metadata,
-          rows: records.map((r) => r.row),
-          pdfTotals,
-          rawText: '',
-          pageCount: 1,
-          parsingWarnings: [],
-        };
-        setAuditReport(
-          paybillAuditService.auditPayBill(fakeParsed, records, {
-            daRates: officeSettings.daRates,
-            daHikeThreshold: officeSettings.daHikeThreshold,
-            basicPayChangeTolerance: officeSettings.basicPayChangeTolerance,
-            previousDaPercentage,
-            previousMonthRecords: prevRecords,
-          })
-        );
-      } catch {
-        if (!cancelled) setAuditReport(null);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [metadata, records, pdfTotals, settings, sheetType]);
+  // Smart audit report runs as a side effect of records/metadata change
+  usePayBillAuditReport({ metadata, records, pdfTotals, settings, sheetType, setAuditReport });
 
   /**
    * Reset all state
