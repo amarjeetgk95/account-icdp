@@ -28,9 +28,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Keep manual splitting minimal: only shell vendors. Heavy feature
-        // libs (recharts, jspdf, exceljs, unpdf, jszip, html2canvas) stay in
-        // their lazy route chunks via dynamic import()/React.lazy so they are
-        // never statically imported or modulepreloaded by the entry.
+        // libs (jspdf, exceljs, xlsx, unpdf, jszip, html2canvas) stay in their
+        // lazy route chunks via dynamic import()/React.lazy so they are never
+        // statically imported or modulepreloaded by the entry.
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom', 'zustand', '@tanstack/react-query'],
           supabase: ['@supabase/supabase-js'],

@@ -30,3 +30,7 @@ supabase/.temp/
 
 # Local environment (secrets)
 .env
+
+# Python bytecode
+__pycache__/
+*.pyc
