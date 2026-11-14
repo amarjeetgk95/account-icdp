@@ -1,9 +1,7 @@
 import type { QuarterReport as QuarterReportType } from '../types';
 import { export24QExcel } from '@/shared/utilities/excelExport';
 import { FileSpreadsheet } from 'lucide-react';
-
-const formatAmount = (value: number) =>
-  value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+import { formatINR as formatAmount } from '@/shared/domain/currency';
 
 interface QuarterReportProps {
   report: QuarterReportType | null;

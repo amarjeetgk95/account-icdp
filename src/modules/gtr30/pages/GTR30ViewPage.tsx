@@ -9,6 +9,7 @@ import { useGtr30Bill } from '../hooks/useGTR30Bills';
 import { useGTR30Settings } from '../hooks/useGTR30Settings';
 import { gtr30BillsService } from '../services/gtr30Bills.service';
 import { popupNativePrint } from '@/shared/utilities/nativePrint';
+import { triggerDownload } from '@/shared/utilities/download';
 
 export function GTR30ViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -61,12 +62,7 @@ export function GTR30ViewPage() {
     const dataStr =
       'data:text/json;charset=utf-8,' +
       encodeURIComponent(gtr30BillsService.exportBillAsJson(bill));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `GTR30_Bill_${bill.billRegisterNo || 'export'}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+    triggerDownload(dataStr, `GTR30_Bill_${bill.billRegisterNo || 'export'}.json`);
     toast({ title: 'Export Successful', description: 'Bill exported as JSON.' });
   };
 

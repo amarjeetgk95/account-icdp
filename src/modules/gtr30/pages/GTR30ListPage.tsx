@@ -52,6 +52,7 @@ import {
 import { gtr30ResolveEmployees } from '../services/gtr30EmployeeMaster.service';
 import { gtr30EmployeeTransformService } from '../services/gtr30EmployeeTransform.service';
 import { formatMoney } from '../services/gtr30Calc.service';
+import { triggerDownload } from '@/shared/utilities/download';
 import { gtr30ParseMonthKey } from '../utils/gtr30MonthKey';
 import { GTR30_SETTINGS_STORAGE_KEY } from '../constants/settings';
 import type { GTR30Bill, GTR30FormData } from '../types';
@@ -411,12 +412,7 @@ export function GTR30ListPage() {
       const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(
         gtr30BillsService.exportAllAsJson(fullBills)
       );
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute('href', dataStr);
-      downloadAnchor.setAttribute('download', `GTR30_Register_Export_${new Date().toISOString().split('T')[0]}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
+      triggerDownload(dataStr, `GTR30_Register_Export_${new Date().toISOString().split('T')[0]}.json`);
       toast({ title: 'Export Completed', description: 'All bills exported as JSON.' });
     } catch (error) {
       toast({

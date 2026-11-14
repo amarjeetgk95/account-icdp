@@ -1,13 +1,7 @@
 import type { Form16Certificate } from '../types/form16';
-import { numberToWordsINR } from '@/shared/domain/currency';
+import { numberToWordsINR, formatINR } from '@/shared/domain/currency';
 
-const fmt = (n: number | undefined | null): string => {
-  const val = Number(n) || 0;
-  return new Intl.NumberFormat('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.round(val * 100) / 100);
-};
+const fmt = formatINR;
 
 function ayText(cert: Form16Certificate): string {
   return `${cert.assessmentYear}-${String((cert.assessmentYear + 1) % 100).padStart(2, '0')}`;

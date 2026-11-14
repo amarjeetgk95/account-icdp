@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { MappingStatusBadge } from './MappingStatusBadge';
 import type { PayBillDeductionExtractedRecord, PayBillDeductionTotalRow } from '../types';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
 
 interface DeductionPreviewTableProps {
   records: PayBillDeductionExtractedRecord[];
@@ -19,9 +20,6 @@ export const DeductionPreviewTable: React.FC<DeductionPreviewTableProps> = ({
   pdfTotals,
   onQuickAddEmployee,
 }) => {
-  const formatInr = (n: number | undefined) =>
-    `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
-
   const calculatedTotals = records.reduce(
     (acc, r) => {
       acc.incomeTax += r.row.incomeTax || 0;

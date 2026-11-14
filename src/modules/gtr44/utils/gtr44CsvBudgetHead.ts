@@ -1,5 +1,7 @@
 import { GTR44BudgetHead } from '../types';
 import { headChargeableCodeSchema } from '../services/gtr44Settings.schema';
+import { escapeCsvValue, parseCsvLine } from '@/shared/utilities/csv';
+import { downloadCsvContent } from '@/shared/utilities/download';
 
 export const BUDGET_HEAD_CSV_HEADERS = [
   'name',
@@ -22,46 +24,6 @@ export const BUDGET_HEAD_CSV_HEADERS = [
 
 export type BudgetHeadCsvHeaders = typeof BUDGET_HEAD_CSV_HEADERS[number];
 
-function escapeCsvValue(value: string): string {
-  if (value == null) return '';
-  const str = String(value);
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function parseCsvLine(line: string): string[] {
-  // Simple split, but handle quoted values with commas
-  const result: string[] = [];
-  let cur = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (ch === ',' && !inQuotes) {
-      result.push(cur.trim());
-      cur = '';
-    } else {
-      cur += ch;
-    }
-  }
-  result.push(cur.trim());
-  return result.map((v) => {
-    // Remove surrounding quotes if present
-    if (v.startsWith('"') && v.endsWith('"')) {
-      return v.slice(1, -1).replace(/""/g, '"');
-    }
-    return v;
-  });
-}
-
 export function exportBudgetHeadsToCsv(heads: GTR44BudgetHead[]): string {
   const headers = BUDGET_HEAD_CSV_HEADERS.join(',');
   const rows = heads.map((h) => {
@@ -77,16 +39,7 @@ export function exportBudgetHeadsToCsv(heads: GTR44BudgetHead[]): string {
 }
 
 export function downloadBudgetHeadsCsv(heads: GTR44BudgetHead[], fileName = 'budget-heads.csv'): void {
-  const csv = exportBudgetHeadsToCsv(heads);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', fileName);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadCsvContent(fileName, exportBudgetHeadsToCsv(heads));
 }
 
 export interface ParseResult {

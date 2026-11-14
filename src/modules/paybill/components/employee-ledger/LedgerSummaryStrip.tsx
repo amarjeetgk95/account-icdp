@@ -1,5 +1,5 @@
 import { useCountUp } from './hooks/useCountUp';
-import { formatInr } from './format';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 
 /** Ultra-compact inline SVG sparkline for Net Pay trend (screen-only). */

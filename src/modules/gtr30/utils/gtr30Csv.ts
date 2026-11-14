@@ -2,6 +2,12 @@ import type { GTR30EmployeeMaster } from '../types';
 import { resolveDARateForMonthKey } from './gtr30GovRules';
 import { gtr30SettingsService } from '../services/gtr30Settings.service';
 import { gtr30EmployeeMasterSchema } from '../validation/gtr30EmployeeMaster.schema';
+// CSV escaping/parsing lives canonically in `@/shared/utilities/csv` and the
+// download helpers in `@/shared/utilities/download`. Re-exported so existing
+// importers (and gtr30Csv.test.ts) keep working.
+import { escapeCsvValue as escapeCsvField, parseCsv, parseCsvLine } from '@/shared/utilities/csv';
+import { downloadCsvContent } from '@/shared/utilities/download';
+export { parseCsv, parseCsvLine };
 
 export const CSV_HEADERS = [
   'Sr No',
@@ -32,15 +38,6 @@ export const CSV_HEADERS = [
   'Society Deduction',
   'Remarks',
 ] as const;
-
-function escapeCsvField(val: unknown): string {
-  if (val === null || val === undefined) return '';
-  const str = String(val);
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
 
 export function exportMasterToCsv(employees: GTR30EmployeeMaster[]): string {
   const lines: string[] = [];
@@ -122,91 +119,6 @@ export interface CsvImportResult {
   employees: GTR30EmployeeMaster[];
   skippedRows: number;
   errors: string[];
-}
-
-export function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let currentRow: string[] = [];
-  let currentField = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    const nextChar = text[i + 1];
-
-    if (inQuotes) {
-      if (char === '"') {
-        if (nextChar === '"') {
-          currentField += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        currentField += char;
-      }
-    } else {
-      if (char === '"') {
-        inQuotes = true;
-      } else if (char === ',') {
-        currentRow.push(currentField.trim());
-        currentField = '';
-      } else if (char === '\n' || char === '\r') {
-        if (char === '\r' && nextChar === '\n') {
-          i++;
-        }
-        currentRow.push(currentField.trim());
-        rows.push(currentRow);
-        currentRow = [];
-        currentField = '';
-      } else {
-        currentField += char;
-      }
-    }
-  }
-
-  if (currentField.length > 0 || currentRow.length > 0) {
-    currentRow.push(currentField.trim());
-    rows.push(currentRow);
-  }
-
-  return rows.filter((row) => row.some((field) => field.length > 0));
-}
-
-export function parseCsvLine(text: string): string[] {
-  const result: string[] = [];
-  let currentField = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    const nextChar = text[i + 1];
-
-    if (inQuotes) {
-      if (char === '"') {
-        if (nextChar === '"') {
-          currentField += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        currentField += char;
-      }
-    } else {
-      if (char === '"') {
-        inQuotes = true;
-      } else if (char === ',') {
-        result.push(currentField.trim());
-        currentField = '';
-      } else {
-        currentField += char;
-      }
-    }
-  }
-
-  result.push(currentField.trim());
-  return result;
 }
 
 function normalizeHeader(header: string): string {
@@ -310,14 +222,5 @@ export function importMasterFromCsv(csvText: string, monthKey?: string): CsvImpo
 }
 
 export function downloadCsvFile(filename: string, csvContent: string): void {
-  const bom = '\uFEFF';
-  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadCsvContent(filename, csvContent, true);
 }

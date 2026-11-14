@@ -1,5 +1,7 @@
 import { GTR44ObjectExpenditureItem } from '../types';
 import { normalizeEDPCode } from '../services/gtr44Calc.service';
+import { escapeCsvValue, parseCsvLine } from '@/shared/utilities/csv';
+import { downloadCsvContent } from '@/shared/utilities/download';
 
 export const EXPENDITURE_CSV_HEADERS = [
   'code',
@@ -11,44 +13,6 @@ export const EXPENDITURE_CSV_HEADERS = [
 ] as const;
 
 export type ExpenditureCsvHeader = typeof EXPENDITURE_CSV_HEADERS[number];
-
-function escapeCsvValue(value: string): string {
-  if (value == null) return '';
-  const str = String(value);
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let cur = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (ch === ',' && !inQuotes) {
-      result.push(cur.trim());
-      cur = '';
-    } else {
-      cur += ch;
-    }
-  }
-  result.push(cur.trim());
-  return result.map((v) => {
-    if (v.startsWith('"') && v.endsWith('"')) {
-      return v.slice(1, -1).replace(/""/g, '"');
-    }
-    return v;
-  });
-}
 
 export function exportExpenditureItemsToCsv(items: GTR44ObjectExpenditureItem[]): string {
   const headers = EXPENDITURE_CSV_HEADERS.join(',');
@@ -69,16 +33,7 @@ export function downloadExpenditureItemsCsv(
   items: GTR44ObjectExpenditureItem[],
   fileName = 'expenditure-items.csv'
 ): void {
-  const csv = exportExpenditureItemsToCsv(items);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', fileName);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadCsvContent(fileName, exportExpenditureItemsToCsv(items));
 }
 
 export interface ExpenditureParseResult {

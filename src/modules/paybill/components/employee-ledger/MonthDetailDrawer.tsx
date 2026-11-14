@@ -7,7 +7,8 @@ import {
 } from '../../services/paybillReport.service';
 import type { PayBillMonthlyMatrixColumn } from '../../types';
 import type { PayBillStoredEarning, PayBillStoredDeduction } from '../../types';
-import { formatInr } from './format';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
+import { formatDate } from '@/shared/utilities';
 
 interface MonthDetailDrawerProps {
   open: boolean;
@@ -17,13 +18,6 @@ interface MonthDetailDrawerProps {
   earnings: PayBillStoredEarning[];
   deductions: PayBillStoredDeduction[];
 }
-
-const formatDate = (iso: string): string => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-};
 
 interface ComponentValue {
   label: string;

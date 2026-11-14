@@ -1,3 +1,6 @@
+import { escapeCsvValue } from './csv';
+import { downloadCsvContent } from './download';
+
 export function formatCurrency(amount: unknown): string {
   const n = typeof amount === 'number' && !Number.isNaN(amount) ? amount : Number(amount) || 0;
   return new Intl.NumberFormat('en-IN', {
@@ -118,26 +121,17 @@ export function reloadForChunkUpdate(): void {
 }
 
 export function downloadCsv(filename: string, headers: string[], rows: Array<Array<string | number>>): void {
-  const cell = (value: string | number) => {
-    const v = String(value == null ? '' : value);
-    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-  };
-  const lines = [headers.map(cell).join(',')].concat(
-    rows.map((r) => r.map(cell).join(','))
+  const lines = [headers.map(escapeCsvValue).join(',')].concat(
+    rows.map((r) => r.map(escapeCsvValue).join(','))
   );
-  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(link.href), 500);
+  downloadCsvContent(filename, lines.join('\r\n'), true);
 }
 
 export * from './rpc';
 export * from './nativePrint';
 export * from './gujaratiFormat';
+export * from './csv';
+export * from './download';
 // NOTE: excelExport intentionally NOT re-exported here. It pulls exceljs
 // (~900KB) via dynamic import and would bloat every barrel importer
 // (main.tsx, Header, Dashboard KPIs). Import it directly:

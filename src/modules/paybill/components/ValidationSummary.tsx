@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2, AlertCircle, AlertTriangle, HelpCircle, Check, ChevronDown, ChevronUp, Scale } from 'lucide-react';
 import type { PayBillImportSummary, PayBillReconciliation } from '../types';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
 
 interface ValidationSummaryProps {
   summary: PayBillImportSummary;
@@ -9,8 +10,6 @@ interface ValidationSummaryProps {
 
 export function ValidationSummary({ summary, reconciliation }: ValidationSummaryProps) {
   const [showReconciliationDetails, setShowReconciliationDetails] = useState(false);
-
-  const formatInr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
   return (
     <div className="space-y-3">

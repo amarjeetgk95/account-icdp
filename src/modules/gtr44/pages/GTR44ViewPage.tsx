@@ -10,6 +10,7 @@ import { ChevronLeft, Printer, Download, Edit, FileQuestion, FileDown } from 'lu
 import { useToast } from '../../../hooks/use-toast';
 import { WorkspaceHeader } from '@/shared/components/WorkspaceHeader';
 import { popupNativePrint } from '@/shared/utilities/nativePrint';
+import { triggerDownload } from '@/shared/utilities/download';
 
 export function GTR44ViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -106,12 +107,7 @@ export function GTR44ViewPage() {
   const handleExportData = () => {
     if (!bill) return;
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(bill, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute('href', dataStr);
-    downloadAnchorNode.setAttribute('download', `gtr44_bill_${bill.billNo || 'export'}.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
+    triggerDownload(dataStr, `gtr44_bill_${bill.billNo || 'export'}.json`);
     toast({ title: 'Export Successful', description: 'Bill data exported as JSON.' });
   };
 

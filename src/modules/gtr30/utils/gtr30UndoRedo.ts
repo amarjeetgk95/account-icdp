@@ -1,4 +1,5 @@
 import type { GTR30Employee, GTR30FormData } from '../types';
+import { triggerDownload } from '@/shared/utilities/download';
 
 /**
  * Undo/Redo functionality for GTR-30 module
@@ -348,10 +349,5 @@ export function deserializeHistory(serialized: string): HistoryStack {
  */
 export function exportHistory(stack: HistoryStack, filename: string = 'gtr30-history.json') {
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(serializeHistory(stack));
-  const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute('href', dataStr);
-  downloadAnchor.setAttribute('download', filename);
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  document.body.removeChild(downloadAnchor);
+  triggerDownload(dataStr, filename);
 }

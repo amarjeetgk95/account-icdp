@@ -27,8 +27,7 @@ import { findDuplicateEstablishmentHrpns } from '../validation/establishment.sch
 import { Modal } from '@/shared/components/Modal';
 import { isResolutionStatus, latestPayOf } from '../types';
 import type { EstablishmentEmployee } from '../types';
-
-const INR = (n: number) => '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+import { formatINRWhole as INR } from '@/shared/domain/currency';
 
 export function EstablishmentDirectoryPage() {
   const navigate = useNavigate();

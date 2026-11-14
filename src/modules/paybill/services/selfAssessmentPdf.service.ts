@@ -1,5 +1,6 @@
 import type { jsPDF as JsPDFType } from 'jspdf';
 import type { SelfAssessmentMemo } from '../types/selfAssessment';
+import { inr, inrOrDash, formatDesignation } from '../utils/selfAssessmentFormat';
 
 type AutoTableFn = (doc: JsPDFType, options: Record<string, unknown>) => void;
 
@@ -43,17 +44,6 @@ export interface GeneratedPdfResult {
   arrayBuffer: ArrayBuffer;
   blob: Blob;
 }
-
-const inr = (n: number | undefined | null): string =>
-  Math.round(Number(n) || 0).toLocaleString('en-IN');
-
-const inrOrDash = (n: number | undefined | null): string => {
-  const val = Math.round(Number(n) || 0);
-  return val > 0 ? val.toLocaleString('en-IN') : '—';
-};
-
-const formatDesignation = (d?: string): string =>
-  (d || '').replace(/HUSBANDARY/gi, 'HUSBANDRY');
 
 /**
  * Standardized filename generation for Self-Assessment Memo PDF

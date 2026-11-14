@@ -57,8 +57,7 @@ import type { EstablishmentEmployee } from '@/modules/establishment/types';
 import type { PayBillStoredEarning, PayBillStoredDeduction } from '../types';
 
 import { servesInFinancialYear, establishmentOrderRank } from '@/modules/establishment/types';
-
-const inr = (n: number) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
+import { formatINRWhole as inr } from '@/shared/domain/currency';
 
 interface Form16EmployeeOption {
   hrpn: string;

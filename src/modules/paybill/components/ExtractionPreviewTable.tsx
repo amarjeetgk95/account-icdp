@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { MappingStatusBadge } from './MappingStatusBadge';
 import type { PayBillExtractedRecord, PayBillEmployeeRow } from '../types';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
 
 interface ExtractionPreviewTableProps {
   records: PayBillExtractedRecord[];
@@ -34,9 +35,6 @@ export function ExtractionPreviewTable({
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<PayBillEmployeeRow | null>(null);
   const [normalizedViewRecord, setNormalizedViewRecord] = useState<PayBillExtractedRecord | null>(null);
-
-  const formatInr = (n: number | undefined) =>
-    `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 
   const hasSpecialPay = useMemo(() => records.some((r) => (r.row.specialPay || 0) > 0), [records]);
   const hasWashing = useMemo(() => records.some((r) => (r.row.washingAllowance || 0) > 0), [records]);

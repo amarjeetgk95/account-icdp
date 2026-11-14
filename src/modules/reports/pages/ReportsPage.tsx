@@ -4,6 +4,7 @@ import { useFinancialYears, useYearlyReport } from '../hooks/useReports';
 import { useUIStore } from '@/core/stores/ui-store';
 import type { YearlyReport } from '../types';
 import { formatCurrency, popupNativePrint } from '@/shared/utilities';
+import { formatINR as formatAmount } from '@/shared/domain/currency';
 import { export26QExcel, exportGSTExcel } from '@/shared/utilities/excelExport';
 import { ReportPrintArea } from '@/shared/components/ReportPrintArea';
 import { EmptyState } from '@/shared/components/EmptyState';
@@ -194,9 +195,6 @@ export function ReportsPage() {
     </div>
   );
 }
-
-const formatAmount = (value: number) =>
-  value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function Employee24QReport({ report, office }: { report: YearlyReport; office: { officeName: string; subtitle: string; address: string; phone: string; email: string; gst: string; tan: string } }) {
   if (report.employees.length === 0) {

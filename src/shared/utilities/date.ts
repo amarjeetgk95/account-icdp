@@ -2,13 +2,11 @@
 // GLOBAL DATE UTILITY — IST (Asia/Kolkata) & DD-MM-YYYY STANDARD
 // ============================================================================
 import { toEnglishDigits } from './digits';
+import { pad2 } from './index';
+import { MONTHS } from '@/shared/constants';
 
 export const DATE_FORMAT_LABEL = 'DD-MM-YYYY';
 export const APP_TIME_ZONE = 'Asia/Kolkata';
-
-function pad2(n: number): string {
-  return String(n).padStart(2, '0');
-}
 
 interface AppParts {
   year: number;
@@ -228,6 +226,100 @@ export function toISODateForDB(value?: string | null): string | null {
  */
 export function currentFinancialYear(date: Date = new Date()): number {
   return date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+}
+
+// ============================================================================
+// ISO (YYYY-MM-DD) DATE HELPERS — canonical home for the pay-history /
+// pay-matrix date utilities (previously duplicated verbatim in
+// `gtr30/utils/payHistory.ts` and `gtr30/utils/gtr30PayMatrix.ts`).
+// ============================================================================
+
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+export interface IsoDateParts {
+  y: number;
+  m: number;
+  d: number;
+}
+
+/** Parse `YYYY-MM-DD` into parts, or null when the value is not an ISO date. */
+export function parseIsoDate(iso: string): IsoDateParts | null {
+  if (!ISO_DATE_REGEX.test(iso.trim())) return null;
+  const y = Number(iso.slice(0, 4));
+  const m = Number(iso.slice(5, 7));
+  const d = Number(iso.slice(8, 10));
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  return { y, m, d };
+}
+
+/** Render parts as `YYYY-MM-DD`. Inverse of `parseIsoDate`. */
+export function toIsoDate(y: number, m: number, d: number): string {
+  return `${y}-${pad2(m)}-${pad2(d)}`;
+}
+
+export function addDays(iso: string, delta: number): string {
+  const p = parseIsoDate(iso);
+  if (!p) return iso;
+  const dt = new Date(p.y, p.m - 1, p.d);
+  dt.setDate(dt.getDate() + delta);
+  return toIsoDate(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
+}
+
+export function dayBefore(iso: string): string {
+  return addDays(iso, -1);
+}
+
+export function dayAfter(iso: string): string {
+  return addDays(iso, 1);
+}
+
+export function daysBetween(startIso: string, endIso: string): number {
+  const a = parseIsoDate(startIso);
+  const b = parseIsoDate(endIso);
+  if (!a || !b) return 0;
+  const start = new Date(a.y, a.m - 1, a.d);
+  const end = new Date(b.y, b.m - 1, b.d);
+  return Math.round((end.getTime() - start.getTime()) / 86_400_000);
+}
+
+export function daysInMonth(iso: string): number {
+  const p = parseIsoDate(iso);
+  if (!p) return 0;
+  return new Date(p.y, p.m, 0).getDate();
+}
+
+export function monthStart(iso: string): string {
+  const p = parseIsoDate(iso);
+  if (!p) return iso;
+  return toIsoDate(p.y, p.m, 1);
+}
+
+export function monthEnd(iso: string): string {
+  const p = parseIsoDate(iso);
+  if (!p) return iso;
+  return toIsoDate(p.y, p.m, daysInMonth(iso));
+}
+
+export function monthStartFromKey(monthKey: string): string | null {
+  const match = /^([A-Za-z]+)-(\d{4})$/.exec(monthKey.trim());
+  if (!match) return null;
+  const name = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+  const idx = MONTHS.indexOf(name);
+  if (idx < 0) return null;
+  const monthNum = ((idx + 3) % 12) + 1;
+  return toIsoDate(Number(match[2]), monthNum, 1);
+}
+
+/**
+ * Render `YYYY-MM-DD` (or anything parseable as ISO) as `DD-MM-YYYY`.
+ * Falsy input yields `'—'` (legacy pay-matrix display fallback); a non-ISO
+ * string is returned as-is.
+ */
+export function formatIsoDate(iso?: string | null): string {
+  if (!iso) return '—';
+  const p = parseIsoDate(iso);
+  if (!p) return iso;
+  return `${pad2(p.d)}-${pad2(p.m)}-${p.y}`;
 }
 
 export function formatFinancialYear(year: number): string {

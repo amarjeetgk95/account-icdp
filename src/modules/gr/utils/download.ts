@@ -1,5 +1,6 @@
 import { grDocumentStorage } from '../services/grDocumentStorage.service';
 import type { GRRecord } from '../types';
+import { triggerDownload } from '@/shared/utilities/download';
 
 export function buildDownloadFileName(gr: GRRecord): string {
   const raw = gr.file_name?.trim() || `${gr.gr_number || 'document'}.pdf`;
@@ -19,22 +20,12 @@ export async function downloadGRDocument(gr: GRRecord): Promise<void> {
     const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
     try {
-      triggerAnchorDownload(objectUrl, fileName);
+      triggerDownload(objectUrl, fileName);
     } finally {
       URL.revokeObjectURL(objectUrl);
     }
   } catch (fetchErr) {
     console.warn('[GRDownload] Blob download failed, falling back to direct link:', fetchErr);
-    triggerAnchorDownload(url, fileName);
+    triggerDownload(url, fileName);
   }
-}
-
-function triggerAnchorDownload(href: string, fileName: string): void {
-  const anchor = document.createElement('a');
-  anchor.href = href;
-  anchor.download = fileName;
-  anchor.rel = 'noopener';
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
 }

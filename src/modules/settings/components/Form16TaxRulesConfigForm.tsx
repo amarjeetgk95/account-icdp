@@ -26,8 +26,7 @@ import {
   Info,
   Calendar,
 } from 'lucide-react';
-
-const inr = (n: number | undefined | null) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
+import { formatINRWhole as inr } from '@/shared/domain/currency';
 
 export function Form16TaxRulesConfigForm() {
   const { taxRulesConfig, isLoading, saveAsync, isSaving } = useForm16TaxRules();

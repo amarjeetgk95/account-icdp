@@ -1,6 +1,6 @@
 import React from 'react';
 import { GTR44FormData } from '../types';
-import { formatIndianCurrency } from '../utils/gtr44Utils';
+import { formatIndianCurrency } from '@/shared/domain/currency';
 import { useGTR44SettingsStore } from '../store/gtr44SettingsStore';
 import { DEFAULT_GTR44_PRINT_SETTINGS } from '../store/gtr44Defaults';
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import { GTR44FormData } from '../types';
 import { GTR44CertificationPage3 } from './GTR44Certification';
-import { splitAmount, formatDateDDMMYYYY, numberToWordsINR, formatIndianCurrency } from '../utils/gtr44Utils';
+import { splitAmount, formatDateDDMMYYYY } from '../utils/gtr44Utils';
+import { numberToWordsINR, formatIndianCurrency } from '@/shared/domain/currency';
 import { sumPartyEntries } from '../services/gtr44Calc.service';
 
 interface GTR44Page3Props {

@@ -1,4 +1,29 @@
-import { MONTHS } from '@/shared/constants';
+// ISO (YYYY-MM-DD) date helpers live canonically in `@/shared/utilities/date`.
+// Local import + re-export so existing gtr30 modules keep their import surface.
+import {
+  parseIsoDate as parseIso,
+  addDays,
+  dayBefore,
+  dayAfter,
+  daysBetween,
+  daysInMonth,
+  monthStart,
+  monthEnd,
+  monthStartFromKey,
+  formatIsoDate,
+} from '@/shared/utilities/date';
+
+export {
+  addDays,
+  dayBefore,
+  dayAfter,
+  daysBetween,
+  daysInMonth,
+  monthStart,
+  monthEnd,
+  monthStartFromKey,
+  formatIsoDate as formatDate,
+};
 
 export type PayChangeReason = 'increment' | 'promotion' | 'revision' | 'da-revision' | 'correction' | 'other';
 export interface PayEntry {
@@ -30,50 +55,6 @@ export interface PayTimelineStats {
   current: PayEntry | null;
   lastChangeDate: string | null;
   avgIncrement: number | null;
-}
-
-const ISO_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-function parseIso(iso: string): { y: number; m: number; d: number } | null {
-  if (!ISO_REGEX.test(iso.trim())) return null;
-  const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-  return { y, m, d };
-}
-function toIso(y: number, m: number, d: number): string {
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-}
-export function addDays(iso: string, delta: number): string {
-  const p = parseIso(iso); if (!p) return iso;
-  const dt = new Date(p.y, p.m - 1, p.d); dt.setDate(dt.getDate() + delta);
-  return toIso(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
-}
-export function dayBefore(iso: string): string { return addDays(iso, -1); }
-export function dayAfter(iso: string): string { return addDays(iso, 1); }
-export function daysBetween(aIso: string, bIso: string): number {
-  const a = parseIso(aIso), b = parseIso(bIso); if (!a || !b) return 0;
-  return Math.round((new Date(b.y, b.m - 1, b.d).getTime() - new Date(a.y, a.m - 1, a.d).getTime()) / 86_400_000);
-}
-export function daysInMonth(iso: string): number {
-  const p = parseIso(iso); if (!p) return 0; return new Date(p.y, p.m, 0).getDate();
-}
-export function monthStart(iso: string): string {
-  const p = parseIso(iso); if (!p) return iso; return toIso(p.y, p.m, 1);
-}
-export function monthEnd(iso: string): string {
-  const p = parseIso(iso); if (!p) return iso; return toIso(p.y, p.m, daysInMonth(iso));
-}
-export function monthStartFromKey(monthKey: string): string | null {
-  const m = /^([A-Za-z]+)-(\d{4})$/.exec(monthKey.trim()); if (!m) return null;
-  const name = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
-  const idx = MONTHS.indexOf(name); if (idx < 0) return null;
-  const monthNum = ((idx + 3) % 12) + 1;
-  return toIso(Number(m[2]), monthNum, 1);
-}
-export function formatDate(iso?: string | null): string {
-  if (!iso) return '—';
-  const p = parseIso(iso); if (!p) return iso;
-  return `${String(p.d).padStart(2, '0')}-${String(p.m).padStart(2, '0')}-${p.y}`;
 }
 
 // Normalize: sort, fill ids, auto-close gaps. Strict mode throws on overlap/duplicate.

@@ -1,7 +1,7 @@
 import { useState, useMemo, type FormEvent } from 'react';
 import { useEmployeeLookupDetails } from '../hooks/useSalaryImport';
 import { payrollService } from '../services/payroll.service';
-import { formatCurrency } from '@/shared/utilities';
+import { formatCurrency, formatDate } from '@/shared/utilities';
 import {
   Search,
   Banknote,
@@ -275,7 +275,7 @@ export function SalaryLookup({ fy, initialHrpn }: { fy: number; initialHrpn?: st
                     <Clock size={13} className="text-indigo-500" /> Date of Joining (DOJ)
                   </span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {info?.joinDate ? new Date(info.joinDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                    {info?.joinDate ? formatDate(info.joinDate) : '—'}
                   </span>
                 </div>
 
@@ -284,7 +284,7 @@ export function SalaryLookup({ fy, initialHrpn }: { fy: number; initialHrpn?: st
                     <Calendar size={13} className="text-indigo-500" /> Transfer Date
                   </span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {info?.transferDate ? new Date(info.transferDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'None (Active Service)'}
+                    {info?.transferDate ? formatDate(info.transferDate) : 'None (Active Service)'}
                   </span>
                 </div>
 

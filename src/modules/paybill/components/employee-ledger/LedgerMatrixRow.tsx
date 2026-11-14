@@ -1,7 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { MONTH_ORDER } from './ledgerMath';
 import type { LedgerMatrixRow as LedgerMatrixRowModel } from './ledgerMath';
-import { formatInr } from './format';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
 
 interface LedgerMatrixRowProps {
   row: LedgerMatrixRowModel;

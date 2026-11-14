@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { numberToWordsINR, formatINR, formatIndianCurrency } from './currency';
+import {
+  numberToWordsINR,
+  formatINR,
+  formatIndianCurrency,
+  integerToIndianWords,
+  formatINRInteger,
+  formatINRWhole,
+} from './currency';
 
 describe('numberToWordsINR (canonical)', () => {
   it('handles zero / null / NaN', () => {
@@ -40,5 +47,36 @@ describe('formatINR (canonical)', () => {
 
   it('keeps the legacy alias identical', () => {
     expect(formatIndianCurrency(1234567.8)).toBe(formatINR(1234567.8));
+  });
+});
+
+describe('integerToIndianWords', () => {
+  it('returns empty string for zero', () => {
+    expect(integerToIndianWords(0)).toBe('');
+  });
+
+  it('uses Indian digit grouping (Thousand / Lakh / Crore)', () => {
+    expect(integerToIndianWords(20)).toBe('Twenty');
+    expect(integerToIndianWords(105)).toBe('One Hundred Five');
+    expect(integerToIndianWords(1234)).toBe('One Thousand Two Hundred Thirty Four');
+    expect(integerToIndianWords(100000)).toBe('One Lakh');
+    expect(integerToIndianWords(1234567)).toBe('Twelve Lakh Thirty Four Thousand Five Hundred Sixty Seven');
+    expect(integerToIndianWords(10000000)).toBe('One Crore');
+    expect(integerToIndianWords(12345678)).toBe(
+      'One Crore Twenty Three Lakh Forty Five Thousand Six Hundred Seventy Eight'
+    );
+    expect(integerToIndianWords(100000000)).toBe('Ten Crore');
+  });
+});
+
+describe('formatINRInteger / formatINRWhole', () => {
+  it('rounds to whole rupees with en-IN grouping', () => {
+    expect(formatINRInteger(1234567.8)).toBe('12,34,568');
+    expect(formatINRInteger(0)).toBe('0');
+    expect(formatINRInteger(null)).toBe('0');
+    expect(formatINRWhole(1234567.8)).toBe('₹12,34,568');
+    expect(formatINRWhole(0)).toBe('₹0');
+    expect(formatINRWhole(undefined)).toBe('₹0');
+    expect(formatINRWhole(NaN)).toBe('₹0');
   });
 });

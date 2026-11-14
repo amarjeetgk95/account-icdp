@@ -1,16 +1,6 @@
 import React from 'react';
 import type { SelfAssessmentMemo } from '../../types/selfAssessment';
-
-const inr = (n: number | undefined | null) =>
-  Math.round(Number(n) || 0).toLocaleString('en-IN');
-
-const inrOrDash = (n: number | undefined | null) => {
-  const val = Math.round(Number(n) || 0);
-  return val > 0 ? val.toLocaleString('en-IN') : '—';
-};
-
-const formatDesignation = (d?: string) =>
-  (d || '').replace(/HUSBANDARY/gi, 'HUSBANDRY');
+import { inr, inrOrDash, formatDesignation } from '../../utils/selfAssessmentFormat';
 
 interface SelfAssessmentDocumentProps {
   memo: SelfAssessmentMemo;

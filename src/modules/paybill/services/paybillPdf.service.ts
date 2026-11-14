@@ -8,6 +8,7 @@ import type {
 import { paybillRepository } from '../repositories/paybill.repository';
 import { toCanonicalHrpn } from '@/shared/domain/canonicalEmployee';
 import { buildLedgerMatrixRows, type ManualValuesMap } from '../components/employee-ledger/ledgerMath';
+import { formatINR } from '@/shared/domain/currency';
 
 type AutoTableFn = (doc: JsPDFType, options: Record<string, unknown>) => void;
 
@@ -16,10 +17,7 @@ async function loadPdfLibs(): Promise<{ jsPDF: new (options?: Record<string, unk
   return { jsPDF, autoTable: autoTable as unknown as AutoTableFn };
 }
 
-const fmt = (n: number): string => `Rs. ${(n || 0).toLocaleString('en-IN', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})}`;
+const fmt = (n: number): string => `Rs. ${formatINR(n)}`;
 
 function headerLines(doc: JsPDFType, lines: string[]) {
   let y = 40;

@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { escapeCsvValue as escapeCsv, parseCsvLine as parseCsvLineSimple } from '@/shared/utilities/csv';
+import { downloadCsvContent } from '@/shared/utilities/download';
 import {
   Tag,
   Plus,
@@ -38,34 +40,7 @@ const EMPTY_DEDUCTION_FORM: GTR44DeductionTemplate = {
 // CSV Helpers for EDP catalog
 const EDP_CSV_HEADERS = ['code', 'nameEn', 'nameGu', 'type', 'isActive'] as const;
 
-function escapeCsv(value: string): string {
-  if (value == null) return '';
-  const str = String(value);
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function parseCsvLineSimple(line: string): string[] {
-  const result: string[] = [];
-  let cur = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else inQuotes = !inQuotes;
-    } else if (ch === ',' && !inQuotes) {
-      result.push(cur.trim());
-      cur = '';
-    } else cur += ch;
-  }
-  result.push(cur.trim());
-  return result.map((v) => (v.startsWith('"') && v.endsWith('"') ? v.slice(1, -1).replace(/""/g, '"') : v));
-}
+// CSV helpers live canonically in `@/shared/utilities/csv` / `download`.
 
 function exportEdpCodesToCsv(codes: GTR44EDPCode[]): string {
   const headers = EDP_CSV_HEADERS.join(',');
@@ -299,15 +274,7 @@ export function EdpCatalogTab() {
 
   const handleExportEdpCsv = () => {
     const csv = exportEdpCodesToCsv(edpCodes);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'gtr44-edp-codes.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsvContent('gtr44-edp-codes.csv', csv);
     toast({ title: 'CSV Exported', description: `Exported ${edpCodes.length} EDP codes.` });
   };
 

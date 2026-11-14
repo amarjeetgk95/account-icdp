@@ -1,5 +1,5 @@
 import { GTR44FormData, GTR44Deductions, GTR44Entry, GTR44ObjectExpenditureItem } from '../types';
-import { numberToWordsINR } from '../utils/gtr44Utils';
+import { numberToWordsINR } from '@/shared/domain/currency';
 
 export interface GTR44Totals {
   grossAmount: number;

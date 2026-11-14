@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { GTR44FormData } from '../types';
 import { GTR44Header } from './GTR44Header';
 import { GTR44ExpenditureTable } from './GTR44ExpenditureTable';
-import { formatIndianCurrency, numberToWordsINR } from '../utils/gtr44Utils';
+import { formatIndianCurrency, numberToWordsINR } from '@/shared/domain/currency';
 import { getGrossAmount, getTotalDeductions, getNetAmount, getBalance, normalizeEDPCode } from '../services/gtr44Calc.service';
 import { useGTR44SettingsStore } from '../store/gtr44SettingsStore';
 import { getActiveExpenditureItems } from '../store/gtr44Defaults';

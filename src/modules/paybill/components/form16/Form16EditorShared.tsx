@@ -1,5 +1,6 @@
 import { Lock } from 'lucide-react';
 import type { Form16Certificate, Form16ComputedTotals } from '../../types/form16';
+import { formatINRWhole } from '@/shared/domain/currency';
 
 /**
  * Shared kit for the two Form-16 editors (`Form16EditorPage` + `Form16EditorModal`).
@@ -7,7 +8,8 @@ import type { Form16Certificate, Form16ComputedTotals } from '../../types/form16
  * Part B section (~470 duplicated lines). New editor UI must reuse this kit.
  */
 
-export const form16Inr = (n: number) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
+/** ₹ + whole rupees, en-IN grouping — canonical helper re-exported for the Form-16 kit. */
+export const form16Inr = formatINRWhole;
 
 export const form16NumInput =
   'w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 num text-right font-medium text-slate-800 dark:text-slate-100 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800 transition';

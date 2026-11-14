@@ -7,6 +7,7 @@ import { EmptyState } from '@/shared/components/EmptyState';
 import { SkeletonTable } from '@/shared/components/Skeleton';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { toast } from '@/shared/components/Toast';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
 import {
   History,
   Trash2,
@@ -24,10 +25,6 @@ const STATUS_TONE: Record<PayBillImportStatus, 'emerald' | 'blue' | 'amber' | 'r
   POSTED: 'emerald',
   REVERSED: 'rose',
 };
-
-function formatInr(n: number) {
-  return `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
-}
 
 export function PayBillHistoryPage() {
   const fy = useUIStore((s) => s.activeFinancialYear);

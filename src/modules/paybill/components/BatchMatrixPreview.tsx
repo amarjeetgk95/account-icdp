@@ -3,15 +3,13 @@ import { PAYBILL_EARNING_COLUMNS, PAYBILL_DEDUCTION_COLUMNS } from '../services/
 import { PDF_PARSER_BUILD } from '../services/pdfParserV2.service';
 import type { PayBillBatchMatrix } from '../types';
 import { Layers } from 'lucide-react';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
 
 interface BatchMatrixPreviewProps {
   matrix: PayBillBatchMatrix;
 }
 
 const ALL_COLUMNS = [...PAYBILL_EARNING_COLUMNS, ...PAYBILL_DEDUCTION_COLUMNS];
-
-const formatInr = (n: number | undefined) =>
-  `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 
 export const BatchMatrixPreview: React.FC<BatchMatrixPreviewProps> = ({ matrix }) => {
   const totalCols = ALL_COLUMNS.length + 1; // +1 for the Employee column

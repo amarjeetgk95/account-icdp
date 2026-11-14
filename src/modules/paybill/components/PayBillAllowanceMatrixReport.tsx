@@ -18,6 +18,7 @@ import { PbButton, PbPanel } from './ui';
 import { popupNativePrint } from '@/shared/utilities/nativePrint';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { toast } from '@/shared/components/Toast';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
 import type { PayBillMonthlyEmployeeMatrixReport, PayBillMonthlyMatrixColumn } from '../types';
 
 interface PayBillAllowanceMatrixReportProps {
@@ -198,11 +199,6 @@ export function PayBillAllowanceMatrixReport({
       cancelled = true;
     };
   }, [financialYear, selectedMonth, refreshTrigger]);
-
-  const formatInr = (n: number | undefined) => {
-    if (n === undefined || n === null || isNaN(n)) return '₹0';
-    return `₹${Math.round(n).toLocaleString('en-IN')}`;
-  };
 
   const handleDeleteMonth = async () => {
     setIsDeleting(true);

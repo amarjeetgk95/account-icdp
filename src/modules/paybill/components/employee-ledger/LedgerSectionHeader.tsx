@@ -1,4 +1,4 @@
-import { formatInr } from './format';
+import { formatINRWhole as formatInr } from '@/shared/domain/currency';
 
 interface LedgerSectionHeaderProps {
   label: string;

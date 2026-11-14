@@ -1,5 +1,30 @@
-import { MONTHS } from '@/shared/constants';
+// ISO (YYYY-MM-DD) date helpers live canonically in `@/shared/utilities/date`.
+// Local import + re-export so existing gtr30 modules keep their import surface.
+import {
+  parseIsoDate as parseIso,
+  addDays,
+  dayBefore,
+  dayAfter,
+  daysBetween,
+  daysInMonth,
+  monthStart,
+  monthEnd,
+  monthStartFromKey,
+  formatIsoDate,
+} from '@/shared/utilities/date';
 import type { GTR30PayEntry } from '../types';
+
+export {
+  addDays,
+  dayBefore,
+  dayAfter,
+  daysBetween,
+  daysInMonth,
+  monthStart,
+  monthEnd,
+  monthStartFromKey,
+  formatIsoDate as formatDate,
+};
 
 export interface PayForMonthSplit {
   basicPay: number;
@@ -15,81 +40,6 @@ export interface PayForMonthResult {
   entry: GTR30PayEntry | null;
   split: PayForMonthSplit[];
   prorated: boolean;
-}
-
-const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-function parseIso(iso: string): { y: number; m: number; d: number } | null {
-  if (!ISO_DATE_REGEX.test(iso.trim())) return null;
-  const y = Number(iso.slice(0, 4));
-  const m = Number(iso.slice(5, 7));
-  const d = Number(iso.slice(8, 10));
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-  return { y, m, d };
-}
-
-function toIso(y: number, m: number, d: number): string {
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-}
-
-export function addDays(iso: string, delta: number): string {
-  const p = parseIso(iso);
-  if (!p) return iso;
-  const dt = new Date(p.y, p.m - 1, p.d);
-  dt.setDate(dt.getDate() + delta);
-  return toIso(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
-}
-
-export function dayBefore(iso: string): string {
-  return addDays(iso, -1);
-}
-
-export function dayAfter(iso: string): string {
-  return addDays(iso, 1);
-}
-
-export function daysBetween(startIso: string, endIso: string): number {
-  const a = parseIso(startIso);
-  const b = parseIso(endIso);
-  if (!a || !b) return 0;
-  const start = new Date(a.y, a.m - 1, a.d);
-  const end = new Date(b.y, b.m - 1, b.d);
-  return Math.round((end.getTime() - start.getTime()) / 86_400_000);
-}
-
-export function daysInMonth(iso: string): number {
-  const p = parseIso(iso);
-  if (!p) return 0;
-  return new Date(p.y, p.m, 0).getDate();
-}
-
-export function monthStart(iso: string): string {
-  const p = parseIso(iso);
-  if (!p) return iso;
-  return toIso(p.y, p.m, 1);
-}
-
-export function monthEnd(iso: string): string {
-  const p = parseIso(iso);
-  if (!p) return iso;
-  return toIso(p.y, p.m, daysInMonth(iso));
-}
-
-export function monthStartFromKey(monthKey: string): string | null {
-  const match = /^([A-Za-z]+)-(\d{4})$/.exec(monthKey.trim());
-  if (!match) return null;
-  const name = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-  const idx = MONTHS.indexOf(name);
-  if (idx < 0) return null;
-  const monthNum = ((idx + 3) % 12) + 1;
-  return toIso(Number(match[2]), monthNum, 1);
-}
-
-export function formatDate(iso: string | undefined | null): string {
-  if (!iso) return '—';
-  const p = parseIso(iso);
-  if (!p) return iso;
-  return `${String(p.d).padStart(2, '0')}-${String(p.m).padStart(2, '0')}-${p.y}`;
 }
 
 export type PayEntryDraft = Partial<GTR30PayEntry> & { startDate: string };

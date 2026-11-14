@@ -1,8 +1,7 @@
 /**
- * GTR-44 formatting helpers. Currency words/figures now live canonically in
- * `@/shared/domain/currency` — re-exported here so existing call sites keep working.
+ * GTR-44 formatting helpers. Currency words/figures live canonically in
+ * `@/shared/domain/currency` — import them from there directly.
  */
-export { numberToWordsINR, formatINR, formatIndianCurrency } from '@/shared/domain/currency';
 
 export function splitAmount(amount: number | null | undefined): { rs: string; ps: string } {
   if (amount === null || amount === undefined || isNaN(amount) || amount === 0) {
@@ -15,6 +14,11 @@ export function splitAmount(amount: number | null | undefined): { rs: string; ps
   };
 }
 
+/**
+ * GTR-44 print format: YYYY-MM-DD -> DD/MM/YYYY (slash-separated).
+ * NOT the same as the shared `formatDateDDMMYYYY` (dash-separated) — kept
+ * module-local for the print preview.
+ */
 export function formatDateDDMMYYYY(dateString: string | null | undefined): string {
   if (!dateString) return '';
   const parts = dateString.split('-');
