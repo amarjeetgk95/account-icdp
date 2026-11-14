@@ -1,28 +1,20 @@
 import type { EstablishmentEmployee, EstablishmentState } from '../types';
+import { safeGetJSON, safeSetJSON } from '@/shared/storage';
 
 const STORAGE_KEY = 'establishment-v1-all';
 
 function readState(key: string): EstablishmentState | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return null;
-    return {
-      employees: Array.isArray(parsed.employees) ? parsed.employees : [],
-      lastSyncedAt: typeof parsed.lastSyncedAt === 'string' ? parsed.lastSyncedAt : null,
-    };
-  } catch {
-    return null;
-  }
+  const parsed = safeGetJSON<unknown>(key, null);
+  if (!parsed || typeof parsed !== 'object') return null;
+  const record = parsed as Partial<EstablishmentState> & Record<string, unknown>;
+  return {
+    employees: Array.isArray(record.employees) ? (record.employees as EstablishmentEmployee[]) : [],
+    lastSyncedAt: typeof record.lastSyncedAt === 'string' ? record.lastSyncedAt : null,
+  };
 }
 
 function writeState(key: string, state: EstablishmentState): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(state));
-  } catch {
-    return;
-  }
+  safeSetJSON(key, state);
 }
 
 class EstablishmentLocalRepository {

@@ -1,6 +1,7 @@
 import type { GTR30BillCodeMapping } from '../types';
 import { DEFAULT_BILL_CODE_MAPPINGS } from '../constants';
 import { isLegacyBillCode } from '../constants/billCodes';
+import { safeGetJSON, safeSetJSON, safeRemove } from '@/shared/storage';
 
 const STORAGE_KEY = 'gtr30-employee-master-v3-mappings-all';
 const LEGACY_STORAGE_KEY = 'gtr30-employee-master-v3-mappings';
@@ -11,46 +12,33 @@ interface StoredMappings {
 }
 
 function readFrom(key: string): GTR30BillCodeMapping[] | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      if (parsed && typeof parsed === 'object' && 'configured' in parsed && 'items' in parsed) {
-        const stored = parsed as StoredMappings;
-        if (!stored.configured) return null;
-        return Array.isArray(stored.items) ? stored.items : [];
-      }
-      return null;
+  // safeGetJSON returns null for missing/corrupt keys; falsy stored primitives are
+  // not configured data either (original wrapper check rejected them as well).
+  const parsed = safeGetJSON<unknown>(key, null);
+  if (!parsed) return null;
+  if (!Array.isArray(parsed)) {
+    if (parsed && typeof parsed === 'object' && 'configured' in parsed && 'items' in parsed) {
+      const stored = parsed as StoredMappings;
+      if (!stored.configured) return null;
+      return Array.isArray(stored.items) ? stored.items : [];
     }
-    if (parsed.length === 0) return [];
-    return parsed as GTR30BillCodeMapping[];
-  } catch {
     return null;
   }
+  if (parsed.length === 0) return [];
+  return parsed as GTR30BillCodeMapping[];
 }
 
 function writeTo(key: string, mappings: GTR30BillCodeMapping[]): void {
-  try {
-    const wrapper: StoredMappings = { configured: true, items: mappings };
-    localStorage.setItem(key, JSON.stringify(wrapper));
-  } catch {
-    return;
-  }
+  const wrapper: StoredMappings = { configured: true, items: mappings };
+  safeSetJSON(key, wrapper);
 }
 
 function isKeyConfigured(key: string): boolean {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return parsed && typeof parsed === 'object' && parsed.configured === true;
-    }
-    return parsed.length > 0;
-  } catch {
-    return false;
+  const parsed = safeGetJSON<unknown>(key, null);
+  if (!Array.isArray(parsed)) {
+    return Boolean(parsed) && typeof parsed === 'object' && (parsed as { configured?: unknown }).configured === true;
   }
+  return parsed.length > 0;
 }
 
 class Gtr30BillCodeMappingsLocalRepository {
@@ -59,18 +47,12 @@ class Gtr30BillCodeMappingsLocalRepository {
   }
 
   private migrateLegacyIfNeeded(key: string): void {
-    try {
-      const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed) || parsed.length === 0) return;
-      if (!isKeyConfigured(key)) {
-        writeTo(key, parsed);
-      }
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
-    } catch {
-      return;
+    const parsed = safeGetJSON<unknown>(LEGACY_STORAGE_KEY, null);
+    if (!Array.isArray(parsed) || parsed.length === 0) return;
+    if (!isKeyConfigured(key)) {
+      writeTo(key, parsed as GTR30BillCodeMapping[]);
     }
+    safeRemove(LEGACY_STORAGE_KEY);
   }
 
   loadAll(): GTR30BillCodeMapping[] {
@@ -95,11 +77,7 @@ class Gtr30BillCodeMappingsLocalRepository {
   }
 
   clear(): void {
-    try {
-      localStorage.removeItem(this.storageKey());
-    } catch {
-      return;
-    }
+    safeRemove(this.storageKey());
   }
 }
 

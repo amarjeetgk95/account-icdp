@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GTR44BudgetHead, GTR44FormData, GTR44ObjectExpenditureItem, GTR44EDPCode, GTR44DeductionTemplate, GTR44NumberingSettings, GTR44PrintSettings } from '../types';
 import { useUIStore } from '@/core/stores/ui-store';
+import { safeGetRaw } from '@/shared/storage';
 import {
   DEFAULT_GTR44_FORM_DATA,
   EMPTY_GTR44_FORM_DATA,
@@ -538,8 +539,8 @@ export const useGTR44SettingsStore = create<GTR44SettingsStoreState>()(
 export async function hydrateGTR44SettingsStoreFromBackend(): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    const raw = localStorage.getItem('gtr44-settings-v1');
-    if (raw) return;
+    // Existence check only — same semantics as before, routed through the safe-storage helper.
+    if (safeGetRaw('gtr44-settings-v1') !== null) return;
     const { gtr44SettingsBackendRepository } = await import('../repositories/gtr44SettingsBackend.repository');
     const remote = await gtr44SettingsBackendRepository.load();
     if (!remote) return;

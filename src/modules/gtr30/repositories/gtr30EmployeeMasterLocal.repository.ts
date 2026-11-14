@@ -1,4 +1,5 @@
 import type { GTR30EmployeeMaster, GTR30MasterGroup } from '../types';
+import { safeGetJSON, safeSetJSON, safeRemove } from '@/shared/storage';
 
 const STORAGE_KEY = 'gtr30-employee-master-v3-groups-all';
 const LEGACY_STORAGE_KEY = 'gtr30-employee-master-v3-groups';
@@ -8,23 +9,13 @@ function indexKey(monthKey: string, billCode: string): string {
 }
 
 function readFrom(key: string): Record<string, GTR30MasterGroup> {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return {};
-    return parsed as Record<string, GTR30MasterGroup>;
-  } catch {
-    return {};
-  }
+  const parsed = safeGetJSON<unknown>(key, null);
+  if (!parsed || typeof parsed !== 'object') return {};
+  return parsed as Record<string, GTR30MasterGroup>;
 }
 
 function writeTo(key: string, payload: Record<string, GTR30MasterGroup>): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(payload));
-  } catch {
-    return;
-  }
+  safeSetJSON(key, payload);
 }
 
 class Gtr30EmployeeMasterLocalRepository {
@@ -33,19 +24,13 @@ class Gtr30EmployeeMasterLocalRepository {
   }
 
   private migrateLegacyIfNeeded(key: string): void {
-    try {
-      const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object') return;
-      const existing = readFrom(key);
-      if (Object.keys(existing).length === 0) {
-        writeTo(key, parsed);
-      }
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
-    } catch {
-      return;
+    const parsed = safeGetJSON<unknown>(LEGACY_STORAGE_KEY, null);
+    if (!parsed || typeof parsed !== 'object') return;
+    const existing = readFrom(key);
+    if (Object.keys(existing).length === 0) {
+      writeTo(key, parsed as Record<string, GTR30MasterGroup>);
     }
+    safeRemove(LEGACY_STORAGE_KEY);
   }
 
   loadAll(): Record<string, GTR30MasterGroup> {
@@ -72,11 +57,7 @@ class Gtr30EmployeeMasterLocalRepository {
   }
 
   clear(): void {
-    try {
-      localStorage.removeItem(this.storageKey());
-    } catch {
-      return;
-    }
+    safeRemove(this.storageKey());
   }
 }
 

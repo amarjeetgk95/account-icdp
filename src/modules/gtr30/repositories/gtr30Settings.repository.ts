@@ -11,6 +11,7 @@ import {
   freshDefaultPosts,
   freshDefaultDaRates,
 } from '../constants/settings';
+import { safeGetJSON, safeSetJSON, safeRemove } from '@/shared/storage';
 
 export interface Gtr30SettingsPayload {
   settings: GTR30DefaultSettings;
@@ -21,39 +22,29 @@ export interface Gtr30SettingsPayload {
 
 class Gtr30SettingsLocalStorageRepository {
   load(): Gtr30SettingsPayload | null {
-    try {
-      const raw = localStorage.getItem(GTR30_SETTINGS_STORAGE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as Partial<Gtr30SettingsPayload>;
-      return {
-        settings: parsed.settings ?? { ...DEFAULT_GTR30_SETTINGS },
-        employeeTemplate: parsed.employeeTemplate ?? { ...DEFAULT_GTR30_EMPLOYEE_TEMPLATE },
-        defaultPosts: Array.isArray(parsed.defaultPosts)
-          ? parsed.defaultPosts
-          : freshDefaultPosts(),
-        daRates: Array.isArray(parsed.daRates)
-          ? (parsed.daRates as GTR30DARateEntry[])
-          : freshDefaultDaRates(),
-      };
-    } catch {
-      return null;
-    }
+    const parsed = safeGetJSON<Partial<Gtr30SettingsPayload> | null>(
+      GTR30_SETTINGS_STORAGE_KEY,
+      null
+    );
+    if (parsed === null) return null;
+    return {
+      settings: parsed.settings ?? { ...DEFAULT_GTR30_SETTINGS },
+      employeeTemplate: parsed.employeeTemplate ?? { ...DEFAULT_GTR30_EMPLOYEE_TEMPLATE },
+      defaultPosts: Array.isArray(parsed.defaultPosts)
+        ? parsed.defaultPosts
+        : freshDefaultPosts(),
+      daRates: Array.isArray(parsed.daRates)
+        ? (parsed.daRates as GTR30DARateEntry[])
+        : freshDefaultDaRates(),
+    };
   }
 
   save(payload: Gtr30SettingsPayload): void {
-    try {
-      localStorage.setItem(GTR30_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
-    } catch {
-      return;
-    }
+    safeSetJSON(GTR30_SETTINGS_STORAGE_KEY, payload);
   }
 
   clear(): void {
-    try {
-      localStorage.removeItem(GTR30_SETTINGS_STORAGE_KEY);
-    } catch {
-      return;
-    }
+    safeRemove(GTR30_SETTINGS_STORAGE_KEY);
   }
 }
 

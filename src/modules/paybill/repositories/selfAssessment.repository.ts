@@ -2,6 +2,7 @@ import { supabase } from '@/core/supabase/client';
 import type { Json } from '@/shared/json.types';
 import type { SelfAssessmentMemo } from '../types/selfAssessment';
 import { form16Repository } from './form16.repository';
+import { safeGetJSON, safeSetJSON, safeRemove, safeListKeys, safeGetRaw } from '@/shared/storage';
 
 const LOCAL_STORAGE_PREFIX = 'icdp_self_assessment_';
 
@@ -31,13 +32,9 @@ export const selfAssessmentRepository = {
 
       if (!error && data?.settings_value) {
         const parsed = data.settings_value as unknown as SelfAssessmentMemo;
-        // Cache to local storage
+        // Cache to local storage (quota/serialization errors are logged + swallowed)
         if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem(getStorageKey(financialYear, cleanHrpn), JSON.stringify(parsed));
-          } catch {
-            // ignore quota errors
-          }
+          safeSetJSON(getStorageKey(financialYear, cleanHrpn), parsed);
         }
         return parsed;
       }
@@ -47,14 +44,11 @@ export const selfAssessmentRepository = {
 
     // 2. Fallback to localStorage
     if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem(getStorageKey(financialYear, cleanHrpn));
-        if (cached) {
-          return JSON.parse(cached) as SelfAssessmentMemo;
-        }
-      } catch (err) {
-        console.warn('[SelfAssessmentRepository] localStorage read error:', err);
-      }
+      const cached = safeGetJSON<SelfAssessmentMemo | null>(
+        getStorageKey(financialYear, cleanHrpn),
+        null
+      );
+      if (cached) return cached;
     }
 
     return null;
@@ -73,14 +67,7 @@ export const selfAssessmentRepository = {
 
     // 1. Save to localStorage immediately
     if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(
-          getStorageKey(memo.financialYear, cleanHrpn),
-          JSON.stringify(updatedMemo)
-        );
-      } catch (err) {
-        console.warn('[SelfAssessmentRepository] localStorage write error:', err);
-      }
+      safeSetJSON(getStorageKey(memo.financialYear, cleanHrpn), updatedMemo);
     }
 
     // 2. Persist to Supabase paybill_settings
@@ -167,17 +154,18 @@ export const selfAssessmentRepository = {
 
     // If empty or offline, check localStorage keys
     if (memos.length === 0 && typeof window !== 'undefined') {
-      try {
-        const localPrefix = `${LOCAL_STORAGE_PREFIX}${financialYear}_`;
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith(localPrefix)) {
-            const raw = localStorage.getItem(k);
-            if (raw) memos.push(JSON.parse(raw));
-          }
+      // Snapshot the localPrefix keys, then parse in the same order. A single corrupt
+      // entry still aborts the loop (historical behavior) — later valid entries in the
+      // snapshot are not appended once a parse fails.
+      const localPrefix = `${LOCAL_STORAGE_PREFIX}${financialYear}_`;
+      for (const k of safeListKeys(localPrefix)) {
+        const raw = safeGetRaw(k);
+        if (!raw) continue;
+        try {
+          memos.push(JSON.parse(raw) as SelfAssessmentMemo);
+        } catch {
+          break;
         }
-      } catch {
-        // ignore
       }
     }
 
@@ -192,11 +180,7 @@ export const selfAssessmentRepository = {
     const settingsKey = getSettingsKey(financialYear, cleanHrpn);
 
     if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem(getStorageKey(financialYear, cleanHrpn));
-      } catch {
-        // ignore
-      }
+      safeRemove(getStorageKey(financialYear, cleanHrpn));
     }
 
     try {

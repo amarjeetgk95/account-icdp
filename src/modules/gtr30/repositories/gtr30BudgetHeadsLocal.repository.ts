@@ -1,5 +1,6 @@
 import type { GTR30BudgetHead } from '../types';
 import { DEFAULT_BUDGET_HEADS } from '../constants';
+import { safeGetJSON, safeSetJSON, safeRemove } from '@/shared/storage';
 
 const STORAGE_KEY = 'gtr30-budget-heads-v1-all';
 
@@ -9,46 +10,33 @@ interface StoredHeads {
 }
 
 function readFrom(key: string): GTR30BudgetHead[] | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      if (parsed && typeof parsed === 'object' && 'configured' in parsed && 'items' in parsed) {
-        const stored = parsed as StoredHeads;
-        if (!stored.configured) return null;
-        return Array.isArray(stored.items) ? stored.items : [];
-      }
-      return null;
+  // safeGetJSON returns null for missing/corrupt keys; falsy stored primitives are
+  // not configured data either (original wrapper check rejected them as well).
+  const parsed = safeGetJSON<unknown>(key, null);
+  if (!parsed) return null;
+  if (!Array.isArray(parsed)) {
+    if (parsed && typeof parsed === 'object' && 'configured' in parsed && 'items' in parsed) {
+      const stored = parsed as StoredHeads;
+      if (!stored.configured) return null;
+      return Array.isArray(stored.items) ? stored.items : [];
     }
-    if (parsed.length === 0) return [];
-    return parsed as GTR30BudgetHead[];
-  } catch {
     return null;
   }
+  if (parsed.length === 0) return [];
+  return parsed as GTR30BudgetHead[];
 }
 
 function writeTo(key: string, heads: GTR30BudgetHead[]): void {
-  try {
-    const wrapper: StoredHeads = { configured: true, items: heads };
-    localStorage.setItem(key, JSON.stringify(wrapper));
-  } catch {
-    return;
-  }
+  const wrapper: StoredHeads = { configured: true, items: heads };
+  safeSetJSON(key, wrapper);
 }
 
 function isKeyConfigured(key: string): boolean {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return parsed && typeof parsed === 'object' && parsed.configured === true;
-    }
-    return parsed.length > 0;
-  } catch {
-    return false;
+  const parsed = safeGetJSON<unknown>(key, null);
+  if (!Array.isArray(parsed)) {
+    return Boolean(parsed) && typeof parsed === 'object' && (parsed as { configured?: unknown }).configured === true;
   }
+  return parsed.length > 0;
 }
 
 class Gtr30BudgetHeadsLocalRepository {
@@ -73,11 +61,7 @@ class Gtr30BudgetHeadsLocalRepository {
   }
 
   clear(): void {
-    try {
-      localStorage.removeItem(this.storageKey());
-    } catch {
-      return;
-    }
+    safeRemove(this.storageKey());
   }
 }
 
