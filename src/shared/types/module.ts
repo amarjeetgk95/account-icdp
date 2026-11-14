@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
-export type UserRole = 'admin' | 'office';
+export type UserRole = 'office';
 
-export type NavGroup = 'main' | 'tds' | 'bills' | 'system' | 'admin';
+export type NavGroup = 'overview' | 'bills' | 'tds' | 'it-employee' | 'establishment' | 'tools' | 'system' | 'main';
 
 export interface RouteDefinition {
   path: string;
@@ -10,7 +10,7 @@ export interface RouteDefinition {
   children?: RouteDefinition[];
 }
 
-export interface SidebarChild {
+interface SidebarChild {
   path: string;
   label: string;
   icon?: string;
@@ -32,12 +32,14 @@ export interface ModuleDefinition {
 
 export interface FeatureFlagKeys {
   auth_module: boolean;
-  admin_module: boolean;
-  adminaudit_module: boolean;
   dashboard_module: boolean;
   settings_module: boolean;
   payroll_module: boolean;
   parties_module: boolean;
   reports_module: boolean;
   gtr44_module: boolean;
+  gtr30_module: boolean;
+  establishment_module: boolean;
+  paybill_module: boolean;
+  gr_repository_module: boolean;
 }

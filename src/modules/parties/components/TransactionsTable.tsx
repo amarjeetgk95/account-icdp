@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import type { PartyTransaction, TransactionInput } from '../types';
+import type { PartyTransaction } from '../types';
 import { formatCurrency, formatDate } from '@/shared/utilities';
-import { useUpdateTransaction, useDeleteTransaction } from '../hooks/useParties';
+import { useDeleteTransaction } from '../hooks/useParties';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { SkeletonTable } from '@/shared/components/Skeleton';
-import { Edit, Trash2, Check, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { EditTransactionModal } from './EditTransactionModal';
+import { Edit, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TransactionsTableProps {
   transactions: PartyTransaction[];
@@ -14,13 +15,11 @@ interface TransactionsTableProps {
 const PAGE_SIZE = 15;
 
 export function TransactionsTable({ transactions, isLoading }: TransactionsTableProps) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Partial<TransactionInput>>({});
+  const [editingTx, setEditingTx] = useState<PartyTransaction | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const updateMutation = useUpdateTransaction();
   const deleteMutation = useDeleteTransaction();
 
   // Filter transactions by search term
@@ -30,7 +29,8 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
     return transactions.filter(
       (tx) =>
         tx.party_name.toLowerCase().includes(q) ||
-        tx.bill_no.toLowerCase().includes(q)
+        tx.bill_no.toLowerCase().includes(q) ||
+        (tx.ddo_bill_no && tx.ddo_bill_no.toLowerCase().includes(q))
     );
   }, [transactions, search]);
 
@@ -65,34 +65,6 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
     );
   }
 
-  const startEdit = (tx: PartyTransaction) => {
-    setEditingId(tx.id);
-    setEditData({
-      billNo: tx.bill_no,
-      amount: tx.amount,
-      cgst: tx.cgst,
-      sgst: tx.sgst,
-      igst: tx.igst,
-      incomeTax: tx.income_tax,
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditData({});
-  };
-
-  const saveEdit = async () => {
-    if (!editingId) return;
-    try {
-      await updateMutation.mutateAsync({ id: editingId, updates: editData });
-      setEditingId(null);
-      setEditData({});
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update');
-    }
-  };
-
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -123,7 +95,7 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="input input-sm"
-            placeholder="Search party or bill no..."
+            placeholder="Search party, bill or DDO no..."
           />
         </div>
         <div className="flex items-center gap-2">
@@ -137,151 +109,64 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
           <thead>
             <tr>
               <th className="text-left">Party</th>
-              <th className="text-left">Bill No</th>
+              <th className="text-left">Bill / DDO No</th>
               <th className="text-right">Amount</th>
               <th className="text-right" style={{ color: '#15803D' }}>CGST</th>
               <th className="text-right" style={{ color: '#15803D' }}>SGST</th>
               <th className="text-right" style={{ color: '#15803D' }}>IGST</th>
               <th className="text-right" style={{ color: '#15803D' }}>Total GST</th>
               <th className="text-right" style={{ color: '#DC2626' }}>Income Tax</th>
-              <th className="text-right">Date</th>
+              <th className="text-right">Settlement / Inv Date</th>
               <th className="text-center w-20">Actions</th>
             </tr>
           </thead>
           <tbody>
             {paginated.map((tx) => {
-              const isEditing = editingId === tx.id;
+              const isEditing = editingTx?.id === tx.id;
+
               return (
                 <tr key={tx.id} className={isEditing ? 'editing-row' : ''}>
                   <td className="font-medium">{tx.party_name}</td>
                   <td>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editData.billNo || ''}
-                        onChange={(e) => setEditData({ ...editData, billNo: e.target.value })}
-                        className="w-24 px-2 py-1 border border-amber-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      />
-                    ) : (
-                      tx.bill_no
-                    )}
+                    <div>
+                      <div className="font-medium text-slate-800">{tx.bill_no}</div>
+                      {tx.ddo_bill_no && (
+                        <div className="text-[11px] text-blue-600 font-normal">DDO: {tx.ddo_bill_no}</div>
+                      )}
+                    </div>
                   </td>
-                  <td className="text-right font-bold">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={editData.amount || ''}
-                        onChange={(e) =>
-                          setEditData({ ...editData, amount: parseFloat(e.target.value) || 0 })
-                        }
-                        className="w-24 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      />
-                    ) : (
-                      formatCurrency(tx.amount)
-                    )}
+                  <td className="text-right font-bold">{formatCurrency(tx.amount)}</td>
+                  <td className="text-right text-green-700">{formatCurrency(tx.cgst)}</td>
+                  <td className="text-right text-green-700">{formatCurrency(tx.sgst)}</td>
+                  <td className="text-right text-green-700">{formatCurrency(tx.igst)}</td>
+                  <td className="text-right text-green-700 font-bold">{formatCurrency(tx.total_gst)}</td>
+                  <td className="text-right text-red-600">{formatCurrency(tx.income_tax)}</td>
+                  <td className="text-right">
+                    <div>
+                      <div className="text-xs text-slate-700 font-medium">{formatDate(tx.settlement_date || tx.transaction_date)}</div>
+                      {tx.invoice_date && tx.invoice_date !== (tx.settlement_date || tx.transaction_date) && (
+                        <div className="text-[11px] text-slate-400">Inv: {formatDate(tx.invoice_date)}</div>
+                      )}
+                    </div>
                   </td>
-                  <td className="text-right text-green-700">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={editData.cgst || ''}
-                        onChange={(e) =>
-                          setEditData({ ...editData, cgst: parseFloat(e.target.value) || 0 })
-                        }
-                        className="w-16 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      />
-                    ) : (
-                      formatCurrency(tx.cgst)
-                    )}
-                  </td>
-                  <td className="text-right text-green-700">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={editData.sgst || ''}
-                        onChange={(e) =>
-                          setEditData({ ...editData, sgst: parseFloat(e.target.value) || 0 })
-                        }
-                        className="w-16 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      />
-                    ) : (
-                      formatCurrency(tx.sgst)
-                    )}
-                  </td>
-                  <td className="text-right text-green-700">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={editData.igst || ''}
-                        onChange={(e) =>
-                          setEditData({ ...editData, igst: parseFloat(e.target.value) || 0 })
-                        }
-                        className="w-16 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      />
-                    ) : (
-                      formatCurrency(tx.igst)
-                    )}
-                  </td>
-                  <td className="text-right text-green-700 font-bold">
-                    {isEditing ? (
-                      <span className="text-slate-400">—</span>
-                    ) : (
-                      formatCurrency(tx.total_gst)
-                    )}
-                  </td>
-                  <td className="text-right text-red-600">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={editData.incomeTax || ''}
-                        onChange={(e) =>
-                          setEditData({ ...editData, incomeTax: parseFloat(e.target.value) || 0 })
-                        }
-                        className="w-20 px-2 py-1 border border-amber-300 rounded-lg text-right text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      />
-                    ) : (
-                      formatCurrency(tx.income_tax)
-                    )}
-                  </td>
-                  <td className="text-right text-slate-500">{formatDate(tx.transaction_date)}</td>
                   <td className="text-center">
-                    {isEditing ? (
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={saveEdit}
-                          disabled={updateMutation.isPending}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Save"
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
-                          title="Cancel"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => startEdit(tx)}
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit size={14} />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(tx.id)}
-                          disabled={deleteMutation.isPending}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => setEditingTx(tx)}
+                        className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(tx.id)}
+                        disabled={deleteMutation.isPending}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -338,6 +223,11 @@ export function TransactionsTable({ transactions, isLoading }: TransactionsTable
             </button>
           </div>
         </div>
+      )}
+
+      {/* Edit transaction modal */}
+      {editingTx && (
+        <EditTransactionModal transaction={editingTx} onClose={() => setEditingTx(null)} />
       )}
 
       {/* Delete confirmation dialog */}

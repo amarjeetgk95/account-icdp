@@ -1,4 +1,4 @@
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = 'info' | 'warn' | 'error';
 
 interface LogEntry {
   level: LogLevel;
@@ -10,8 +10,6 @@ interface LogEntry {
 
 class Logger {
   private static instance: Logger;
-  private logs: LogEntry[] = [];
-  private maxLogs = 1000;
 
   static getInstance(): Logger {
     if (!Logger.instance) {
@@ -35,12 +33,7 @@ class Logger {
     };
   }
 
-  private addLog(entry: LogEntry): void {
-    this.logs.push(entry);
-    if (this.logs.length > this.maxLogs) {
-      this.logs.shift();
-    }
-
+  private emit(entry: LogEntry): void {
     if (import.meta.env.DEV || entry.level === 'error') {
       const prefix = `[ICDP${entry.context ? `:${entry.context}` : ''}]`;
       switch (entry.level) {
@@ -54,39 +47,20 @@ class Logger {
           // eslint-disable-next-line no-console
           console.info(prefix, entry.message, entry.data ?? '');
           break;
-        case 'debug':
-          // eslint-disable-next-line no-console
-          console.debug(prefix, entry.message, entry.data ?? '');
-          break;
       }
     }
   }
 
-  debug(message: string, context?: string, data?: unknown): void {
-    this.addLog(this.createEntry('debug', message, context, data));
-  }
-
   info(message: string, context?: string, data?: unknown): void {
-    this.addLog(this.createEntry('info', message, context, data));
+    this.emit(this.createEntry('info', message, context, data));
   }
 
   warn(message: string, context?: string, data?: unknown): void {
-    this.addLog(this.createEntry('warn', message, context, data));
+    this.emit(this.createEntry('warn', message, context, data));
   }
 
   error(message: string, context?: string, data?: unknown): void {
-    this.addLog(this.createEntry('error', message, context, data));
-  }
-
-  getLogs(level?: LogLevel): LogEntry[] {
-    if (level) {
-      return this.logs.filter((log) => log.level === level);
-    }
-    return [...this.logs];
-  }
-
-  clearLogs(): void {
-    this.logs = [];
+    this.emit(this.createEntry('error', message, context, data));
   }
 }
 

@@ -23,6 +23,33 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS suspended boolean NOT NULL 
 -- ---------------------------------------------------------------------------
 -- 2. RLS HELPERS — suspended accounts are denied data access at the policy level
 -- ---------------------------------------------------------------------------
+-- Drop existing admin policies that depend on the helpers first, so the
+-- helper functions can be dropped/recreated (2BP01 otherwise on live DBs).
+DROP POLICY IF EXISTS "profiles_admin_all" ON public.profiles;
+DROP POLICY IF EXISTS "offices_admin_all" ON public.offices;
+DROP POLICY IF EXISTS "employees_admin_all" ON public.employees;
+DROP POLICY IF EXISTS "salaries_admin_all" ON public.employee_salaries;
+DROP POLICY IF EXISTS "parties_admin_all" ON public.parties;
+DROP POLICY IF EXISTS "transactions_admin_all" ON public.party_transactions;
+DROP POLICY IF EXISTS "office_details_admin_all" ON public.office_details;
+DROP POLICY IF EXISTS "app_config_admin_all" ON public.app_config;
+DROP POLICY IF EXISTS "Admins can manage all budget heads" ON public.budget_heads;
+DROP POLICY IF EXISTS "audit_admin_select" ON public.admin_audit_log;
+DROP POLICY IF EXISTS "employees_office_view" ON public.employees;
+DROP POLICY IF EXISTS "employees_office_manage" ON public.employees;
+DROP POLICY IF EXISTS "salaries_office_view" ON public.employee_salaries;
+DROP POLICY IF EXISTS "salaries_office_manage" ON public.employee_salaries;
+DROP POLICY IF EXISTS "parties_office_view" ON public.parties;
+DROP POLICY IF EXISTS "parties_office_manage" ON public.parties;
+DROP POLICY IF EXISTS "transactions_office_view" ON public.party_transactions;
+DROP POLICY IF EXISTS "transactions_office_manage" ON public.party_transactions;
+DROP POLICY IF EXISTS "office_details_office_view" ON public.office_details;
+DROP POLICY IF EXISTS "office_details_office_manage" ON public.office_details;
+DROP POLICY IF EXISTS "app_config_office_view" ON public.app_config;
+DROP POLICY IF EXISTS "app_config_office_manage" ON public.app_config;
+DROP POLICY IF EXISTS "Users can view budget heads in their office" ON public.budget_heads;
+DROP POLICY IF EXISTS "budget_heads_office_manage" ON public.budget_heads;
+
 DROP FUNCTION IF EXISTS public.is_admin();
 DROP FUNCTION IF EXISTS public.can_access_office(bigint);
 DROP FUNCTION IF EXISTS public.can_access_office(uuid);
@@ -49,6 +76,80 @@ AS $$ SELECT COALESCE(
        (role = 'admin' AND suspended = false) OR (office_id = target_office_id AND suspended = false),
        false)
      FROM public.profiles WHERE id = auth.uid() $$;
+
+-- Recreate the admin policies that were dropped above (guarded, 011 convention)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'profiles_admin_all') THEN
+    CREATE POLICY "profiles_admin_all" ON public.profiles FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'offices' AND policyname = 'offices_admin_all') THEN
+    CREATE POLICY "offices_admin_all" ON public.offices FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'employees' AND policyname = 'employees_admin_all') THEN
+    CREATE POLICY "employees_admin_all" ON public.employees FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'employee_salaries' AND policyname = 'salaries_admin_all') THEN
+    CREATE POLICY "salaries_admin_all" ON public.employee_salaries FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'parties' AND policyname = 'parties_admin_all') THEN
+    CREATE POLICY "parties_admin_all" ON public.parties FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'party_transactions' AND policyname = 'transactions_admin_all') THEN
+    CREATE POLICY "transactions_admin_all" ON public.party_transactions FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'office_details' AND policyname = 'office_details_admin_all') THEN
+    CREATE POLICY "office_details_admin_all" ON public.office_details FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'app_config' AND policyname = 'app_config_admin_all') THEN
+    CREATE POLICY "app_config_admin_all" ON public.app_config FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'budget_heads' AND policyname = 'Admins can manage all budget heads') THEN
+    CREATE POLICY "Admins can manage all budget heads" ON public.budget_heads FOR ALL USING (public.is_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'employees' AND policyname = 'employees_office_view') THEN
+    CREATE POLICY "employees_office_view" ON public.employees FOR SELECT USING (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'employees' AND policyname = 'employees_office_manage') THEN
+    CREATE POLICY "employees_office_manage" ON public.employees FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'employee_salaries' AND policyname = 'salaries_office_view') THEN
+    CREATE POLICY "salaries_office_view" ON public.employee_salaries FOR SELECT USING (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'employee_salaries' AND policyname = 'salaries_office_manage') THEN
+    CREATE POLICY "salaries_office_manage" ON public.employee_salaries FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'parties' AND policyname = 'parties_office_view') THEN
+    CREATE POLICY "parties_office_view" ON public.parties FOR SELECT USING (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'parties' AND policyname = 'parties_office_manage') THEN
+    CREATE POLICY "parties_office_manage" ON public.parties FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'party_transactions' AND policyname = 'transactions_office_view') THEN
+    CREATE POLICY "transactions_office_view" ON public.party_transactions FOR SELECT USING (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'party_transactions' AND policyname = 'transactions_office_manage') THEN
+    CREATE POLICY "transactions_office_manage" ON public.party_transactions FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'office_details' AND policyname = 'office_details_office_view') THEN
+    CREATE POLICY "office_details_office_view" ON public.office_details FOR SELECT USING (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'office_details' AND policyname = 'office_details_office_manage') THEN
+    CREATE POLICY "office_details_office_manage" ON public.office_details FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'app_config' AND policyname = 'app_config_office_view') THEN
+    CREATE POLICY "app_config_office_view" ON public.app_config FOR SELECT USING (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'app_config' AND policyname = 'app_config_office_manage') THEN
+    CREATE POLICY "app_config_office_manage" ON public.app_config FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'budget_heads' AND policyname = 'Users can view budget heads in their office') THEN
+    CREATE POLICY "Users can view budget heads in their office" ON public.budget_heads FOR SELECT USING (public.can_access_office(office_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'budget_heads' AND policyname = 'budget_heads_office_manage') THEN
+    CREATE POLICY "budget_heads_office_manage" ON public.budget_heads FOR ALL USING (public.can_access_office(office_id)) WITH CHECK (public.can_access_office(office_id));
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- 3. AUDIT LOG TABLE + HELPER
@@ -302,6 +403,14 @@ BEGIN
     jsonb_build_object('email_verified', true), now(), now(),
     '', '', '', '', '', ''
   );
+  -- GoTrue requires a companion auth.identities row for the user to be able to sign in.
+  INSERT INTO auth.identities (
+    id, user_id, provider, provider_id, identity_data, last_sign_in_at, created_at, updated_at
+  ) VALUES (
+    gen_random_uuid(), new_id, 'email', new_id::text,
+    jsonb_build_object('sub', new_id::text, 'email', user_email),
+    now(), now(), now()
+  );
   INSERT INTO public.profiles (id, role, office_id, suspended)
   VALUES (new_id, user_role, user_office_id, false);
 
@@ -341,6 +450,14 @@ BEGIN
     jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
     jsonb_build_object('email_verified', false), now(), now(),
     '', '', '', '', '', ''
+  );
+  -- GoTrue requires a companion auth.identities row for the user to be able to sign in.
+  INSERT INTO auth.identities (
+    id, user_id, provider, provider_id, identity_data, last_sign_in_at, created_at, updated_at
+  ) VALUES (
+    gen_random_uuid(), new_id, 'email', new_id::text,
+    jsonb_build_object('sub', new_id::text, 'email', user_email),
+    now(), now(), now()
   );
   INSERT INTO public.profiles (id, role, office_id, suspended)
   VALUES (new_id, user_role, user_office_id, false);

@@ -46,6 +46,29 @@ describe('isActiveInEntryMonth', () => {
     expect(isActiveInEntryMonth('2026-08-15', null, FY, 'August')).toBe(false); // joined 15-08, not July work
     expect(isActiveInEntryMonth('2026-08-15', null, FY, 'September')).toBe(true); // August work, paid in September
   });
+
+  it('handles ISO timestamp format gracefully', () => {
+    expect(isActiveInEntryMonth('2026-08-15T00:00:00.000Z', null, FY, 'September')).toBe(true);
+    expect(isActiveInEntryMonth(null, '2026-08-01T12:00:00Z', FY, 'August')).toBe(true);
+    expect(isActiveInEntryMonth(null, '2026-08-01T12:00:00Z', FY, 'September')).toBe(false);
+  });
+
+  it('handles August transfer scenario', () => {
+    // Transferred on 2026-08-01: worked June and July, not August
+    expect(isActiveInEntryMonth(null, '2026-08-01', FY, 'July')).toBe(true);
+    expect(isActiveInEntryMonth(null, '2026-08-01', FY, 'August')).toBe(true);
+    expect(isActiveInEntryMonth(null, '2026-08-01', FY, 'September')).toBe(false);
+    expect(isActiveInEntryMonth(null, '2026-08-01', FY, 'October')).toBe(false);
+
+    // Transferred mid-August 2026-08-15: worked June, July, and part of August
+    expect(isActiveInEntryMonth(null, '2026-08-15', FY, 'July')).toBe(true);
+    expect(isActiveInEntryMonth(null, '2026-08-15', FY, 'August')).toBe(true);
+    expect(isActiveInEntryMonth(null, '2026-08-15', FY, 'September')).toBe(true);
+    // In Q3 (October slot = September work): posting has ended
+    expect(isActiveInEntryMonth(null, '2026-08-15', FY, 'October')).toBe(false);
+    expect(isActiveInEntryMonth(null, '2026-08-15', FY, 'November')).toBe(false);
+    expect(isActiveInEntryMonth(null, '2026-08-15', FY, 'December')).toBe(false);
+  });
 });
 
 describe('getActiveEntryMonths', () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
 import { X, AlertTriangle } from 'lucide-react';
@@ -33,22 +33,26 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState('');
-  const [lastOpen, setLastOpen] = useState(open);
 
-  if (open !== lastOpen) {
-    setLastOpen(open);
-    if (open) setTyped('');
-  }
+  const handleCancel = useCallback(() => {
+    setTyped('');
+    onCancel();
+  }, [onCancel]);
+
+  const handleConfirm = useCallback(() => {
+    setTyped('');
+    onConfirm();
+  }, [onConfirm]);
 
   useEffect(() => {
     if (open) {
       const onKey = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') onCancel();
+        if (e.key === 'Escape') handleCancel();
       };
       document.addEventListener('keydown', onKey);
       return () => document.removeEventListener('keydown', onKey);
     }
-  }, [open, onCancel]);
+  }, [open, handleCancel]);
 
   if (!open) return null;
 
@@ -56,33 +60,37 @@ export function ConfirmDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4 animate-fade-in"
-      onMouseDown={onCancel}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-[2px] animate-fade-in sm:items-center sm:p-4"
+      onMouseDown={handleCancel}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-scale-in"
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={title}
+        className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl animate-scale-in sm:max-h-[85dvh] sm:rounded-xl dark:border-slate-700 dark:bg-slate-900"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden dark:bg-slate-600" aria-hidden="true" />
+        <div className="flex items-start justify-between gap-4 px-4 py-3 border-b border-slate-100 sm:px-5 sm:py-4 dark:border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
             {(IconProp || danger) && (
               IconProp
                 ? <IconProp size={18} className={danger ? 'text-red-600 shrink-0' : 'text-slate-500 shrink-0'} />
                 : <AlertTriangle size={18} className="text-red-600 shrink-0" />
             )}
-            <h3 className="text-base font-bold text-slate-800">{title}</h3>
+            <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">{title}</h3>
           </div>
           <button
-            onClick={onCancel}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            onClick={handleCancel}
+            className="w-9 h-9 -mr-1 -mt-1 shrink-0 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
             aria-label="Close"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-4">
-          {message && <div className="text-sm text-slate-600">{message}</div>}
+        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+          {message && <div className="text-xs text-slate-600 dark:text-slate-300">{message}</div>}
           {children}
 
           {requireText && (
@@ -100,20 +108,20 @@ export function ConfirmDialog({
           )}
         </div>
 
-        <div className="flex justify-end gap-2 px-5 py-4 bg-slate-50/70 border-t border-slate-100">
-          <button onClick={onCancel} className="btn btn-secondary" disabled={busy}>
+        <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50/70 px-4 pb-safe pt-3 dark:border-slate-800 dark:bg-slate-800/40 sm:flex-row sm:justify-end sm:px-5 sm:py-4">
+          <button onClick={handleCancel} className="btn btn-secondary justify-center" disabled={busy}>
             {cancelLabel}
           </button>
           <button
-            onClick={onConfirm}
+            onClick={handleConfirm}
             disabled={!confirmed || busy}
-            className={danger ? 'btn btn-danger' : 'btn btn-primary'}
+            className={`btn justify-center ${danger ? 'btn-danger' : 'btn-primary'}`}
           >
             {busy ? 'Working...' : confirmLabel}
           </button>
         </div>
       </div>
-      </div>,
+    </div>,
     document.body
   );
 }

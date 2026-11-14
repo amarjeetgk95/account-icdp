@@ -10,13 +10,7 @@ vi.mock('@/core/supabase/client', () => ({
 
 vi.mock('@/core/auth/store', () => ({
   useAuthStore: {
-    getState: () => ({ user: { officeId: 'test-office-123' } }),
-  },
-}));
-
-vi.mock('@/core/stores/ui-store', () => ({
-  useUIStore: {
-    getState: () => ({ activeOfficeId: 'test-office-123' }),
+    getState: () => ({ user: { id: 'user-1' } }),
   },
 }));
 
@@ -38,6 +32,19 @@ describe('salaryRepository.getEmployeeLookupDetails', () => {
       },
     ];
 
+    // Canonical register row for the same person (Establishment-first).
+    const mockCanonical = [
+      {
+        id: 'est-1',
+        name: 'John Doe',
+        pan: 'ABCDE1234F',
+        hrpn_no: 'H1001',
+        join_date: '2023-04-01',
+        transfer_date: null,
+        budget_head_id: 'bh-1',
+      },
+    ];
+
     const mockBudgetHead = { code: '2071', name: 'Salaries & Wages' };
 
     const mockManualSalaries = [
@@ -47,14 +54,19 @@ describe('salaryRepository.getEmployeeLookupDetails', () => {
     ];
 
     const mockFrom = vi.fn((table: string) => {
+      if (table === 'establishment_employees') {
+        return {
+          select: () => ({
+            or: vi.fn().mockResolvedValue({ data: mockCanonical, error: null }),
+          }),
+        };
+      }
       if (table === 'employees') {
         return {
           select: () => ({
-            eq: () => ({
-              or: vi.fn().mockResolvedValue({ data: mockEmployees, error: null }),
-              ilike: () => ({
-                maybeSingle: vi.fn().mockResolvedValue({ data: mockEmployees[0], error: null }),
-              }),
+            or: vi.fn().mockResolvedValue({ data: mockEmployees, error: null }),
+            ilike: () => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: mockEmployees[0], error: null }),
             }),
           }),
         };
@@ -71,25 +83,21 @@ describe('salaryRepository.getEmployeeLookupDetails', () => {
       if (table === 'employee_salaries') {
         return {
           select: () => ({
-            eq: () => ({
-              eq: () => ({
-                eq: vi.fn().mockResolvedValue({ data: mockManualSalaries, error: null }),
-              }),
-            }),
+            eq: vi.fn().mockImplementation(() => ({
+              or: vi.fn().mockResolvedValue({ data: mockManualSalaries, error: null }),
+            })),
           }),
         };
       }
       if (table === 'employee_salary') {
         return {
           select: () => ({
-            eq: () => ({
+            eq: vi.fn().mockImplementation(() => ({
+              or: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+            ilike: () => ({
               eq: () => ({
-                or: vi.fn().mockResolvedValue({ data: [], error: null }),
-              }),
-              ilike: () => ({
-                eq: () => ({
-                  order: vi.fn().mockResolvedValue({ data: [], error: null }),
-                }),
+                order: vi.fn().mockResolvedValue({ data: [], error: null }),
               }),
             }),
           }),
@@ -126,5 +134,85 @@ describe('salaryRepository.getEmployeeLookupDetails', () => {
     expect(result.totals.totalGross).toBe(180000);
     expect(result.totals.daAndOther).toBe(30000);
     expect(result.totals.tax).toBe(15000);
+  });
+
+  it('resolves identity from Establishment when no legacy payroll row exists', async () => {
+    const mockCanonicalOnly = [
+      {
+        id: 'est-9',
+        name: 'Jane Smith',
+        pan: 'XYZAB1234C',
+        hrpn_no: 'H9009',
+        join_date: '2024-04-01',
+        transfer_date: null,
+        budget_head_id: null,
+      },
+    ];
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'establishment_employees') {
+        return {
+          select: () => ({
+            or: vi.fn().mockResolvedValue({ data: mockCanonicalOnly, error: null }),
+          }),
+        };
+      }
+      if (table === 'employees') {
+        return {
+          select: () => ({
+            or: vi.fn().mockResolvedValue({ data: [], error: null }),
+            ilike: () => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'budget_heads') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'employee_salaries') {
+        return {
+          select: () => ({
+            eq: vi.fn().mockImplementation(() => ({
+              or: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          }),
+        };
+      }
+      if (table === 'employee_salary') {
+        return {
+          select: () => ({
+            eq: vi.fn().mockImplementation(() => ({
+              or: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+            ilike: () => ({
+              eq: () => ({
+                order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+      return {};
+    });
+
+    vi.mocked(supabase.from).mockImplementation(mockFrom);
+
+    const result = await salaryRepository.getEmployeeLookupDetails('H9009', 2025);
+
+    expect(result.employeeInfo).toMatchObject({
+      name: 'Jane Smith',
+      pan: 'XYZAB1234C',
+      hprnNo: 'H9009',
+      isRegisteredInMaster: true,
+    });
+    expect(result.matchingEmployees).toHaveLength(1);
+    expect(result.totals.totalGross).toBe(0);
   });
 });

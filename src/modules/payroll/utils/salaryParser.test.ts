@@ -125,4 +125,110 @@ describe('parseSalaryExcel', () => {
     expect(result.records[0].month).toBe('April');
     expect(result.records[0].financialYear).toBe(2025);
   });
+
+  it('recognises TDS as the income-tax column (month-year headers)', () => {
+    const rows = [
+      ['Sr', 'HPRN No', 'Name', 'Aug-25 Gross', 'Aug-25 TDS'],
+      ['1', '100123', 'Employee A', '30000', '5000'],
+    ];
+    const result = parseSalaryExcel(rows);
+    expect(result.monthColumns.length).toBe(2);
+    expect(result.records.length).toBe(1);
+    expect(result.records[0]).toMatchObject({ hprnNo: '100123', grossSalary: 30000, incomeTax: 5000 });
+  });
+
+  it('recognises the HPRN spelling variant for the identity column', () => {
+    const rows = [
+      ['HPRN', 'Name', 'Aug-25 GROSS', 'Aug-25 TDS'],
+      ['100123', 'A', '30000', '5000'],
+    ];
+    const result = parseSalaryExcel(rows);
+    expect(result.hrpnColumnHeader).toBe('HPRN');
+    expect(result.records.length).toBe(1);
+  });
+
+  it('parses single-month bare Gross/TDS files via fallback month/FY', () => {
+    const rows = [
+      ['HPRN No.', 'Employee Name', 'Gross', 'TDS'],
+      ['100123', 'Employee A', '40000', '6000'],
+    ];
+    const result = parseSalaryExcel(rows, { fallbackMonth: 'August', fallbackFinancialYear: 2025 });
+    expect(result.monthColumns.length).toBe(2);
+    expect(result.records.length).toBe(1);
+    expect(result.records[0]).toMatchObject({ month: 'August', financialYear: 2025, grossSalary: 40000, incomeTax: 6000 });
+  });
+
+  it('parses month-only headers using the fallback financial year', () => {
+    const rows = [
+      ['HRPN No.', 'Name', 'August Gross', 'August TDS'],
+      ['100123', 'A', '40000', '6000'],
+    ];
+    const result = parseSalaryExcel(rows, { fallbackFinancialYear: 2025 });
+    expect(result.records.length).toBe(1);
+    expect(result.records[0]).toMatchObject({ financialYear: 2025, grossSalary: 40000, incomeTax: 6000 });
+  });
+
+  it('imports TDS-only files defaulting gross to 0', () => {
+    const rows = [
+      ['HPRN', 'Name', 'Aug-25 TDS'],
+      ['100123', 'A', '5000'],
+    ];
+    const result = parseSalaryExcel(rows);
+    expect(result.records.length).toBe(1);
+    expect(result.records[0]).toMatchObject({ grossSalary: 0, incomeTax: 5000 });
+  });
+
+  it('prefers an explicit HRPN column over an earlier GPF column', () => {
+    // Karmayogi payout sheets carry BOTH identities — keying records by GPF
+    // numbers yields 0 register matches ("import saves nothing").
+    const rows = [
+      ['Sr', 'GPF No', 'Employee Name', 'HRPN No.', 'Aug-25 GROSS', 'Aug-25 TDS'],
+      ['1', 'GPF001', 'Employee A', '100123', '30000', '5000'],
+    ];
+    const result = parseSalaryExcel(rows);
+    expect(result.hrpnColumnHeader).toBe('HRPN No.');
+    expect(result.records.length).toBe(1);
+    expect(result.records[0].hprnNo).toBe('100123');
+  });
+
+  it("parses apostrophe year headers (Aug'25) with the payment-slot shift", () => {
+    const rows = [
+      ['HPRN No', 'Name', "Aug'25 Gross", "Aug'25 TDS"],
+      ['100123', 'A', '30000', '5000'],
+    ];
+    const result = parseSalaryExcel(rows);
+    expect(result.records.length).toBe(1);
+    // Aug-25 work is paid in the September slot, same as "Aug-25" headers.
+    expect(result.records[0]).toMatchObject({ month: 'September', financialYear: 2025 });
+  });
+
+  it('captures the PAN column for fallback matching', () => {
+    const rows = [
+      ['HRPN No.', 'Name', 'PAN', 'Aug-25 GROSS', 'Aug-25 TDS'],
+      ['100123', 'Employee A', 'ABCDE1234F', '40000', '6000'],
+    ];
+    const result = parseSalaryExcel(rows);
+    expect(result.records.length).toBe(1);
+    expect(result.records[0].pan).toBe('ABCDE1234F');
+  });
+
+  it('does not mistake "Company Name" for a PAN column', () => {
+    const rows = [
+      ['HRPN No.', 'Company Name', 'Aug-25 GROSS', 'Aug-25 TDS'],
+      ['100123', 'Acme', '40000', '6000'],
+    ];
+    const result = parseSalaryExcel(rows);
+    expect(result.records.length).toBe(1);
+    expect(result.records[0].pan).toBeUndefined();
+  });
+
+  it('prefers "Employee Name" over an earlier "DDO Name" column', () => {
+    const rows = [
+      ['HRPN No.', 'DDO Name', 'Employee Name', 'Aug-25 GROSS', 'Aug-25 TDS'],
+      ['100123', 'DDO X', 'Employee A', '40000', '6000'],
+    ];
+    const result = parseSalaryExcel(rows);
+    expect(result.records.length).toBe(1);
+    expect(result.records[0].name).toBe('Employee A');
+  });
 });

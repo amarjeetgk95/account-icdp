@@ -78,7 +78,7 @@ export function BudgetHeadManager() {
             <Tag size={16} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
+            <h2 className="text-xs font-bold text-slate-800 dark:text-slate-100">
               {editingId ? 'Edit Budget Head' : 'Add Budget Head'}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -92,7 +92,7 @@ export function BudgetHeadManager() {
       <div className="card-body">
         {status && (
           <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium mb-4 ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium mb-4 ${
               status.type === 'success'
                 ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                 : status.type === 'error'
@@ -113,7 +113,7 @@ export function BudgetHeadManager() {
               id="headCode"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              className="input text-sm"
+              className="input text-xs"
               placeholder="e.g. 2071"
               maxLength={20}
             />
@@ -128,7 +128,7 @@ export function BudgetHeadManager() {
               id="headName"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="input text-sm"
+              className="input text-xs"
               placeholder="e.g. Salaries — Pension Payments"
               maxLength={100}
             />
@@ -177,7 +177,7 @@ export function BudgetHeadManager() {
             />
           ) : (
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-              <table className="table text-sm">
+              <table className="table text-xs">
                 <thead>
                   <tr>
                     <th className="text-left" style={{ width: '110px' }}>Code</th>

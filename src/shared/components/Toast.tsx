@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+type ToastType = 'success' | 'error' | 'warning' | 'info';
 
-export interface ToastMessage {
+interface ToastMessage {
   id: string;
   type: ToastType;
   title?: string;
@@ -17,7 +17,7 @@ interface ToastStore {
   removeToast: (id: string) => void;
 }
 
-export const useToastStore = create<ToastStore>((set) => ({
+const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
   addToast: (toast) => {
     const id = crypto.randomUUID();
@@ -73,7 +73,7 @@ export function ToastContainer() {
         >
           {ICONS[t.type]}
           <div className="flex-1 min-w-0">
-            {t.title && <h4 className="text-sm font-bold leading-tight mb-0.5">{t.title}</h4>}
+            {t.title && <h4 className="text-xs font-bold leading-tight mb-0.5">{t.title}</h4>}
             <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">{t.message}</p>
           </div>
           <button

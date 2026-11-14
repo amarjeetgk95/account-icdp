@@ -39,8 +39,8 @@ interface ModuleDefinition {
   id: string;          // Unique module identifier
   name: string;        // Display name in sidebar
   icon: string;        // Emoji or icon component
-  navGroup: 'main' | 'admin' | 'reports';
-  permissions?: ('admin' | 'office')[];
+  navGroup: 'overview' | 'bills' | 'tds' | 'it-employee' | 'establishment' | 'tools' | 'system' | 'main';
+  permissions?: ('office')[];
   featureFlag?: keyof FeatureFlagKeys;
   routes: RouteDefinition[];
   sidebar?: boolean;   // Show in sidebar (default: true)
@@ -79,7 +79,7 @@ interface ApiError {
 | State Type | Store | Examples |
 |------------|-------|----------|
 | Server data | TanStack Query | Employees, salaries, parties |
-| UI state | Zustand | Sidebar, theme, active office, filters |
+| UI state | Zustand | Sidebar, theme, filters |
 | Form state | React Hook Form | Input values, validation |
 
 Business records are **never** duplicated in Zustand.
@@ -100,8 +100,8 @@ const flags = {
 ## Security Layers
 
 1. **Authentication** — Supabase Auth (email/password)
-2. **Authorization** — Role-based (admin/office) via `profiles` table
-3. **Row Level Security** — PostgreSQL policies enforce data isolation
+2. **Authorization** — Single-office mode: all authenticated users have full access
+3. **Row Level Security** — PostgreSQL policies allow all authenticated users (`auth.uid() IS NOT NULL`)
 4. **Database Constraints** — Unique keys, foreign keys, check constraints
 5. **Backend Validation** — PostgreSQL functions validate business rules
 

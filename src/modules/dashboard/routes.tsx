@@ -1,9 +1,7 @@
-import { lazy } from 'react';
+import { lazyNamedExport } from '@/shared/utilities/lazyNamed';
 import type { RouteDefinition } from '@/shared/types/module';
 
-const DashboardPage = lazy(() =>
-  import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage }))
-);
+const DashboardPage = lazyNamedExport(() => import('./pages/DashboardPage'), 'DashboardPage');
 
 export const dashboardRoutes: RouteDefinition[] = [
   {

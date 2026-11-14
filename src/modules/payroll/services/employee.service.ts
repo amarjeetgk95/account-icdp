@@ -4,7 +4,7 @@ import type { Database } from '@/shared/database.types';
 
 type Employee = Database['public']['Tables']['employees']['Row'];
 
-export class EmployeeService {
+class EmployeeService {
   async listEmployees(): Promise<Employee[]> {
     return employeeRepository.list();
   }

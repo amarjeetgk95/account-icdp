@@ -1,6 +1,9 @@
-import { read, utils, type WorkBook } from 'xlsx';
+import type { WorkBook } from 'xlsx';
+import { supabase } from '@/core/supabase/client';
 import { salaryRepository } from '../repositories/salary.repository';
 import { employeeService } from './employee.service';
+import { toCanonicalHrpn, buildLegacyBridge, resolveLegacyId } from '@/shared/domain/canonicalEmployee';
+import { normalizePan } from '@/shared/domain/employeeIdentity';
 import { parseSalaryExcel } from '../utils/salaryParser';
 import type { ClassifiedSalaryRecord, ParsedSalaryRecord, SalaryImportSummary, SalaryPreviewSummary } from '../validation/salary.schema';
 
@@ -10,19 +13,57 @@ function fileToArray(rows: unknown[][]): string[][] {
   );
 }
 
-export class SalaryService {
+function scoreSheetGrid(grid: unknown[][]): number {
+  // Heuristic: count header-like signals in the first 10 rows so we pick
+  // the payout table over cover/instruction sheets.
+  let score = 0;
+  const limit = Math.min(grid.length, 10);
+  for (let r = 0; r < limit; r++) {
+    const row = grid[r] || [];
+    for (const cell of row as unknown[]) {
+      const s = String(cell ?? '').toLowerCase();
+      if (!s) continue;
+      if (/(hrpn|hprn)/.test(s)) score += 3;
+      else if (s.includes('gross') || s.includes('salary') || s.includes('tds') || s.includes('income tax') || s === 'tax' || s === 'it') score += 2;
+      else if (/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[-/.\s'’`]?\s*\d{2,4}\b/.test(s)) score += 2;
+      else if (/\b(january|february|march|april|june|july|august|september|october|november|december)\b/.test(s)) score += 1;
+    }
+  }
+  return score;
+}
+
+class SalaryService {
   async readExcelRows(file: File): Promise<unknown[][]> {
+    const [{ read, utils }] = await Promise.all([import('xlsx')]);
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook: WorkBook = read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          if (!sheetName) throw new Error('Excel file has no worksheets');
-          const sheet = workbook.Sheets[sheetName];
-          const json = utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' }) as unknown[][];
-          resolve(fileToArray(json));
+          if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+            throw new Error('Excel file has no worksheets');
+          }
+          // Karmayogi downloads sometimes put instructions/cover on the
+          // first sheet and the payout table on a later one. Score every
+          // sheet for salary-table signals and read the best one instead
+          // of blindly taking SheetNames[0]. Every sheet is scored — an
+          // early exit on the first plausible sheet used to lock onto a
+          // cover/instruction sheet and yield 0 records.
+          let bestGrid: unknown[][] | null = null;
+          let bestScore = -1;
+          for (const name of workbook.SheetNames) {
+            const sheet = workbook.Sheets[name];
+            if (!sheet) continue;
+            const json = utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' }) as unknown[][];
+            const score = scoreSheetGrid(json);
+            if (score > bestScore) {
+              bestScore = score;
+              bestGrid = json;
+            }
+          }
+          if (!bestGrid) throw new Error('Excel file has no readable worksheets');
+          resolve(fileToArray(bestGrid));
         } catch (err) {
           reject(err);
         }
@@ -32,9 +73,13 @@ export class SalaryService {
     });
   }
 
-  private deriveFinancialYear(records: ParsedSalaryRecord[]): number {
+  private deriveFinancialYear(records: ParsedSalaryRecord[], fallbackFy?: number): number {
     const counts = new Map<number, number>();
-    for (const r of records) counts.set(r.financialYear, (counts.get(r.financialYear) || 0) + 1);
+    for (const r of records) {
+      if (Number.isFinite(r.financialYear) && r.financialYear > 0) {
+        counts.set(r.financialYear, (counts.get(r.financialYear) || 0) + 1);
+      }
+    }
     let bestFy = 0;
     let bestCount = -1;
     for (const [fyStr, cnt] of counts) {
@@ -44,27 +89,74 @@ export class SalaryService {
         bestFy = fy;
       }
     }
+    if (bestFy > 0) return bestFy;
+    if (fallbackFy != null && Number.isFinite(fallbackFy)) return fallbackFy;
     return bestFy;
   }
 
-  async classifyRows(rows: unknown[][]): Promise<{
+  async classifyRows(
+    rows: unknown[][],
+    fallback?: { month?: string; financialYear?: number }
+  ): Promise<{
     classified: ClassifiedSalaryRecord[];
     summary: Omit<SalaryPreviewSummary, 'fileName'>;
   }> {
-    const parse = parseSalaryExcel(rows);
+    const parse = parseSalaryExcel(rows, {
+      fallbackMonth: fallback?.month,
+      fallbackFinancialYear: fallback?.financialYear,
+    });
     const employees = await employeeService.listEmployees();
-    const empMap = new Map<string, { id: string; name: string | null }>();
-    for (const e of employees) {
-      if (e.hprn_no) empMap.set(e.hprn_no.toLowerCase().trim(), { id: e.id, name: e.name });
+    // Legacy payroll-row bridge (HRPN wins, PAN is the fallback — same rule
+    // as migration 051). `employee_salaries` is still keyed by legacy
+    // `employees.id`, so every match must resolve to a legacy row id.
+    const bridge = buildLegacyBridge(
+      employees.map((e) => ({ id: e.id, hprn_no: e.hprn_no, pan: e.pan }))
+    );
+
+    // Establishment-first identity: the canonical register owns HRPN/PAN
+    // truth post-056. A file HRPN that misses the legacy row directly may
+    // still resolve via the canonical row's PAN (same person, HRPN recorded
+    // differently in the legacy master). A failure here must never break the
+    // import — degrade to legacy-only matching.
+    const canonicalPanByHrpn = new Map<string, string>();
+    try {
+      const { data: canonicalRows, error: canonicalError } = await supabase
+        .from('establishment_employees')
+        .select('hrpn_no, pan');
+      if (!canonicalError && canonicalRows) {
+        for (const r of canonicalRows as Array<{ hrpn_no: string | null; pan: string | null }>) {
+          const hrpn = toCanonicalHrpn(r.hrpn_no);
+          const pan = normalizePan(r.pan);
+          if (hrpn && pan && !canonicalPanByHrpn.has(hrpn)) canonicalPanByHrpn.set(hrpn, pan);
+        }
+      }
+    } catch (err) {
+      console.warn('[SalaryImport] Canonical register lookup failed, matching legacy only:', err);
     }
+
+    const resolveEmployeeId = (rec: ParsedSalaryRecord): string | null => {
+      // 1-2. Direct legacy hit: HRPN first, then the file's PAN column.
+      const direct = resolveLegacyId(rec.hprnNo, rec.pan, bridge);
+      if (direct) return direct;
+      // 3. Canonical hop: file HRPN -> canonical row -> its PAN -> legacy row.
+      const hrpn = toCanonicalHrpn(rec.hprnNo);
+      if (hrpn) {
+        const canonicalPan = canonicalPanByHrpn.get(hrpn);
+        if (canonicalPan) {
+          const viaPan = bridge.byPan.get(canonicalPan);
+          if (viaPan) return viaPan;
+        }
+      }
+      return null;
+    };
 
     const classified: ClassifiedSalaryRecord[] = [];
     for (const rec of parse.records) {
-      const emp = empMap.get(rec.hprnNo.toLowerCase().trim());
+      const employeeId = resolveEmployeeId(rec);
       classified.push({
         ...rec,
-        employeeId: emp?.id ?? null,
-        status: emp ? 'matched' : 'unmatched',
+        employeeId,
+        status: employeeId ? 'matched' : 'unmatched',
       });
     }
 
@@ -94,17 +186,14 @@ export class SalaryService {
     return { classified, summary };
   }
 
-  async previewImport(file: File): Promise<SalaryPreviewSummary & { classified: ClassifiedSalaryRecord[] }> {
+  async importSalary(
+    file: File,
+    fallback?: { month?: string; financialYear?: number }
+  ): Promise<SalaryImportSummary> {
     const rows = await this.readExcelRows(file);
-    const { classified, summary } = await this.classifyRows(rows);
-    return { fileName: file.name, ...summary, classified };
-  }
+    const { classified, summary } = await this.classifyRows(rows, fallback);
 
-  async importSalary(file: File): Promise<SalaryImportSummary> {
-    const rows = await this.readExcelRows(file);
-    const { classified, summary } = await this.classifyRows(rows);
-
-    const financialYear = this.deriveFinancialYear(classified);
+    const financialYear = this.deriveFinancialYear(classified, fallback?.financialYear);
     const matchedCount = classified.filter((c) => c.status === 'matched').length;
 
     let importRecord: { id: string } | null = null;

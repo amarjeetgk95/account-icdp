@@ -2,9 +2,10 @@ import { Fragment, type ReactNode, useState } from 'react';
 import { useBudgetHeadReport } from '../hooks/usePayroll';
 import { useOfficeDetails } from '@/modules/settings/hooks/useOfficeDetails';
 import { ReportPrintArea, DEFAULT_OFFICE, type OfficeDetails } from '@/shared/components/ReportPrintArea';
-import { downloadCsv, formatCurrency, exportBudgetHeadExcel } from '@/shared/utilities';
+import { downloadCsv, formatCurrency } from '@/shared/utilities';
+import { exportBudgetHeadExcel } from '@/shared/utilities/excelExport';
 import { EmptyState } from '@/shared/components/EmptyState';
-import { Download, FileText, FileSpreadsheet, Layers, Landmark, Wallet, Percent, Search, BarChart3 } from 'lucide-react';
+import { Download, FileText, FileSpreadsheet, Layers, Landmark, Wallet, Percent, Search, BarChart3, ChevronDown, Users } from 'lucide-react';
 import type { BudgetHeadReport as BudgetHeadReportType, BudgetHeadQuarterTotals } from '../types';
 
 interface BudgetHeadReportProps {
@@ -23,6 +24,7 @@ const Q_BAND = ['bh-q1-band', 'bh-q2-band', 'bh-q3-band', 'bh-q4-band'];
 
 export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { data: report, isLoading } = useBudgetHeadReport(fy);
   const { details: officeDetails } = useOfficeDetails();
 
@@ -42,17 +44,34 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
       'FY_IT',
       'FY_Net',
     ];
-    const rows: Array<Array<string | number>> = report.groups.map((group) => [
-      group.code ? `${group.code} ${group.name}` : group.name,
-      ...group.quarters.flatMap((q) => {
-        const v = gin(q);
-        return [v.gross, v.it, v.net];
-      }),
-      ...(() => {
-        const v = gin(group.totals);
-        return [v.gross, v.it, v.net];
-      })(),
-    ]);
+    const rows: Array<Array<string | number>> = report.groups.flatMap((group) => {
+      const headRows: Array<Array<string | number>> = [[
+        group.code ? `${group.code} ${group.name}` : group.name,
+        ...group.quarters.flatMap((q) => {
+          const v = gin(q);
+          return [v.gross, v.it, v.net];
+        }),
+        ...(() => {
+          const v = gin(group.totals);
+          return [v.gross, v.it, v.net];
+        })(),
+      ]];
+      // Employee-wise breakup under each head.
+      for (const m of group.members) {
+        const t = gin(m.totals);
+        headRows.push([
+          `  ${m.name} (${m.hprnNo || m.pan})`,
+          ...m.quarters.flatMap((q) => {
+            const v = gin(q);
+            return [v.gross, v.it, v.net];
+          }),
+          t.gross,
+          t.it,
+          t.net,
+        ]);
+      }
+      return headRows;
+    });
     downloadCsv(`BudgetHead_${fyLabel}.csv`, headers, rows);
   };
 
@@ -102,12 +121,27 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
   const totalTax = totals.tax;
   const totalNet = totalGross - totalTax;
 
-  // Filter groups based on search term
+  // Filter groups based on search term (head code/name or member name/PAN/HRPN)
   const filteredGroups = report.groups.filter((g) => {
     if (!searchTerm.trim()) return true;
     const q = searchTerm.toLowerCase();
-    return (g.name && g.name.toLowerCase().includes(q)) || (g.code && g.code.toLowerCase().includes(q));
+    if ((g.name && g.name.toLowerCase().includes(q)) || (g.code && g.code.toLowerCase().includes(q))) return true;
+    return g.members.some(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.pan.toLowerCase().includes(q) ||
+        (m.hprnNo && m.hprnNo.toLowerCase().includes(q))
+    );
   });
+
+  const toggleGroup = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const filteredReport: BudgetHeadReportType = {
     ...report,
@@ -121,7 +155,7 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
         <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Active Budget Heads</p>
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">{report.groups.length}</h3>
+            <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1">{report.groups.length}</h3>
           </div>
           <div className="p-3 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-lg">
             <Landmark size={20} />
@@ -131,7 +165,7 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
         <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Gross + DA</p>
-            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-1">{formatCurrency(totalGross)}</h3>
+            <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1">{formatCurrency(totalGross)}</h3>
           </div>
           <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg">
             <Wallet size={20} />
@@ -141,7 +175,7 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
         <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Income Tax (TDS)</p>
-            <h3 className="text-xl font-bold text-rose-600 dark:text-rose-400 mt-1">{formatCurrency(totalTax)}</h3>
+            <h3 className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-1">{formatCurrency(totalTax)}</h3>
           </div>
           <div className="p-3 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-lg">
             <Percent size={20} />
@@ -151,7 +185,7 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
         <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Net Salary Disbursed</p>
-            <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{formatCurrency(totalNet)}</h3>
+            <h3 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-1">{formatCurrency(totalNet)}</h3>
           </div>
           <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg">
             <Layers size={20} />
@@ -165,7 +199,7 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
           <button onClick={printReport} className="btn btn-secondary btn-sm text-xs">
             <FileText size={14} className="mr-1" /> Print
           </button>
-          <button onClick={handleExcelExport} className="btn btn-emerald btn-sm text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+          <button onClick={handleExcelExport} className="btn btn-sm text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
             <FileSpreadsheet size={14} className="mr-1" /> Export Formatted Excel
           </button>
           <button onClick={exportCSV} className="btn btn-outline btn-sm text-xs">
@@ -212,7 +246,7 @@ export function BudgetHeadReport({ fy }: BudgetHeadReportProps) {
         <div className="space-y-8">
           <section>
             <TableCaption>Table 1 — Quarter-wise Summary (Gross / IT)</TableCaption>
-            <QuarterSummaryTable report={filteredReport} />
+            <QuarterSummaryTable report={filteredReport} expanded={expanded} onToggle={toggleGroup} />
           </section>
 
           <section>
@@ -239,7 +273,7 @@ const formatZero = (val: number) => (val === 0 ? <span className="text-slate-300
 const headLabel = (code: string | null, name: string) => (
   <div className="flex items-center gap-2">
     {code && (
-      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+      <span className="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
         {code}
       </span>
     )}
@@ -253,7 +287,15 @@ function TableCaption({ children }: { children: ReactNode }) {
 
 /* ---------- Table 1 : Quarter-wise Summary ---------- */
 
-function QuarterSummaryTable({ report }: { report: BudgetHeadReportType }) {
+function QuarterSummaryTable({
+  report,
+  expanded,
+  onToggle,
+}: {
+  report: BudgetHeadReportType;
+  expanded: Set<string>;
+  onToggle: (key: string) => void;
+}) {
   return (
     <div className="overflow-x-auto rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
       <table className="bh-table">
@@ -290,11 +332,32 @@ function QuarterSummaryTable({ report }: { report: BudgetHeadReportType }) {
               </td>
             </tr>
           ) : (
-            report.groups.map((group) => {
+            report.groups.flatMap((group) => {
+              const key = group.code || '__unassigned__';
               const fy = gin(group.totals);
-              return (
-                <tr key={group.code || '__unassigned__'} className="bh-row">
-                  <td className="bh-head-col">{headLabel(group.code, group.name)}</td>
+              const isOpen = expanded.has(key);
+              const headRow = (
+                <tr key={key} className="bh-row">
+                  <td className="bh-head-col">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onToggle(key)}
+                        title={isOpen ? 'Collapse employee breakup' : 'Expand employee breakup'}
+                        aria-expanded={isOpen}
+                        className="no-print shrink-0 w-5 h-5 inline-flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <ChevronDown size={13} className={`transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                      </button>
+                      {headLabel(group.code, group.name)}
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800"
+                        title={`${group.members.length} employee(s) under this head`}
+                      >
+                        <Users size={10} /> {group.members.length}
+                      </span>
+                    </div>
+                  </td>
                   {group.quarters.map((q, qi) => {
                     const v = gin(q);
                     return (
@@ -308,6 +371,34 @@ function QuarterSummaryTable({ report }: { report: BudgetHeadReportType }) {
                   <td className="bh-fy text-rose-600 dark:text-rose-400 font-semibold">{formatCurrency(fy.it)}</td>
                 </tr>
               );
+              if (!isOpen) return [headRow];
+              const memberRows = group.members.map((m, mi) => {
+                const t = gin(m.totals);
+                return (
+                  <tr key={`${key}::${mi}`} className="bh-row bg-slate-50/60 dark:bg-slate-800/30">
+                    <td className="bh-head-col">
+                      <div className="pl-7">
+                        <div className="text-xs font-semibold text-slate-700 dark:text-slate-200">{m.name}</div>
+                        <div className="font-mono text-xs text-slate-400 dark:text-slate-500">
+                          {m.hprnNo || '—'} · {m.pan}
+                        </div>
+                      </div>
+                    </td>
+                    {m.quarters.map((q, qi) => {
+                      const v = gin(q);
+                      return (
+                        <Fragment key={qi}>
+                          <td className={`${Q_CELL[qi]} bh-qs text-xs`}>{formatZero(v.gross)}</td>
+                          <td className={`${Q_CELL[qi]} text-rose-600 dark:text-rose-400 font-medium text-xs`}>{formatZero(v.it)}</td>
+                        </Fragment>
+                      );
+                    })}
+                    <td className="bh-fy bh-qs font-semibold text-xs">{formatCurrency(t.gross)}</td>
+                    <td className="bh-fy text-rose-600 dark:text-rose-400 font-semibold text-xs">{formatCurrency(t.it)}</td>
+                  </tr>
+                );
+              });
+              return [headRow, ...memberRows];
             })
           )}
         </tbody>

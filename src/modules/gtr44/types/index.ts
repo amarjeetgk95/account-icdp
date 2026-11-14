@@ -9,6 +9,8 @@ export interface GTR44Entry {
   amount: number;
   sanctionOrderNo?: string;
   sanctionDate?: string;
+  // EDP Code determines where the voucher amount is placed on Page 1 of GTR-44
+  edpCode?: string;
 }
 
 export interface GTR44ObjectExpenditureItem {
@@ -16,13 +18,44 @@ export interface GTR44ObjectExpenditureItem {
   name: string;
   edpCode: string;
   amount: number | null;
+  nameGu?: string;
+  isActive?: boolean;
+  sortOrder?: number;
 }
 
 export interface GTR44Deductions {
-  tds9510: number; // Income Tax (9510)
-  surcharge9520: number; // Surcharge on Income Tax (9520)
-  sd9600: number; // Security Deposits (9600)
-  misc9910: number; // Miscellaneous Recoveries (9910)
+  // Income Tax deducted directly against the relevant EDP Code (9510)
+  incomeTax: number;
+  // GST Deduction - details reflected in the checklist on the third page
+  gst: number;
+  gstCgst: number;
+  gstSgst: number;
+  gstNo?: string;
+  // Legacy fields kept for backward compatibility with previously saved bills
+  tds9510?: number;
+  surcharge9520?: number;
+  sd9600?: number;
+  misc9910?: number;
+}
+
+export interface GTR44BudgetHead {
+  id: string;
+  name: string;
+  headChargeableCode: string;
+  sector: string;
+  demandNo: string;
+  demandNoLabel: string;
+  majorHead: string;
+  subMajorHead: string;
+  minorHead: string;
+  subHead: string;
+  detailedHead: string;
+  isActive?: boolean;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  grantRef?: string;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface GTR44FormData {
@@ -58,7 +91,7 @@ export interface GTR44FormData {
   schemeNo: string; // 4-6 digits (e.g. "110263")
 
   // Head Chargeable
-  headChargeableCode: string; // 10 digits
+  headChargeableCode: string; // 13 digits
   sector: string;
   demandNoLabel: string;
   majorHead: string;
@@ -66,6 +99,9 @@ export interface GTR44FormData {
   minorHead: string;
   subHead: string;
   detailedHead: string; // 2 digits (e.g. "00")
+
+  // Budget Head selected in the second wizard tab
+  budgetHeadId: string;
 
   // Budget Grant & Expenditure
   budgetGrantYearFrom: string; // e.g. "2026"
@@ -116,6 +152,16 @@ export interface GTR44FormData {
   agObjectedAmount: number | null;
   agAuditorName: string;
   agSuperintendentName: string;
+
+  // Office & Treasury Master — Phase 1 extension (optional for backward compat with old bills)
+  officeAddress?: string;
+  drawingOfficerName?: string;
+  drawingOfficerDesignation?: string;
+  messengerName?: string;
+  treasuryPayMode?: 'TC' | 'Cheque' | string;
+  defaultMonthOf?: string;
+  auditorName?: string;
+  superintendentName?: string;
 }
 
 // Sub-Vouchers and Deductions for database persistence and hooks
@@ -128,19 +174,28 @@ export interface SubVoucher {
   sanctionDate?: string;
   amount: number;
   attachmentUrl?: string;
+  edpCode?: string;
 }
 
-export interface Deduction {
+interface Deduction {
   code: string;
   label: string;
   amount: number;
 }
 
-export interface EDPCode {
+export interface GTR44EDPCode {
   code: string;
   nameEn: string;
   nameGu: string;
-  edpNumber?: string;
+  type: 'expenditure' | 'deduction';
+  isActive?: boolean;
+}
+
+export interface GTR44DeductionTemplate {
+  code: string;
+  label: string;
+  rateDefault?: number;
+  isGst?: boolean;
 }
 
 export interface GTR44Bill {
@@ -177,25 +232,32 @@ export interface GTR44Bill {
   formData: GTR44FormData;
 }
 
-// Backwards compatibility legacy aliases
-export type GTR44Settings = Partial<GTR44FormData> & {
-  officeAddress?: string;
-  departmentName?: string;
-  financialYear?: string;
-  budgetCode?: string;
-  budgetDescription?: string;
-  objectHead?: string;
-  ytdExpenditure?: number;
-  fontFamily?: string;
-  outwardNo?: string;
-  cardexNo?: string;
-  sanctionOrderRef?: string;
-  payeeDesignation?: string;
-  lineHeight?: number;
-  paragraphSpacing?: number;
-  tablePadding?: number;
-  textJustify?: boolean;
-  textIndent?: number;
-};
+export interface GTR44NumberingSettings {
+  billPrefix: string;
+  voucherPrefix: string;
+  financialYearReset: boolean;
+  nextBillSeq: number;
+  nextVoucherSeq: number;
+}
 
-export type GTR44TransactionRecord = GTR44Entry;
+export interface GTR44PrintSettings {
+  cert1Text: string;
+  cert2Text: string;
+  cert3Text: string;
+  cert4Text: string;
+  cert5Text: string;
+  cert6Text: string;
+  cert7Text: string;
+  cert8Text: string;
+  cert9Text: string;
+  showPaperTypos: boolean;
+  signaturePlaceholders: {
+    drawingOfficer: string;
+    messenger: string;
+    countersigning: string;
+  };
+  stampImageUrl?: string;
+  footerNote?: string;
+  gujaratiFontEnabled?: boolean;
+}
+

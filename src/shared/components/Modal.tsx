@@ -62,7 +62,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
       onMouseDown={closeOnBackdropClick ? onClose : undefined}
       role="dialog"
       aria-modal="true"
@@ -73,11 +73,13 @@ export function Modal({
         aria-hidden="true"
       />
       <div
-        className={`relative w-full ${MAX_WIDTH_MAP[maxWidth]} bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-scale-in ${className}`}
+        className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl animate-scale-in sm:max-h-[85dvh] sm:rounded-2xl dark:border-slate-700 dark:bg-slate-900 ${MAX_WIDTH_MAP[maxWidth]} ${className}`}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
-          <h3 id="modal-title" className="text-base font-heading font-semibold text-slate-800 dark:text-slate-100">
+        {/* Mobile sheet grab handle */}
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden dark:bg-slate-600" aria-hidden="true" />
+        <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 sm:px-5 sm:py-4">
+          <h3 id="modal-title" className="text-xs font-heading font-semibold text-slate-800 dark:text-slate-100">
             {title}
           </h3>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -85,7 +87,7 @@ export function Modal({
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full inline-flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className="w-9 h-9 sm:w-8 sm:h-8 rounded-full inline-flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 aria-label="Close"
               >
                 <X size={18} />
@@ -93,21 +95,21 @@ export function Modal({
             )}
           </div>
         </div>
-        <div className="px-5 py-5 max-h-[65vh] overflow-y-auto">{children}</div>
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:py-5">{children}</div>
         {footerActions && footerActions.length > 0 && (
-          <div className="flex justify-end gap-2 px-5 py-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex flex-col gap-2 border-t border-slate-200 bg-slate-50/70 px-4 pb-safe pt-3 dark:border-slate-700 dark:bg-slate-800/40 sm:flex-row sm:justify-end sm:px-5 sm:py-4">
             {footerActions.map((action, idx) => (
               <button
                 key={idx}
                 onClick={action.onClick}
                 disabled={action.disabled}
-                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                className={`btn justify-center ${
                   action.variant === 'danger'
-                    ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+                    ? 'btn-danger'
                     : action.variant === 'secondary'
-                    ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 focus:ring-slate-500'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    ? 'btn-secondary'
+                    : 'btn-primary'
+                }`}
               >
                 {action.icon}
                 {action.label}

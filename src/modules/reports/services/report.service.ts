@@ -1,7 +1,7 @@
 import { reportRepository } from '../repositories/report.repository';
 import type { YearlyReport } from '../types';
 
-export class ReportService {
+class ReportService {
   async getFinancialYears(): Promise<number[]> {
     return reportRepository.getFinancialYears();
   }

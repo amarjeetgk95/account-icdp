@@ -13,8 +13,22 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
-        heading: ['Outfit', 'sans-serif'],
+        // ── Uniform type system ──
+        // Screen UI: Inter (body + all figures) + Outfit (headings only).
+        // Gujarati UI & Formal: Lohit Gujarati.
+        // Figures (amounts / counts / dates): Inter + lining tabular figures
+        // (see body / .num in src/index.css). NEVER font-mono: mono is for
+        // codes only (PAN / HRPN / bill & EDP numbers), where fixed-width
+        // glyphs aid verification. Print areas are isolated in index.css
+        // (.report-print-area) and keep their own pt stack.
+        sans: ['Inter', '"Lohit Gujarati"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        heading: ['Outfit', 'Inter', '"Lohit Gujarati"', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', '"Liberation Mono"', 'monospace'],
+        guj: ['"Lohit Gujarati"', 'Shruti', 'serif'],
+        // Latin/digits come from Inter; the browser falls back to Lohit
+        // Gujarati per-glyph for Gujarati characters (Inter has no Gujarati).
+        gujSans: ['Inter', '"Lohit Gujarati"', 'Shruti', 'sans-serif'],
+        plexGu: ['"Lohit Gujarati"', 'sans-serif'],
       },
       colors: {
         border: "rgb(var(--border))",
@@ -50,16 +64,33 @@ export default {
           DEFAULT: "rgb(var(--card))",
           foreground: "rgb(var(--card-foreground))",
         },
+        earning: {
+          DEFAULT: "rgb(var(--earning))",
+          light: "rgb(var(--earning-light))",
+          border: "#A7F3D0",
+        },
+        deduction: {
+          DEFAULT: "rgb(var(--deduction))",
+          light: "rgb(var(--deduction-light))",
+          border: "#FECDD3",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      spacing: {
+        gtrBox: "11px",
+      },
+      borderWidth: {
+        l4: "4px",
+      },
       boxShadow: {
         xs: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
         card: "var(--shadow-card)",
         float: "var(--shadow-float)",
+        gtr: "0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.08)",
       },
     },
   },

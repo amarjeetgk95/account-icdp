@@ -1,23 +1,19 @@
-const CACHE_NAME = 'icdp-cache-v2';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/logo.svg',
-];
-
+// Retired service worker: unregister itself, evict every cache, take no control.
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE_NAME).then(() => self.skipWaiting()));
+  e.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(self.clients.claim());
+  e.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.registration.unregister())
+      .then(() => self.clients.claim())
+      .catch(() => self.clients.claim())
+  );
 });
 
-self.addEventListener('fetch', (e) => {
-  if (e.request.method === 'GET') {
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request, { ignoreSearch: true }))
-    );
-  }
+self.addEventListener('fetch', () => {
+  // Intentionally no interception: always go to network.
 });

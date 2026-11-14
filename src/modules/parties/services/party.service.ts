@@ -10,12 +10,21 @@ import type {
 const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
-export class PartyService {
+class PartyService {
   private validateTransactionInput(input: TransactionInput): string | null {
     if (!input.partyName?.trim()) return 'Party name is required';
     if (!input.billNo?.trim()) return 'Bill number is required';
-    if (!input.date) return 'Date is required';
-    if (!input.amount || input.amount <= 0) return 'Amount must be greater than 0';
+    const sDate = input.settlementDate || input.date;
+    if (!sDate) return 'Settlement date is required';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sDate)) return 'Invalid settlement date (expected YYYY-MM-DD)';
+    if (input.invoiceDate && !/^\d{4}-\d{2}-\d{2}$/.test(input.invoiceDate)) {
+      return 'Invalid invoice date (expected YYYY-MM-DD)';
+    }
+    if (!(input.amount > 0)) return 'Amount must be greater than 0';
+    if ((input.cgst || 0) < 0 || (input.sgst || 0) < 0 || (input.igst || 0) < 0) {
+      return 'GST amounts cannot be negative';
+    }
+    if ((input.incomeTax || 0) < 0) return 'Income tax cannot be negative';
     const gst = input.gstNo?.trim().toUpperCase() || '';
     if (gst && !GST_REGEX.test(gst)) return 'Invalid GST number format';
     const pan = input.panNo?.trim().toUpperCase() || '';
@@ -27,8 +36,8 @@ export class PartyService {
     return partyRepository.listParties();
   }
 
-  async listTransactions(): Promise<PartyTransaction[]> {
-    return partyRepository.listTransactions();
+  async listTransactions(fy?: number): Promise<PartyTransaction[]> {
+    return partyRepository.listTransactions(fy);
   }
 
   async saveTransaction(input: TransactionInput): Promise<string> {
@@ -74,18 +83,18 @@ export class PartyService {
     };
   }
 
-  async getGSTReport(fy: number, quarter: string, officeId?: string): Promise<GSTReport> {
+  async getGSTReport(fy: number, quarter: string): Promise<GSTReport> {
     if (!['Q1', 'Q2', 'Q3', 'Q4', 'Yearly'].includes(quarter)) {
       throw new Error('Invalid quarter');
     }
-    return partyRepository.getGSTReport(fy, quarter, officeId);
+    return partyRepository.getGSTReport(fy, quarter);
   }
 
-  async getIncomeTaxReport(fy: number, quarter: string, officeId?: string): Promise<IncomeTaxReport> {
+  async getIncomeTaxReport(fy: number, quarter: string): Promise<IncomeTaxReport> {
     if (!['Q1', 'Q2', 'Q3', 'Q4', 'Yearly'].includes(quarter)) {
       throw new Error('Invalid quarter');
     }
-    return partyRepository.getIncomeTaxReport(fy, quarter, officeId);
+    return partyRepository.getIncomeTaxReport(fy, quarter);
   }
 }
 

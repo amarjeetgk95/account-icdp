@@ -10,7 +10,6 @@ vi.mock('@/core/supabase/client', () => ({
 vi.mock('@/core/stores/ui-store', () => ({
   useUIStore: {
     getState: () => ({
-      activeOfficeId: 'test-office',
       activeFinancialYear: 2025,
     }),
   },
@@ -19,7 +18,7 @@ vi.mock('@/core/stores/ui-store', () => ({
 vi.mock('@/core/auth/store', () => ({
   useAuthStore: {
     getState: () => ({
-      user: { officeId: 'test-office' },
+      user: { id: 'user-1' },
     }),
   },
 }));
@@ -81,11 +80,10 @@ describe('PayrollService.getEntryMonth', () => {
     expect(MONTHS).toContain(month);
   });
 
-  it('returns the month before the current financial year month', () => {
+  it('returns the current entry month in the financial year calendar', () => {
     const service = new PayrollService();
     const now = new Date();
-    const fyMonthIdx = (now.getMonth() - 3 + 12) % 12;
-    const expectedEntryIdx = (fyMonthIdx - 1 + 12) % 12;
+    const expectedEntryIdx = (now.getMonth() - 3 + 12) % 12;
     const expected = MONTHS[expectedEntryIdx];
     expect(service.getEntryMonth()).toBe(expected);
   });
@@ -115,12 +113,12 @@ describe('PayrollService.getPreviousMonthData', () => {
     expect(mockGetPrev).toHaveBeenCalledWith('December', 2025);
   });
 
-  it('handles FY boundary (April -> March)', async () => {
+  it('handles FY boundary (April 2025 -> March 2024)', async () => {
     mockGetPrev.mockResolvedValue([]);
 
     await service.getPreviousMonthData('April', 2025);
 
-    expect(mockGetPrev).toHaveBeenCalledWith('March', 2025);
+    expect(mockGetPrev).toHaveBeenCalledWith('March', 2024);
   });
 
   it('returns the result from the repository', async () => {
@@ -153,12 +151,12 @@ describe('PayrollService.getEmployeePreviousMonthData', () => {
     expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'July', 2025);
   });
 
-  it('handles FY boundary correctly', async () => {
+  it('handles FY boundary correctly (April 2025 -> March 2024)', async () => {
     mockGetEmp.mockResolvedValue({ gross: 30000, da: 5000, tax: 2000 });
 
     await service.getEmployeePreviousMonthData('emp-123', 'April', 2025);
 
-    expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'March', 2025);
+    expect(mockGetEmp).toHaveBeenCalledWith('emp-123', 'March', 2024);
   });
 
   it('returns null when no data found', async () => {
@@ -232,9 +230,9 @@ describe('PayrollService.getQuarterReport', () => {
     const mockResult = { fy: 2025, fyLabel: '2025-26', ayLabel: '2026-27', quarter: 'Q1', labels: [], rows: [] };
     mockReport.mockResolvedValue(mockResult);
 
-    const result = await service.getQuarterReport('Q1', 2025, 'office-1');
+    const result = await service.getQuarterReport('Q1', 2025);
 
-    expect(mockReport).toHaveBeenCalledWith('Q1', 2025, 'office-1');
+    expect(mockReport).toHaveBeenCalledWith('Q1', 2025);
     expect(result).toEqual(mockResult);
   });
 });
@@ -247,21 +245,13 @@ describe('PayrollService.getBudgetHeadReport', () => {
     vi.clearAllMocks();
   });
 
-  it('passes fy and office to repository', async () => {
+  it('passes fy to repository', async () => {
     const mockResult = { fy: 2025, fyLabel: '2025-26', monthLabels: [], groups: [], totals: { gross: 0, da: 0, tax: 0, net: 0 } };
     mockReport.mockResolvedValue(mockResult);
 
-    const result = await service.getBudgetHeadReport(2025, 'office-1');
+    const result = await service.getBudgetHeadReport(2025);
 
-    expect(mockReport).toHaveBeenCalledWith(2025, 'office-1');
+    expect(mockReport).toHaveBeenCalledWith(2025);
     expect(result).toEqual(mockResult);
-  });
-
-  it('uses default office when none provided', async () => {
-    mockReport.mockResolvedValue({ fy: 2025, fyLabel: '2025-26', monthLabels: [], groups: [], totals: { gross: 0, da: 0, tax: 0, net: 0 } });
-
-    await service.getBudgetHeadReport(2025);
-
-    expect(mockReport).toHaveBeenCalledWith(2025, undefined);
   });
 });

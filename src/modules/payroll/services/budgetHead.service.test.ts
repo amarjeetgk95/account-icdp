@@ -8,13 +8,13 @@ vi.mock('@/core/supabase/client', () => ({
 
 vi.mock('@/core/stores/ui-store', () => ({
   useUIStore: {
-    getState: () => ({ activeOfficeId: 'test-office', activeFinancialYear: 2025 }),
+    getState: () => ({ activeFinancialYear: 2025 }),
   },
 }));
 
 vi.mock('@/core/auth/store', () => ({
   useAuthStore: {
-    getState: () => ({ user: { officeId: 'test-office' } }),
+    getState: () => ({ user: { id: 'user-1' } }),
   },
 }));
 
@@ -37,7 +37,7 @@ describe('BudgetHeadService', () => {
   });
 
   it('lists budget heads via repository', async () => {
-    const heads = [{ id: 'h-1', office_id: 'test-office', code: '2071', name: 'Salaries', sort_order: 0 }];
+    const heads = [{ id: 'h-1', code: '2071', name: 'Salaries', sort_order: 0 }];
     mockRepo.list.mockResolvedValue(heads);
 
     await expect(service.listBudgetHeads()).resolves.toEqual(heads);
@@ -59,7 +59,7 @@ describe('BudgetHeadService', () => {
   });
 
   it('creates with trimmed code and name', async () => {
-    const created = { id: 'h-1', office_id: 'test-office', code: '2071', name: 'Salaries', sort_order: 0 };
+    const created = { id: 'h-1', code: '2071', name: 'Salaries', sort_order: 0 };
     mockRepo.create.mockResolvedValue(created);
 
     await expect(service.addBudgetHead({ code: ' 2071 ', name: '  Salaries  ' })).resolves.toEqual(created);
@@ -74,7 +74,7 @@ describe('BudgetHeadService', () => {
   });
 
   it('updates an existing head', async () => {
-    const updated = { id: 'h-1', office_id: 'test-office', code: '2071', name: 'Salaries & Wages', sort_order: 0 };
+    const updated = { id: 'h-1', code: '2071', name: 'Salaries & Wages', sort_order: 0 };
     mockRepo.update.mockResolvedValue(updated);
 
     await expect(service.updateBudgetHead({ id: 'h-1', code: '2071', name: 'Salaries & Wages' })).resolves.toEqual(updated);

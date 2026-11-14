@@ -2,36 +2,26 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { partyService } from '../services/party.service';
 import { officeService } from '@/modules/settings/services/office.service';
 import { useUIStore } from '@/core/stores/ui-store';
-import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 import type { TransactionInput } from '../types';
 
 export function useOfficeDetails() {
-  const officeId = useActiveOfficeId();
-
   return useQuery({
-    queryKey: ['office-details', officeId],
+    queryKey: ['office-details'],
     queryFn: () => officeService.getDetails(),
-    enabled: !!officeId,
   });
 }
 
 export function useParties() {
-  const officeId = useActiveOfficeId();
-
   return useQuery({
-    queryKey: ['parties-list', officeId],
+    queryKey: ['parties-list'],
     queryFn: () => partyService.listParties(),
-    enabled: !!officeId,
   });
 }
 
-export function useTransactions() {
-  const officeId = useActiveOfficeId();
-
+export function useTransactions(fy?: number) {
   return useQuery({
-    queryKey: ['parties-transactions', officeId],
-    queryFn: () => partyService.listTransactions(),
-    enabled: !!officeId,
+    queryKey: ['parties-transactions', fy ?? 'all'],
+    queryFn: () => partyService.listTransactions(fy),
   });
 }
 
@@ -98,22 +88,20 @@ export function useDeleteTransaction() {
 
 export function useGSTReport(quarter: string) {
   const fy = useUIStore((state) => state.activeFinancialYear);
-  const officeId = useActiveOfficeId();
 
   return useQuery({
-    queryKey: ['parties-gst-report', quarter, fy, officeId],
+    queryKey: ['parties-gst-report', quarter, fy],
     queryFn: () => partyService.getGSTReport(fy, quarter),
-    enabled: !!quarter && !!officeId,
+    enabled: !!quarter,
   });
 }
 
 export function useIncomeTaxReport(quarter: string) {
   const fy = useUIStore((state) => state.activeFinancialYear);
-  const officeId = useActiveOfficeId();
 
   return useQuery({
-    queryKey: ['parties-it-report', quarter, fy, officeId],
+    queryKey: ['parties-it-report', quarter, fy],
     queryFn: () => partyService.getIncomeTaxReport(fy, quarter),
-    enabled: !!quarter && !!officeId,
+    enabled: !!quarter,
   });
 }

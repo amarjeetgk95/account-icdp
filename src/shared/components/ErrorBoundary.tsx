@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { isChunkLoadError, reloadForChunkUpdate } from '@/shared/utilities';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -25,6 +26,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     // Log to console in all environments
     console.error('[ICDP] Unhandled error:', error, errorInfo);
+
+    // Stale chunk after a deploy: reload once to fetch the new bundle
+    if (isChunkLoadError(error)) {
+      reloadForChunkUpdate();
+    }
   }
 
   private handleReload = (): void => {
@@ -60,10 +66,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </svg>
           </div>
 
-          <h1 className="text-xl font-bold text-slate-800 mb-2">
+          <h1 className="text-xs font-bold text-slate-800 mb-2">
             Something went wrong
           </h1>
-          <p className="text-slate-500 text-sm mb-8">
+          <p className="text-slate-500 text-xs mb-8">
             An unexpected error occurred. Please try reloading the page or
             return to the home screen.
           </p>

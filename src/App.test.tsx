@@ -21,28 +21,26 @@ vi.mock('@/core/supabase/client', () => ({
 import App from './App';
 import { useAuthStore } from '@/core/auth/store';
 
-describe('App as Admin', () => {
+describe('App single-office', () => {
   beforeEach(() => {
     useAuthStore.setState({
       user: {
-        id: 'admin-1',
-        email: 'admin@test.com',
-        role: 'admin',
-        officeId: null,
+        id: 'user-1',
+        email: 'user@test.com',
       },
       isRoleLoaded: true,
       isLoading: false,
     });
   });
 
-  it('renders App for admin without crashing', async () => {
+  it('renders App without crashing', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/admin/overview']}>
+        <MemoryRouter initialEntries={['/dashboard']}>
           <App />
         </MemoryRouter>
       </QueryClientProvider>

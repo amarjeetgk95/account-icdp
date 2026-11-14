@@ -21,7 +21,7 @@ import {
 const REMEMBER_EMAIL_KEY = 'icdp_remembered_email';
 
 const fieldClasses =
-  'pl-9 h-11 rounded-lg bg-slate-50/60 border-slate-200 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all duration-200 ' +
+  'pl-9 h-11 rounded-lg bg-slate-50/60 border-slate-200 text-xs shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all duration-200 ' +
   'focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-indigo-500/25 focus-visible:border-indigo-400/70';
 
 export function LoginForm() {
@@ -91,7 +91,7 @@ export function LoginForm() {
             id="email"
             type="email"
             {...register('email')}
-            placeholder="office@example.com"
+            placeholder="username@email.com"
             autoComplete="email"
             className={fieldClasses}
           />
@@ -195,7 +195,7 @@ export function LoginForm() {
       <Button
         type="submit"
         disabled={loginMutation.isPending}
-        className="group w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-sm rounded-lg transition-all duration-200 flex items-center justify-center gap-2 mt-2 shadow-sm shadow-indigo-600/20 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2"
+        className="group w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs rounded-lg transition-all duration-200 flex items-center justify-center gap-2 mt-2 shadow-sm shadow-indigo-600/20 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2"
       >
         {loginMutation.isPending ? (
           <>

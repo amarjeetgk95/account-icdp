@@ -1,39 +1,15 @@
-import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
+import { lazyNamedExport } from '@/shared/utilities/lazyNamed';
 import type { RouteDefinition } from '@/shared/types/module';
 
-const GTR44ModulePage = lazy(() =>
-  import('./pages/GTR44ModulePage').then((m) => ({ default: m.GTR44ModulePage }))
-);
-const GTR44ListPage = lazy(() =>
-  import('./pages/GTR44ListPage').then((m) => ({ default: m.GTR44ListPage }))
-);
-const GTR44CreatePage = lazy(() =>
-  import('./pages/GTR44CreatePage').then((m) => ({ default: m.GTR44CreatePage }))
-);
-const GTR44ViewPage = lazy(() =>
-  import('./pages/GTR44ViewPage').then((m) => ({ default: m.GTR44ViewPage }))
-);
+const GTR44ListPage = lazyNamedExport(() => import('./pages/GTR44ListPage'), 'GTR44ListPage');
+const GTR44CreatePage = lazyNamedExport(() => import('./pages/GTR44CreatePage'), 'GTR44CreatePage');
+const GTR44ViewPage = lazyNamedExport(() => import('./pages/GTR44ViewPage'), 'GTR44ViewPage');
 
 export const gtr44Routes: RouteDefinition[] = [
   {
-    path: '/gtr44',
-    element: <GTR44ModulePage />,
-  },
-  {
-    path: '/gtr44/entry',
-    element: <GTR44ModulePage />,
-  },
-  {
-    path: '/gtr44/preview',
-    element: <GTR44ModulePage />,
-  },
-  {
-    path: '/gtr44/pdf',
-    element: <GTR44ModulePage />,
-  },
-  {
     path: '/gtr44/settings',
-    element: <GTR44ModulePage />,
+    element: <Navigate to="/settings/gtr44" replace />,
   },
   {
     path: '/gtr44/list',

@@ -1,3 +1,5 @@
+import type { GSTReport, IncomeTaxReport } from '@/modules/parties/types';
+
 export interface YearlyEmployeeRecord {
   name: string;
   pan: string;
@@ -28,6 +30,8 @@ export interface YearlyReport {
   ayLabel: string;
   employees: YearlyEmployeeRecord[];
   vendors: YearlyVendorRecord[];
+  gstReport: GSTReport;
+  itReport: IncomeTaxReport;
   summary: {
     totalEmployees: number;
     totalGross: number;

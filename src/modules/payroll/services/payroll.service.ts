@@ -25,8 +25,8 @@ export class PayrollService {
 
   getEntryMonth(): string {
     const now = new Date();
-    const monthIdx = (now.getMonth() - 3 + 12) % 12;
-    const entryIdx = (monthIdx - 1 + 12) % 12;
+    // Month 0 is April in the financial year calendar
+    const entryIdx = (now.getMonth() - 3 + 12) % 12;
     return MONTHS[entryIdx];
   }
 
@@ -36,7 +36,7 @@ export class PayrollService {
 
   async saveBulkSalary(
     month: string,
-    entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>,
+    entries: Array<{ employeeId: string | number; gross: number; da: number; tax: number }>,
     fy: number
   ): Promise<string> {
     this.validateEntries(entries);
@@ -50,7 +50,8 @@ export class PayrollService {
     const monthIdx = MONTHS.indexOf(month);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
-    return payrollRepository.getPreviousMonthSalaries(prevMonth, fy);
+    const targetFy = monthIdx === 0 ? fy - 1 : fy;
+    return payrollRepository.getPreviousMonthSalaries(prevMonth, targetFy);
   }
 
   async clearMonth(month: string, fy: number): Promise<number> {
@@ -61,22 +62,23 @@ export class PayrollService {
     const monthIdx = MONTHS.indexOf(month);
     if (monthIdx === -1) throw new Error('Invalid month');
     const prevMonth = MONTHS[(monthIdx - 1 + 12) % 12];
-    return payrollRepository.getEmployeeSalaryForMonth(employeeId, prevMonth, fy);
+    const targetFy = monthIdx === 0 ? fy - 1 : fy;
+    return payrollRepository.getEmployeeSalaryForMonth(employeeId, prevMonth, targetFy);
   }
 
-  async getQuarterReport(quarter: string, fy: number, officeId?: string): Promise<QuarterReport> {
+  async getQuarterReport(quarter: string, fy: number): Promise<QuarterReport> {
     if (!['Q1', 'Q2', 'Q3', 'Q4'].includes(quarter)) {
       throw new Error('Invalid quarter');
     }
-    return payrollRepository.getQuarterReport(quarter, fy, officeId);
+    return payrollRepository.getQuarterReport(quarter, fy);
   }
 
-  async getBudgetHeadReport(fy: number, officeId?: string): Promise<BudgetHeadReport> {
-    return payrollRepository.getBudgetHeadReport(fy, officeId);
+  async getBudgetHeadReport(fy: number): Promise<BudgetHeadReport> {
+    return payrollRepository.getBudgetHeadReport(fy);
   }
 
   private validateEntries(
-    entries: Array<{ employeeId: string; gross: number; da: number; tax: number }>
+    entries: Array<{ employeeId: string | number; gross: number; da: number; tax: number }>
   ): void {
     for (const entry of entries) {
       if (!entry.employeeId) throw new Error('Employee ID is required');

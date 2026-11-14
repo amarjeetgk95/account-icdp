@@ -1,16 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { budgetHeadService } from '../services/budgetHead.service';
-import { useActiveOfficeId } from '@/shared/hooks/useActiveOfficeId';
 import type { BudgetHeadInput } from '../types';
 
 export function useBudgetHeads() {
   const queryClient = useQueryClient();
-  const officeId = useActiveOfficeId();
 
   const headsQuery = useQuery({
-    queryKey: ['budget-heads', officeId],
+    queryKey: ['budget-heads'],
     queryFn: () => budgetHeadService.listBudgetHeads(),
-    enabled: !!officeId,
   });
 
   const invalidate = () => {
